@@ -12,12 +12,16 @@ root = "src"
 [rules.no-comments]
 severity = "warn"
 allow-doc-comments = true
+
+[rules.no-logic-in-barrel]
+severity = "warn"
 "#;
 
 #[derive(Debug, Clone)]
 pub struct ProjectConfig {
     pub root: PathBuf,
     pub no_comments: CommentsRuleConfig,
+    pub no_logic_in_barrel: RuleConfig,
 }
 
 impl Default for ProjectConfig {
@@ -25,6 +29,7 @@ impl Default for ProjectConfig {
         Self {
             root: PathBuf::from("."),
             no_comments: CommentsRuleConfig::default(),
+            no_logic_in_barrel: RuleConfig::default(),
         }
     }
 }
@@ -37,6 +42,7 @@ impl ProjectConfig {
             return Ok(Self {
                 root: absolutize(workspace, root),
                 no_comments: config.no_comments(),
+                no_logic_in_barrel: config.no_logic_in_barrel(),
             });
         }
 
@@ -48,6 +54,7 @@ impl ProjectConfig {
             return Ok(Self {
                 root: absolutize(workspace, root.to_path_buf()),
                 no_comments: config.no_comments(),
+                no_logic_in_barrel: config.no_logic_in_barrel(),
             });
         }
 
@@ -56,12 +63,14 @@ impl ProjectConfig {
             return Ok(Self {
                 root: source_root,
                 no_comments: config.no_comments(),
+                no_logic_in_barrel: config.no_logic_in_barrel(),
             });
         }
 
         Ok(Self {
             root: workspace.to_path_buf(),
             no_comments: config.no_comments(),
+            no_logic_in_barrel: config.no_logic_in_barrel(),
         })
     }
 }
@@ -106,6 +115,19 @@ impl Default for CommentsRuleConfig {
         Self {
             severity: Severity::Warn,
             allow_doc_comments: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RuleConfig {
+    pub severity: Severity,
+}
+
+impl Default for RuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
         }
     }
 }
@@ -158,6 +180,14 @@ impl RawConfig {
             .map(RawRuleConfig::to_comments_config)
             .unwrap_or_default()
     }
+
+    fn no_logic_in_barrel(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-logic-in-barrel"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -182,6 +212,17 @@ impl RawRuleConfig {
             Self::Options(options) => CommentsRuleConfig {
                 severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
                 allow_doc_comments: options.allow_doc_comments.unwrap_or(true),
+            },
+        }
+    }
+
+    fn to_rule_config(&self) -> RuleConfig {
+        match self {
+            Self::Severity(severity) => RuleConfig {
+                severity: Severity::from_str(severity),
+            },
+            Self::Options(options) => RuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
             },
         }
     }
