@@ -35,6 +35,7 @@ fn lint_workspace(
         &files,
         project_config.no_comments,
         project_config.no_logic_in_barrel,
+        project_config.no_default_export,
     )?;
     let report = report::Report::new(files, violations);
 

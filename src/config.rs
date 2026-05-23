@@ -15,6 +15,9 @@ allow-doc-comments = true
 
 [rules.no-logic-in-barrel]
 severity = "warn"
+
+[rules.no-default-export]
+severity = "warn"
 "#;
 
 #[derive(Debug, Clone)]
@@ -22,6 +25,7 @@ pub struct ProjectConfig {
     pub root: PathBuf,
     pub no_comments: CommentsRuleConfig,
     pub no_logic_in_barrel: RuleConfig,
+    pub no_default_export: RuleConfig,
 }
 
 impl Default for ProjectConfig {
@@ -30,6 +34,7 @@ impl Default for ProjectConfig {
             root: PathBuf::from("."),
             no_comments: CommentsRuleConfig::default(),
             no_logic_in_barrel: RuleConfig::default(),
+            no_default_export: RuleConfig::default(),
         }
     }
 }
@@ -43,6 +48,7 @@ impl ProjectConfig {
                 root: absolutize(workspace, root),
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
+                no_default_export: config.no_default_export(),
             });
         }
 
@@ -55,6 +61,7 @@ impl ProjectConfig {
                 root: absolutize(workspace, root.to_path_buf()),
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
+                no_default_export: config.no_default_export(),
             });
         }
 
@@ -64,6 +71,7 @@ impl ProjectConfig {
                 root: source_root,
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
+                no_default_export: config.no_default_export(),
             });
         }
 
@@ -71,6 +79,7 @@ impl ProjectConfig {
             root: workspace.to_path_buf(),
             no_comments: config.no_comments(),
             no_logic_in_barrel: config.no_logic_in_barrel(),
+            no_default_export: config.no_default_export(),
         })
     }
 }
@@ -185,6 +194,14 @@ impl RawConfig {
         self.rules
             .as_ref()
             .and_then(|rules| rules.get("no-logic-in-barrel"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn no_default_export(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-default-export"))
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
