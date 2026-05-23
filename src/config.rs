@@ -18,6 +18,10 @@ severity = "warn"
 
 [rules.no-default-export]
 severity = "warn"
+
+[rules.no-large-file]
+severity = "warn"
+max-lines = 500
 "#;
 
 #[derive(Debug, Clone)]
@@ -26,6 +30,7 @@ pub struct ProjectConfig {
     pub no_comments: CommentsRuleConfig,
     pub no_logic_in_barrel: RuleConfig,
     pub no_default_export: RuleConfig,
+    pub no_large_file: FileLengthRuleConfig,
 }
 
 impl Default for ProjectConfig {
@@ -35,6 +40,7 @@ impl Default for ProjectConfig {
             no_comments: CommentsRuleConfig::default(),
             no_logic_in_barrel: RuleConfig::default(),
             no_default_export: RuleConfig::default(),
+            no_large_file: FileLengthRuleConfig::default(),
         }
     }
 }
@@ -49,6 +55,7 @@ impl ProjectConfig {
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
+                no_large_file: config.no_large_file(),
             });
         }
 
@@ -62,6 +69,7 @@ impl ProjectConfig {
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
+                no_large_file: config.no_large_file(),
             });
         }
 
@@ -72,6 +80,7 @@ impl ProjectConfig {
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
+                no_large_file: config.no_large_file(),
             });
         }
 
@@ -80,6 +89,7 @@ impl ProjectConfig {
             no_comments: config.no_comments(),
             no_logic_in_barrel: config.no_logic_in_barrel(),
             no_default_export: config.no_default_export(),
+            no_large_file: config.no_large_file(),
         })
     }
 }
@@ -137,6 +147,21 @@ impl Default for RuleConfig {
     fn default() -> Self {
         Self {
             severity: Severity::Warn,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FileLengthRuleConfig {
+    pub severity: Severity,
+    pub max_lines: usize,
+}
+
+impl Default for FileLengthRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            max_lines: 300,
         }
     }
 }
@@ -205,6 +230,14 @@ impl RawConfig {
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
+
+    fn no_large_file(&self) -> FileLengthRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-large-file"))
+            .map(RawRuleConfig::to_file_length_config)
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -243,6 +276,19 @@ impl RawRuleConfig {
             },
         }
     }
+
+    fn to_file_length_config(&self) -> FileLengthRuleConfig {
+        match self {
+            Self::Severity(severity) => FileLengthRuleConfig {
+                severity: Severity::from_str(severity),
+                max_lines: 300,
+            },
+            Self::Options(options) => FileLengthRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                max_lines: options.max_lines.unwrap_or(300),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -250,4 +296,6 @@ struct RawRuleOptions {
     severity: Option<String>,
     #[serde(rename = "allow-doc-comments")]
     allow_doc_comments: Option<bool>,
+    #[serde(rename = "max-lines")]
+    max_lines: Option<usize>,
 }

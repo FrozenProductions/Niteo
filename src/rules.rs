@@ -1,12 +1,13 @@
 mod no_comments;
 mod no_default_export;
+mod no_large_file;
 mod no_logic_in_barrel;
 
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::PathBuf;
 
-use crate::config::{CommentsRuleConfig, RuleConfig, Severity};
+use crate::config::{CommentsRuleConfig, FileLengthRuleConfig, RuleConfig, Severity};
 
 #[derive(Debug, Clone)]
 pub struct Violation {
@@ -22,12 +23,14 @@ pub fn check_files(
     no_comments: CommentsRuleConfig,
     no_logic_in_barrel: RuleConfig,
     no_default_export: RuleConfig,
+    no_large_file: FileLengthRuleConfig,
 ) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
 
     if !no_comments.severity.is_enabled()
         && !no_logic_in_barrel.severity.is_enabled()
         && !no_default_export.severity.is_enabled()
+        && !no_large_file.severity.is_enabled()
     {
         return Ok(violations);
     }
@@ -51,6 +54,9 @@ pub fn check_files(
                 &source,
                 &no_default_export,
             ));
+        }
+        if no_large_file.severity.is_enabled() {
+            violations.extend(no_large_file::check_file(file, &source, &no_large_file));
         }
     }
 
