@@ -38,6 +38,7 @@ fn lint_workspace(
         project_config.no_default_export,
         project_config.no_inline_types,
         project_config.max_file_exports,
+        project_config.no_upward_import,
         project_config.no_large_file,
     )?;
     let report = report::Report::new(files, violations);

@@ -26,6 +26,10 @@ severity = "warn"
 severity = "warn"
 max-exports = 10
 
+[rules.no-upward-import]
+severity = "warn"
+max-depth = 0
+
 [rules.no-large-file]
 severity = "warn"
 max-lines = 500
@@ -39,6 +43,7 @@ pub struct ProjectConfig {
     pub no_default_export: RuleConfig,
     pub no_inline_types: RuleConfig,
     pub max_file_exports: FileExportsRuleConfig,
+    pub no_upward_import: UpwardImportRuleConfig,
     pub no_large_file: FileLengthRuleConfig,
 }
 
@@ -51,6 +56,7 @@ impl Default for ProjectConfig {
             no_default_export: RuleConfig::default(),
             no_inline_types: RuleConfig::default(),
             max_file_exports: FileExportsRuleConfig::default(),
+            no_upward_import: UpwardImportRuleConfig::default(),
             no_large_file: FileLengthRuleConfig::default(),
         }
     }
@@ -68,6 +74,7 @@ impl ProjectConfig {
                 no_default_export: config.no_default_export(),
                 no_inline_types: config.no_inline_types(),
                 max_file_exports: config.max_file_exports(),
+                no_upward_import: config.no_upward_import(),
                 no_large_file: config.no_large_file(),
             });
         }
@@ -84,6 +91,7 @@ impl ProjectConfig {
                 no_default_export: config.no_default_export(),
                 no_inline_types: config.no_inline_types(),
                 max_file_exports: config.max_file_exports(),
+                no_upward_import: config.no_upward_import(),
                 no_large_file: config.no_large_file(),
             });
         }
@@ -97,6 +105,7 @@ impl ProjectConfig {
                 no_default_export: config.no_default_export(),
                 no_inline_types: config.no_inline_types(),
                 max_file_exports: config.max_file_exports(),
+                no_upward_import: config.no_upward_import(),
                 no_large_file: config.no_large_file(),
             });
         }
@@ -108,6 +117,7 @@ impl ProjectConfig {
             no_default_export: config.no_default_export(),
             no_inline_types: config.no_inline_types(),
             max_file_exports: config.max_file_exports(),
+            no_upward_import: config.no_upward_import(),
             no_large_file: config.no_large_file(),
         })
     }
@@ -200,6 +210,21 @@ impl Default for FileExportsRuleConfig {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct UpwardImportRuleConfig {
+    pub severity: Severity,
+    pub max_depth: usize,
+}
+
+impl Default for UpwardImportRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            max_depth: 0,
+        }
+    }
+}
+
 pub fn write_default_config(workspace: &Path) -> Result<PathBuf> {
     let config_path = workspace.join(CONFIG_FILE_NAME);
     if config_path.exists() {
@@ -281,6 +306,14 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn no_upward_import(&self) -> UpwardImportRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-upward-import"))
+            .map(RawRuleConfig::to_upward_import_config)
+            .unwrap_or_default()
+    }
+
     fn no_large_file(&self) -> FileLengthRuleConfig {
         self.rules
             .as_ref()
@@ -352,6 +385,19 @@ impl RawRuleConfig {
             },
         }
     }
+
+    fn to_upward_import_config(&self) -> UpwardImportRuleConfig {
+        match self {
+            Self::Severity(severity) => UpwardImportRuleConfig {
+                severity: Severity::from_str(severity),
+                max_depth: 0,
+            },
+            Self::Options(options) => UpwardImportRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                max_depth: options.max_depth.unwrap_or(0),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -363,4 +409,6 @@ struct RawRuleOptions {
     max_lines: Option<usize>,
     #[serde(rename = "max-exports")]
     max_exports: Option<usize>,
+    #[serde(rename = "max-depth")]
+    max_depth: Option<usize>,
 }
