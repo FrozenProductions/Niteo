@@ -80,6 +80,9 @@ severity = "error"
 [rules.no-interface]
 severity = "warn"
 allow-declaration-merging = true
+
+[rules.no-mutable-exports]
+severity = "warn"
 "#;
 
 #[derive(Debug, Clone)]
@@ -104,6 +107,7 @@ pub struct ProjectConfig {
     pub min_files_per_directory: MinFilesPerDirectoryRuleConfig,
     pub no_empty_interface: RuleConfig,
     pub no_interface: NoInterfaceRuleConfig,
+    pub no_mutable_exports: RuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -130,6 +134,7 @@ impl Default for ProjectConfig {
             min_files_per_directory: MinFilesPerDirectoryRuleConfig::default(),
             no_empty_interface: RuleConfig::default(),
             no_interface: NoInterfaceRuleConfig::default(),
+            no_mutable_exports: RuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -161,6 +166,7 @@ impl ProjectConfig {
                 min_files_per_directory: config.min_files_per_directory(),
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
+                no_mutable_exports: config.no_mutable_exports(),
                 gitignore: config.gitignore(),
             });
         }
@@ -191,6 +197,7 @@ impl ProjectConfig {
                 min_files_per_directory: config.min_files_per_directory(),
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
+                no_mutable_exports: config.no_mutable_exports(),
                 gitignore: config.gitignore(),
             });
         }
@@ -218,6 +225,7 @@ impl ProjectConfig {
                 min_files_per_directory: config.min_files_per_directory(),
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
+                no_mutable_exports: config.no_mutable_exports(),
                 gitignore: config.gitignore(),
             });
         }
@@ -243,6 +251,7 @@ impl ProjectConfig {
             min_files_per_directory: config.min_files_per_directory(),
             no_empty_interface: config.no_empty_interface(),
             no_interface: config.no_interface(),
+            no_mutable_exports: config.no_mutable_exports(),
             gitignore: config.gitignore(),
         })
     }
@@ -654,6 +663,14 @@ impl RawConfig {
             .as_ref()
             .and_then(|rules| rules.get("no-interface"))
             .map(RawRuleConfig::to_no_interface_config)
+            .unwrap_or_default()
+    }
+
+    fn no_mutable_exports(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-mutable-exports"))
+            .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
 
