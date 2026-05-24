@@ -1,6 +1,6 @@
 mod max_file_exports;
-mod max_files_per_directory;
-mod min_files_per_directory;
+mod max_items_per_directory;
+mod min_items_per_directory;
 mod no_barrel_files;
 mod no_comments;
 mod no_console;
@@ -25,7 +25,7 @@ use std::path::PathBuf;
 
 use crate::config::{
     CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig,
-    MaxFilesPerDirectoryRuleConfig, MinFilesPerDirectoryRuleConfig, NoConsoleRuleConfig,
+    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoConsoleRuleConfig,
     NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
     NoLogicInDomainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
 };
@@ -196,24 +196,24 @@ pub fn check_duplicate_file_names(
     no_duplicate_file_names::check_files(files, &no_duplicate_file_names)
 }
 
-pub fn check_max_files_per_directory(
+pub fn check_max_items_per_directory(
     root: &std::path::Path,
-    config: MaxFilesPerDirectoryRuleConfig,
+    config: MaxItemsPerDirectoryRuleConfig,
 ) -> Vec<Violation> {
     if !config.severity.is_enabled() {
         return Vec::new();
     }
 
-    max_files_per_directory::check_directories(root, &config)
+    max_items_per_directory::check_directories(root, &config)
 }
 
-pub fn check_min_files_per_directory(
+pub fn check_min_items_per_directory(
     root: &std::path::Path,
-    config: MinFilesPerDirectoryRuleConfig,
+    config: MinItemsPerDirectoryRuleConfig,
 ) -> Vec<Violation> {
     if !config.severity.is_enabled() {
         return Vec::new();
     }
 
-    min_files_per_directory::check_directories(root, &config)
+    min_items_per_directory::check_directories(root, &config)
 }

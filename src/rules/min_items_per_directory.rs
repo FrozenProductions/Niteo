@@ -1,11 +1,12 @@
 use std::fs;
 use std::path::Path;
 
-use crate::config::{MaxFilesPerDirectoryRuleConfig, Severity};
+use crate::config::{MinItemsPerDirectoryRuleConfig, Severity};
 use crate::rules::Violation;
 
-const RULE_NAME: &str = "max-files-per-directory";
-const MESSAGE: &str = "Directory exceeds the maximum number of files. Consider sub-grouping.";
+const RULE_NAME: &str = "min-items-per-directory";
+const MESSAGE: &str =
+    "Directory has too few source items. Consider merging with a sibling or removing.";
 
 const IGNORED_DIRECTORIES: &[&str] = &[
     "node_modules",
@@ -22,12 +23,18 @@ const IGNORED_DIRECTORIES: &[&str] = &[
 
 const SOURCE_EXTENSIONS: &[&str] = &["ts", "tsx"];
 
-pub fn check_directories(root: &Path, config: &MaxFilesPerDirectoryRuleConfig) -> Vec<Violation> {
+pub fn check_directories(root: &Path, config: &MinItemsPerDirectoryRuleConfig) -> Vec<Violation> {
     let mut violations = Vec::new();
     let mut ignored = config.ignore_dirs.clone();
     ignored.extend(IGNORED_DIRECTORIES.iter().map(|s| s.to_string()));
 
-    walk_directories(root, &ignored, config.max_files, &mut violations);
+    walk_directories(
+        root,
+        &ignored,
+        config.min_items,
+        config.count_folders,
+        &mut violations,
+    );
 
     violations
 }
@@ -35,7 +42,8 @@ pub fn check_directories(root: &Path, config: &MaxFilesPerDirectoryRuleConfig) -
 fn walk_directories(
     current: &Path,
     ignored: &[String],
-    max_files: usize,
+    min_items: usize,
+    count_folders: bool,
     violations: &mut Vec<Violation>,
 ) {
     let entries = match fs::read_dir(current) {
@@ -44,7 +52,7 @@ fn walk_directories(
     };
 
     let mut subdirs = Vec::new();
-    let mut file_count = 0;
+    let mut item_count = 0;
 
     for entry in entries {
         let entry = match entry {
@@ -60,23 +68,27 @@ fn walk_directories(
             if ignored.iter().any(|ign| name_str == *ign) {
                 continue;
             }
+            if count_folders {
+                item_count += 1;
+            }
             subdirs.push(path);
         } else if is_source_file(&path) {
-            file_count += 1;
+            item_count += 1;
         }
     }
 
-    if file_count > max_files {
+    if item_count > 0 && item_count < min_items {
         violations.push(directory_violation(
             current,
             Severity::Warn,
-            file_count,
-            max_files,
+            item_count,
+            min_items,
+            count_folders,
         ));
     }
 
     for subdir in subdirs {
-        walk_directories(&subdir, ignored, max_files, violations);
+        walk_directories(&subdir, ignored, min_items, count_folders, violations);
     }
 }
 
@@ -90,9 +102,11 @@ fn is_source_file(path: &Path) -> bool {
 fn directory_violation(
     dir: &Path,
     severity: Severity,
-    file_count: usize,
-    max_files: usize,
+    item_count: usize,
+    min_items: usize,
+    count_folders: bool,
 ) -> Violation {
+    let kind = if count_folders { "items" } else { "files" };
     Violation {
         file: dir.to_path_buf(),
         line: None,
@@ -101,8 +115,8 @@ fn directory_violation(
         message: MESSAGE,
         severity,
         detail: Some(format!(
-            "Contains {} TypeScript files (limit: {}).",
-            file_count, max_files
+            "Contains {} TypeScript {} (minimum: {}).",
+            item_count, kind, min_items
         )),
         subject: None,
     }
@@ -113,11 +127,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn violation_detail_shows_count_and_limit() {
-        let v = directory_violation(Path::new("src"), Severity::Warn, 15, 10);
+    fn violation_detail_shows_count_and_minimum_files_only() {
+        let v = directory_violation(Path::new("src"), Severity::Warn, 1, 3, false);
         assert_eq!(
             v.detail,
-            Some("Contains 15 TypeScript files (limit: 10).".to_string())
+            Some("Contains 1 TypeScript files (minimum: 3).".to_string())
+        );
+    }
+
+    #[test]
+    fn violation_detail_shows_count_and_minimum_including_folders() {
+        let v = directory_violation(Path::new("src"), Severity::Warn, 2, 5, true);
+        assert_eq!(
+            v.detail,
+            Some("Contains 2 TypeScript items (minimum: 5).".to_string())
         );
     }
 }

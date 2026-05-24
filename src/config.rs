@@ -64,15 +64,17 @@ ignore-dirs = []
 severity = "warn"
 ignore-names = []
 
-[rules.max-files-per-directory]
+[rules.max-items-per-directory]
 severity = "warn"
-max-files = 20
+max-items = 20
 ignore-dirs = []
+count-folders = false
 
-[rules.min-files-per-directory]
+[rules.min-items-per-directory]
 severity = "warn"
-min-files = 3
+min-items = 3
 ignore-dirs = []
+count-folders = false
 
 [rules.no-empty-interface]
 severity = "error"
@@ -103,8 +105,8 @@ pub struct ProjectConfig {
     pub no_logic_in_domain: NoLogicInDomainRuleConfig,
     pub no_empty_directories: NoEmptyDirectoriesRuleConfig,
     pub no_duplicate_file_names: NoDuplicateFileNamesRuleConfig,
-    pub max_files_per_directory: MaxFilesPerDirectoryRuleConfig,
-    pub min_files_per_directory: MinFilesPerDirectoryRuleConfig,
+    pub max_items_per_directory: MaxItemsPerDirectoryRuleConfig,
+    pub min_items_per_directory: MinItemsPerDirectoryRuleConfig,
     pub no_empty_interface: RuleConfig,
     pub no_interface: NoInterfaceRuleConfig,
     pub no_mutable_exports: RuleConfig,
@@ -130,8 +132,8 @@ impl Default for ProjectConfig {
             no_logic_in_domain: NoLogicInDomainRuleConfig::default(),
             no_empty_directories: NoEmptyDirectoriesRuleConfig::default(),
             no_duplicate_file_names: NoDuplicateFileNamesRuleConfig::default(),
-            max_files_per_directory: MaxFilesPerDirectoryRuleConfig::default(),
-            min_files_per_directory: MinFilesPerDirectoryRuleConfig::default(),
+            max_items_per_directory: MaxItemsPerDirectoryRuleConfig::default(),
+            min_items_per_directory: MinItemsPerDirectoryRuleConfig::default(),
             no_empty_interface: RuleConfig::default(),
             no_interface: NoInterfaceRuleConfig::default(),
             no_mutable_exports: RuleConfig::default(),
@@ -162,8 +164,8 @@ impl ProjectConfig {
                 no_logic_in_domain: config.no_logic_in_domain(),
                 no_empty_directories: config.no_empty_directories(),
                 no_duplicate_file_names: config.no_duplicate_file_names(),
-                max_files_per_directory: config.max_files_per_directory(),
-                min_files_per_directory: config.min_files_per_directory(),
+                max_items_per_directory: config.max_items_per_directory(),
+                min_items_per_directory: config.min_items_per_directory(),
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
@@ -193,8 +195,8 @@ impl ProjectConfig {
                 no_logic_in_domain: config.no_logic_in_domain(),
                 no_empty_directories: config.no_empty_directories(),
                 no_duplicate_file_names: config.no_duplicate_file_names(),
-                max_files_per_directory: config.max_files_per_directory(),
-                min_files_per_directory: config.min_files_per_directory(),
+                max_items_per_directory: config.max_items_per_directory(),
+                min_items_per_directory: config.min_items_per_directory(),
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
@@ -221,8 +223,8 @@ impl ProjectConfig {
                 no_logic_in_domain: config.no_logic_in_domain(),
                 no_empty_directories: config.no_empty_directories(),
                 no_duplicate_file_names: config.no_duplicate_file_names(),
-                max_files_per_directory: config.max_files_per_directory(),
-                min_files_per_directory: config.min_files_per_directory(),
+                max_items_per_directory: config.max_items_per_directory(),
+                min_items_per_directory: config.min_items_per_directory(),
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
@@ -247,8 +249,8 @@ impl ProjectConfig {
             no_logic_in_domain: config.no_logic_in_domain(),
             no_empty_directories: config.no_empty_directories(),
             no_duplicate_file_names: config.no_duplicate_file_names(),
-            max_files_per_directory: config.max_files_per_directory(),
-            min_files_per_directory: config.min_files_per_directory(),
+            max_items_per_directory: config.max_items_per_directory(),
+            min_items_per_directory: config.min_items_per_directory(),
             no_empty_interface: config.no_empty_interface(),
             no_interface: config.no_interface(),
             no_mutable_exports: config.no_mutable_exports(),
@@ -393,35 +395,39 @@ impl Default for NoDuplicateFileNamesRuleConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct MaxFilesPerDirectoryRuleConfig {
+pub struct MaxItemsPerDirectoryRuleConfig {
     pub severity: Severity,
-    pub max_files: usize,
+    pub max_items: usize,
     pub ignore_dirs: Vec<String>,
+    pub count_folders: bool,
 }
 
-impl Default for MaxFilesPerDirectoryRuleConfig {
+impl Default for MaxItemsPerDirectoryRuleConfig {
     fn default() -> Self {
         Self {
             severity: Severity::Warn,
-            max_files: 20,
+            max_items: 20,
             ignore_dirs: vec![],
+            count_folders: false,
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct MinFilesPerDirectoryRuleConfig {
+pub struct MinItemsPerDirectoryRuleConfig {
     pub severity: Severity,
-    pub min_files: usize,
+    pub min_items: usize,
     pub ignore_dirs: Vec<String>,
+    pub count_folders: bool,
 }
 
-impl Default for MinFilesPerDirectoryRuleConfig {
+impl Default for MinItemsPerDirectoryRuleConfig {
     fn default() -> Self {
         Self {
             severity: Severity::Warn,
-            min_files: 3,
+            min_items: 3,
             ignore_dirs: vec![],
+            count_folders: false,
         }
     }
 }
@@ -634,19 +640,19 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
-    fn max_files_per_directory(&self) -> MaxFilesPerDirectoryRuleConfig {
+    fn max_items_per_directory(&self) -> MaxItemsPerDirectoryRuleConfig {
         self.rules
             .as_ref()
-            .and_then(|rules| rules.get("max-files-per-directory"))
-            .map(RawRuleConfig::to_max_files_per_directory_config)
+            .and_then(|rules| rules.get("max-items-per-directory"))
+            .map(RawRuleConfig::to_max_items_per_directory_config)
             .unwrap_or_default()
     }
 
-    fn min_files_per_directory(&self) -> MinFilesPerDirectoryRuleConfig {
+    fn min_items_per_directory(&self) -> MinItemsPerDirectoryRuleConfig {
         self.rules
             .as_ref()
-            .and_then(|rules| rules.get("min-files-per-directory"))
-            .map(RawRuleConfig::to_min_files_per_directory_config)
+            .and_then(|rules| rules.get("min-items-per-directory"))
+            .map(RawRuleConfig::to_min_items_per_directory_config)
             .unwrap_or_default()
     }
 
@@ -816,32 +822,36 @@ impl RawRuleConfig {
         }
     }
 
-    fn to_max_files_per_directory_config(&self) -> MaxFilesPerDirectoryRuleConfig {
+    fn to_max_items_per_directory_config(&self) -> MaxItemsPerDirectoryRuleConfig {
         match self {
-            Self::Severity(severity) => MaxFilesPerDirectoryRuleConfig {
+            Self::Severity(severity) => MaxItemsPerDirectoryRuleConfig {
                 severity: Severity::from_str(severity),
-                max_files: 20,
+                max_items: 20,
                 ignore_dirs: vec![],
+                count_folders: false,
             },
-            Self::Options(options) => MaxFilesPerDirectoryRuleConfig {
+            Self::Options(options) => MaxItemsPerDirectoryRuleConfig {
                 severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                max_files: options.max_files.unwrap_or(20),
+                max_items: options.max_items.unwrap_or(20),
                 ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
+                count_folders: options.count_folders.unwrap_or(false),
             },
         }
     }
 
-    fn to_min_files_per_directory_config(&self) -> MinFilesPerDirectoryRuleConfig {
+    fn to_min_items_per_directory_config(&self) -> MinItemsPerDirectoryRuleConfig {
         match self {
-            Self::Severity(severity) => MinFilesPerDirectoryRuleConfig {
+            Self::Severity(severity) => MinItemsPerDirectoryRuleConfig {
                 severity: Severity::from_str(severity),
-                min_files: 3,
+                min_items: 3,
                 ignore_dirs: vec![],
+                count_folders: false,
             },
-            Self::Options(options) => MinFilesPerDirectoryRuleConfig {
+            Self::Options(options) => MinItemsPerDirectoryRuleConfig {
                 severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                min_files: options.min_files.unwrap_or(3),
+                min_items: options.min_items.unwrap_or(3),
                 ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
+                count_folders: options.count_folders.unwrap_or(false),
             },
         }
     }
@@ -881,10 +891,12 @@ struct RawRuleOptions {
     ignore_dirs: Option<Vec<String>>,
     #[serde(rename = "ignore-names")]
     ignore_names: Option<Vec<String>>,
-    #[serde(rename = "max-files")]
-    max_files: Option<usize>,
-    #[serde(rename = "min-files")]
-    min_files: Option<usize>,
+    #[serde(rename = "max-items")]
+    max_items: Option<usize>,
+    #[serde(rename = "min-items")]
+    min_items: Option<usize>,
+    #[serde(rename = "count-folders")]
+    count_folders: Option<bool>,
     #[serde(rename = "allow-declaration-merging")]
     allow_declaration_merging: Option<bool>,
 }
