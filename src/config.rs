@@ -59,6 +59,10 @@ extra-file-suffixes = []
 [rules.no-empty-directories]
 severity = "warn"
 ignore-dirs = []
+
+[rules.no-duplicate-file-names]
+severity = "warn"
+ignore-names = []
 "#;
 
 #[derive(Debug, Clone)]
@@ -78,6 +82,7 @@ pub struct ProjectConfig {
     pub no_eval: RuleConfig,
     pub no_logic_in_domain: NoLogicInDomainRuleConfig,
     pub no_empty_directories: NoEmptyDirectoriesRuleConfig,
+    pub no_duplicate_file_names: NoDuplicateFileNamesRuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -99,6 +104,7 @@ impl Default for ProjectConfig {
             no_eval: RuleConfig::default(),
             no_logic_in_domain: NoLogicInDomainRuleConfig::default(),
             no_empty_directories: NoEmptyDirectoriesRuleConfig::default(),
+            no_duplicate_file_names: NoDuplicateFileNamesRuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -125,6 +131,7 @@ impl ProjectConfig {
                 no_eval: config.no_eval(),
                 no_logic_in_domain: config.no_logic_in_domain(),
                 no_empty_directories: config.no_empty_directories(),
+                no_duplicate_file_names: config.no_duplicate_file_names(),
                 gitignore: config.gitignore(),
             });
         }
@@ -150,6 +157,7 @@ impl ProjectConfig {
                 no_eval: config.no_eval(),
                 no_logic_in_domain: config.no_logic_in_domain(),
                 no_empty_directories: config.no_empty_directories(),
+                no_duplicate_file_names: config.no_duplicate_file_names(),
                 gitignore: config.gitignore(),
             });
         }
@@ -172,6 +180,7 @@ impl ProjectConfig {
                 no_eval: config.no_eval(),
                 no_logic_in_domain: config.no_logic_in_domain(),
                 no_empty_directories: config.no_empty_directories(),
+                no_duplicate_file_names: config.no_duplicate_file_names(),
                 gitignore: config.gitignore(),
             });
         }
@@ -192,6 +201,7 @@ impl ProjectConfig {
             no_eval: config.no_eval(),
             no_logic_in_domain: config.no_logic_in_domain(),
             no_empty_directories: config.no_empty_directories(),
+            no_duplicate_file_names: config.no_duplicate_file_names(),
             gitignore: config.gitignore(),
         })
     }
@@ -313,6 +323,21 @@ impl Default for NoEmptyDirectoriesRuleConfig {
         Self {
             severity: Severity::Warn,
             ignore_dirs: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NoDuplicateFileNamesRuleConfig {
+    pub severity: Severity,
+    pub ignore_names: Vec<String>,
+}
+
+impl Default for NoDuplicateFileNamesRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            ignore_names: vec![],
         }
     }
 }
@@ -502,6 +527,14 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn no_duplicate_file_names(&self) -> NoDuplicateFileNamesRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-duplicate-file-names"))
+            .map(RawRuleConfig::to_no_duplicate_file_names_config)
+            .unwrap_or_default()
+    }
+
     fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
@@ -628,6 +661,19 @@ impl RawRuleConfig {
             },
         }
     }
+
+    fn to_no_duplicate_file_names_config(&self) -> NoDuplicateFileNamesRuleConfig {
+        match self {
+            Self::Severity(severity) => NoDuplicateFileNamesRuleConfig {
+                severity: Severity::from_str(severity),
+                ignore_names: vec![],
+            },
+            Self::Options(options) => NoDuplicateFileNamesRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                ignore_names: options.ignore_names.clone().unwrap_or_default(),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -649,4 +695,6 @@ struct RawRuleOptions {
     extra_file_suffixes: Option<Vec<String>>,
     #[serde(rename = "ignore-dirs")]
     ignore_dirs: Option<Vec<String>>,
+    #[serde(rename = "ignore-names")]
+    ignore_names: Option<Vec<String>>,
 }

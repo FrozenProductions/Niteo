@@ -213,6 +213,8 @@ fn directory_violation(dir: &Path, severity: Severity) -> Violation {
         rule: RULE_NAME,
         message: MESSAGE,
         severity,
+        detail: None,
+        subject: None,
     }
 }
 

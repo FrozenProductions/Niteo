@@ -21,6 +21,8 @@ pub fn check_file(file: &Path, source: &str, config: &FileLengthRuleConfig) -> V
         rule: RULE_NAME,
         message: MESSAGE,
         severity: config.severity,
+        detail: None,
+        subject: None,
     }]
 }
 

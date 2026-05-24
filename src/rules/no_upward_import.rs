@@ -193,6 +193,8 @@ fn violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation {
         rule: RULE_NAME,
         message: MESSAGE,
         severity,
+        detail: None,
+        subject: None,
     }
 }
 

@@ -89,6 +89,8 @@ fn default_export_violation(file: &Path, cursor: &Cursor, severity: Severity) ->
         rule: RULE_NAME,
         message: MESSAGE,
         severity,
+        detail: None,
+        subject: None,
     }
 }
 

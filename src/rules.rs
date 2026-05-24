@@ -4,6 +4,7 @@ mod no_comments;
 mod no_console;
 mod no_debugger;
 mod no_default_export;
+mod no_duplicate_file_names;
 mod no_empty_directories;
 mod no_enums;
 mod no_eval;
@@ -19,8 +20,8 @@ use std::path::PathBuf;
 
 use crate::config::{
     CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig, NoConsoleRuleConfig,
-    NoEmptyDirectoriesRuleConfig, NoLogicInDomainRuleConfig, RuleConfig, Severity,
-    UpwardImportRuleConfig,
+    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoLogicInDomainRuleConfig,
+    RuleConfig, Severity, UpwardImportRuleConfig,
 };
 
 #[derive(Debug, Clone)]
@@ -31,6 +32,8 @@ pub struct Violation {
     pub rule: &'static str,
     pub message: &'static str,
     pub severity: Severity,
+    pub detail: Option<String>,
+    pub subject: Option<String>,
 }
 
 pub fn check_files(
@@ -151,4 +154,15 @@ pub fn check_directories(
     }
 
     no_empty_directories::check_directories(root, &no_empty_directories)
+}
+
+pub fn check_duplicate_file_names(
+    files: &[PathBuf],
+    no_duplicate_file_names: NoDuplicateFileNamesRuleConfig,
+) -> Vec<Violation> {
+    if !no_duplicate_file_names.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    no_duplicate_file_names::check_files(files, &no_duplicate_file_names)
 }

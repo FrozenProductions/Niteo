@@ -91,6 +91,8 @@ fn console_violation(file: &Path, cursor: &Cursor, severity: crate::config::Seve
         rule: RULE_NAME,
         message: MESSAGE,
         severity,
+        detail: None,
+        subject: None,
     }
 }
 

@@ -19,6 +19,8 @@ pub fn check_file(file: &Path, source: &str, config: &FileExportsRuleConfig) -> 
         rule: RULE_NAME,
         message: MESSAGE,
         severity: config.severity,
+        detail: None,
+        subject: None,
     }]
 }
 

@@ -131,6 +131,8 @@ fn inline_type_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Vi
         rule: RULE_NAME,
         message: MESSAGE,
         severity,
+        detail: None,
+        subject: None,
     }
 }
 

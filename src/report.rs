@@ -174,21 +174,52 @@ fn render_rule_group(group: &RuleGroup<'_>, verbose: bool) -> String {
 
     for file_group in file_groups.iter().take(visible_file_count) {
         let line_count = visible_line_count(file_group.violations.len(), verbose);
-        output.push_str(&format!(
-            "  {CYAN}{}{RESET} {DIM}({} findings){RESET}  {}\n",
-            file_group.file.display(),
-            file_group.violations.len(),
-            render_line_numbers(
-                file_group.violations.iter().take(line_count).copied(),
+        let has_details = file_group
+            .violations
+            .iter()
+            .any(|v| v.detail.is_some() || v.subject.is_some());
+
+        if has_details {
+            let visible_violations = file_group.violations.iter().take(line_count);
+            for violation in visible_violations {
+                let subject = violation
+                    .subject
+                    .as_ref()
+                    .map(|s| format!("{BOLD}{s}{RESET} "))
+                    .unwrap_or_default();
+                let detail = violation
+                    .detail
+                    .as_ref()
+                    .map(|d| format!(" {DIM}{d}{RESET}"))
+                    .unwrap_or_default();
+                output.push_str(&format!(
+                    "  {CYAN}{}{RESET}  {subject}lines {}:{}{detail}\n",
+                    file_group.file.display(),
+                    violation.line,
+                    violation.column,
+                ));
+            }
+        } else {
+            output.push_str(&format!(
+                "  {CYAN}{}{RESET} {DIM}({} findings){RESET}  {}\n",
+                file_group.file.display(),
                 file_group.violations.len(),
-                verbose,
-            ),
-        ));
+                render_line_numbers(
+                    file_group.violations.iter().take(line_count).copied(),
+                    file_group.violations.len(),
+                    verbose,
+                ),
+            ));
+        }
 
         let hidden_lines = file_group.violations.len().saturating_sub(line_count);
-        if hidden_lines > 0 {
+        if hidden_lines > 0 && !has_details {
             output.push_str(&format!(
                 "    {DIM}+ {hidden_lines} more locations in this file. Use --verbose to show all.{RESET}\n"
+            ));
+        } else if hidden_lines > 0 {
+            output.push_str(&format!(
+                "    {DIM}+ {hidden_lines} more findings in this file. Use --verbose to show all.{RESET}\n"
             ));
         }
     }

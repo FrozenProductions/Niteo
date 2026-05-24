@@ -541,6 +541,8 @@ fn logic_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violatio
         rule: RULE_NAME,
         message: MESSAGE,
         severity,
+        detail: None,
+        subject: None,
     }
 }
 

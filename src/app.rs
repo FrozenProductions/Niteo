@@ -74,8 +74,12 @@ fn lint_workspace(
     let mut dir_violations =
         rules::check_directories(&project_config.root, project_config.no_empty_directories);
 
+    let mut name_violations =
+        rules::check_duplicate_file_names(&files, project_config.no_duplicate_file_names);
+
     let mut all_violations = violations;
     all_violations.append(&mut dir_violations);
+    all_violations.append(&mut name_violations);
 
     let report = report::Report::new(files, all_violations);
 
