@@ -116,17 +116,29 @@ fn render_end_summary(
 fn render_rule_overview(rule_groups: &[RuleGroup<'_>], verbose: bool) -> String {
     let visible_count = visible_rule_group_count(rule_groups.len(), verbose);
     let hidden_count = rule_groups.len().saturating_sub(visible_count);
+    let max_count_width = rule_groups
+        .iter()
+        .take(visible_count)
+        .map(|g| g.violations.len().to_string().len())
+        .max()
+        .unwrap_or(1);
+    let max_rule_width = rule_groups
+        .iter()
+        .take(visible_count)
+        .map(|g| g.rule.len())
+        .max()
+        .unwrap_or(1);
     let mut output = format!("{BOLD}Rule Overview{RESET}\n");
 
     for (index, group) in rule_groups.iter().take(visible_count).enumerate() {
         let rank = index + 1;
         let color = severity_color(group.severity);
-        let label = pluralized_label(group.severity, group.violations.len());
+        let label = pluralized_label(group.severity);
+        let count_str = format!("{:>cw$}", group.violations.len(), cw = max_count_width);
+        let rule_str = format!("{:<rw$}", group.rule, rw = max_rule_width);
         output.push_str(&format!(
-            "  {DIM}{rank:>2}.{RESET} {color}{count:>3} {label:<8}{RESET}  \
-             {rule:<22} {message}\n",
-            count = group.violations.len(),
-            rule = group.rule,
+            "  {DIM}{rank:>2}.{RESET} {color}{count_str}{RESET}  {label}  \
+              {rule_str} {message}\n",
             message = group.message,
         ));
     }
@@ -160,7 +172,7 @@ fn render_findings(rule_groups: &[RuleGroup<'_>], verbose: bool) -> String {
 
 fn render_rule_group(group: &RuleGroup<'_>, verbose: bool) -> String {
     let color = severity_color(group.severity);
-    let label = pluralized_label(group.severity, group.violations.len());
+    let label = pluralized_label(group.severity);
     let file_groups = group_by_file(&group.violations);
     let visible_file_count = visible_file_count(file_groups.len(), verbose);
     let mut output = format!(
@@ -442,14 +454,11 @@ fn severity_rank(severity: Severity) -> usize {
     }
 }
 
-fn pluralized_label(severity: Severity, count: usize) -> &'static str {
-    match (severity, count) {
-        (Severity::Error, 1) => "error",
-        (Severity::Error, _) => "errors",
-        (Severity::Warn, 1) => "warning",
-        (Severity::Warn, _) => "warnings",
-        (Severity::Off, 1) => "off",
-        (Severity::Off, _) => "off",
+fn pluralized_label(severity: Severity) -> &'static str {
+    match severity {
+        Severity::Error => "errors",
+        Severity::Warn => "warnings",
+        Severity::Off => "off",
     }
 }
 
