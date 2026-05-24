@@ -19,6 +19,9 @@ severity = "warn"
 [rules.no-default-export]
 severity = "warn"
 
+[rules.no-inline-types]
+severity = "warn"
+
 [rules.no-large-file]
 severity = "warn"
 max-lines = 500
@@ -30,6 +33,7 @@ pub struct ProjectConfig {
     pub no_comments: CommentsRuleConfig,
     pub no_logic_in_barrel: RuleConfig,
     pub no_default_export: RuleConfig,
+    pub no_inline_types: RuleConfig,
     pub no_large_file: FileLengthRuleConfig,
 }
 
@@ -40,6 +44,7 @@ impl Default for ProjectConfig {
             no_comments: CommentsRuleConfig::default(),
             no_logic_in_barrel: RuleConfig::default(),
             no_default_export: RuleConfig::default(),
+            no_inline_types: RuleConfig::default(),
             no_large_file: FileLengthRuleConfig::default(),
         }
     }
@@ -55,6 +60,7 @@ impl ProjectConfig {
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
+                no_inline_types: config.no_inline_types(),
                 no_large_file: config.no_large_file(),
             });
         }
@@ -69,6 +75,7 @@ impl ProjectConfig {
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
+                no_inline_types: config.no_inline_types(),
                 no_large_file: config.no_large_file(),
             });
         }
@@ -80,6 +87,7 @@ impl ProjectConfig {
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
+                no_inline_types: config.no_inline_types(),
                 no_large_file: config.no_large_file(),
             });
         }
@@ -89,6 +97,7 @@ impl ProjectConfig {
             no_comments: config.no_comments(),
             no_logic_in_barrel: config.no_logic_in_barrel(),
             no_default_export: config.no_default_export(),
+            no_inline_types: config.no_inline_types(),
             no_large_file: config.no_large_file(),
         })
     }
@@ -227,6 +236,14 @@ impl RawConfig {
         self.rules
             .as_ref()
             .and_then(|rules| rules.get("no-default-export"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn no_inline_types(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-inline-types"))
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }

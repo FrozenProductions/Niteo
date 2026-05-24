@@ -1,5 +1,6 @@
 mod no_comments;
 mod no_default_export;
+mod no_inline_types;
 mod no_large_file;
 mod no_logic_in_barrel;
 
@@ -23,6 +24,7 @@ pub fn check_files(
     no_comments: CommentsRuleConfig,
     no_logic_in_barrel: RuleConfig,
     no_default_export: RuleConfig,
+    no_inline_types: RuleConfig,
     no_large_file: FileLengthRuleConfig,
 ) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
@@ -30,10 +32,13 @@ pub fn check_files(
     if !no_comments.severity.is_enabled()
         && !no_logic_in_barrel.severity.is_enabled()
         && !no_default_export.severity.is_enabled()
+        && !no_inline_types.severity.is_enabled()
         && !no_large_file.severity.is_enabled()
     {
         return Ok(violations);
     }
+
+    let type_location_style = no_inline_types::TypeLocationStyle::detect(files);
 
     for file in files {
         let source = fs::read_to_string(file)
@@ -53,6 +58,14 @@ pub fn check_files(
                 file,
                 &source,
                 &no_default_export,
+            ));
+        }
+        if no_inline_types.severity.is_enabled() {
+            violations.extend(no_inline_types::check_file(
+                file,
+                &source,
+                &no_inline_types,
+                type_location_style,
             ));
         }
         if no_large_file.severity.is_enabled() {
