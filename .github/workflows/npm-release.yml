@@ -1,0 +1,89 @@
+name: NPM Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect package version change
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            previous_version="$(git show HEAD^:package.json | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")"
+          else
+            previous_version=""
+          fi
+
+          current_version="$(node -p "require('./package.json').version")"
+          package_name="$(node -p "require('./package.json').name")"
+
+          if [ "$current_version" = "$previous_version" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "package.json changed, but version stayed at $current_version"
+            exit 0
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "version=$current_version" >> "$GITHUB_OUTPUT"
+          echo "package-name=$package_name" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        if: steps.version.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install Rust
+        if: steps.version.outputs.changed == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        if: steps.version.outputs.changed == 'true'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Verify package
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          cargo test --locked
+          npm pack --dry-run
+
+      - name: Check npm version
+        if: steps.version.outputs.changed == 'true'
+        id: npm
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if npm view "${{ steps.version.outputs.package-name }}@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "${{ steps.version.outputs.package-name }}@${{ steps.version.outputs.version }} already exists on npm"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: steps.version.outputs.changed == 'true' && steps.npm.outputs.published == 'false'
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
