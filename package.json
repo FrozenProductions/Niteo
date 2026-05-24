@@ -1,11 +1,11 @@
 {
-  "name": "niteo",
+  "name": "@frozenproductions/niteo",
   "version": "0.1.0",
   "description": "Standalone Rust CLI for TypeScript structural linting.",
   "license": "MIT",
   "private": false,
   "bin": {
-    "niteo": "./bin/niteo.js"
+    "niteo": "bin/niteo.js"
   },
   "files": [
     "bin",

@@ -26,7 +26,7 @@ Exact rules, configuration options, and report details are still changing during
 After publishing the npm package, run it with `npx`:
 
 ```sh
-npx niteo lint
+npx @frozenproductions/niteo lint
 ```
 
 The npm package builds the Rust binary during installation, so Rust and Cargo must be installed on the machine running `npx`.
@@ -54,31 +54,31 @@ Then run:
 Scan the default project root:
 
 ```sh
-npx niteo lint
+npx @frozenproductions/niteo lint
 ```
 
 Generate a starter config:
 
 ```sh
-npx niteo init
+npx @frozenproductions/niteo init
 ```
 
 Scan a specific root:
 
 ```sh
-npx niteo lint --root src
+npx @frozenproductions/niteo lint --root src
 ```
 
 Restrict the scan to a path:
 
 ```sh
-npx niteo lint --scope src/components
+npx @frozenproductions/niteo lint --scope src/components
 ```
 
 Show help:
 
 ```sh
-npx niteo --help
+npx @frozenproductions/niteo --help
 ```
 
 ## Configuration
@@ -88,7 +88,7 @@ Niteo looks for `niteo.toml` in the current workspace.
 You can generate a starter config with:
 
 ```sh
-npx niteo init
+npx @frozenproductions/niteo init
 ```
 
 The config format is not stable yet, so prefer generating it from the CLI instead of copying old examples.
