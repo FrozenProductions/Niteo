@@ -1,48 +1,37 @@
 use anyhow::Result;
-use std::fs;
+use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
-pub fn discover_files(root: &Path, scope: Option<&Path>) -> Result<Vec<PathBuf>> {
-    let base = root;
-    if !base.exists() {
+use crate::config::GitignoreConfig;
+
+pub fn discover_files(
+    root: &Path,
+    scope: Option<&Path>,
+    gitignore_config: &GitignoreConfig,
+) -> Result<Vec<PathBuf>> {
+    if !root.exists() {
         return Ok(Vec::new());
     }
 
-    let mut files = Vec::new();
-    visit(base, scope, &mut files)?;
-    Ok(files)
-}
+    let mut builder = WalkBuilder::new(root);
+    builder.git_ignore(gitignore_config.enabled);
+    builder.hidden(false);
+    builder.follow_links(false);
 
-fn visit(path: &Path, scope: Option<&Path>, files: &mut Vec<PathBuf>) -> Result<()> {
-    for entry in fs::read_dir(path)? {
-        let entry = entry?;
-        let entry_path = entry.path();
-
-        if should_skip(&entry_path, scope) {
-            continue;
-        }
-
-        if entry_path.is_dir() {
-            visit(&entry_path, scope, files)?;
-            continue;
-        }
-
-        if matches_typescript_file(&entry_path) {
-            files.push(entry_path);
-        }
-    }
-
-    Ok(())
-}
-
-fn should_skip(path: &Path, scope: Option<&Path>) -> bool {
     if let Some(scope) = scope {
-        if !path.starts_with(scope) {
-            return true;
+        let scope = scope.to_path_buf();
+        builder.filter_entry(move |entry| entry.path().starts_with(&scope));
+    }
+
+    let mut files = Vec::new();
+    for entry in builder.build() {
+        let entry = entry?;
+        if entry.path().is_file() && matches_typescript_file(entry.path()) {
+            files.push(entry.path().to_path_buf());
         }
     }
 
-    false
+    Ok(files)
 }
 
 fn matches_typescript_file(path: &Path) -> bool {

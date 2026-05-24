@@ -36,7 +36,11 @@ fn lint_workspace(
 ) -> Result<()> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
     let scan_scope = scope_override.map(|scope| resolve_path(workspace, scope));
-    let files = discovery::discover_files(&project_config.root, scan_scope.as_deref())?;
+    let files = discovery::discover_files(
+        &project_config.root,
+        scan_scope.as_deref(),
+        &project_config.gitignore,
+    )?;
     let violations = rules::check_files(
         &files,
         project_config.no_comments,

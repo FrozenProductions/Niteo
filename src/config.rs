@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 const CONFIG_FILE_NAME: &str = "niteo.toml";
 const DEFAULT_CONFIG_SOURCE: &str = r#"[project]
 root = "src"
+respect-gitignore = true
 
 [rules]
 [rules.no-comments]
@@ -53,6 +54,7 @@ pub struct ProjectConfig {
     pub no_large_file: FileLengthRuleConfig,
     pub no_enums: RuleConfig,
     pub no_barrel_files: RuleConfig,
+    pub gitignore: GitignoreConfig,
 }
 
 impl Default for ProjectConfig {
@@ -68,6 +70,7 @@ impl Default for ProjectConfig {
             no_large_file: FileLengthRuleConfig::default(),
             no_enums: RuleConfig::default(),
             no_barrel_files: RuleConfig::default(),
+            gitignore: GitignoreConfig::default(),
         }
     }
 }
@@ -88,6 +91,7 @@ impl ProjectConfig {
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
+                gitignore: config.gitignore(),
             });
         }
 
@@ -107,6 +111,7 @@ impl ProjectConfig {
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
+                gitignore: config.gitignore(),
             });
         }
 
@@ -123,6 +128,7 @@ impl ProjectConfig {
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
+                gitignore: config.gitignore(),
             });
         }
 
@@ -137,6 +143,7 @@ impl ProjectConfig {
             no_large_file: config.no_large_file(),
             no_enums: config.no_enums(),
             no_barrel_files: config.no_barrel_files(),
+            gitignore: config.gitignore(),
         })
     }
 }
@@ -232,6 +239,17 @@ impl Default for UpwardImportRuleConfig {
             severity: Severity::Warn,
             max_depth: 0,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GitignoreConfig {
+    pub enabled: bool,
+}
+
+impl Default for GitignoreConfig {
+    fn default() -> Self {
+        Self { enabled: true }
     }
 }
 
@@ -347,11 +365,20 @@ impl RawConfig {
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
+
+    fn gitignore(&self) -> GitignoreConfig {
+        let project = self.project.as_ref();
+        GitignoreConfig {
+            enabled: project.and_then(|p| p.respect_gitignore).unwrap_or(true),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
 struct RawProjectConfig {
     root: Option<PathBuf>,
+    #[serde(rename = "respect-gitignore")]
+    respect_gitignore: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
