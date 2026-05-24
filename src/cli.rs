@@ -28,6 +28,10 @@ pub struct CliOptions {
     /// Print every violation instead of grouped, capped output.
     #[arg(short, long, global = true)]
     pub verbose: bool,
+
+    /// Scan only changed TypeScript files (skips prompt).
+    #[arg(long, global = true)]
+    pub git: bool,
 }
 
 #[derive(Debug, Subcommand)]

@@ -4,7 +4,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use crate::cli::{Cli, Command};
-use crate::{config, discovery, report, rules};
+use crate::{config, discovery, git, report, rules};
 
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
@@ -17,6 +17,7 @@ pub fn run() -> Result<()> {
             cli.options.root,
             cli.options.scope,
             cli.options.verbose,
+            cli.options.git,
         ),
     }
 }
@@ -33,14 +34,26 @@ fn lint_workspace(
     root_override: Option<PathBuf>,
     scope_override: Option<PathBuf>,
     verbose: bool,
+    git_flag: bool,
 ) -> Result<()> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
     let scan_scope = scope_override.map(|scope| resolve_path(workspace, scope));
-    let files = discovery::discover_files(
-        &project_config.root,
-        scan_scope.as_deref(),
-        &project_config.gitignore,
-    )?;
+
+    let files = if git_flag {
+        resolve_changed_files(workspace)
+    } else {
+        let changed_files = git::get_changed_typescript_files();
+        if !changed_files.is_empty() && git::prompt_scan_changed_files(&changed_files) {
+            resolve_changed_files(workspace)
+        } else {
+            discovery::discover_files(
+                &project_config.root,
+                scan_scope.as_deref(),
+                &project_config.gitignore,
+            )?
+        }
+    };
+
     let violations = rules::check_files(
         &files,
         project_config.no_comments,
@@ -58,6 +71,20 @@ fn lint_workspace(
     println!("{}", report.render_text(verbose));
 
     Ok(())
+}
+
+fn resolve_changed_files(workspace: &Path) -> Vec<PathBuf> {
+    git::get_changed_typescript_files()
+        .into_iter()
+        .map(|f: PathBuf| {
+            if f.is_absolute() {
+                f
+            } else {
+                workspace.join(f)
+            }
+        })
+        .filter(|f: &PathBuf| f.exists())
+        .collect()
 }
 
 fn resolve_path(workspace: &Path, path: PathBuf) -> PathBuf {
