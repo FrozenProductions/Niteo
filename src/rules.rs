@@ -4,6 +4,7 @@ mod no_comments;
 mod no_console;
 mod no_debugger;
 mod no_default_export;
+mod no_empty_directories;
 mod no_enums;
 mod no_eval;
 mod no_inline_types;
@@ -18,7 +19,8 @@ use std::path::PathBuf;
 
 use crate::config::{
     CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig, NoConsoleRuleConfig,
-    NoLogicInDomainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
+    NoEmptyDirectoriesRuleConfig, NoLogicInDomainRuleConfig, RuleConfig, Severity,
+    UpwardImportRuleConfig,
 };
 
 #[derive(Debug, Clone)]
@@ -138,4 +140,15 @@ pub fn check_files(
     }
 
     Ok(violations)
+}
+
+pub fn check_directories(
+    root: &std::path::Path,
+    no_empty_directories: NoEmptyDirectoriesRuleConfig,
+) -> Vec<Violation> {
+    if !no_empty_directories.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    no_empty_directories::check_directories(root, &no_empty_directories)
 }

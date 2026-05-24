@@ -55,6 +55,10 @@ severity = "warn"
 severity = "warn"
 extra-folders = []
 extra-file-suffixes = []
+
+[rules.no-empty-directories]
+severity = "warn"
+ignore-dirs = []
 "#;
 
 #[derive(Debug, Clone)]
@@ -73,6 +77,7 @@ pub struct ProjectConfig {
     pub no_debugger: RuleConfig,
     pub no_eval: RuleConfig,
     pub no_logic_in_domain: NoLogicInDomainRuleConfig,
+    pub no_empty_directories: NoEmptyDirectoriesRuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -93,6 +98,7 @@ impl Default for ProjectConfig {
             no_debugger: RuleConfig::default(),
             no_eval: RuleConfig::default(),
             no_logic_in_domain: NoLogicInDomainRuleConfig::default(),
+            no_empty_directories: NoEmptyDirectoriesRuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -118,6 +124,7 @@ impl ProjectConfig {
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
                 no_logic_in_domain: config.no_logic_in_domain(),
+                no_empty_directories: config.no_empty_directories(),
                 gitignore: config.gitignore(),
             });
         }
@@ -142,6 +149,7 @@ impl ProjectConfig {
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
                 no_logic_in_domain: config.no_logic_in_domain(),
+                no_empty_directories: config.no_empty_directories(),
                 gitignore: config.gitignore(),
             });
         }
@@ -163,6 +171,7 @@ impl ProjectConfig {
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
                 no_logic_in_domain: config.no_logic_in_domain(),
+                no_empty_directories: config.no_empty_directories(),
                 gitignore: config.gitignore(),
             });
         }
@@ -182,6 +191,7 @@ impl ProjectConfig {
             no_debugger: config.no_debugger(),
             no_eval: config.no_eval(),
             no_logic_in_domain: config.no_logic_in_domain(),
+            no_empty_directories: config.no_empty_directories(),
             gitignore: config.gitignore(),
         })
     }
@@ -289,6 +299,21 @@ pub struct GitignoreConfig {
 impl Default for GitignoreConfig {
     fn default() -> Self {
         Self { enabled: true }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NoEmptyDirectoriesRuleConfig {
+    pub severity: Severity,
+    pub ignore_dirs: Vec<String>,
+}
+
+impl Default for NoEmptyDirectoriesRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            ignore_dirs: vec![],
+        }
     }
 }
 
@@ -469,6 +494,14 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn no_empty_directories(&self) -> NoEmptyDirectoriesRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-empty-directories"))
+            .map(RawRuleConfig::to_no_empty_directories_config)
+            .unwrap_or_default()
+    }
+
     fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
@@ -555,6 +588,19 @@ impl RawRuleConfig {
         }
     }
 
+    fn to_no_empty_directories_config(&self) -> NoEmptyDirectoriesRuleConfig {
+        match self {
+            Self::Severity(severity) => NoEmptyDirectoriesRuleConfig {
+                severity: Severity::from_str(severity),
+                ignore_dirs: vec![],
+            },
+            Self::Options(options) => NoEmptyDirectoriesRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
+            },
+        }
+    }
+
     fn to_no_logic_in_domain_config(&self) -> NoLogicInDomainRuleConfig {
         match self {
             Self::Severity(severity) => NoLogicInDomainRuleConfig {
@@ -601,4 +647,6 @@ struct RawRuleOptions {
     extra_folders: Option<Vec<String>>,
     #[serde(rename = "extra-file-suffixes")]
     extra_file_suffixes: Option<Vec<String>>,
+    #[serde(rename = "ignore-dirs")]
+    ignore_dirs: Option<Vec<String>>,
 }

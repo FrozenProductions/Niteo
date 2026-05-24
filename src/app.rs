@@ -70,7 +70,14 @@ fn lint_workspace(
         project_config.no_eval,
         project_config.no_logic_in_domain,
     )?;
-    let report = report::Report::new(files, violations);
+
+    let mut dir_violations =
+        rules::check_directories(&project_config.root, project_config.no_empty_directories);
+
+    let mut all_violations = violations;
+    all_violations.append(&mut dir_violations);
+
+    let report = report::Report::new(files, all_violations);
 
     println!("{}", report.render_text(verbose));
 
