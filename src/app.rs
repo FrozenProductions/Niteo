@@ -77,9 +77,15 @@ fn lint_workspace(
     let mut name_violations =
         rules::check_duplicate_file_names(&files, project_config.no_duplicate_file_names);
 
+    let mut max_files_violations = rules::check_max_files_per_directory(
+        &project_config.root,
+        project_config.max_files_per_directory,
+    );
+
     let mut all_violations = violations;
     all_violations.append(&mut dir_violations);
     all_violations.append(&mut name_violations);
+    all_violations.append(&mut max_files_violations);
 
     let report = report::Report::new(files, all_violations);
 

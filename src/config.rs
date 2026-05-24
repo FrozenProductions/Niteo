@@ -63,6 +63,11 @@ ignore-dirs = []
 [rules.no-duplicate-file-names]
 severity = "warn"
 ignore-names = []
+
+[rules.max-files-per-directory]
+severity = "warn"
+max-files = 20
+ignore-dirs = []
 "#;
 
 #[derive(Debug, Clone)]
@@ -83,6 +88,7 @@ pub struct ProjectConfig {
     pub no_logic_in_domain: NoLogicInDomainRuleConfig,
     pub no_empty_directories: NoEmptyDirectoriesRuleConfig,
     pub no_duplicate_file_names: NoDuplicateFileNamesRuleConfig,
+    pub max_files_per_directory: MaxFilesPerDirectoryRuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -105,6 +111,7 @@ impl Default for ProjectConfig {
             no_logic_in_domain: NoLogicInDomainRuleConfig::default(),
             no_empty_directories: NoEmptyDirectoriesRuleConfig::default(),
             no_duplicate_file_names: NoDuplicateFileNamesRuleConfig::default(),
+            max_files_per_directory: MaxFilesPerDirectoryRuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -132,6 +139,7 @@ impl ProjectConfig {
                 no_logic_in_domain: config.no_logic_in_domain(),
                 no_empty_directories: config.no_empty_directories(),
                 no_duplicate_file_names: config.no_duplicate_file_names(),
+                max_files_per_directory: config.max_files_per_directory(),
                 gitignore: config.gitignore(),
             });
         }
@@ -158,6 +166,7 @@ impl ProjectConfig {
                 no_logic_in_domain: config.no_logic_in_domain(),
                 no_empty_directories: config.no_empty_directories(),
                 no_duplicate_file_names: config.no_duplicate_file_names(),
+                max_files_per_directory: config.max_files_per_directory(),
                 gitignore: config.gitignore(),
             });
         }
@@ -181,6 +190,7 @@ impl ProjectConfig {
                 no_logic_in_domain: config.no_logic_in_domain(),
                 no_empty_directories: config.no_empty_directories(),
                 no_duplicate_file_names: config.no_duplicate_file_names(),
+                max_files_per_directory: config.max_files_per_directory(),
                 gitignore: config.gitignore(),
             });
         }
@@ -202,6 +212,7 @@ impl ProjectConfig {
             no_logic_in_domain: config.no_logic_in_domain(),
             no_empty_directories: config.no_empty_directories(),
             no_duplicate_file_names: config.no_duplicate_file_names(),
+            max_files_per_directory: config.max_files_per_directory(),
             gitignore: config.gitignore(),
         })
     }
@@ -338,6 +349,23 @@ impl Default for NoDuplicateFileNamesRuleConfig {
         Self {
             severity: Severity::Warn,
             ignore_names: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MaxFilesPerDirectoryRuleConfig {
+    pub severity: Severity,
+    pub max_files: usize,
+    pub ignore_dirs: Vec<String>,
+}
+
+impl Default for MaxFilesPerDirectoryRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            max_files: 20,
+            ignore_dirs: vec![],
         }
     }
 }
@@ -535,6 +563,14 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn max_files_per_directory(&self) -> MaxFilesPerDirectoryRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("max-files-per-directory"))
+            .map(RawRuleConfig::to_max_files_per_directory_config)
+            .unwrap_or_default()
+    }
+
     fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
@@ -676,6 +712,21 @@ impl RawRuleConfig {
             },
         }
     }
+
+    fn to_max_files_per_directory_config(&self) -> MaxFilesPerDirectoryRuleConfig {
+        match self {
+            Self::Severity(severity) => MaxFilesPerDirectoryRuleConfig {
+                severity: Severity::from_str(severity),
+                max_files: 20,
+                ignore_dirs: vec![],
+            },
+            Self::Options(options) => MaxFilesPerDirectoryRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                max_files: options.max_files.unwrap_or(20),
+                ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -699,4 +750,6 @@ struct RawRuleOptions {
     ignore_dirs: Option<Vec<String>>,
     #[serde(rename = "ignore-names")]
     ignore_names: Option<Vec<String>>,
+    #[serde(rename = "max-files")]
+    max_files: Option<usize>,
 }

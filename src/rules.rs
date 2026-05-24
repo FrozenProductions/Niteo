@@ -1,4 +1,5 @@
 mod max_file_exports;
+mod max_files_per_directory;
 mod no_barrel_files;
 mod no_comments;
 mod no_console;
@@ -19,9 +20,10 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::config::{
-    CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig, NoConsoleRuleConfig,
-    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoLogicInDomainRuleConfig,
-    RuleConfig, Severity, UpwardImportRuleConfig,
+    CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig,
+    MaxFilesPerDirectoryRuleConfig, NoConsoleRuleConfig, NoDuplicateFileNamesRuleConfig,
+    NoEmptyDirectoriesRuleConfig, NoLogicInDomainRuleConfig, RuleConfig, Severity,
+    UpwardImportRuleConfig,
 };
 
 #[derive(Debug, Clone)]
@@ -165,4 +167,15 @@ pub fn check_duplicate_file_names(
     }
 
     no_duplicate_file_names::check_files(files, &no_duplicate_file_names)
+}
+
+pub fn check_max_files_per_directory(
+    root: &std::path::Path,
+    config: MaxFilesPerDirectoryRuleConfig,
+) -> Vec<Violation> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    max_files_per_directory::check_directories(root, &config)
 }
