@@ -26,13 +26,13 @@ Exact rules, configuration options, and report details are still changing during
 Run directly with `npx`:
 
 ```sh
-npx @frozenproductions/niteo lint
+npx niteo-cli lint
 ```
 
 Or install globally and use the `niteo` command:
 
 ```sh
-npm i -g @frozenproductions/niteo
+npm i -g niteo-cli
 niteo lint
 ```
 
@@ -90,18 +90,6 @@ npx @frozenproductions/niteo lint --scope src/components
 niteo lint --scope src/components
 ```
 
-Write JSON output to a file:
-
-```sh
-niteo lint --format json --output niteo-report.json
-```
-
-Write SARIF output for code scanning tools:
-
-```sh
-niteo lint --format sarif --output niteo-report.sarif
-```
-
 Show help:
 
 ```sh
@@ -144,7 +132,3 @@ cargo test
 ```
 
 The project currently keeps the CLI, config loading, file discovery, rule checks, and reporting in separate modules.
-
-## License
-
-No license has been added yet.

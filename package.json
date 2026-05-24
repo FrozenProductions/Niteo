@@ -1,6 +1,6 @@
 {
-  "name": "@frozenproductions/niteo",
-  "version": "0.1.1",
+  "name": "niteo-cli",
+  "version": "0.0.1",
   "description": "Standalone Rust CLI for TypeScript structural linting.",
   "license": "MIT",
   "private": false,
