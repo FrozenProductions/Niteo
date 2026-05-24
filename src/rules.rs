@@ -12,6 +12,7 @@ mod no_empty_interface;
 mod no_enums;
 mod no_eval;
 mod no_inline_types;
+mod no_interface;
 mod no_large_file;
 mod no_logic_in_barrel;
 mod no_logic_in_domain;
@@ -24,8 +25,8 @@ use std::path::PathBuf;
 use crate::config::{
     CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig,
     MaxFilesPerDirectoryRuleConfig, MinFilesPerDirectoryRuleConfig, NoConsoleRuleConfig,
-    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoLogicInDomainRuleConfig,
-    RuleConfig, Severity, UpwardImportRuleConfig,
+    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
+    NoLogicInDomainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
 };
 
 #[derive(Debug, Clone)]
@@ -56,6 +57,7 @@ pub fn check_files(
     no_eval: RuleConfig,
     no_logic_in_domain: NoLogicInDomainRuleConfig,
     no_empty_interface: RuleConfig,
+    no_interface: NoInterfaceRuleConfig,
 ) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
 
@@ -73,6 +75,7 @@ pub fn check_files(
         && !no_eval.severity.is_enabled()
         && !no_logic_in_domain.severity.is_enabled()
         && !no_empty_interface.severity.is_enabled()
+        && !no_interface.severity.is_enabled()
     {
         return Ok(violations);
     }
@@ -152,6 +155,9 @@ pub fn check_files(
                 &source,
                 &no_empty_interface,
             ));
+        }
+        if no_interface.severity.is_enabled() {
+            violations.extend(no_interface::check_file(file, &source, &no_interface));
         }
     }
 

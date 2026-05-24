@@ -76,6 +76,10 @@ ignore-dirs = []
 
 [rules.no-empty-interface]
 severity = "error"
+
+[rules.no-interface]
+severity = "warn"
+allow-declaration-merging = true
 "#;
 
 #[derive(Debug, Clone)]
@@ -99,6 +103,7 @@ pub struct ProjectConfig {
     pub max_files_per_directory: MaxFilesPerDirectoryRuleConfig,
     pub min_files_per_directory: MinFilesPerDirectoryRuleConfig,
     pub no_empty_interface: RuleConfig,
+    pub no_interface: NoInterfaceRuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -124,6 +129,7 @@ impl Default for ProjectConfig {
             max_files_per_directory: MaxFilesPerDirectoryRuleConfig::default(),
             min_files_per_directory: MinFilesPerDirectoryRuleConfig::default(),
             no_empty_interface: RuleConfig::default(),
+            no_interface: NoInterfaceRuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -154,6 +160,7 @@ impl ProjectConfig {
                 max_files_per_directory: config.max_files_per_directory(),
                 min_files_per_directory: config.min_files_per_directory(),
                 no_empty_interface: config.no_empty_interface(),
+                no_interface: config.no_interface(),
                 gitignore: config.gitignore(),
             });
         }
@@ -183,6 +190,7 @@ impl ProjectConfig {
                 max_files_per_directory: config.max_files_per_directory(),
                 min_files_per_directory: config.min_files_per_directory(),
                 no_empty_interface: config.no_empty_interface(),
+                no_interface: config.no_interface(),
                 gitignore: config.gitignore(),
             });
         }
@@ -209,6 +217,7 @@ impl ProjectConfig {
                 max_files_per_directory: config.max_files_per_directory(),
                 min_files_per_directory: config.min_files_per_directory(),
                 no_empty_interface: config.no_empty_interface(),
+                no_interface: config.no_interface(),
                 gitignore: config.gitignore(),
             });
         }
@@ -233,6 +242,7 @@ impl ProjectConfig {
             max_files_per_directory: config.max_files_per_directory(),
             min_files_per_directory: config.min_files_per_directory(),
             no_empty_interface: config.no_empty_interface(),
+            no_interface: config.no_interface(),
             gitignore: config.gitignore(),
         })
     }
@@ -439,6 +449,21 @@ impl Default for NoConsoleRuleConfig {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct NoInterfaceRuleConfig {
+    pub severity: Severity,
+    pub allow_declaration_merging: bool,
+}
+
+impl Default for NoInterfaceRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            allow_declaration_merging: true,
+        }
+    }
+}
+
 pub fn write_default_config(workspace: &Path) -> Result<PathBuf> {
     let config_path = workspace.join(CONFIG_FILE_NAME);
     if config_path.exists() {
@@ -624,6 +649,14 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn no_interface(&self) -> NoInterfaceRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-interface"))
+            .map(RawRuleConfig::to_no_interface_config)
+            .unwrap_or_default()
+    }
+
     fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
@@ -795,6 +828,19 @@ impl RawRuleConfig {
             },
         }
     }
+
+    fn to_no_interface_config(&self) -> NoInterfaceRuleConfig {
+        match self {
+            Self::Severity(severity) => NoInterfaceRuleConfig {
+                severity: Severity::from_str(severity),
+                allow_declaration_merging: true,
+            },
+            Self::Options(options) => NoInterfaceRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                allow_declaration_merging: options.allow_declaration_merging.unwrap_or(true),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -822,4 +868,6 @@ struct RawRuleOptions {
     max_files: Option<usize>,
     #[serde(rename = "min-files")]
     min_files: Option<usize>,
+    #[serde(rename = "allow-declaration-merging")]
+    allow_declaration_merging: Option<bool>,
 }
