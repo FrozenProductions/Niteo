@@ -9,6 +9,7 @@ mod no_eval;
 mod no_inline_types;
 mod no_large_file;
 mod no_logic_in_barrel;
+mod no_logic_in_domain;
 mod no_upward_import;
 
 use anyhow::{Context, Result};
@@ -17,7 +18,7 @@ use std::path::PathBuf;
 
 use crate::config::{
     CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig, NoConsoleRuleConfig,
-    RuleConfig, Severity, UpwardImportRuleConfig,
+    NoLogicInDomainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
 };
 
 #[derive(Debug, Clone)]
@@ -44,6 +45,7 @@ pub fn check_files(
     no_console: NoConsoleRuleConfig,
     no_debugger: RuleConfig,
     no_eval: RuleConfig,
+    no_logic_in_domain: NoLogicInDomainRuleConfig,
 ) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
 
@@ -59,6 +61,7 @@ pub fn check_files(
         && !no_console.severity.is_enabled()
         && !no_debugger.severity.is_enabled()
         && !no_eval.severity.is_enabled()
+        && !no_logic_in_domain.severity.is_enabled()
     {
         return Ok(violations);
     }
@@ -124,6 +127,13 @@ pub fn check_files(
         }
         if no_eval.severity.is_enabled() {
             violations.extend(no_eval::check_file(file, &source, &no_eval));
+        }
+        if no_logic_in_domain.severity.is_enabled() {
+            violations.extend(no_logic_in_domain::check_file(
+                file,
+                &source,
+                &no_logic_in_domain,
+            ));
         }
     }
 

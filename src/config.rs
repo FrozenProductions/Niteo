@@ -50,6 +50,11 @@ severity = "warn"
 
 [rules.no-eval]
 severity = "warn"
+
+[rules.no-logic-in-domain]
+severity = "warn"
+extra-folders = []
+extra-file-suffixes = []
 "#;
 
 #[derive(Debug, Clone)]
@@ -67,6 +72,7 @@ pub struct ProjectConfig {
     pub no_console: NoConsoleRuleConfig,
     pub no_debugger: RuleConfig,
     pub no_eval: RuleConfig,
+    pub no_logic_in_domain: NoLogicInDomainRuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -86,6 +92,7 @@ impl Default for ProjectConfig {
             no_console: NoConsoleRuleConfig::default(),
             no_debugger: RuleConfig::default(),
             no_eval: RuleConfig::default(),
+            no_logic_in_domain: NoLogicInDomainRuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -110,6 +117,7 @@ impl ProjectConfig {
                 no_console: config.no_console(),
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
+                no_logic_in_domain: config.no_logic_in_domain(),
                 gitignore: config.gitignore(),
             });
         }
@@ -133,6 +141,7 @@ impl ProjectConfig {
                 no_console: config.no_console(),
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
+                no_logic_in_domain: config.no_logic_in_domain(),
                 gitignore: config.gitignore(),
             });
         }
@@ -153,6 +162,7 @@ impl ProjectConfig {
                 no_console: config.no_console(),
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
+                no_logic_in_domain: config.no_logic_in_domain(),
                 gitignore: config.gitignore(),
             });
         }
@@ -171,6 +181,7 @@ impl ProjectConfig {
             no_console: config.no_console(),
             no_debugger: config.no_debugger(),
             no_eval: config.no_eval(),
+            no_logic_in_domain: config.no_logic_in_domain(),
             gitignore: config.gitignore(),
         })
     }
@@ -278,6 +289,23 @@ pub struct GitignoreConfig {
 impl Default for GitignoreConfig {
     fn default() -> Self {
         Self { enabled: true }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NoLogicInDomainRuleConfig {
+    pub severity: Severity,
+    pub extra_folders: Vec<String>,
+    pub extra_file_suffixes: Vec<String>,
+}
+
+impl Default for NoLogicInDomainRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            extra_folders: vec![],
+            extra_file_suffixes: vec![],
+        }
     }
 }
 
@@ -433,6 +461,14 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn no_logic_in_domain(&self) -> NoLogicInDomainRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-logic-in-domain"))
+            .map(RawRuleConfig::to_no_logic_in_domain_config)
+            .unwrap_or_default()
+    }
+
     fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
@@ -519,6 +555,21 @@ impl RawRuleConfig {
         }
     }
 
+    fn to_no_logic_in_domain_config(&self) -> NoLogicInDomainRuleConfig {
+        match self {
+            Self::Severity(severity) => NoLogicInDomainRuleConfig {
+                severity: Severity::from_str(severity),
+                extra_folders: vec![],
+                extra_file_suffixes: vec![],
+            },
+            Self::Options(options) => NoLogicInDomainRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                extra_folders: options.extra_folders.clone().unwrap_or_default(),
+                extra_file_suffixes: options.extra_file_suffixes.clone().unwrap_or_default(),
+            },
+        }
+    }
+
     fn to_no_console_config(&self) -> NoConsoleRuleConfig {
         match self {
             Self::Severity(severity) => NoConsoleRuleConfig {
@@ -546,4 +597,8 @@ struct RawRuleOptions {
     max_depth: Option<usize>,
     #[serde(rename = "allow-patterns")]
     allow_patterns: Option<Vec<String>>,
+    #[serde(rename = "extra-folders")]
+    extra_folders: Option<Vec<String>>,
+    #[serde(rename = "extra-file-suffixes")]
+    extra_file_suffixes: Option<Vec<String>>,
 }
