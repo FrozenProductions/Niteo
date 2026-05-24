@@ -4,6 +4,7 @@ use crate::config::FileExportsRuleConfig;
 use crate::rules::Violation;
 
 const RULE_NAME: &str = "max-file-exports";
+const MESSAGE: &str = "Split this file or reduce its public surface area.";
 
 pub fn check_file(file: &Path, source: &str, config: &FileExportsRuleConfig) -> Vec<Violation> {
     let export_count = count_exports(source);
@@ -16,6 +17,7 @@ pub fn check_file(file: &Path, source: &str, config: &FileExportsRuleConfig) -> 
         line: 1,
         column: 1,
         rule: RULE_NAME,
+        message: MESSAGE,
         severity: config.severity,
     }]
 }

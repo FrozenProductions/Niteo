@@ -21,6 +21,7 @@ pub struct Violation {
     pub line: usize,
     pub column: usize,
     pub rule: &'static str,
+    pub message: &'static str,
     pub severity: Severity,
 }
 

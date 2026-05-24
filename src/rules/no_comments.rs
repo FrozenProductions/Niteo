@@ -4,6 +4,7 @@ use crate::config::{CommentsRuleConfig, Severity};
 use crate::rules::Violation;
 
 const RULE_NAME: &str = "no-comments";
+const MESSAGE: &str = "Remove implementation comments or convert them to allowed documentation.";
 
 pub fn check_file(file: &Path, source: &str, config: &CommentsRuleConfig) -> Vec<Violation> {
     let bytes = source.as_bytes();
@@ -94,6 +95,7 @@ fn comment_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violat
         line: cursor.line,
         column: cursor.column,
         rule: RULE_NAME,
+        message: MESSAGE,
         severity,
     }
 }

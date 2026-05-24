@@ -12,7 +12,12 @@ pub fn run() -> Result<()> {
 
     match cli.command.unwrap_or(Command::Lint) {
         Command::Init => create_config(&workspace),
-        Command::Lint => lint_workspace(&workspace, cli.options.root, cli.options.scope),
+        Command::Lint => lint_workspace(
+            &workspace,
+            cli.options.root,
+            cli.options.scope,
+            cli.options.verbose,
+        ),
     }
 }
 
@@ -27,6 +32,7 @@ fn lint_workspace(
     workspace: &Path,
     root_override: Option<PathBuf>,
     scope_override: Option<PathBuf>,
+    verbose: bool,
 ) -> Result<()> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
     let scan_scope = scope_override.map(|scope| resolve_path(workspace, scope));
@@ -43,7 +49,7 @@ fn lint_workspace(
     )?;
     let report = report::Report::new(files, violations);
 
-    println!("{}", report.render_text());
+    println!("{}", report.render_text(verbose));
 
     Ok(())
 }

@@ -4,6 +4,7 @@ use crate::config::FileLengthRuleConfig;
 use crate::rules::Violation;
 
 const RULE_NAME: &str = "no-large-file";
+const MESSAGE: &str = "Split this file into focused modules.";
 
 pub fn check_file(file: &Path, source: &str, config: &FileLengthRuleConfig) -> Vec<Violation> {
     let line_count = source.lines().count();
@@ -18,6 +19,7 @@ pub fn check_file(file: &Path, source: &str, config: &FileLengthRuleConfig) -> V
         line: location.line,
         column: location.column,
         rule: RULE_NAME,
+        message: MESSAGE,
         severity: config.severity,
     }]
 }

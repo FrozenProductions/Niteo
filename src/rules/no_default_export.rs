@@ -4,6 +4,7 @@ use crate::config::{RuleConfig, Severity};
 use crate::rules::Violation;
 
 const RULE_NAME: &str = "no-default-export";
+const MESSAGE: &str = "Use named exports so imports stay explicit and refactorable.";
 
 pub fn check_file(file: &Path, source: &str, config: &RuleConfig) -> Vec<Violation> {
     let bytes = source.as_bytes();
@@ -86,6 +87,7 @@ fn default_export_violation(file: &Path, cursor: &Cursor, severity: Severity) ->
         line: cursor.line,
         column: cursor.column,
         rule: RULE_NAME,
+        message: MESSAGE,
         severity,
     }
 }

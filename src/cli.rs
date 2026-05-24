@@ -24,6 +24,10 @@ pub struct CliOptions {
     /// Restrict the scan to a path prefix.
     #[arg(long, global = true)]
     pub scope: Option<PathBuf>,
+
+    /// Print every violation instead of grouped, capped output.
+    #[arg(short, long, global = true)]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Subcommand)]

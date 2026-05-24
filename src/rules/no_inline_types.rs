@@ -4,6 +4,7 @@ use crate::config::{RuleConfig, Severity};
 use crate::rules::Violation;
 
 const RULE_NAME: &str = "no-inline-types";
+const MESSAGE: &str = "Move exported contracts to a colocated type file or accepted types folder.";
 const TYPES_DIRECTORY_NAME: &str = "types";
 const TYPE_FILE_SUFFIX: &str = ".type.ts";
 const DECLARATION_FILE_SUFFIX: &str = ".d.ts";
@@ -128,6 +129,7 @@ fn inline_type_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Vi
         line: cursor.line,
         column: cursor.column,
         rule: RULE_NAME,
+        message: MESSAGE,
         severity,
     }
 }

@@ -139,14 +139,6 @@ impl Severity {
         }
     }
 
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Off => "off",
-            Self::Warn => "warning",
-            Self::Error => "error",
-        }
-    }
-
     pub fn is_enabled(self) -> bool {
         self != Self::Off
     }

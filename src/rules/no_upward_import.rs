@@ -4,6 +4,7 @@ use crate::config::{Severity, UpwardImportRuleConfig};
 use crate::rules::Violation;
 
 const RULE_NAME: &str = "no-upward-import";
+const MESSAGE: &str = "Replace upward relative imports with local or project-root imports.";
 
 pub fn check_file(file: &Path, source: &str, config: &UpwardImportRuleConfig) -> Vec<Violation> {
     let bytes = source.as_bytes();
@@ -153,6 +154,14 @@ fn parse_export_statement(bytes: &[u8], index: usize) -> Option<ParsedModuleSpec
     let mut scanner = StatementScanner::new(bytes, index + b"export".len());
     scanner.skip_whitespace();
 
+    if scanner.consume_keyword("type") {
+        scanner.skip_whitespace();
+    }
+
+    if !(scanner.peek_byte() == Some(b'*') || scanner.peek_byte() == Some(b'{')) {
+        return None;
+    }
+
     if scanner.skip_until_keyword("from") {
         scanner.skip_whitespace();
         let specifier = scanner.read_string_literal()?;
@@ -182,6 +191,7 @@ fn violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation {
         line: cursor.line,
         column: cursor.column,
         rule: RULE_NAME,
+        message: MESSAGE,
         severity,
     }
 }
@@ -364,6 +374,17 @@ const shared = import("shared");
         let violations = check_file(Path::new("Button.ts"), source, &test_config());
 
         assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn does_not_treat_export_default_as_export_from() {
+        let source = r#"export default function Component() {}
+import { shared } from "../shared";
+"#;
+        let violations = check_file(Path::new("Button.ts"), source, &test_config());
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 2);
     }
 
     #[test]

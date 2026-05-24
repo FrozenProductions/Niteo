@@ -4,6 +4,7 @@ use crate::config::{RuleConfig, Severity};
 use crate::rules::Violation;
 
 const RULE_NAME: &str = "no-logic-in-barrel";
+const MESSAGE: &str = "Keep barrel files limited to re-exports.";
 const BARREL_FILE_NAME: &str = "index.ts";
 
 pub fn check_file(file: &Path, source: &str, config: &RuleConfig) -> Vec<Violation> {
@@ -67,6 +68,7 @@ fn barrel_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violati
         line: cursor.line,
         column: cursor.column,
         rule: RULE_NAME,
+        message: MESSAGE,
         severity,
     }
 }

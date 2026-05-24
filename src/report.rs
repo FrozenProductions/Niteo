@@ -6,11 +6,13 @@ use crate::rules::Violation;
 const RED: &str = "\x1b[31m";
 const YELLOW: &str = "\x1b[33m";
 const GREEN: &str = "\x1b[32m";
-const WHITE: &str = "\x1b[37m";
+const CYAN: &str = "\x1b[36m";
 const BOLD: &str = "\x1b[1m";
 const DIM: &str = "\x1b[2m";
 const RESET: &str = "\x1b[0m";
-const MAX_LOCATIONS_PER_FILE: usize = 5;
+const DEFAULT_MAX_RULE_GROUPS: usize = 6;
+const DEFAULT_MAX_FILES_PER_RULE: usize = 6;
+const DEFAULT_MAX_LINES_PER_FILE: usize = 8;
 
 #[derive(Debug, Clone)]
 pub struct Report {
@@ -23,28 +25,32 @@ impl Report {
         Self { files, violations }
     }
 
-    pub fn render_text(&self) -> String {
-        let mut output = format!("{BOLD}Niteo report{RESET}\n\n");
-
-        if self.violations.is_empty() {
-            output.push_str(&format!("{GREEN}No violations found{RESET}\n\n"));
-        } else {
-            for group in group_violations(&self.violations) {
-                output.push_str(&render_rule_group(&group));
-            }
-        }
-
+    pub fn render_text(&self, verbose: bool) -> String {
         let warning_count = self.count_by_severity(Severity::Warn);
         let error_count = self.count_by_severity(Severity::Error);
-        let confidence_score = self.confidence_score(error_count, warning_count);
+        let score = self.score(error_count, warning_count);
+        let mut output = String::new();
 
-        output.push('\n');
-        output.push_str(&format!("{BOLD}Summary{RESET}\n"));
-        output.push_str(&format!("Files scanned: {}\n", self.files.len()));
-        output.push_str(&format!("Errors: {error_count}\n"));
-        output.push_str(&format!("Warnings: {warning_count}\n"));
-        output.push_str(&format!("Total violations: {}\n", self.violations.len()));
-        output.push_str(&format!("Confidence score: {confidence_score}%\n"));
+        output.push_str(&render_header());
+
+        if self.violations.is_empty() {
+            output.push_str(&format!(
+                "{GREEN}{BOLD}No structural issues found.{RESET}\n"
+            ));
+        } else {
+            let rule_groups = group_by_rule(&self.violations);
+            output.push_str(&render_findings(&rule_groups, verbose));
+            output.push('\n');
+            output.push_str(&render_end_summary(
+                self.files.len(),
+                self.violations.len(),
+                error_count,
+                warning_count,
+                score,
+                &rule_groups,
+                verbose,
+            ));
+        }
 
         output
     }
@@ -56,12 +62,15 @@ impl Report {
             .count()
     }
 
-    fn confidence_score(&self, error_count: usize, warning_count: usize) -> usize {
-        if self.files.is_empty() {
+    fn score(&self, error_count: usize, warning_count: usize) -> usize {
+        if self.files.is_empty() || self.violations.is_empty() {
             return 100;
         }
 
-        let penalty = error_count.saturating_mul(20) + warning_count.saturating_mul(5);
+        let weighted_findings = error_count.saturating_mul(2) + warning_count;
+        let files_scanned = self.files.len().max(1);
+        let penalty = weighted_findings.saturating_mul(100) / files_scanned;
+
         100usize.saturating_sub(penalty)
     }
 }
@@ -70,6 +79,7 @@ impl Report {
 struct RuleGroup<'a> {
     severity: Severity,
     rule: &'static str,
+    message: &'static str,
     violations: Vec<&'a Violation>,
 }
 
@@ -79,8 +89,123 @@ struct FileGroup<'a> {
     violations: Vec<&'a Violation>,
 }
 
-fn group_violations(violations: &[Violation]) -> Vec<RuleGroup<'_>> {
-    let mut groups: Vec<RuleGroup<'_>> = Vec::new();
+fn render_header() -> String {
+    format!("{BOLD}Niteo Structure Health{RESET}\n\n")
+}
+
+fn render_end_summary(
+    file_count: usize,
+    violation_count: usize,
+    error_count: usize,
+    warning_count: usize,
+    score: usize,
+    rule_groups: &[RuleGroup<'_>],
+    verbose: bool,
+) -> String {
+    let status = status_label(error_count, warning_count);
+    let status_color = status_color(error_count, warning_count);
+    let score_color = score_color(score);
+    let mut output = format!(
+        "{score_color}{BOLD}Score {score}/100{RESET}  {status_color}{BOLD}{status}{RESET}\n\
+         {DIM}{file_count} files scanned | {violation_count} findings | {error_count} errors | {warning_count} warnings{RESET}\n\n"
+    );
+    output.push_str(&render_rule_overview(rule_groups, verbose));
+    output
+}
+
+fn render_rule_overview(rule_groups: &[RuleGroup<'_>], verbose: bool) -> String {
+    let visible_count = visible_rule_group_count(rule_groups.len(), verbose);
+    let hidden_count = rule_groups.len().saturating_sub(visible_count);
+    let mut output = format!("{BOLD}Rule Overview{RESET}\n");
+
+    for (index, group) in rule_groups.iter().take(visible_count).enumerate() {
+        let rank = index + 1;
+        let color = severity_color(group.severity);
+        let label = pluralized_label(group.severity, group.violations.len());
+        output.push_str(&format!(
+            "  {DIM}{rank:>2}.{RESET} {color}{count:>3} {label:<8}{RESET}  \
+             {rule:<22} {message}\n",
+            count = group.violations.len(),
+            rule = group.rule,
+            message = group.message,
+        ));
+    }
+
+    if hidden_count > 0 {
+        output.push_str(&format!(
+            "  {DIM}... {hidden_count} more rules hidden. Run with --verbose to show all.{RESET}\n"
+        ));
+    }
+
+    output
+}
+
+fn render_findings(rule_groups: &[RuleGroup<'_>], verbose: bool) -> String {
+    let visible_count = visible_rule_group_count(rule_groups.len(), verbose);
+    let hidden_count = rule_groups.len().saturating_sub(visible_count);
+    let mut output = format!("{BOLD}Findings{RESET}\n");
+
+    for group in rule_groups.iter().take(visible_count) {
+        output.push_str(&render_rule_group(group, verbose));
+    }
+
+    if hidden_count > 0 {
+        output.push_str(&format!(
+            "{DIM}Hidden rule groups: {hidden_count}. Run with --verbose for the full report.{RESET}\n"
+        ));
+    }
+
+    output
+}
+
+fn render_rule_group(group: &RuleGroup<'_>, verbose: bool) -> String {
+    let color = severity_color(group.severity);
+    let label = pluralized_label(group.severity, group.violations.len());
+    let file_groups = group_by_file(&group.violations);
+    let visible_file_count = visible_file_count(file_groups.len(), verbose);
+    let mut output = format!(
+        "\n{color}{BOLD}{rule}{RESET} {DIM}{count} {label} in {file_count} files{RESET}\n\
+         {DIM}{message}{RESET}\n",
+        rule = group.rule,
+        count = group.violations.len(),
+        file_count = file_groups.len(),
+        message = group.message,
+    );
+
+    for file_group in file_groups.iter().take(visible_file_count) {
+        let line_count = visible_line_count(file_group.violations.len(), verbose);
+        output.push_str(&format!(
+            "  {CYAN}{}{RESET} {DIM}({} findings){RESET}  {}\n",
+            file_group.file.display(),
+            file_group.violations.len(),
+            render_line_numbers(file_group.violations.iter().take(line_count).copied()),
+        ));
+
+        let hidden_lines = file_group.violations.len().saturating_sub(line_count);
+        if hidden_lines > 0 {
+            output.push_str(&format!(
+                "    {DIM}+ {hidden_lines} more locations in this file. Use --verbose to show all.{RESET}\n"
+            ));
+        }
+    }
+
+    let hidden_file_count = file_groups.len().saturating_sub(visible_file_count);
+    if hidden_file_count > 0 {
+        let hidden_violation_count = file_groups
+            .iter()
+            .skip(visible_file_count)
+            .map(|file_group| file_group.violations.len())
+            .sum::<usize>();
+        output.push_str(&format!(
+            "  {DIM}+ {hidden_file_count} more files with {hidden_violation_count} findings. Use --verbose to show all files.{RESET}\n"
+        ));
+    }
+
+    output
+}
+
+fn group_by_rule<'a>(violations: &'a [Violation]) -> Vec<RuleGroup<'a>> {
+    let mut groups: Vec<RuleGroup<'a>> = Vec::new();
 
     for violation in violations {
         if let Some(group) = groups
@@ -94,10 +219,26 @@ fn group_violations(violations: &[Violation]) -> Vec<RuleGroup<'_>> {
         groups.push(RuleGroup {
             severity: violation.severity,
             rule: violation.rule,
+            message: violation.message,
             violations: vec![violation],
         });
     }
 
+    for group in &mut groups {
+        group.violations.sort_by(|left, right| {
+            left.file
+                .cmp(&right.file)
+                .then(left.line.cmp(&right.line))
+                .then(left.column.cmp(&right.column))
+        });
+    }
+
+    groups.sort_by(|left, right| {
+        severity_rank(left.severity)
+            .cmp(&severity_rank(right.severity))
+            .then(right.violations.len().cmp(&left.violations.len()))
+            .then(left.rule.cmp(right.rule))
+    });
     groups
 }
 
@@ -116,46 +257,65 @@ fn group_by_file<'a>(violations: &[&'a Violation]) -> Vec<FileGroup<'a>> {
         });
     }
 
+    groups.sort_by(|left, right| left.file.cmp(&right.file));
     groups
 }
 
-fn render_rule_group(group: &RuleGroup<'_>) -> String {
-    let color = severity_color(group.severity);
-    let mut output = format!(
-        "{color}{label}{RESET} {rule} (x{count})\n",
-        label = group.severity.label(),
-        rule = group.rule,
-        count = group.violations.len(),
-    );
-
-    for file_group in group_by_file(&group.violations) {
-        output.push_str(&format!(
-            "  {WHITE}{}{RESET} {DIM}(x{}){RESET}\n",
-            file_group.file.display(),
-            file_group.violations.len()
-        ));
-
-        for violation in file_group.violations.iter().take(MAX_LOCATIONS_PER_FILE) {
-            output.push_str(&format!(
-                "    {DIM}line {line}, column {column}{RESET}\n",
-                line = violation.line,
-                column = violation.column
-            ));
-        }
-
-        let hidden_count = file_group
-            .violations
-            .len()
-            .saturating_sub(MAX_LOCATIONS_PER_FILE);
-        if hidden_count > 0 {
-            output.push_str(&format!(
-                "    {DIM}... {hidden_count} more omitted{RESET}\n"
-            ));
-        }
+fn visible_rule_group_count(group_count: usize, verbose: bool) -> usize {
+    if verbose {
+        return group_count;
     }
 
-    output.push('\n');
-    output
+    group_count.min(DEFAULT_MAX_RULE_GROUPS)
+}
+
+fn visible_file_count(file_count: usize, verbose: bool) -> usize {
+    if verbose {
+        return file_count;
+    }
+
+    file_count.min(DEFAULT_MAX_FILES_PER_RULE)
+}
+
+fn visible_line_count(line_count: usize, verbose: bool) -> usize {
+    if verbose {
+        return line_count;
+    }
+
+    line_count.min(DEFAULT_MAX_LINES_PER_FILE)
+}
+
+fn render_line_numbers<'a>(violations: impl Iterator<Item = &'a Violation>) -> String {
+    let lines = violations
+        .map(|violation| format!("{}:{}", violation.line, violation.column))
+        .collect::<Vec<String>>()
+        .join(", ");
+
+    format!("{DIM}lines {lines}{RESET}")
+}
+
+fn status_label(error_count: usize, warning_count: usize) -> &'static str {
+    if error_count > 0 {
+        return "Needs attention";
+    }
+
+    if warning_count > 0 {
+        return "Review recommended";
+    }
+
+    "Healthy"
+}
+
+fn status_color(error_count: usize, warning_count: usize) -> &'static str {
+    if error_count > 0 {
+        return RED;
+    }
+
+    if warning_count > 0 {
+        return YELLOW;
+    }
+
+    GREEN
 }
 
 fn severity_color(severity: Severity) -> &'static str {
@@ -164,4 +324,35 @@ fn severity_color(severity: Severity) -> &'static str {
         Severity::Warn => YELLOW,
         Severity::Off => DIM,
     }
+}
+
+fn severity_rank(severity: Severity) -> usize {
+    match severity {
+        Severity::Error => 0,
+        Severity::Warn => 1,
+        Severity::Off => 2,
+    }
+}
+
+fn pluralized_label(severity: Severity, count: usize) -> &'static str {
+    match (severity, count) {
+        (Severity::Error, 1) => "error",
+        (Severity::Error, _) => "errors",
+        (Severity::Warn, 1) => "warning",
+        (Severity::Warn, _) => "warnings",
+        (Severity::Off, 1) => "off",
+        (Severity::Off, _) => "off",
+    }
+}
+
+fn score_color(score: usize) -> &'static str {
+    if score >= 75 {
+        return GREEN;
+    }
+
+    if score >= 50 {
+        return YELLOW;
+    }
+
+    RED
 }
