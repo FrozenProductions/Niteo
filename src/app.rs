@@ -79,6 +79,7 @@ fn lint_workspace(
         project_config.no_interface,
         project_config.no_mutable_exports,
         project_config.prefer_satisfies,
+        project_config.hook_no_jsx,
     )?;
 
     let mut dir_violations =

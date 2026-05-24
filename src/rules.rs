@@ -1,3 +1,4 @@
+mod hook_no_jsx;
 mod max_directory_depth;
 mod max_file_exports;
 mod max_items_per_directory;
@@ -65,6 +66,7 @@ pub fn check_files(
     no_interface: NoInterfaceRuleConfig,
     no_mutable_exports: RuleConfig,
     prefer_satisfies: RuleConfig,
+    hook_no_jsx: RuleConfig,
 ) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
 
@@ -86,6 +88,7 @@ pub fn check_files(
         && !no_interface.severity.is_enabled()
         && !no_mutable_exports.severity.is_enabled()
         && !prefer_satisfies.severity.is_enabled()
+        && !hook_no_jsx.severity.is_enabled()
     {
         return Ok(violations);
     }
@@ -185,6 +188,9 @@ pub fn check_files(
                 &source,
                 &prefer_satisfies,
             ));
+        }
+        if hook_no_jsx.severity.is_enabled() {
+            violations.extend(hook_no_jsx::check_file(file, &source, &hook_no_jsx));
         }
     }
 

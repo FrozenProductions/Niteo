@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::config::{NoInterfaceRuleConfig, Severity};
+use crate::jsx::{Cursor, is_jsx_tag_start};
 use crate::rules::Violation;
 
 const RULE_NAME: &str = "no-interface";
@@ -300,51 +301,12 @@ impl StopAt {
     }
 }
 
-fn is_jsx_tag_start(bytes: &[u8], index: usize) -> bool {
-    let after = index + 1;
-    match bytes.get(after) {
-        Some(b'/') | Some(b'>') => true,
-        Some(b'a'..=b'z') | Some(b'A'..=b'Z') => true,
-        _ => false,
-    }
-}
-
 fn count_interface_names(interfaces: &[(String, Cursor)]) -> HashMap<String, usize> {
     let mut counts = HashMap::new();
     for (name, _) in interfaces {
         *counts.entry(name.clone()).or_insert(0) += 1;
     }
     counts
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Cursor {
-    index: usize,
-    line: usize,
-    column: usize,
-}
-
-impl Default for Cursor {
-    fn default() -> Self {
-        Self {
-            index: 0,
-            line: 1,
-            column: 1,
-        }
-    }
-}
-
-impl Cursor {
-    fn advance(&mut self, bytes: &[u8]) {
-        if bytes[self.index] == b'\n' {
-            self.line += 1;
-            self.column = 1;
-        } else {
-            self.column += 1;
-        }
-
-        self.index += 1;
-    }
 }
 
 fn interface_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation {

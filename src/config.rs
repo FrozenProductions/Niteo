@@ -96,6 +96,9 @@ severity = "warn"
 
 [rules.prefer-satisfies]
 severity = "info"
+
+[rules.hook-no-jsx]
+severity = "warn"
 "#;
 
 #[derive(Debug, Clone)]
@@ -124,6 +127,7 @@ pub struct ProjectConfig {
     pub no_interface: NoInterfaceRuleConfig,
     pub no_mutable_exports: RuleConfig,
     pub prefer_satisfies: RuleConfig,
+    pub hook_no_jsx: RuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -154,6 +158,7 @@ impl Default for ProjectConfig {
             no_interface: NoInterfaceRuleConfig::default(),
             no_mutable_exports: RuleConfig::default(),
             prefer_satisfies: RuleConfig::default(),
+            hook_no_jsx: RuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -189,6 +194,7 @@ impl ProjectConfig {
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
                 prefer_satisfies: config.prefer_satisfies(),
+                hook_no_jsx: config.hook_no_jsx(),
                 gitignore: config.gitignore(),
             });
         }
@@ -223,6 +229,7 @@ impl ProjectConfig {
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
                 prefer_satisfies: config.prefer_satisfies(),
+                hook_no_jsx: config.hook_no_jsx(),
                 gitignore: config.gitignore(),
             });
         }
@@ -254,6 +261,7 @@ impl ProjectConfig {
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
                 prefer_satisfies: config.prefer_satisfies(),
+                hook_no_jsx: config.hook_no_jsx(),
                 gitignore: config.gitignore(),
             });
         }
@@ -283,6 +291,7 @@ impl ProjectConfig {
             no_interface: config.no_interface(),
             no_mutable_exports: config.no_mutable_exports(),
             prefer_satisfies: config.prefer_satisfies(),
+            hook_no_jsx: config.hook_no_jsx(),
             gitignore: config.gitignore(),
         })
     }
@@ -748,6 +757,14 @@ impl RawConfig {
         self.rules
             .as_ref()
             .and_then(|rules| rules.get("prefer-satisfies"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn hook_no_jsx(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("hook-no-jsx"))
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
