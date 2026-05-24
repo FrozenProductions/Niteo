@@ -1,4 +1,4 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -32,6 +32,14 @@ pub struct CliOptions {
     /// Scan only changed TypeScript files (skips prompt).
     #[arg(long, global = true)]
     pub git: bool,
+
+    /// Report output format.
+    #[arg(long, global = true, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+
+    /// Write the report to a file instead of stdout.
+    #[arg(short, long, global = true)]
+    pub output: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -40,4 +48,11 @@ pub enum Command {
     Init,
     /// Scan the project for structural issues.
     Lint,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum OutputFormat {
+    Text,
+    Json,
+    Sarif,
 }

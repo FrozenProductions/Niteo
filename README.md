@@ -90,6 +90,18 @@ npx @frozenproductions/niteo lint --scope src/components
 niteo lint --scope src/components
 ```
 
+Write JSON output to a file:
+
+```sh
+niteo lint --format json --output niteo-report.json
+```
+
+Write SARIF output for code scanning tools:
+
+```sh
+niteo lint --format sarif --output niteo-report.sarif
+```
+
 Show help:
 
 ```sh

@@ -1,3 +1,5 @@
+use anyhow::Result;
+use serde_json::{Value, json};
 use std::path::PathBuf;
 
 use crate::config::Severity;
@@ -58,6 +60,70 @@ impl Report {
         output
     }
 
+    pub fn render_json(&self) -> Result<String> {
+        let report = json!({
+            "summary": self.summary_json(),
+            "files": self
+                .files
+                .iter()
+                .map(|file| path_to_string(file))
+                .collect::<Vec<String>>(),
+            "violations": self
+                .violations
+                .iter()
+                .map(violation_json)
+                .collect::<Vec<Value>>(),
+        });
+
+        Ok(serde_json::to_string_pretty(&report)?)
+    }
+
+    pub fn render_sarif(&self) -> Result<String> {
+        let rules = group_by_rule(&self.violations)
+            .iter()
+            .map(|group| {
+                json!({
+                    "id": group.rule,
+                    "name": group.rule,
+                    "shortDescription": {
+                        "text": group.message,
+                    },
+                    "defaultConfiguration": {
+                        "level": sarif_level(group.severity),
+                    },
+                })
+            })
+            .collect::<Vec<Value>>();
+
+        let results = self
+            .violations
+            .iter()
+            .map(sarif_result_json)
+            .collect::<Vec<Value>>();
+
+        let report = json!({
+            "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+            "version": "2.1.0",
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "Niteo",
+                            "informationUri": "https://github.com/FrozenProductions/Niteo",
+                            "rules": rules,
+                        },
+                    },
+                    "results": results,
+                    "properties": {
+                        "summary": self.summary_json(),
+                    },
+                },
+            ],
+        });
+
+        Ok(serde_json::to_string_pretty(&report)?)
+    }
+
     fn count_by_severity(&self, severity: Severity) -> usize {
         self.violations
             .iter()
@@ -75,6 +141,90 @@ impl Report {
         let penalty = weighted_findings.saturating_mul(100) / files_scanned;
 
         100usize.saturating_sub(penalty)
+    }
+
+    fn summary_json(&self) -> Value {
+        let warning_count = self.count_by_severity(Severity::Warn);
+        let error_count = self.count_by_severity(Severity::Error);
+        let info_count = self.count_by_severity(Severity::Info);
+
+        json!({
+            "filesScanned": self.files.len(),
+            "violations": self.violations.len(),
+            "errors": error_count,
+            "warnings": warning_count,
+            "info": info_count,
+            "score": self.score(error_count, warning_count),
+            "status": status_label(error_count, warning_count, info_count),
+        })
+    }
+}
+
+fn violation_json(violation: &Violation) -> Value {
+    json!({
+        "file": path_to_string(&violation.file),
+        "line": violation.line,
+        "column": violation.column,
+        "rule": violation.rule,
+        "message": violation.message,
+        "severity": severity_label(violation.severity),
+        "detail": violation.detail,
+        "subject": violation.subject,
+    })
+}
+
+fn sarif_result_json(violation: &Violation) -> Value {
+    let mut message = violation.message.to_string();
+    if let Some(detail) = &violation.detail {
+        message.push(' ');
+        message.push_str(detail);
+    }
+
+    json!({
+        "ruleId": violation.rule,
+        "level": sarif_level(violation.severity),
+        "message": {
+            "text": message,
+        },
+        "locations": [
+            {
+                "physicalLocation": {
+                    "artifactLocation": {
+                        "uri": path_to_string(&violation.file),
+                    },
+                    "region": {
+                        "startLine": violation.line.unwrap_or(1),
+                        "startColumn": violation.column.unwrap_or(1),
+                    },
+                },
+            },
+        ],
+        "properties": {
+            "severity": severity_label(violation.severity),
+            "subject": violation.subject,
+        },
+    })
+}
+
+fn path_to_string(path: &PathBuf) -> String {
+    path.display().to_string()
+}
+
+fn severity_label(severity: Severity) -> &'static str {
+    match severity {
+        Severity::Error => "error",
+        Severity::Warn => "warning",
+        Severity::Info => "info",
+        Severity::Off => "off",
+    }
+}
+
+fn sarif_level(severity: Severity) -> &'static str {
+    match severity {
+        Severity::Error => "error",
+        Severity::Warn => "warning",
+        Severity::Info => "note",
+        Severity::Off => "none",
     }
 }
 

@@ -1,9 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::cli::{Cli, Command};
+use crate::cli::{Cli, Command, OutputFormat};
 use crate::{config, discovery, git, report, rules};
 
 pub fn run() -> Result<()> {
@@ -18,6 +19,8 @@ pub fn run() -> Result<()> {
             cli.options.scope,
             cli.options.verbose,
             cli.options.git,
+            cli.options.format,
+            cli.options.output,
         ),
     }
 }
@@ -35,6 +38,8 @@ fn lint_workspace(
     scope_override: Option<PathBuf>,
     verbose: bool,
     git_flag: bool,
+    output_format: OutputFormat,
+    output_path: Option<PathBuf>,
 ) -> Result<()> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
     let scan_scope = scope_override.map(|scope| resolve_path(workspace, scope));
@@ -103,8 +108,34 @@ fn lint_workspace(
     all_violations.append(&mut depth_violations);
 
     let report = report::Report::new(files, all_violations);
+    let rendered_report = match output_format {
+        OutputFormat::Text => report.render_text(verbose),
+        OutputFormat::Json => report.render_json()?,
+        OutputFormat::Sarif => report.render_sarif()?,
+    };
 
-    println!("{}", report.render_text(verbose));
+    write_report(workspace, output_path, &rendered_report)?;
+
+    Ok(())
+}
+
+fn write_report(
+    workspace: &Path,
+    output_path: Option<PathBuf>,
+    rendered_report: &str,
+) -> Result<()> {
+    let Some(output_path) = output_path else {
+        println!("{rendered_report}");
+        return Ok(());
+    };
+
+    let resolved_output_path = resolve_path(workspace, output_path);
+    if let Some(parent) = resolved_output_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create {}", parent.display()))?;
+    }
+    fs::write(&resolved_output_path, rendered_report)
+        .with_context(|| format!("failed to write {}", resolved_output_path.display()))?;
 
     Ok(())
 }
