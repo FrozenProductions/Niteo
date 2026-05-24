@@ -40,6 +40,16 @@ severity = "warn"
 
 [rules.no-barrel-files]
 severity = "warn"
+
+[rules.no-console]
+severity = "warn"
+allow-patterns = []
+
+[rules.no-debugger]
+severity = "warn"
+
+[rules.no-eval]
+severity = "warn"
 "#;
 
 #[derive(Debug, Clone)]
@@ -54,6 +64,9 @@ pub struct ProjectConfig {
     pub no_large_file: FileLengthRuleConfig,
     pub no_enums: RuleConfig,
     pub no_barrel_files: RuleConfig,
+    pub no_console: NoConsoleRuleConfig,
+    pub no_debugger: RuleConfig,
+    pub no_eval: RuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -70,6 +83,9 @@ impl Default for ProjectConfig {
             no_large_file: FileLengthRuleConfig::default(),
             no_enums: RuleConfig::default(),
             no_barrel_files: RuleConfig::default(),
+            no_console: NoConsoleRuleConfig::default(),
+            no_debugger: RuleConfig::default(),
+            no_eval: RuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -91,6 +107,9 @@ impl ProjectConfig {
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
+                no_console: config.no_console(),
+                no_debugger: config.no_debugger(),
+                no_eval: config.no_eval(),
                 gitignore: config.gitignore(),
             });
         }
@@ -111,6 +130,9 @@ impl ProjectConfig {
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
+                no_console: config.no_console(),
+                no_debugger: config.no_debugger(),
+                no_eval: config.no_eval(),
                 gitignore: config.gitignore(),
             });
         }
@@ -128,6 +150,9 @@ impl ProjectConfig {
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
+                no_console: config.no_console(),
+                no_debugger: config.no_debugger(),
+                no_eval: config.no_eval(),
                 gitignore: config.gitignore(),
             });
         }
@@ -143,6 +168,9 @@ impl ProjectConfig {
             no_large_file: config.no_large_file(),
             no_enums: config.no_enums(),
             no_barrel_files: config.no_barrel_files(),
+            no_console: config.no_console(),
+            no_debugger: config.no_debugger(),
+            no_eval: config.no_eval(),
             gitignore: config.gitignore(),
         })
     }
@@ -250,6 +278,21 @@ pub struct GitignoreConfig {
 impl Default for GitignoreConfig {
     fn default() -> Self {
         Self { enabled: true }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NoConsoleRuleConfig {
+    pub severity: Severity,
+    pub allow_patterns: Vec<String>,
+}
+
+impl Default for NoConsoleRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            allow_patterns: vec![],
+        }
     }
 }
 
@@ -366,6 +409,30 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn no_console(&self) -> NoConsoleRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-console"))
+            .map(RawRuleConfig::to_no_console_config)
+            .unwrap_or_default()
+    }
+
+    fn no_debugger(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-debugger"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn no_eval(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-eval"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
     fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
@@ -451,6 +518,19 @@ impl RawRuleConfig {
             },
         }
     }
+
+    fn to_no_console_config(&self) -> NoConsoleRuleConfig {
+        match self {
+            Self::Severity(severity) => NoConsoleRuleConfig {
+                severity: Severity::from_str(severity),
+                allow_patterns: vec![],
+            },
+            Self::Options(options) => NoConsoleRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                allow_patterns: options.allow_patterns.clone().unwrap_or_default(),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -464,4 +544,6 @@ struct RawRuleOptions {
     max_exports: Option<usize>,
     #[serde(rename = "max-depth")]
     max_depth: Option<usize>,
+    #[serde(rename = "allow-patterns")]
+    allow_patterns: Option<Vec<String>>,
 }

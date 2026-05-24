@@ -1,8 +1,11 @@
 mod max_file_exports;
 mod no_barrel_files;
 mod no_comments;
+mod no_console;
+mod no_debugger;
 mod no_default_export;
 mod no_enums;
+mod no_eval;
 mod no_inline_types;
 mod no_large_file;
 mod no_logic_in_barrel;
@@ -13,8 +16,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::config::{
-    CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig, RuleConfig, Severity,
-    UpwardImportRuleConfig,
+    CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig, NoConsoleRuleConfig,
+    RuleConfig, Severity, UpwardImportRuleConfig,
 };
 
 #[derive(Debug, Clone)]
@@ -38,6 +41,9 @@ pub fn check_files(
     no_large_file: FileLengthRuleConfig,
     no_enums: RuleConfig,
     no_barrel_files: RuleConfig,
+    no_console: NoConsoleRuleConfig,
+    no_debugger: RuleConfig,
+    no_eval: RuleConfig,
 ) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
 
@@ -50,6 +56,9 @@ pub fn check_files(
         && !no_large_file.severity.is_enabled()
         && !no_enums.severity.is_enabled()
         && !no_barrel_files.severity.is_enabled()
+        && !no_console.severity.is_enabled()
+        && !no_debugger.severity.is_enabled()
+        && !no_eval.severity.is_enabled()
     {
         return Ok(violations);
     }
@@ -106,6 +115,15 @@ pub fn check_files(
         }
         if no_barrel_files.severity.is_enabled() {
             violations.extend(no_barrel_files::check_file(file, &source, &no_barrel_files));
+        }
+        if no_console.severity.is_enabled() {
+            violations.extend(no_console::check_file(file, &source, &no_console));
+        }
+        if no_debugger.severity.is_enabled() {
+            violations.extend(no_debugger::check_file(file, &source, &no_debugger));
+        }
+        if no_eval.severity.is_enabled() {
+            violations.extend(no_eval::check_file(file, &source, &no_eval));
         }
     }
 

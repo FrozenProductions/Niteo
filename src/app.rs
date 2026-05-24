@@ -65,6 +65,9 @@ fn lint_workspace(
         project_config.no_large_file,
         project_config.no_enums,
         project_config.no_barrel_files,
+        project_config.no_console,
+        project_config.no_debugger,
+        project_config.no_eval,
     )?;
     let report = report::Report::new(files, violations);
 
