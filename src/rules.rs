@@ -1,3 +1,4 @@
+mod max_file_exports;
 mod no_comments;
 mod no_default_export;
 mod no_inline_types;
@@ -8,7 +9,9 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::PathBuf;
 
-use crate::config::{CommentsRuleConfig, FileLengthRuleConfig, RuleConfig, Severity};
+use crate::config::{
+    CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig, RuleConfig, Severity,
+};
 
 #[derive(Debug, Clone)]
 pub struct Violation {
@@ -25,6 +28,7 @@ pub fn check_files(
     no_logic_in_barrel: RuleConfig,
     no_default_export: RuleConfig,
     no_inline_types: RuleConfig,
+    max_file_exports: FileExportsRuleConfig,
     no_large_file: FileLengthRuleConfig,
 ) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
@@ -33,6 +37,7 @@ pub fn check_files(
         && !no_logic_in_barrel.severity.is_enabled()
         && !no_default_export.severity.is_enabled()
         && !no_inline_types.severity.is_enabled()
+        && !max_file_exports.severity.is_enabled()
         && !no_large_file.severity.is_enabled()
     {
         return Ok(violations);
@@ -66,6 +71,13 @@ pub fn check_files(
                 &source,
                 &no_inline_types,
                 type_location_style,
+            ));
+        }
+        if max_file_exports.severity.is_enabled() {
+            violations.extend(max_file_exports::check_file(
+                file,
+                &source,
+                &max_file_exports,
             ));
         }
         if no_large_file.severity.is_enabled() {

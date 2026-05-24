@@ -22,6 +22,10 @@ severity = "warn"
 [rules.no-inline-types]
 severity = "warn"
 
+[rules.max-file-exports]
+severity = "warn"
+max-exports = 10
+
 [rules.no-large-file]
 severity = "warn"
 max-lines = 500
@@ -34,6 +38,7 @@ pub struct ProjectConfig {
     pub no_logic_in_barrel: RuleConfig,
     pub no_default_export: RuleConfig,
     pub no_inline_types: RuleConfig,
+    pub max_file_exports: FileExportsRuleConfig,
     pub no_large_file: FileLengthRuleConfig,
 }
 
@@ -45,6 +50,7 @@ impl Default for ProjectConfig {
             no_logic_in_barrel: RuleConfig::default(),
             no_default_export: RuleConfig::default(),
             no_inline_types: RuleConfig::default(),
+            max_file_exports: FileExportsRuleConfig::default(),
             no_large_file: FileLengthRuleConfig::default(),
         }
     }
@@ -61,6 +67,7 @@ impl ProjectConfig {
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
                 no_inline_types: config.no_inline_types(),
+                max_file_exports: config.max_file_exports(),
                 no_large_file: config.no_large_file(),
             });
         }
@@ -76,6 +83,7 @@ impl ProjectConfig {
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
                 no_inline_types: config.no_inline_types(),
+                max_file_exports: config.max_file_exports(),
                 no_large_file: config.no_large_file(),
             });
         }
@@ -88,6 +96,7 @@ impl ProjectConfig {
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
                 no_inline_types: config.no_inline_types(),
+                max_file_exports: config.max_file_exports(),
                 no_large_file: config.no_large_file(),
             });
         }
@@ -98,6 +107,7 @@ impl ProjectConfig {
             no_logic_in_barrel: config.no_logic_in_barrel(),
             no_default_export: config.no_default_export(),
             no_inline_types: config.no_inline_types(),
+            max_file_exports: config.max_file_exports(),
             no_large_file: config.no_large_file(),
         })
     }
@@ -175,6 +185,21 @@ impl Default for FileLengthRuleConfig {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct FileExportsRuleConfig {
+    pub severity: Severity,
+    pub max_exports: usize,
+}
+
+impl Default for FileExportsRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            max_exports: 10,
+        }
+    }
+}
+
 pub fn write_default_config(workspace: &Path) -> Result<PathBuf> {
     let config_path = workspace.join(CONFIG_FILE_NAME);
     if config_path.exists() {
@@ -248,6 +273,14 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn max_file_exports(&self) -> FileExportsRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("max-file-exports"))
+            .map(RawRuleConfig::to_file_exports_config)
+            .unwrap_or_default()
+    }
+
     fn no_large_file(&self) -> FileLengthRuleConfig {
         self.rules
             .as_ref()
@@ -306,6 +339,19 @@ impl RawRuleConfig {
             },
         }
     }
+
+    fn to_file_exports_config(&self) -> FileExportsRuleConfig {
+        match self {
+            Self::Severity(severity) => FileExportsRuleConfig {
+                severity: Severity::from_str(severity),
+                max_exports: 10,
+            },
+            Self::Options(options) => FileExportsRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                max_exports: options.max_exports.unwrap_or(10),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -315,4 +361,6 @@ struct RawRuleOptions {
     allow_doc_comments: Option<bool>,
     #[serde(rename = "max-lines")]
     max_lines: Option<usize>,
+    #[serde(rename = "max-exports")]
+    max_exports: Option<usize>,
 }
