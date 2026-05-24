@@ -7,6 +7,7 @@ const RED: &str = "\x1b[31m";
 const YELLOW: &str = "\x1b[33m";
 const GREEN: &str = "\x1b[32m";
 const CYAN: &str = "\x1b[36m";
+const BLUE: &str = "\x1b[34m";
 const BOLD: &str = "\x1b[1m";
 const DIM: &str = "\x1b[2m";
 const RESET: &str = "\x1b[0m";
@@ -28,6 +29,7 @@ impl Report {
     pub fn render_text(&self, verbose: bool) -> String {
         let warning_count = self.count_by_severity(Severity::Warn);
         let error_count = self.count_by_severity(Severity::Error);
+        let info_count = self.count_by_severity(Severity::Info);
         let score = self.score(error_count, warning_count);
         let mut output = String::new();
 
@@ -46,6 +48,7 @@ impl Report {
                 self.violations.len(),
                 error_count,
                 warning_count,
+                info_count,
                 score,
                 &rule_groups,
                 verbose,
@@ -98,16 +101,17 @@ fn render_end_summary(
     violation_count: usize,
     error_count: usize,
     warning_count: usize,
+    info_count: usize,
     score: usize,
     rule_groups: &[RuleGroup<'_>],
     verbose: bool,
 ) -> String {
-    let status = status_label(error_count, warning_count);
-    let status_color = status_color(error_count, warning_count);
+    let status = status_label(error_count, warning_count, info_count);
+    let status_color = status_color(error_count, warning_count, info_count);
     let score_color = score_color(score);
     let mut output = format!(
         "{score_color}{BOLD}Score {score}/100{RESET}  {status_color}{BOLD}{status}{RESET}\n\
-         {DIM}{file_count} files scanned | {violation_count} findings | {error_count} errors | {warning_count} warnings{RESET}\n\n"
+         {DIM}{file_count} files scanned | {violation_count} findings | {error_count} errors | {warning_count} warnings | {info_count} info{RESET}\n\n"
     );
     output.push_str(&render_rule_overview(rule_groups, verbose));
     output
@@ -414,7 +418,7 @@ fn group_line_ranges(violations: &[&Violation]) -> Vec<String> {
     ranges
 }
 
-fn status_label(error_count: usize, warning_count: usize) -> &'static str {
+fn status_label(error_count: usize, warning_count: usize, info_count: usize) -> &'static str {
     if error_count > 0 {
         return "Needs attention";
     }
@@ -423,16 +427,24 @@ fn status_label(error_count: usize, warning_count: usize) -> &'static str {
         return "Review recommended";
     }
 
+    if info_count > 0 {
+        return "Suggestions available";
+    }
+
     "Healthy"
 }
 
-fn status_color(error_count: usize, warning_count: usize) -> &'static str {
+fn status_color(error_count: usize, warning_count: usize, info_count: usize) -> &'static str {
     if error_count > 0 {
         return RED;
     }
 
     if warning_count > 0 {
         return YELLOW;
+    }
+
+    if info_count > 0 {
+        return BLUE;
     }
 
     GREEN
@@ -442,6 +454,7 @@ fn severity_color(severity: Severity) -> &'static str {
     match severity {
         Severity::Error => RED,
         Severity::Warn => YELLOW,
+        Severity::Info => BLUE,
         Severity::Off => DIM,
     }
 }
@@ -450,7 +463,8 @@ fn severity_rank(severity: Severity) -> usize {
     match severity {
         Severity::Error => 0,
         Severity::Warn => 1,
-        Severity::Off => 2,
+        Severity::Info => 2,
+        Severity::Off => 3,
     }
 }
 
@@ -458,6 +472,7 @@ fn pluralized_label(severity: Severity) -> &'static str {
     match severity {
         Severity::Error => "errors",
         Severity::Warn => "warnings",
+        Severity::Info => "suggestions",
         Severity::Off => "off",
     }
 }

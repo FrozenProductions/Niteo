@@ -282,6 +282,7 @@ impl ProjectConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Severity {
     Off,
+    Info,
     Warn,
     Error,
 }
@@ -290,6 +291,7 @@ impl Severity {
     pub fn from_str(value: &str) -> Self {
         match value {
             "off" => Self::Off,
+            "info" => Self::Info,
             "error" => Self::Error,
             _ => Self::Warn,
         }
