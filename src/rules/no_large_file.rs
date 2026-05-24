@@ -16,8 +16,8 @@ pub fn check_file(file: &Path, source: &str, config: &FileLengthRuleConfig) -> V
 
     vec![Violation {
         file: file.to_path_buf(),
-        line: location.line,
-        column: location.column,
+        line: Some(location.line),
+        column: Some(location.column),
         rule: RULE_NAME,
         message: MESSAGE,
         severity: config.severity,
@@ -68,8 +68,8 @@ mod tests {
         let violations = check_file(Path::new("file.ts"), source, &test_config(3));
 
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, 5);
-        assert_eq!(violations[0].column, 1);
+        assert_eq!(violations[0].line, Some(5));
+        assert_eq!(violations[0].column, Some(1));
     }
 
     #[test]
@@ -78,8 +78,8 @@ mod tests {
         let violations = check_file(Path::new("file.ts"), source, &test_config(2));
 
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, 3);
-        assert_eq!(violations[0].column, 7);
+        assert_eq!(violations[0].line, Some(3));
+        assert_eq!(violations[0].column, Some(7));
     }
 
     #[test]

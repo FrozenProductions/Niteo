@@ -88,8 +88,8 @@ impl Cursor {
 fn eval_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation {
     Violation {
         file: file.to_path_buf(),
-        line: cursor.line,
-        column: cursor.column,
+        line: Some(cursor.line),
+        column: Some(cursor.column),
         rule: RULE_NAME,
         message: MESSAGE,
         severity,
@@ -210,8 +210,8 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, 1);
-        assert_eq!(violations[0].column, 1);
+        assert_eq!(violations[0].line, Some(1));
+        assert_eq!(violations[0].column, Some(1));
     }
 
     #[test]

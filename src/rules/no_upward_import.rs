@@ -188,8 +188,8 @@ fn upward_depth(specifier: &[u8]) -> usize {
 fn violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation {
     Violation {
         file: file.to_path_buf(),
-        line: cursor.line,
-        column: cursor.column,
+        line: Some(cursor.line),
+        column: Some(cursor.column),
         rule: RULE_NAME,
         message: MESSAGE,
         severity,
@@ -331,8 +331,8 @@ mod tests {
         let violations = check_file(Path::new("Button.ts"), source, &test_config());
 
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, 1);
-        assert_eq!(violations[0].column, 1);
+        assert_eq!(violations[0].line, Some(1));
+        assert_eq!(violations[0].column, Some(1));
     }
 
     #[test]
@@ -363,8 +363,8 @@ import { shared } from "../shared";
         let violations = check_file(Path::new("Button.ts"), source, &test_config());
 
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, 4);
-        assert_eq!(violations[0].column, 1);
+        assert_eq!(violations[0].line, Some(4));
+        assert_eq!(violations[0].column, Some(1));
     }
 
     #[test]
@@ -386,7 +386,7 @@ import { shared } from "../shared";
         let violations = check_file(Path::new("Button.ts"), source, &test_config());
 
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, 2);
+        assert_eq!(violations[0].line, Some(2));
     }
 
     #[test]
@@ -397,7 +397,7 @@ import { other } from "../../other";
         let violations = check_file(Path::new("Button.ts"), source, &test_config_with_depth(1));
 
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, 2);
+        assert_eq!(violations[0].line, Some(2));
     }
 
     #[test]

@@ -14,8 +14,8 @@ pub fn check_file(file: &Path, source: &str, config: &FileExportsRuleConfig) -> 
 
     vec![Violation {
         file: file.to_path_buf(),
-        line: 1,
-        column: 1,
+        line: Some(1),
+        column: Some(1),
         rule: RULE_NAME,
         message: MESSAGE,
         severity: config.severity,
@@ -409,8 +409,8 @@ export interface Four {}
         let violations = check_file(Path::new("dump.ts"), source, &test_config(3));
 
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, 1);
-        assert_eq!(violations[0].column, 1);
+        assert_eq!(violations[0].line, Some(1));
+        assert_eq!(violations[0].column, Some(1));
     }
 
     #[test]

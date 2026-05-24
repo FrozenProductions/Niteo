@@ -27,8 +27,8 @@ use crate::config::{
 #[derive(Debug, Clone)]
 pub struct Violation {
     pub file: PathBuf,
-    pub line: usize,
-    pub column: usize,
+    pub line: Option<usize>,
+    pub column: Option<usize>,
     pub rule: &'static str,
     pub message: &'static str,
     pub severity: Severity,

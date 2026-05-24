@@ -192,11 +192,19 @@ fn render_rule_group(group: &RuleGroup<'_>, verbose: bool) -> String {
                     .as_ref()
                     .map(|d| format!(" {DIM}{d}{RESET}"))
                     .unwrap_or_default();
+                let location = match (violation.line, violation.column) {
+                    (Some(line), Some(column)) => format!("lines {line}:{column}"),
+                    (Some(line), None) => format!("line {line}"),
+                    _ => String::new(),
+                };
+                let location_suffix = if location.is_empty() {
+                    String::new()
+                } else {
+                    format!(" {location}")
+                };
                 output.push_str(&format!(
-                    "  {CYAN}{}{RESET}  {subject}lines {}:{}{detail}\n",
+                    "  {CYAN}{}{RESET}  {subject}{location_suffix}{detail}\n",
                     file_group.file.display(),
-                    violation.line,
-                    violation.column,
                 ));
             }
         } else {
@@ -265,6 +273,7 @@ fn group_by_rule<'a>(violations: &'a [Violation]) -> Vec<RuleGroup<'a>> {
                 .cmp(&right.file)
                 .then(left.line.cmp(&right.line))
                 .then(left.column.cmp(&right.column))
+                .then(left.rule.cmp(right.rule))
         });
     }
 
@@ -326,13 +335,21 @@ fn render_line_numbers<'a>(
     verbose: bool,
 ) -> String {
     let violations: Vec<&'a Violation> = violations.collect();
+    let positioned: Vec<&'a Violation> = violations
+        .iter()
+        .filter(|v| v.line.is_some())
+        .copied()
+        .collect();
     let ranges = if verbose {
-        violations
+        positioned
             .iter()
-            .map(|v| format!("{}:{}", v.line, v.column))
+            .filter_map(|v| {
+                v.line
+                    .map(|line| format!("{}:{}", line, v.column.unwrap_or(1)))
+            })
             .collect::<Vec<String>>()
     } else {
-        group_line_ranges(&violations)
+        group_line_ranges(&positioned)
     };
     let lines = ranges.join(", ");
 
@@ -345,7 +362,11 @@ fn render_line_numbers<'a>(
         String::new()
     };
 
-    format!("{DIM}lines {lines}{suffix}{RESET}")
+    if lines.is_empty() {
+        format!("{DIM}{suffix}{RESET}").trim().to_string()
+    } else {
+        format!("{DIM}lines {lines}{suffix}{RESET}")
+    }
 }
 
 fn group_line_ranges(violations: &[&Violation]) -> Vec<String> {
@@ -354,20 +375,21 @@ fn group_line_ranges(violations: &[&Violation]) -> Vec<String> {
     }
 
     let mut ranges: Vec<String> = Vec::new();
-    let mut start = violations[0].line;
-    let mut end = violations[0].line;
+    let mut start = violations[0].line.unwrap_or(1);
+    let mut end = violations[0].line.unwrap_or(1);
 
     for violation in violations.iter().skip(1) {
-        if violation.line == end + 1 {
-            end = violation.line;
+        let line = violation.line.unwrap_or(1);
+        if line == end + 1 {
+            end = line;
         } else {
             if start == end {
                 ranges.push(format!("{start}"));
             } else {
                 ranges.push(format!("{start}-{end}"));
             }
-            start = violation.line;
-            end = violation.line;
+            start = line;
+            end = line;
         }
     }
 

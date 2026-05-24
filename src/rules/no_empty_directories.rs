@@ -208,8 +208,8 @@ fn is_barrel_file(path: &Path) -> bool {
 fn directory_violation(dir: &Path, severity: Severity) -> Violation {
     Violation {
         file: dir.to_path_buf(),
-        line: 1,
-        column: 1,
+        line: None,
+        column: None,
         rule: RULE_NAME,
         message: MESSAGE,
         severity,

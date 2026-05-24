@@ -77,8 +77,8 @@ fn find_duplicates_in_different_dirs(
 fn duplicate_violation(file: &Path, other: &Path, name: &str, severity: Severity) -> Violation {
     Violation {
         file: file.to_path_buf(),
-        line: 1,
-        column: 1,
+        line: None,
+        column: None,
         rule: RULE_NAME,
         message: MESSAGE,
         severity,

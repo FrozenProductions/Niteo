@@ -13,64 +13,34 @@ pub fn check_file(file: &Path, source: &str, config: &RuleConfig) -> Vec<Violati
     }
 
     let bytes = source.as_bytes();
-    let mut cursor = Cursor::default();
+    let mut index = 0;
     let mut has_re_export = false;
 
-    while cursor.index < bytes.len() {
-        skip_trivia(bytes, &mut cursor);
+    while index < bytes.len() {
+        skip_trivia(bytes, &mut index);
 
-        if cursor.index >= bytes.len() {
+        if index >= bytes.len() {
             break;
         }
 
-        let statement = read_statement(bytes, &mut cursor);
+        let statement = read_statement(bytes, &mut index);
         if is_re_export(statement) {
             has_re_export = true;
         }
     }
 
     if has_re_export {
-        vec![barrel_violation(file, &Cursor::default(), config.severity)]
+        vec![barrel_violation(file, config.severity)]
     } else {
         Vec::new()
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Cursor {
-    index: usize,
-    line: usize,
-    column: usize,
-}
-
-impl Default for Cursor {
-    fn default() -> Self {
-        Self {
-            index: 0,
-            line: 1,
-            column: 1,
-        }
-    }
-}
-
-impl Cursor {
-    fn advance(&mut self, bytes: &[u8]) {
-        if bytes[self.index] == b'\n' {
-            self.line += 1;
-            self.column = 1;
-        } else {
-            self.column += 1;
-        }
-
-        self.index += 1;
-    }
-}
-
-fn barrel_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation {
+fn barrel_violation(file: &Path, severity: Severity) -> Violation {
     Violation {
         file: file.to_path_buf(),
-        line: cursor.line,
-        column: cursor.column,
+        line: None,
+        column: None,
         rule: RULE_NAME,
         message: MESSAGE,
         severity,
@@ -79,19 +49,19 @@ fn barrel_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violati
     }
 }
 
-fn skip_trivia(bytes: &[u8], cursor: &mut Cursor) {
+fn skip_trivia(bytes: &[u8], index: &mut usize) {
     loop {
-        while cursor.index < bytes.len() && bytes[cursor.index].is_ascii_whitespace() {
-            cursor.advance(bytes);
+        while *index < bytes.len() && bytes[*index].is_ascii_whitespace() {
+            *index += 1;
         }
 
-        if starts_with(bytes, cursor.index, b"//") {
-            skip_line_comment(bytes, cursor);
+        if starts_with(bytes, *index, b"//") {
+            skip_line_comment(bytes, index);
             continue;
         }
 
-        if starts_with(bytes, cursor.index, b"/*") {
-            skip_block_comment(bytes, cursor);
+        if starts_with(bytes, *index, b"/*") {
+            skip_block_comment(bytes, index);
             continue;
         }
 
@@ -99,20 +69,20 @@ fn skip_trivia(bytes: &[u8], cursor: &mut Cursor) {
     }
 }
 
-fn read_statement<'a>(bytes: &'a [u8], cursor: &mut Cursor) -> &'a [u8] {
-    let start = cursor.index;
+fn read_statement<'a>(bytes: &'a [u8], index: &mut usize) -> &'a [u8] {
+    let start = *index;
     let mut string_quote: Option<u8> = None;
     let mut brace_depth = 0usize;
 
-    while cursor.index < bytes.len() {
-        let current = bytes[cursor.index];
-        let next = bytes.get(cursor.index + 1).copied();
+    while *index < bytes.len() {
+        let current = bytes[*index];
+        let next = bytes.get(*index + 1).copied();
 
         if let Some(quote) = string_quote {
             if current == b'\\' {
-                cursor.advance(bytes);
-                if cursor.index < bytes.len() {
-                    cursor.advance(bytes);
+                *index += 1;
+                if *index < bytes.len() {
+                    *index += 1;
                 }
                 continue;
             }
@@ -121,38 +91,38 @@ fn read_statement<'a>(bytes: &'a [u8], cursor: &mut Cursor) -> &'a [u8] {
                 string_quote = None;
             }
 
-            cursor.advance(bytes);
+            *index += 1;
             continue;
         }
 
         match (current, next) {
             (b'\'', _) | (b'"', _) | (b'`', _) => {
                 string_quote = Some(current);
-                cursor.advance(bytes);
+                *index += 1;
             }
-            (b'/', Some(b'/')) => skip_line_comment(bytes, cursor),
-            (b'/', Some(b'*')) => skip_block_comment(bytes, cursor),
+            (b'/', Some(b'/')) => skip_line_comment(bytes, index),
+            (b'/', Some(b'*')) => skip_block_comment(bytes, index),
             (b'{', _) => {
                 brace_depth += 1;
-                cursor.advance(bytes);
+                *index += 1;
             }
             (b'}', _) => {
                 brace_depth = brace_depth.saturating_sub(1);
-                cursor.advance(bytes);
+                *index += 1;
             }
             (b';', _) => {
-                cursor.advance(bytes);
+                *index += 1;
                 break;
             }
             (b'\n', _) if brace_depth == 0 => {
-                cursor.advance(bytes);
+                *index += 1;
                 break;
             }
-            _ => cursor.advance(bytes),
+            _ => *index += 1,
         }
     }
 
-    &bytes[start..cursor.index]
+    &bytes[start..*index]
 }
 
 fn is_re_export(statement: &[u8]) -> bool {
@@ -173,24 +143,24 @@ fn is_re_export(statement: &[u8]) -> bool {
     }
 }
 
-fn skip_line_comment(bytes: &[u8], cursor: &mut Cursor) {
-    while cursor.index < bytes.len() && bytes[cursor.index] != b'\n' {
-        cursor.advance(bytes);
+fn skip_line_comment(bytes: &[u8], index: &mut usize) {
+    while *index < bytes.len() && bytes[*index] != b'\n' {
+        *index += 1;
     }
 }
 
-fn skip_block_comment(bytes: &[u8], cursor: &mut Cursor) {
-    cursor.advance(bytes);
-    cursor.advance(bytes);
+fn skip_block_comment(bytes: &[u8], index: &mut usize) {
+    *index += 1;
+    *index += 1;
 
-    while cursor.index < bytes.len() {
-        let current = bytes[cursor.index];
-        let next = bytes.get(cursor.index + 1).copied();
+    while *index < bytes.len() {
+        let current = bytes[*index];
+        let next = bytes.get(*index + 1).copied();
 
-        cursor.advance(bytes);
+        *index += 1;
 
         if current == b'*' && next == Some(b'/') {
-            cursor.advance(bytes);
+            *index += 1;
             break;
         }
     }
@@ -274,8 +244,8 @@ export type { ButtonProps } from "./Button.type";
         let violations = check_file(Path::new("index.ts"), source, &test_config());
 
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, 1);
-        assert_eq!(violations[0].column, 1);
+        assert!(violations[0].line.is_none());
+        assert!(violations[0].column.is_none());
     }
 
     #[test]
