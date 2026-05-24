@@ -93,6 +93,9 @@ allow-declaration-merging = true
 
 [rules.no-mutable-exports]
 severity = "warn"
+
+[rules.prefer-satisfies]
+severity = "info"
 "#;
 
 #[derive(Debug, Clone)]
@@ -120,6 +123,7 @@ pub struct ProjectConfig {
     pub no_empty_interface: RuleConfig,
     pub no_interface: NoInterfaceRuleConfig,
     pub no_mutable_exports: RuleConfig,
+    pub prefer_satisfies: RuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -149,6 +153,7 @@ impl Default for ProjectConfig {
             no_empty_interface: RuleConfig::default(),
             no_interface: NoInterfaceRuleConfig::default(),
             no_mutable_exports: RuleConfig::default(),
+            prefer_satisfies: RuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -183,6 +188,7 @@ impl ProjectConfig {
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
+                prefer_satisfies: config.prefer_satisfies(),
                 gitignore: config.gitignore(),
             });
         }
@@ -216,6 +222,7 @@ impl ProjectConfig {
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
+                prefer_satisfies: config.prefer_satisfies(),
                 gitignore: config.gitignore(),
             });
         }
@@ -246,6 +253,7 @@ impl ProjectConfig {
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
+                prefer_satisfies: config.prefer_satisfies(),
                 gitignore: config.gitignore(),
             });
         }
@@ -274,6 +282,7 @@ impl ProjectConfig {
             no_empty_interface: config.no_empty_interface(),
             no_interface: config.no_interface(),
             no_mutable_exports: config.no_mutable_exports(),
+            prefer_satisfies: config.prefer_satisfies(),
             gitignore: config.gitignore(),
         })
     }
@@ -731,6 +740,14 @@ impl RawConfig {
         self.rules
             .as_ref()
             .and_then(|rules| rules.get("no-mutable-exports"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn prefer_satisfies(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("prefer-satisfies"))
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }

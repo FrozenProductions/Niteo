@@ -20,6 +20,7 @@ mod no_logic_in_barrel;
 mod no_logic_in_domain;
 mod no_mutable_exports;
 mod no_upward_import;
+mod prefer_satisfies;
 
 use anyhow::{Context, Result};
 use std::fs;
@@ -63,6 +64,7 @@ pub fn check_files(
     no_empty_interface: RuleConfig,
     no_interface: NoInterfaceRuleConfig,
     no_mutable_exports: RuleConfig,
+    prefer_satisfies: RuleConfig,
 ) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
 
@@ -83,6 +85,7 @@ pub fn check_files(
         && !no_empty_interface.severity.is_enabled()
         && !no_interface.severity.is_enabled()
         && !no_mutable_exports.severity.is_enabled()
+        && !prefer_satisfies.severity.is_enabled()
     {
         return Ok(violations);
     }
@@ -174,6 +177,13 @@ pub fn check_files(
                 file,
                 &source,
                 &no_mutable_exports,
+            ));
+        }
+        if prefer_satisfies.severity.is_enabled() {
+            violations.extend(prefer_satisfies::check_file(
+                file,
+                &source,
+                &prefer_satisfies,
             ));
         }
     }
