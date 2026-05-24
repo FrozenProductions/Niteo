@@ -12,6 +12,7 @@ mod no_empty_directories;
 mod no_empty_interface;
 mod no_enums;
 mod no_eval;
+mod no_export_star;
 mod no_inline_types;
 mod no_interface;
 mod no_large_file;
@@ -48,6 +49,7 @@ pub fn check_files(
     no_comments: CommentsRuleConfig,
     no_logic_in_barrel: RuleConfig,
     no_default_export: RuleConfig,
+    no_export_star: RuleConfig,
     no_inline_types: RuleConfig,
     max_file_exports: FileExportsRuleConfig,
     no_upward_import: UpwardImportRuleConfig,
@@ -67,6 +69,7 @@ pub fn check_files(
     if !no_comments.severity.is_enabled()
         && !no_logic_in_barrel.severity.is_enabled()
         && !no_default_export.severity.is_enabled()
+        && !no_export_star.severity.is_enabled()
         && !no_inline_types.severity.is_enabled()
         && !max_file_exports.severity.is_enabled()
         && !no_upward_import.severity.is_enabled()
@@ -105,6 +108,9 @@ pub fn check_files(
                 &source,
                 &no_default_export,
             ));
+        }
+        if no_export_star.severity.is_enabled() {
+            violations.extend(no_export_star::check_file(file, &source, &no_export_star));
         }
         if no_inline_types.severity.is_enabled() {
             violations.extend(no_inline_types::check_file(

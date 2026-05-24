@@ -20,6 +20,9 @@ severity = "warn"
 [rules.no-default-export]
 severity = "warn"
 
+[rules.no-export-star]
+severity = "warn"
+
 [rules.no-inline-types]
 severity = "warn"
 
@@ -98,6 +101,7 @@ pub struct ProjectConfig {
     pub no_comments: CommentsRuleConfig,
     pub no_logic_in_barrel: RuleConfig,
     pub no_default_export: RuleConfig,
+    pub no_export_star: RuleConfig,
     pub no_inline_types: RuleConfig,
     pub max_file_exports: FileExportsRuleConfig,
     pub no_upward_import: UpwardImportRuleConfig,
@@ -126,6 +130,7 @@ impl Default for ProjectConfig {
             no_comments: CommentsRuleConfig::default(),
             no_logic_in_barrel: RuleConfig::default(),
             no_default_export: RuleConfig::default(),
+            no_export_star: RuleConfig::default(),
             no_inline_types: RuleConfig::default(),
             max_file_exports: FileExportsRuleConfig::default(),
             no_upward_import: UpwardImportRuleConfig::default(),
@@ -159,6 +164,7 @@ impl ProjectConfig {
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
+                no_export_star: config.no_export_star(),
                 no_inline_types: config.no_inline_types(),
                 max_file_exports: config.max_file_exports(),
                 no_upward_import: config.no_upward_import(),
@@ -191,6 +197,7 @@ impl ProjectConfig {
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
+                no_export_star: config.no_export_star(),
                 no_inline_types: config.no_inline_types(),
                 max_file_exports: config.max_file_exports(),
                 no_upward_import: config.no_upward_import(),
@@ -220,6 +227,7 @@ impl ProjectConfig {
                 no_comments: config.no_comments(),
                 no_logic_in_barrel: config.no_logic_in_barrel(),
                 no_default_export: config.no_default_export(),
+                no_export_star: config.no_export_star(),
                 no_inline_types: config.no_inline_types(),
                 max_file_exports: config.max_file_exports(),
                 no_upward_import: config.no_upward_import(),
@@ -247,6 +255,7 @@ impl ProjectConfig {
             no_comments: config.no_comments(),
             no_logic_in_barrel: config.no_logic_in_barrel(),
             no_default_export: config.no_default_export(),
+            no_export_star: config.no_export_star(),
             no_inline_types: config.no_inline_types(),
             max_file_exports: config.max_file_exports(),
             no_upward_import: config.no_upward_import(),
@@ -568,6 +577,14 @@ impl RawConfig {
         self.rules
             .as_ref()
             .and_then(|rules| rules.get("no-default-export"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn no_export_star(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-export-star"))
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
