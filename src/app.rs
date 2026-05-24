@@ -82,10 +82,16 @@ fn lint_workspace(
         project_config.max_files_per_directory,
     );
 
+    let mut min_files_violations = rules::check_min_files_per_directory(
+        &project_config.root,
+        project_config.min_files_per_directory,
+    );
+
     let mut all_violations = violations;
     all_violations.append(&mut dir_violations);
     all_violations.append(&mut name_violations);
     all_violations.append(&mut max_files_violations);
+    all_violations.append(&mut min_files_violations);
 
     let report = report::Report::new(files, all_violations);
 

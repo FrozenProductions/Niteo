@@ -68,6 +68,11 @@ ignore-names = []
 severity = "warn"
 max-files = 20
 ignore-dirs = []
+
+[rules.min-files-per-directory]
+severity = "warn"
+min-files = 3
+ignore-dirs = []
 "#;
 
 #[derive(Debug, Clone)]
@@ -89,6 +94,7 @@ pub struct ProjectConfig {
     pub no_empty_directories: NoEmptyDirectoriesRuleConfig,
     pub no_duplicate_file_names: NoDuplicateFileNamesRuleConfig,
     pub max_files_per_directory: MaxFilesPerDirectoryRuleConfig,
+    pub min_files_per_directory: MinFilesPerDirectoryRuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -112,6 +118,7 @@ impl Default for ProjectConfig {
             no_empty_directories: NoEmptyDirectoriesRuleConfig::default(),
             no_duplicate_file_names: NoDuplicateFileNamesRuleConfig::default(),
             max_files_per_directory: MaxFilesPerDirectoryRuleConfig::default(),
+            min_files_per_directory: MinFilesPerDirectoryRuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -140,6 +147,7 @@ impl ProjectConfig {
                 no_empty_directories: config.no_empty_directories(),
                 no_duplicate_file_names: config.no_duplicate_file_names(),
                 max_files_per_directory: config.max_files_per_directory(),
+                min_files_per_directory: config.min_files_per_directory(),
                 gitignore: config.gitignore(),
             });
         }
@@ -167,6 +175,7 @@ impl ProjectConfig {
                 no_empty_directories: config.no_empty_directories(),
                 no_duplicate_file_names: config.no_duplicate_file_names(),
                 max_files_per_directory: config.max_files_per_directory(),
+                min_files_per_directory: config.min_files_per_directory(),
                 gitignore: config.gitignore(),
             });
         }
@@ -191,6 +200,7 @@ impl ProjectConfig {
                 no_empty_directories: config.no_empty_directories(),
                 no_duplicate_file_names: config.no_duplicate_file_names(),
                 max_files_per_directory: config.max_files_per_directory(),
+                min_files_per_directory: config.min_files_per_directory(),
                 gitignore: config.gitignore(),
             });
         }
@@ -213,6 +223,7 @@ impl ProjectConfig {
             no_empty_directories: config.no_empty_directories(),
             no_duplicate_file_names: config.no_duplicate_file_names(),
             max_files_per_directory: config.max_files_per_directory(),
+            min_files_per_directory: config.min_files_per_directory(),
             gitignore: config.gitignore(),
         })
     }
@@ -365,6 +376,23 @@ impl Default for MaxFilesPerDirectoryRuleConfig {
         Self {
             severity: Severity::Warn,
             max_files: 20,
+            ignore_dirs: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MinFilesPerDirectoryRuleConfig {
+    pub severity: Severity,
+    pub min_files: usize,
+    pub ignore_dirs: Vec<String>,
+}
+
+impl Default for MinFilesPerDirectoryRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            min_files: 3,
             ignore_dirs: vec![],
         }
     }
@@ -571,6 +599,14 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn min_files_per_directory(&self) -> MinFilesPerDirectoryRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("min-files-per-directory"))
+            .map(RawRuleConfig::to_min_files_per_directory_config)
+            .unwrap_or_default()
+    }
+
     fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
@@ -727,6 +763,21 @@ impl RawRuleConfig {
             },
         }
     }
+
+    fn to_min_files_per_directory_config(&self) -> MinFilesPerDirectoryRuleConfig {
+        match self {
+            Self::Severity(severity) => MinFilesPerDirectoryRuleConfig {
+                severity: Severity::from_str(severity),
+                min_files: 3,
+                ignore_dirs: vec![],
+            },
+            Self::Options(options) => MinFilesPerDirectoryRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                min_files: options.min_files.unwrap_or(3),
+                ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -752,4 +803,6 @@ struct RawRuleOptions {
     ignore_names: Option<Vec<String>>,
     #[serde(rename = "max-files")]
     max_files: Option<usize>,
+    #[serde(rename = "min-files")]
+    min_files: Option<usize>,
 }
