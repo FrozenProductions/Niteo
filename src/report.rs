@@ -269,23 +269,38 @@ fn render_end_summary(
 
 fn render_rule_overview(rule_groups: &[RuleGroup<'_>], verbose: bool) -> String {
     let visible_count = visible_rule_group_count(rule_groups.len(), verbose);
+    let visible_groups = rule_groups.split_at(visible_count.min(rule_groups.len())).0;
     let hidden_count = rule_groups.len().saturating_sub(visible_count);
-    let max_count_width = rule_groups
+
+    let max_count_width = visible_groups
         .iter()
-        .take(visible_count)
         .map(|g| g.violations.len().to_string().len())
         .max()
         .unwrap_or(1);
-    let max_rule_width = rule_groups
+    let max_rule_width = visible_groups
         .iter()
-        .take(visible_count)
         .map(|g| g.rule.len())
         .max()
         .unwrap_or(1);
-    let mut output = format!("{BOLD}Rule Overview{RESET}\n");
 
-    for (index, group) in rule_groups.iter().take(visible_count).enumerate() {
-        let rank = index + 1;
+    let mut output = format!("{BOLD}Rule Overview{RESET}\n");
+    let mut rank = 0;
+    let mut last_severity: Option<Severity> = None;
+
+    for group in visible_groups {
+        if last_severity.map_or(true, |prev| prev != group.severity) {
+            if last_severity.is_some() {
+                output.push_str(&format!("{DIM}{}{RESET}\n", "─".repeat(60)));
+            }
+
+            let color = severity_color(group.severity);
+            let header = pluralized_header(group.severity);
+            output.push_str(&format!("\n{color}{BOLD}{header}{RESET}\n"));
+            output.push_str(&format!("{DIM}{}{RESET}\n", "─".repeat(60)));
+            last_severity = Some(group.severity);
+        }
+
+        rank += 1;
         let color = severity_color(group.severity);
         let label = pluralized_label(group.severity);
         let count_str = format!("{:>cw$}", group.violations.len(), cw = max_count_width);
@@ -297,13 +312,26 @@ fn render_rule_overview(rule_groups: &[RuleGroup<'_>], verbose: bool) -> String 
         ));
     }
 
+    if !visible_groups.is_empty() {
+        output.push_str(&format!("{DIM}{}{RESET}\n", "─".repeat(60)));
+    }
+
     if hidden_count > 0 {
         output.push_str(&format!(
-            "  {DIM}... {hidden_count} more rules hidden. Run with --verbose to show all.{RESET}\n"
+            "\n{DIM}... {hidden_count} more rules hidden. Run with --verbose to show all.{RESET}\n"
         ));
     }
 
     output
+}
+
+fn pluralized_header(severity: Severity) -> &'static str {
+    match severity {
+        Severity::Error => "Errors",
+        Severity::Warn => "Warnings",
+        Severity::Info => "Suggestions",
+        Severity::Off => "Off",
+    }
 }
 
 fn render_findings(rule_groups: &[RuleGroup<'_>], verbose: bool) -> String {
