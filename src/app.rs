@@ -47,6 +47,7 @@ fn lint_workspace(
         project_config.no_upward_import,
         project_config.no_large_file,
         project_config.no_enums,
+        project_config.no_barrel_files,
     )?;
     let report = report::Report::new(files, violations);
 

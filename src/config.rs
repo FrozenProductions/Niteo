@@ -36,6 +36,9 @@ max-lines = 500
 
 [rules.no-enums]
 severity = "warn"
+
+[rules.no-barrel-files]
+severity = "warn"
 "#;
 
 #[derive(Debug, Clone)]
@@ -49,6 +52,7 @@ pub struct ProjectConfig {
     pub no_upward_import: UpwardImportRuleConfig,
     pub no_large_file: FileLengthRuleConfig,
     pub no_enums: RuleConfig,
+    pub no_barrel_files: RuleConfig,
 }
 
 impl Default for ProjectConfig {
@@ -63,6 +67,7 @@ impl Default for ProjectConfig {
             no_upward_import: UpwardImportRuleConfig::default(),
             no_large_file: FileLengthRuleConfig::default(),
             no_enums: RuleConfig::default(),
+            no_barrel_files: RuleConfig::default(),
         }
     }
 }
@@ -82,6 +87,7 @@ impl ProjectConfig {
                 no_upward_import: config.no_upward_import(),
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
+                no_barrel_files: config.no_barrel_files(),
             });
         }
 
@@ -100,6 +106,7 @@ impl ProjectConfig {
                 no_upward_import: config.no_upward_import(),
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
+                no_barrel_files: config.no_barrel_files(),
             });
         }
 
@@ -115,6 +122,7 @@ impl ProjectConfig {
                 no_upward_import: config.no_upward_import(),
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
+                no_barrel_files: config.no_barrel_files(),
             });
         }
 
@@ -128,6 +136,7 @@ impl ProjectConfig {
             no_upward_import: config.no_upward_import(),
             no_large_file: config.no_large_file(),
             no_enums: config.no_enums(),
+            no_barrel_files: config.no_barrel_files(),
         })
     }
 }
@@ -327,6 +336,14 @@ impl RawConfig {
         self.rules
             .as_ref()
             .and_then(|rules| rules.get("no-enums"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn no_barrel_files(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-barrel-files"))
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
