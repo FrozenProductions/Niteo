@@ -33,6 +33,9 @@ max-depth = 0
 [rules.no-large-file]
 severity = "warn"
 max-lines = 500
+
+[rules.no-enums]
+severity = "warn"
 "#;
 
 #[derive(Debug, Clone)]
@@ -45,6 +48,7 @@ pub struct ProjectConfig {
     pub max_file_exports: FileExportsRuleConfig,
     pub no_upward_import: UpwardImportRuleConfig,
     pub no_large_file: FileLengthRuleConfig,
+    pub no_enums: RuleConfig,
 }
 
 impl Default for ProjectConfig {
@@ -58,6 +62,7 @@ impl Default for ProjectConfig {
             max_file_exports: FileExportsRuleConfig::default(),
             no_upward_import: UpwardImportRuleConfig::default(),
             no_large_file: FileLengthRuleConfig::default(),
+            no_enums: RuleConfig::default(),
         }
     }
 }
@@ -76,6 +81,7 @@ impl ProjectConfig {
                 max_file_exports: config.max_file_exports(),
                 no_upward_import: config.no_upward_import(),
                 no_large_file: config.no_large_file(),
+                no_enums: config.no_enums(),
             });
         }
 
@@ -93,6 +99,7 @@ impl ProjectConfig {
                 max_file_exports: config.max_file_exports(),
                 no_upward_import: config.no_upward_import(),
                 no_large_file: config.no_large_file(),
+                no_enums: config.no_enums(),
             });
         }
 
@@ -107,6 +114,7 @@ impl ProjectConfig {
                 max_file_exports: config.max_file_exports(),
                 no_upward_import: config.no_upward_import(),
                 no_large_file: config.no_large_file(),
+                no_enums: config.no_enums(),
             });
         }
 
@@ -119,6 +127,7 @@ impl ProjectConfig {
             max_file_exports: config.max_file_exports(),
             no_upward_import: config.no_upward_import(),
             no_large_file: config.no_large_file(),
+            no_enums: config.no_enums(),
         })
     }
 }
@@ -311,6 +320,14 @@ impl RawConfig {
             .as_ref()
             .and_then(|rules| rules.get("no-large-file"))
             .map(RawRuleConfig::to_file_length_config)
+            .unwrap_or_default()
+    }
+
+    fn no_enums(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-enums"))
+            .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
 }

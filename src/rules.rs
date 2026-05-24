@@ -1,6 +1,7 @@
 mod max_file_exports;
 mod no_comments;
 mod no_default_export;
+mod no_enums;
 mod no_inline_types;
 mod no_large_file;
 mod no_logic_in_barrel;
@@ -34,6 +35,7 @@ pub fn check_files(
     max_file_exports: FileExportsRuleConfig,
     no_upward_import: UpwardImportRuleConfig,
     no_large_file: FileLengthRuleConfig,
+    no_enums: RuleConfig,
 ) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
 
@@ -44,6 +46,7 @@ pub fn check_files(
         && !max_file_exports.severity.is_enabled()
         && !no_upward_import.severity.is_enabled()
         && !no_large_file.severity.is_enabled()
+        && !no_enums.severity.is_enabled()
     {
         return Ok(violations);
     }
@@ -94,6 +97,9 @@ pub fn check_files(
         }
         if no_large_file.severity.is_enabled() {
             violations.extend(no_large_file::check_file(file, &source, &no_large_file));
+        }
+        if no_enums.severity.is_enabled() {
+            violations.extend(no_enums::check_file(file, &source, &no_enums));
         }
     }
 
