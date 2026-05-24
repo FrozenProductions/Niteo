@@ -178,7 +178,11 @@ fn render_rule_group(group: &RuleGroup<'_>, verbose: bool) -> String {
             "  {CYAN}{}{RESET} {DIM}({} findings){RESET}  {}\n",
             file_group.file.display(),
             file_group.violations.len(),
-            render_line_numbers(file_group.violations.iter().take(line_count).copied()),
+            render_line_numbers(
+                file_group.violations.iter().take(line_count).copied(),
+                file_group.violations.len(),
+                verbose,
+            ),
         ));
 
         let hidden_lines = file_group.violations.len().saturating_sub(line_count);
@@ -285,13 +289,64 @@ fn visible_line_count(line_count: usize, verbose: bool) -> usize {
     line_count.min(DEFAULT_MAX_LINES_PER_FILE)
 }
 
-fn render_line_numbers<'a>(violations: impl Iterator<Item = &'a Violation>) -> String {
-    let lines = violations
-        .map(|violation| format!("{}:{}", violation.line, violation.column))
-        .collect::<Vec<String>>()
-        .join(", ");
+fn render_line_numbers<'a>(
+    violations: impl Iterator<Item = &'a Violation>,
+    total_count: usize,
+    verbose: bool,
+) -> String {
+    let violations: Vec<&'a Violation> = violations.collect();
+    let ranges = if verbose {
+        violations
+            .iter()
+            .map(|v| format!("{}:{}", v.line, v.column))
+            .collect::<Vec<String>>()
+    } else {
+        group_line_ranges(&violations)
+    };
+    let lines = ranges.join(", ");
 
-    format!("{DIM}lines {lines}{RESET}")
+    let suffix = if !verbose && total_count > DEFAULT_MAX_LINES_PER_FILE {
+        format!(
+            ", {DIM}...and {} more{RESET}",
+            total_count.saturating_sub(DEFAULT_MAX_LINES_PER_FILE)
+        )
+    } else {
+        String::new()
+    };
+
+    format!("{DIM}lines {lines}{suffix}{RESET}")
+}
+
+fn group_line_ranges(violations: &[&Violation]) -> Vec<String> {
+    if violations.is_empty() {
+        return Vec::new();
+    }
+
+    let mut ranges: Vec<String> = Vec::new();
+    let mut start = violations[0].line;
+    let mut end = violations[0].line;
+
+    for violation in violations.iter().skip(1) {
+        if violation.line == end + 1 {
+            end = violation.line;
+        } else {
+            if start == end {
+                ranges.push(format!("{start}"));
+            } else {
+                ranges.push(format!("{start}-{end}"));
+            }
+            start = violation.line;
+            end = violation.line;
+        }
+    }
+
+    if start == end {
+        ranges.push(format!("{start}"));
+    } else {
+        ranges.push(format!("{start}-{end}"));
+    }
+
+    ranges
 }
 
 fn status_label(error_count: usize, warning_count: usize) -> &'static str {
