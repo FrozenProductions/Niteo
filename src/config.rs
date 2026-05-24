@@ -538,7 +538,9 @@ impl RawConfig {
     fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
-            enabled: project.and_then(|p| p.respect_gitignore).unwrap_or(true),
+            enabled: project
+                .and_then(|p| p.respect_gitignore)
+                .unwrap_or_default(),
         }
     }
 }

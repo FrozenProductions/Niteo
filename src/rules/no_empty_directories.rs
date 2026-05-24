@@ -67,11 +67,14 @@ fn walk_directories(current: &Path, ignored: &[String], violations: &mut Vec<Vio
     }
 
     let is_empty_dir = !has_source_file && subdirs.is_empty();
-    let is_empty_barrel_dir = has_source_file
-        && barrel_path.is_some()
-        && subdirs.is_empty()
-        && !has_other_source_files(barrel_path.as_ref().unwrap(), current)
-        && is_empty_barrel(barrel_path.as_ref().unwrap());
+    let is_empty_barrel_dir = if let Some(barrel) = &barrel_path {
+        has_source_file
+            && subdirs.is_empty()
+            && !has_other_source_files(barrel, current)
+            && is_empty_barrel(barrel)
+    } else {
+        false
+    };
 
     if is_empty_dir || is_empty_barrel_dir {
         violations.push(directory_violation(current, Severity::Warn));

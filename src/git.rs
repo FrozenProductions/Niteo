@@ -5,17 +5,15 @@ use std::process::Command;
 pub fn get_changed_typescript_files() -> Vec<PathBuf> {
     let output = Command::new("git")
         .args(["diff", "--name-only", "HEAD"])
-        .output()
-        .ok();
+        .output();
 
     let staged_output = Command::new("git")
         .args(["diff", "--name-only", "--cached"])
-        .output()
-        .ok();
+        .output();
 
     let mut files: Vec<PathBuf> = Vec::new();
 
-    if let Some(output) = output {
+    if let Ok(output) = output {
         let stdout = String::from_utf8_lossy(&output.stdout);
         for line in stdout.lines() {
             if is_typescript_file(line) {
@@ -24,7 +22,7 @@ pub fn get_changed_typescript_files() -> Vec<PathBuf> {
         }
     }
 
-    if let Some(output) = staged_output {
+    if let Ok(output) = staged_output {
         let stdout = String::from_utf8_lossy(&output.stdout);
         for line in stdout.lines() {
             if is_typescript_file(line) {
