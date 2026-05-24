@@ -76,6 +76,11 @@ min-items = 3
 ignore-dirs = []
 count-folders = false
 
+[rules.max-directory-depth]
+severity = "warn"
+max-depth = 5
+ignore-dirs = []
+
 [rules.no-empty-interface]
 severity = "error"
 
@@ -107,6 +112,7 @@ pub struct ProjectConfig {
     pub no_duplicate_file_names: NoDuplicateFileNamesRuleConfig,
     pub max_items_per_directory: MaxItemsPerDirectoryRuleConfig,
     pub min_items_per_directory: MinItemsPerDirectoryRuleConfig,
+    pub max_directory_depth: MaxDirectoryDepthRuleConfig,
     pub no_empty_interface: RuleConfig,
     pub no_interface: NoInterfaceRuleConfig,
     pub no_mutable_exports: RuleConfig,
@@ -134,6 +140,7 @@ impl Default for ProjectConfig {
             no_duplicate_file_names: NoDuplicateFileNamesRuleConfig::default(),
             max_items_per_directory: MaxItemsPerDirectoryRuleConfig::default(),
             min_items_per_directory: MinItemsPerDirectoryRuleConfig::default(),
+            max_directory_depth: MaxDirectoryDepthRuleConfig::default(),
             no_empty_interface: RuleConfig::default(),
             no_interface: NoInterfaceRuleConfig::default(),
             no_mutable_exports: RuleConfig::default(),
@@ -166,6 +173,7 @@ impl ProjectConfig {
                 no_duplicate_file_names: config.no_duplicate_file_names(),
                 max_items_per_directory: config.max_items_per_directory(),
                 min_items_per_directory: config.min_items_per_directory(),
+                max_directory_depth: config.max_directory_depth(),
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
@@ -197,6 +205,7 @@ impl ProjectConfig {
                 no_duplicate_file_names: config.no_duplicate_file_names(),
                 max_items_per_directory: config.max_items_per_directory(),
                 min_items_per_directory: config.min_items_per_directory(),
+                max_directory_depth: config.max_directory_depth(),
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
@@ -225,6 +234,7 @@ impl ProjectConfig {
                 no_duplicate_file_names: config.no_duplicate_file_names(),
                 max_items_per_directory: config.max_items_per_directory(),
                 min_items_per_directory: config.min_items_per_directory(),
+                max_directory_depth: config.max_directory_depth(),
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
@@ -251,6 +261,7 @@ impl ProjectConfig {
             no_duplicate_file_names: config.no_duplicate_file_names(),
             max_items_per_directory: config.max_items_per_directory(),
             min_items_per_directory: config.min_items_per_directory(),
+            max_directory_depth: config.max_directory_depth(),
             no_empty_interface: config.no_empty_interface(),
             no_interface: config.no_interface(),
             no_mutable_exports: config.no_mutable_exports(),
@@ -428,6 +439,23 @@ impl Default for MinItemsPerDirectoryRuleConfig {
             min_items: 3,
             ignore_dirs: vec![],
             count_folders: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MaxDirectoryDepthRuleConfig {
+    pub severity: Severity,
+    pub max_depth: usize,
+    pub ignore_dirs: Vec<String>,
+}
+
+impl Default for MaxDirectoryDepthRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            max_depth: 5,
+            ignore_dirs: vec![],
         }
     }
 }
@@ -656,6 +684,14 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn max_directory_depth(&self) -> MaxDirectoryDepthRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("max-directory-depth"))
+            .map(RawRuleConfig::to_max_directory_depth_config)
+            .unwrap_or_default()
+    }
+
     fn no_empty_interface(&self) -> RuleConfig {
         self.rules
             .as_ref()
@@ -852,6 +888,21 @@ impl RawRuleConfig {
                 min_items: options.min_items.unwrap_or(3),
                 ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
                 count_folders: options.count_folders.unwrap_or(false),
+            },
+        }
+    }
+
+    fn to_max_directory_depth_config(&self) -> MaxDirectoryDepthRuleConfig {
+        match self {
+            Self::Severity(severity) => MaxDirectoryDepthRuleConfig {
+                severity: Severity::from_str(severity),
+                max_depth: 5,
+                ignore_dirs: vec![],
+            },
+            Self::Options(options) => MaxDirectoryDepthRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                max_depth: options.max_depth.unwrap_or(5),
+                ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
             },
         }
     }

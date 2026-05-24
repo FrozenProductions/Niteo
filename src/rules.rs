@@ -1,3 +1,4 @@
+mod max_directory_depth;
 mod max_file_exports;
 mod max_items_per_directory;
 mod min_items_per_directory;
@@ -24,7 +25,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::config::{
-    CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig,
+    CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig, MaxDirectoryDepthRuleConfig,
     MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoConsoleRuleConfig,
     NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
     NoLogicInDomainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
@@ -216,4 +217,15 @@ pub fn check_min_items_per_directory(
     }
 
     min_items_per_directory::check_directories(root, &config)
+}
+
+pub fn check_max_directory_depth(
+    root: &std::path::Path,
+    config: MaxDirectoryDepthRuleConfig,
+) -> Vec<Violation> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    max_directory_depth::check_directories(root, &config)
 }

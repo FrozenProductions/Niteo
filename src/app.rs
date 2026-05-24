@@ -90,11 +90,15 @@ fn lint_workspace(
         project_config.min_items_per_directory,
     );
 
+    let mut depth_violations =
+        rules::check_max_directory_depth(&project_config.root, project_config.max_directory_depth);
+
     let mut all_violations = violations;
     all_violations.append(&mut dir_violations);
     all_violations.append(&mut name_violations);
     all_violations.append(&mut max_items_violations);
     all_violations.append(&mut min_items_violations);
+    all_violations.append(&mut depth_violations);
 
     let report = report::Report::new(files, all_violations);
 
