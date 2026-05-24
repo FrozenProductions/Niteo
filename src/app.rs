@@ -69,6 +69,7 @@ fn lint_workspace(
         project_config.no_debugger,
         project_config.no_eval,
         project_config.no_logic_in_domain,
+        project_config.no_empty_interface,
     )?;
 
     let mut dir_violations =

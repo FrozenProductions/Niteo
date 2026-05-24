@@ -8,6 +8,7 @@ mod no_debugger;
 mod no_default_export;
 mod no_duplicate_file_names;
 mod no_empty_directories;
+mod no_empty_interface;
 mod no_enums;
 mod no_eval;
 mod no_inline_types;
@@ -54,6 +55,7 @@ pub fn check_files(
     no_debugger: RuleConfig,
     no_eval: RuleConfig,
     no_logic_in_domain: NoLogicInDomainRuleConfig,
+    no_empty_interface: RuleConfig,
 ) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
 
@@ -70,6 +72,7 @@ pub fn check_files(
         && !no_debugger.severity.is_enabled()
         && !no_eval.severity.is_enabled()
         && !no_logic_in_domain.severity.is_enabled()
+        && !no_empty_interface.severity.is_enabled()
     {
         return Ok(violations);
     }
@@ -141,6 +144,13 @@ pub fn check_files(
                 file,
                 &source,
                 &no_logic_in_domain,
+            ));
+        }
+        if no_empty_interface.severity.is_enabled() {
+            violations.extend(no_empty_interface::check_file(
+                file,
+                &source,
+                &no_empty_interface,
             ));
         }
     }

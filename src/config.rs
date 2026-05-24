@@ -73,6 +73,9 @@ ignore-dirs = []
 severity = "warn"
 min-files = 3
 ignore-dirs = []
+
+[rules.no-empty-interface]
+severity = "error"
 "#;
 
 #[derive(Debug, Clone)]
@@ -95,6 +98,7 @@ pub struct ProjectConfig {
     pub no_duplicate_file_names: NoDuplicateFileNamesRuleConfig,
     pub max_files_per_directory: MaxFilesPerDirectoryRuleConfig,
     pub min_files_per_directory: MinFilesPerDirectoryRuleConfig,
+    pub no_empty_interface: RuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -119,6 +123,7 @@ impl Default for ProjectConfig {
             no_duplicate_file_names: NoDuplicateFileNamesRuleConfig::default(),
             max_files_per_directory: MaxFilesPerDirectoryRuleConfig::default(),
             min_files_per_directory: MinFilesPerDirectoryRuleConfig::default(),
+            no_empty_interface: RuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -148,6 +153,7 @@ impl ProjectConfig {
                 no_duplicate_file_names: config.no_duplicate_file_names(),
                 max_files_per_directory: config.max_files_per_directory(),
                 min_files_per_directory: config.min_files_per_directory(),
+                no_empty_interface: config.no_empty_interface(),
                 gitignore: config.gitignore(),
             });
         }
@@ -176,6 +182,7 @@ impl ProjectConfig {
                 no_duplicate_file_names: config.no_duplicate_file_names(),
                 max_files_per_directory: config.max_files_per_directory(),
                 min_files_per_directory: config.min_files_per_directory(),
+                no_empty_interface: config.no_empty_interface(),
                 gitignore: config.gitignore(),
             });
         }
@@ -201,6 +208,7 @@ impl ProjectConfig {
                 no_duplicate_file_names: config.no_duplicate_file_names(),
                 max_files_per_directory: config.max_files_per_directory(),
                 min_files_per_directory: config.min_files_per_directory(),
+                no_empty_interface: config.no_empty_interface(),
                 gitignore: config.gitignore(),
             });
         }
@@ -224,6 +232,7 @@ impl ProjectConfig {
             no_duplicate_file_names: config.no_duplicate_file_names(),
             max_files_per_directory: config.max_files_per_directory(),
             min_files_per_directory: config.min_files_per_directory(),
+            no_empty_interface: config.no_empty_interface(),
             gitignore: config.gitignore(),
         })
     }
@@ -604,6 +613,14 @@ impl RawConfig {
             .as_ref()
             .and_then(|rules| rules.get("min-files-per-directory"))
             .map(RawRuleConfig::to_min_files_per_directory_config)
+            .unwrap_or_default()
+    }
+
+    fn no_empty_interface(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-empty-interface"))
+            .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
 
