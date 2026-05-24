@@ -1,0 +1,27 @@
+{
+  "name": "niteo",
+  "version": "0.1.0",
+  "description": "Standalone Rust CLI for TypeScript structural linting.",
+  "license": "MIT",
+  "private": false,
+  "bin": {
+    "niteo": "./bin/niteo.js"
+  },
+  "files": [
+    "bin",
+    "scripts",
+    "src",
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node ./scripts/build-binary.js",
+    "build:binary": "cargo build --release",
+    "check": "cargo check",
+    "test": "cargo test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
