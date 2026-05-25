@@ -8,6 +8,7 @@ mod no_comments;
 mod no_console;
 mod no_debugger;
 mod no_default_export;
+mod no_dump_files;
 mod no_duplicate_file_names;
 mod no_empty_directories;
 mod no_empty_interface;
@@ -28,10 +29,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::config::{
-    CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig, MaxDirectoryDepthRuleConfig,
-    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoConsoleRuleConfig,
-    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
-    NoLogicInDomainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
+    MaxDirectoryDepthRuleConfig, MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig,
+    NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
+    ProjectConfig, Severity,
 };
 use crate::ignore;
 
@@ -47,49 +47,28 @@ pub struct Violation {
     pub subject: Option<String>,
 }
 
-pub fn check_files(
-    files: &[PathBuf],
-    no_comments: CommentsRuleConfig,
-    no_logic_in_barrel: RuleConfig,
-    no_default_export: RuleConfig,
-    no_export_star: RuleConfig,
-    no_inline_types: RuleConfig,
-    max_file_exports: FileExportsRuleConfig,
-    no_upward_import: UpwardImportRuleConfig,
-    no_large_file: FileLengthRuleConfig,
-    no_enums: RuleConfig,
-    no_barrel_files: RuleConfig,
-    no_console: NoConsoleRuleConfig,
-    no_debugger: RuleConfig,
-    no_eval: RuleConfig,
-    no_logic_in_domain: NoLogicInDomainRuleConfig,
-    no_empty_interface: RuleConfig,
-    no_interface: NoInterfaceRuleConfig,
-    no_mutable_exports: RuleConfig,
-    prefer_satisfies: RuleConfig,
-    hook_no_jsx: RuleConfig,
-) -> Result<Vec<Violation>> {
+pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
 
-    if !no_comments.severity.is_enabled()
-        && !no_logic_in_barrel.severity.is_enabled()
-        && !no_default_export.severity.is_enabled()
-        && !no_export_star.severity.is_enabled()
-        && !no_inline_types.severity.is_enabled()
-        && !max_file_exports.severity.is_enabled()
-        && !no_upward_import.severity.is_enabled()
-        && !no_large_file.severity.is_enabled()
-        && !no_enums.severity.is_enabled()
-        && !no_barrel_files.severity.is_enabled()
-        && !no_console.severity.is_enabled()
-        && !no_debugger.severity.is_enabled()
-        && !no_eval.severity.is_enabled()
-        && !no_logic_in_domain.severity.is_enabled()
-        && !no_empty_interface.severity.is_enabled()
-        && !no_interface.severity.is_enabled()
-        && !no_mutable_exports.severity.is_enabled()
-        && !prefer_satisfies.severity.is_enabled()
-        && !hook_no_jsx.severity.is_enabled()
+    if !config.no_comments.severity.is_enabled()
+        && !config.no_logic_in_barrel.severity.is_enabled()
+        && !config.no_default_export.severity.is_enabled()
+        && !config.no_export_star.severity.is_enabled()
+        && !config.no_inline_types.severity.is_enabled()
+        && !config.max_file_exports.severity.is_enabled()
+        && !config.no_upward_import.severity.is_enabled()
+        && !config.no_large_file.severity.is_enabled()
+        && !config.no_enums.severity.is_enabled()
+        && !config.no_barrel_files.severity.is_enabled()
+        && !config.no_console.severity.is_enabled()
+        && !config.no_debugger.severity.is_enabled()
+        && !config.no_eval.severity.is_enabled()
+        && !config.no_logic_in_domain.severity.is_enabled()
+        && !config.no_empty_interface.severity.is_enabled()
+        && !config.no_interface.severity.is_enabled()
+        && !config.no_mutable_exports.severity.is_enabled()
+        && !config.prefer_satisfies.severity.is_enabled()
+        && !config.hook_no_jsx.severity.is_enabled()
     {
         return Ok(violations);
     }
@@ -103,99 +82,115 @@ pub fn check_files(
         let directives = ignore::parse_ignore_directives(&source);
         let mut file_violations = Vec::new();
 
-        if no_comments.severity.is_enabled() {
-            file_violations.extend(no_comments::check_file(file, &source, &no_comments));
+        if config.no_comments.severity.is_enabled() {
+            file_violations.extend(no_comments::check_file(file, &source, &config.no_comments));
         }
-        if no_logic_in_barrel.severity.is_enabled() {
+        if config.no_logic_in_barrel.severity.is_enabled() {
             file_violations.extend(no_logic_in_barrel::check_file(
                 file,
                 &source,
-                &no_logic_in_barrel,
+                &config.no_logic_in_barrel,
             ));
         }
-        if no_default_export.severity.is_enabled() {
+        if config.no_default_export.severity.is_enabled() {
             file_violations.extend(no_default_export::check_file(
                 file,
                 &source,
-                &no_default_export,
+                &config.no_default_export,
             ));
         }
-        if no_export_star.severity.is_enabled() {
-            file_violations.extend(no_export_star::check_file(file, &source, &no_export_star));
+        if config.no_export_star.severity.is_enabled() {
+            file_violations.extend(no_export_star::check_file(
+                file,
+                &source,
+                &config.no_export_star,
+            ));
         }
-        if no_inline_types.severity.is_enabled() {
+        if config.no_inline_types.severity.is_enabled() {
             file_violations.extend(no_inline_types::check_file(
                 file,
                 &source,
-                &no_inline_types,
+                &config.no_inline_types,
                 type_location_style,
             ));
         }
-        if max_file_exports.severity.is_enabled() {
+        if config.max_file_exports.severity.is_enabled() {
             file_violations.extend(max_file_exports::check_file(
                 file,
                 &source,
-                &max_file_exports,
+                &config.max_file_exports,
             ));
         }
-        if no_upward_import.severity.is_enabled() {
+        if config.no_upward_import.severity.is_enabled() {
             file_violations.extend(no_upward_import::check_file(
                 file,
                 &source,
-                &no_upward_import,
+                &config.no_upward_import,
             ));
         }
-        if no_large_file.severity.is_enabled() {
-            file_violations.extend(no_large_file::check_file(file, &source, &no_large_file));
+        if config.no_large_file.severity.is_enabled() {
+            file_violations.extend(no_large_file::check_file(
+                file,
+                &source,
+                &config.no_large_file,
+            ));
         }
-        if no_enums.severity.is_enabled() {
-            file_violations.extend(no_enums::check_file(file, &source, &no_enums));
+        if config.no_enums.severity.is_enabled() {
+            file_violations.extend(no_enums::check_file(file, &source, &config.no_enums));
         }
-        if no_barrel_files.severity.is_enabled() {
-            file_violations.extend(no_barrel_files::check_file(file, &source, &no_barrel_files));
+        if config.no_barrel_files.severity.is_enabled() {
+            file_violations.extend(no_barrel_files::check_file(
+                file,
+                &source,
+                &config.no_barrel_files,
+            ));
         }
-        if no_console.severity.is_enabled() {
-            file_violations.extend(no_console::check_file(file, &source, &no_console));
+        if config.no_console.severity.is_enabled() {
+            file_violations.extend(no_console::check_file(file, &source, &config.no_console));
         }
-        if no_debugger.severity.is_enabled() {
-            file_violations.extend(no_debugger::check_file(file, &source, &no_debugger));
+        if config.no_debugger.severity.is_enabled() {
+            file_violations.extend(no_debugger::check_file(file, &source, &config.no_debugger));
         }
-        if no_eval.severity.is_enabled() {
-            file_violations.extend(no_eval::check_file(file, &source, &no_eval));
+        if config.no_eval.severity.is_enabled() {
+            file_violations.extend(no_eval::check_file(file, &source, &config.no_eval));
         }
-        if no_logic_in_domain.severity.is_enabled() {
+        if config.no_logic_in_domain.severity.is_enabled() {
             file_violations.extend(no_logic_in_domain::check_file(
                 file,
                 &source,
-                &no_logic_in_domain,
+                &config.no_logic_in_domain,
             ));
         }
-        if no_empty_interface.severity.is_enabled() {
+        if config.no_empty_interface.severity.is_enabled() {
             file_violations.extend(no_empty_interface::check_file(
                 file,
                 &source,
-                &no_empty_interface,
+                &config.no_empty_interface,
             ));
         }
-        if no_interface.severity.is_enabled() {
-            file_violations.extend(no_interface::check_file(file, &source, &no_interface));
+        if config.no_interface.severity.is_enabled() {
+            file_violations.extend(no_interface::check_file(
+                file,
+                &source,
+                &config.no_interface,
+            ));
         }
-        if no_mutable_exports.severity.is_enabled() {
+        if config.no_mutable_exports.severity.is_enabled() {
             file_violations.extend(no_mutable_exports::check_file(
                 file,
                 &source,
-                &no_mutable_exports,
+                &config.no_mutable_exports,
             ));
         }
-        if prefer_satisfies.severity.is_enabled() {
+        if config.prefer_satisfies.severity.is_enabled() {
             file_violations.extend(prefer_satisfies::check_file(
                 file,
                 &source,
-                &prefer_satisfies,
+                &config.prefer_satisfies,
             ));
         }
-        if hook_no_jsx.severity.is_enabled() {
-            file_violations.extend(hook_no_jsx::check_file(file, &source, &hook_no_jsx));
+        if config.hook_no_jsx.severity.is_enabled() {
+            file_violations.extend(hook_no_jsx::check_file(file, &source, &config.hook_no_jsx));
         }
 
         file_violations.retain(|v| !ignore::should_suppress_violation(&directives, v.line, v.rule));
@@ -259,4 +254,12 @@ pub fn check_max_directory_depth(
     }
 
     max_directory_depth::check_directories(root, &config)
+}
+
+pub fn check_dump_files(files: &[PathBuf], config: NoDumpFilesRuleConfig) -> Vec<Violation> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    no_dump_files::check_files(files, &config)
 }

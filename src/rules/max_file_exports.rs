@@ -69,15 +69,9 @@ fn count_exports(source: &str) -> usize {
     count
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 struct Cursor {
     index: usize,
-}
-
-impl Default for Cursor {
-    fn default() -> Self {
-        Self { index: 0 }
-    }
 }
 
 impl Cursor {

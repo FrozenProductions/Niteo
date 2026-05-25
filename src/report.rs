@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde_json::{Value, json};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::config::Severity;
 use crate::rules::Violation;
@@ -45,16 +45,15 @@ impl Report {
             let rule_groups = group_by_rule(&self.violations);
             output.push_str(&render_findings(&rule_groups, verbose));
             output.push('\n');
-            output.push_str(&render_end_summary(
-                self.files.len(),
-                self.violations.len(),
+            let summary = TextSummary {
+                file_count: self.files.len(),
+                violation_count: self.violations.len(),
                 error_count,
                 warning_count,
                 info_count,
                 score,
-                &rule_groups,
-                verbose,
-            ));
+            };
+            output.push_str(&render_end_summary(&summary, &rule_groups, verbose));
         }
 
         output
@@ -206,7 +205,7 @@ fn sarif_result_json(violation: &Violation) -> Value {
     })
 }
 
-fn path_to_string(path: &PathBuf) -> String {
+fn path_to_string(path: &Path) -> String {
     path.display().to_string()
 }
 
@@ -242,26 +241,45 @@ struct FileGroup<'a> {
     violations: Vec<&'a Violation>,
 }
 
-fn render_header() -> String {
-    format!("{BOLD}Niteo Structure Health{RESET}\n\n")
-}
-
-fn render_end_summary(
+#[derive(Debug)]
+struct TextSummary {
     file_count: usize,
     violation_count: usize,
     error_count: usize,
     warning_count: usize,
     info_count: usize,
     score: usize,
+}
+
+fn render_header() -> String {
+    format!("{BOLD}Niteo Structure Health{RESET}\n\n")
+}
+
+fn render_end_summary(
+    summary: &TextSummary,
     rule_groups: &[RuleGroup<'_>],
     verbose: bool,
 ) -> String {
-    let status = status_label(error_count, warning_count, info_count);
-    let status_color = status_color(error_count, warning_count, info_count);
-    let score_color = score_color(score);
+    let status = status_label(
+        summary.error_count,
+        summary.warning_count,
+        summary.info_count,
+    );
+    let status_color = status_color(
+        summary.error_count,
+        summary.warning_count,
+        summary.info_count,
+    );
+    let score_color = score_color(summary.score);
     let mut output = format!(
         "{score_color}{BOLD}Score {score}/100{RESET}  {status_color}{BOLD}{status}{RESET}\n\
-         {DIM}{file_count} files scanned | {violation_count} findings | {error_count} errors | {warning_count} warnings | {info_count} info{RESET}\n\n"
+         {DIM}{file_count} files scanned | {violation_count} findings | {error_count} errors | {warning_count} warnings | {info_count} info{RESET}\n\n",
+        score = summary.score,
+        file_count = summary.file_count,
+        violation_count = summary.violation_count,
+        error_count = summary.error_count,
+        warning_count = summary.warning_count,
+        info_count = summary.info_count,
     );
     output.push_str(&render_rule_overview(rule_groups, verbose));
     output
@@ -288,7 +306,7 @@ fn render_rule_overview(rule_groups: &[RuleGroup<'_>], verbose: bool) -> String 
     let mut last_severity: Option<Severity> = None;
 
     for group in visible_groups {
-        if last_severity.map_or(true, |prev| prev != group.severity) {
+        if last_severity != Some(group.severity) {
             if last_severity.is_some() {
                 output.push_str(&format!("{DIM}{}{RESET}\n", "─".repeat(60)));
             }

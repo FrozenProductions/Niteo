@@ -88,28 +88,7 @@ fn lint_workspace(
         }
     };
 
-    let violations = rules::check_files(
-        &files,
-        project_config.no_comments,
-        project_config.no_logic_in_barrel,
-        project_config.no_default_export,
-        project_config.no_export_star,
-        project_config.no_inline_types,
-        project_config.max_file_exports,
-        project_config.no_upward_import,
-        project_config.no_large_file,
-        project_config.no_enums,
-        project_config.no_barrel_files,
-        project_config.no_console,
-        project_config.no_debugger,
-        project_config.no_eval,
-        project_config.no_logic_in_domain,
-        project_config.no_empty_interface,
-        project_config.no_interface,
-        project_config.no_mutable_exports,
-        project_config.prefer_satisfies,
-        project_config.hook_no_jsx,
-    )?;
+    let violations = rules::check_files(&files, &project_config)?;
 
     let mut dir_violations =
         rules::check_directories(&project_config.root, project_config.no_empty_directories);
@@ -130,12 +109,15 @@ fn lint_workspace(
     let mut depth_violations =
         rules::check_max_directory_depth(&project_config.root, project_config.max_directory_depth);
 
+    let mut dump_violations = rules::check_dump_files(&files, project_config.no_dump_files);
+
     let mut all_violations = violations;
     all_violations.append(&mut dir_violations);
     all_violations.append(&mut name_violations);
     all_violations.append(&mut max_items_violations);
     all_violations.append(&mut min_items_violations);
     all_violations.append(&mut depth_violations);
+    all_violations.append(&mut dump_violations);
 
     let report = report::Report::new(files, all_violations);
     let rendered_report = match output_format {

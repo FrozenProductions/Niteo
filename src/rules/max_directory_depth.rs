@@ -27,13 +27,12 @@ pub fn check_directories(root: &Path, config: &MaxDirectoryDepthRuleConfig) -> V
     let mut ignored = config.ignore_dirs.clone();
     ignored.extend(IGNORED_DIRECTORIES.iter().map(|s| s.to_string()));
 
-    walk_directories(root, root, &ignored, config.max_depth, 0, &mut violations);
+    walk_directories(root, &ignored, config.max_depth, 0, &mut violations);
 
     violations
 }
 
 fn walk_directories(
-    root: &Path,
     current: &Path,
     ignored: &[String],
     max_depth: usize,
@@ -89,7 +88,7 @@ fn walk_directories(
     }
 
     for subdir in subdirs {
-        walk_directories(root, &subdir, ignored, max_depth, depth + 1, violations);
+        walk_directories(&subdir, ignored, max_depth, depth + 1, violations);
     }
 }
 

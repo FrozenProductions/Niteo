@@ -41,6 +41,7 @@ enum RuleKind {
     NoDebugger,
     NoDefaultExport,
     NoDuplicateFileNames,
+    NoDumpFiles,
     NoEmptyDirectories,
     NoEmptyInterface,
     NoEnums,
@@ -307,6 +308,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::NoDuplicateFileNames,
+    },
+    RuleDocumentation {
+        name: "no-dump-files",
+        intent: "Disallow generic file names like utils.ts, helpers.ts, and types.ts that become dumping grounds for unrelated code.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "utils.ts, helpers.ts, types.ts",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "authUtils.ts, dateHelpers.ts, userTypes.ts",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "extra-names",
+                description: "Additional file stems to forbid (beyond utils, helpers, types).",
+            },
+        ],
+        kind: RuleKind::NoDumpFiles,
     },
     RuleDocumentation {
         name: "no-empty-directories",
@@ -666,6 +689,13 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
             options: vec![format!(
                 "ignore-names: {:?}",
                 config.no_duplicate_file_names.ignore_names
+            )],
+        },
+        RuleKind::NoDumpFiles => RuleConfigSummary {
+            severity: config.no_dump_files.severity,
+            options: vec![format!(
+                "extra-names: {:?}",
+                config.no_dump_files.extra_names
             )],
         },
         RuleKind::NoEmptyDirectories => RuleConfigSummary {

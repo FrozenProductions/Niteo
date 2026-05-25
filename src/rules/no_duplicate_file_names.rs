@@ -63,10 +63,10 @@ fn find_duplicates_in_different_dirs(
             let dir_a = paths[i].parent();
             let dir_b = paths[j].parent();
 
-            if let (Some(dir_a), Some(dir_b)) = (dir_a, dir_b) {
-                if dir_a != dir_b {
-                    pairs.push((paths[i].clone(), paths[j].clone()));
-                }
+            if let (Some(dir_a), Some(dir_b)) = (dir_a, dir_b)
+                && dir_a != dir_b
+            {
+                pairs.push((paths[i].clone(), paths[j].clone()));
             }
         }
     }

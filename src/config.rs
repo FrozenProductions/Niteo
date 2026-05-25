@@ -99,6 +99,10 @@ severity = "info"
 
 [rules.hook-no-jsx]
 severity = "warn"
+
+[rules.no-dump-files]
+severity = "warn"
+extra-names = []
 "#;
 
 #[derive(Debug, Clone)]
@@ -128,6 +132,7 @@ pub struct ProjectConfig {
     pub no_mutable_exports: RuleConfig,
     pub prefer_satisfies: RuleConfig,
     pub hook_no_jsx: RuleConfig,
+    pub no_dump_files: NoDumpFilesRuleConfig,
     pub gitignore: GitignoreConfig,
 }
 
@@ -163,6 +168,7 @@ impl Default for ProjectConfig {
                 severity: Severity::Info,
             },
             hook_no_jsx: RuleConfig::default(),
+            no_dump_files: NoDumpFilesRuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
     }
@@ -199,6 +205,7 @@ impl ProjectConfig {
                 no_mutable_exports: config.no_mutable_exports(),
                 prefer_satisfies: config.prefer_satisfies(),
                 hook_no_jsx: config.hook_no_jsx(),
+                no_dump_files: config.no_dump_files(),
                 gitignore: config.gitignore(),
             });
         }
@@ -234,6 +241,7 @@ impl ProjectConfig {
                 no_mutable_exports: config.no_mutable_exports(),
                 prefer_satisfies: config.prefer_satisfies(),
                 hook_no_jsx: config.hook_no_jsx(),
+                no_dump_files: config.no_dump_files(),
                 gitignore: config.gitignore(),
             });
         }
@@ -266,6 +274,7 @@ impl ProjectConfig {
                 no_mutable_exports: config.no_mutable_exports(),
                 prefer_satisfies: config.prefer_satisfies(),
                 hook_no_jsx: config.hook_no_jsx(),
+                no_dump_files: config.no_dump_files(),
                 gitignore: config.gitignore(),
             });
         }
@@ -296,6 +305,7 @@ impl ProjectConfig {
             no_mutable_exports: config.no_mutable_exports(),
             prefer_satisfies: config.prefer_satisfies(),
             hook_no_jsx: config.hook_no_jsx(),
+            no_dump_files: config.no_dump_files(),
             gitignore: config.gitignore(),
         })
     }
@@ -549,6 +559,21 @@ impl Default for NoInterfaceRuleConfig {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct NoDumpFilesRuleConfig {
+    pub severity: Severity,
+    pub extra_names: Vec<String>,
+}
+
+impl Default for NoDumpFilesRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            extra_names: vec![],
+        }
+    }
+}
+
 pub fn write_default_config(workspace: &Path) -> Result<PathBuf> {
     let config_path = workspace.join(CONFIG_FILE_NAME);
     if config_path.exists() {
@@ -786,6 +811,14 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn no_dump_files(&self) -> NoDumpFilesRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-dump-files"))
+            .map(RawRuleConfig::to_no_dump_files_config)
+            .unwrap_or_default()
+    }
+
     fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
@@ -807,7 +840,7 @@ struct RawProjectConfig {
 #[serde(untagged)]
 enum RawRuleConfig {
     Severity(String),
-    Options(RawRuleOptions),
+    Options(Box<RawRuleOptions>),
 }
 
 impl RawRuleConfig {
@@ -999,6 +1032,19 @@ impl RawRuleConfig {
             },
         }
     }
+
+    fn to_no_dump_files_config(&self) -> NoDumpFilesRuleConfig {
+        match self {
+            Self::Severity(severity) => NoDumpFilesRuleConfig {
+                severity: Severity::from_str(severity),
+                extra_names: vec![],
+            },
+            Self::Options(options) => NoDumpFilesRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                extra_names: options.extra_names.clone().unwrap_or_default(),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -1030,4 +1076,6 @@ struct RawRuleOptions {
     count_folders: Option<bool>,
     #[serde(rename = "allow-declaration-merging")]
     allow_declaration_merging: Option<bool>,
+    #[serde(rename = "extra-names")]
+    extra_names: Option<Vec<String>>,
 }

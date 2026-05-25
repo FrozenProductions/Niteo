@@ -135,11 +135,10 @@ fn skip_block_comment(bytes: &[u8], cursor: &mut Cursor) {
 
 pub fn is_jsx_tag_start(bytes: &[u8], index: usize) -> bool {
     let after = index + 1;
-    match bytes.get(after) {
-        Some(b'/') | Some(b'>') => true,
-        Some(b'a'..=b'z') | Some(b'A'..=b'Z') => true,
-        _ => false,
-    }
+    matches!(
+        bytes.get(after),
+        Some(b'/') | Some(b'>') | Some(b'a'..=b'z') | Some(b'A'..=b'Z')
+    )
 }
 
 pub fn is_hook_file(path: &std::path::Path) -> bool {
@@ -152,10 +151,10 @@ pub fn is_hook_file(path: &std::path::Path) -> bool {
         return true;
     }
 
-    if let Some(parent) = path.parent() {
-        if parent.file_name().map(|n| n.to_string_lossy()) == Some("hooks".into()) {
-            return true;
-        }
+    if let Some(parent) = path.parent()
+        && parent.file_name().map(|n| n.to_string_lossy()) == Some("hooks".into())
+    {
+        return true;
     }
 
     false

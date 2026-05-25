@@ -663,9 +663,7 @@ fn skip_regex_literal(bytes: &[u8], cursor: &mut Cursor) {
 
         if current == b'/' && !in_char_class {
             cursor.advance(bytes);
-            while cursor.index < bytes.len()
-                && matches!(bytes[cursor.index], b'a'..=b'z' | b'A'..=b'Z')
-            {
+            while cursor.index < bytes.len() && bytes[cursor.index].is_ascii_alphabetic() {
                 cursor.advance(bytes);
             }
             return;
