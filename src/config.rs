@@ -44,6 +44,9 @@ severity = "warn"
 [rules.no-barrel-files]
 severity = "warn"
 
+[rules.no-barrel-chain]
+severity = "warn"
+
 [rules.no-console]
 severity = "warn"
 allow-patterns = []
@@ -118,6 +121,7 @@ pub struct ProjectConfig {
     pub no_large_file: FileLengthRuleConfig,
     pub no_enums: RuleConfig,
     pub no_barrel_files: RuleConfig,
+    pub no_barrel_chain: RuleConfig,
     pub no_console: NoConsoleRuleConfig,
     pub no_debugger: RuleConfig,
     pub no_eval: RuleConfig,
@@ -150,6 +154,7 @@ impl Default for ProjectConfig {
             no_large_file: FileLengthRuleConfig::default(),
             no_enums: RuleConfig::default(),
             no_barrel_files: RuleConfig::default(),
+            no_barrel_chain: RuleConfig::default(),
             no_console: NoConsoleRuleConfig::default(),
             no_debugger: RuleConfig::default(),
             no_eval: RuleConfig::default(),
@@ -191,6 +196,7 @@ impl ProjectConfig {
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
+                no_barrel_chain: config.no_barrel_chain(),
                 no_console: config.no_console(),
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
@@ -227,6 +233,7 @@ impl ProjectConfig {
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
+                no_barrel_chain: config.no_barrel_chain(),
                 no_console: config.no_console(),
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
@@ -260,6 +267,7 @@ impl ProjectConfig {
                 no_large_file: config.no_large_file(),
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
+                no_barrel_chain: config.no_barrel_chain(),
                 no_console: config.no_console(),
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
@@ -291,6 +299,7 @@ impl ProjectConfig {
             no_large_file: config.no_large_file(),
             no_enums: config.no_enums(),
             no_barrel_files: config.no_barrel_files(),
+            no_barrel_chain: config.no_barrel_chain(),
             no_console: config.no_console(),
             no_debugger: config.no_debugger(),
             no_eval: config.no_eval(),
@@ -692,6 +701,14 @@ impl RawConfig {
         self.rules
             .as_ref()
             .and_then(|rules| rules.get("no-barrel-files"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn no_barrel_chain(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-barrel-chain"))
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }

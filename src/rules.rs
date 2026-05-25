@@ -3,6 +3,7 @@ mod max_directory_depth;
 mod max_file_exports;
 mod max_items_per_directory;
 mod min_items_per_directory;
+mod no_barrel_chain;
 mod no_barrel_files;
 mod no_comments;
 mod no_console;
@@ -60,6 +61,7 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
         && !config.no_large_file.severity.is_enabled()
         && !config.no_enums.severity.is_enabled()
         && !config.no_barrel_files.severity.is_enabled()
+        && !config.no_barrel_chain.severity.is_enabled()
         && !config.no_console.severity.is_enabled()
         && !config.no_debugger.severity.is_enabled()
         && !config.no_eval.severity.is_enabled()
@@ -143,6 +145,14 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                 file,
                 &source,
                 &config.no_barrel_files,
+            ));
+        }
+        if config.no_barrel_chain.severity.is_enabled() {
+            file_violations.extend(no_barrel_chain::check_file(
+                file,
+                &source,
+                files,
+                &config.no_barrel_chain,
             ));
         }
         if config.no_console.severity.is_enabled() {

@@ -56,6 +56,7 @@ enum RuleKind {
     MaxFileExports,
     MaxItemsPerDirectory,
     MinItemsPerDirectory,
+    NoBarrelChain,
     NoBarrelFiles,
     NoComments,
     NoConsole,
@@ -215,6 +216,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::MinItemsPerDirectory,
+    },
+    RuleDocumentation {
+        name: "no-barrel-chain",
+        intent: "Prevent index.ts barrel files from chaining through other barrel files.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "export { Button } from './components'; // resolves to ./components/index.ts",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "export { Button } from './components/Button';",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoBarrelChain,
     },
     RuleDocumentation {
         name: "no-barrel-files",
@@ -717,6 +734,7 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
                 ),
             ],
         },
+        RuleKind::NoBarrelChain => simple_summary(config.no_barrel_chain.severity),
         RuleKind::NoBarrelFiles => simple_summary(config.no_barrel_files.severity),
         RuleKind::NoComments => RuleConfigSummary {
             severity: config.no_comments.severity,
