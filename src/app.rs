@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use std::env;
 use std::fs;
@@ -13,8 +13,19 @@ pub fn run() -> Result<()> {
 
     match cli.command.unwrap_or(Command::Lint) {
         Command::Init => create_config(&workspace),
-        Command::Rules => list_rules(&workspace, cli.options.root),
-        Command::Explain { rule } => explain_rule(&workspace, cli.options.root, &rule),
+        Command::Rules => list_rules(
+            &workspace,
+            cli.options.root,
+            cli.options.format,
+            cli.options.output,
+        ),
+        Command::Explain { rule } => explain_rule(
+            &workspace,
+            cli.options.root,
+            cli.options.format,
+            cli.options.output,
+            &rule,
+        ),
         Command::Lint => lint_workspace(
             &workspace,
             cli.options.root,
@@ -34,29 +45,61 @@ fn create_config(workspace: &Path) -> Result<()> {
     Ok(())
 }
 
-fn list_rules(workspace: &Path, root_override: Option<PathBuf>) -> Result<()> {
+fn list_rules(
+    workspace: &Path,
+    root_override: Option<PathBuf>,
+    output_format: OutputFormat,
+    output_path: Option<PathBuf>,
+) -> Result<()> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
     let rows = rule_documentation::configured_rules(&project_config);
-    let name_width = rows
-        .iter()
-        .map(|row| row.name.len())
-        .max()
-        .unwrap_or("rule".len());
 
-    println!("{:<name_width$}  severity", "rule");
-    println!("{:-<name_width$}  --------", "");
-    for row in rows {
-        println!("{:<name_width$}  {}", row.name, row.severity.as_str());
-    }
+    let rendered = match output_format {
+        OutputFormat::Text => {
+            let name_width = rows
+                .iter()
+                .map(|row| row.name.len())
+                .max()
+                .unwrap_or("rule".len());
+
+            let mut output = String::new();
+            output.push_str(&format!("{:<name_width$}  severity\n", "rule"));
+            output.push_str(&format!("{:-<name_width$}  --------\n", ""));
+            for row in &rows {
+                output.push_str(&format!(
+                    "{:<name_width$}  {}\n",
+                    row.name,
+                    row.severity.as_str()
+                ));
+            }
+            output
+        }
+        OutputFormat::Json => rule_documentation::render_rules_json(&rows)?,
+        OutputFormat::Sarif => bail!("SARIF format is not supported for the 'rules' command"),
+    };
+
+    write_report(workspace, output_path, &rendered)?;
 
     Ok(())
 }
 
-fn explain_rule(workspace: &Path, root_override: Option<PathBuf>, rule_name: &str) -> Result<()> {
+fn explain_rule(
+    workspace: &Path,
+    root_override: Option<PathBuf>,
+    output_format: OutputFormat,
+    output_path: Option<PathBuf>,
+    rule_name: &str,
+) -> Result<()> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
     let explanation = rule_documentation::explain_rule(rule_name, &project_config)?;
 
-    println!("{explanation}");
+    let rendered = match output_format {
+        OutputFormat::Text => rule_documentation::render_explanation_text(&explanation),
+        OutputFormat::Json => rule_documentation::render_explanation_json(&explanation)?,
+        OutputFormat::Sarif => bail!("SARIF format is not supported for the 'explain' command"),
+    };
+
+    write_report(workspace, output_path, &rendered)?;
 
     Ok(())
 }

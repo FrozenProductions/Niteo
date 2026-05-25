@@ -1,10 +1,31 @@
 use anyhow::{Result, bail};
+use serde::Serialize;
 
 use crate::config::{ProjectConfig, Severity};
 
 pub struct ConfiguredRule {
     pub name: &'static str,
     pub severity: Severity,
+}
+
+pub struct RuleExplanation {
+    pub name: &'static str,
+    pub severity: Severity,
+    pub intent: &'static str,
+    pub examples: Vec<RuleExplanationExample>,
+    pub options: Vec<RuleExplanationOption>,
+    pub current_severity: Severity,
+    pub current_options: Vec<String>,
+}
+
+pub struct RuleExplanationExample {
+    pub label: &'static str,
+    pub code: &'static str,
+}
+
+pub struct RuleExplanationOption {
+    pub name: &'static str,
+    pub description: &'static str,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -585,7 +606,7 @@ pub fn configured_rules(config: &ProjectConfig) -> Vec<ConfiguredRule> {
         .collect()
 }
 
-pub fn explain_rule(rule_name: &str, config: &ProjectConfig) -> Result<String> {
+pub fn explain_rule(rule_name: &str, config: &ProjectConfig) -> Result<RuleExplanation> {
     let Some(documentation) = RULE_DOCUMENTATION
         .iter()
         .find(|documentation| documentation.name == rule_name)
@@ -599,27 +620,56 @@ pub fn explain_rule(rule_name: &str, config: &ProjectConfig) -> Result<String> {
     };
 
     let summary = config_summary(config, documentation.kind);
+
+    Ok(RuleExplanation {
+        name: documentation.name,
+        severity: summary.severity,
+        intent: documentation.intent,
+        examples: documentation
+            .examples
+            .iter()
+            .map(|e| RuleExplanationExample {
+                label: e.label,
+                code: e.code,
+            })
+            .collect(),
+        options: documentation
+            .options
+            .iter()
+            .map(|o| RuleExplanationOption {
+                name: o.name,
+                description: o.description,
+            })
+            .collect(),
+        current_severity: summary.severity,
+        current_options: summary.options,
+    })
+}
+
+pub fn render_explanation_text(explanation: &RuleExplanation) -> String {
     let mut output = String::new();
-    output.push_str(documentation.name);
+    output.push_str(explanation.name);
     output.push('\n');
-    output.push_str(&format!("severity: {}\n\n", summary.severity.as_str()));
+    output.push_str(&format!("severity: {}\n\n", explanation.severity.as_str()));
     output.push_str("Intent\n");
-    output.push_str(documentation.intent);
+    output.push_str(explanation.intent);
     output.push_str("\n\nExamples\n");
-    for example in documentation.examples {
+    for example in &explanation.examples {
         output.push_str(&format!("- {}: {}\n", example.label, example.code));
     }
     output.push_str("\nConfig options\n");
-    for option in documentation.options {
+    for option in &explanation.options {
         output.push_str(&format!("- {}: {}\n", option.name, option.description));
     }
     output.push_str("\nCurrent config\n");
-    output.push_str(&format!("- severity: {}\n", summary.severity.as_str()));
-    for option in summary.options {
+    output.push_str(&format!(
+        "- severity: {}\n",
+        explanation.current_severity.as_str()
+    ));
+    for option in &explanation.current_options {
         output.push_str(&format!("- {option}\n"));
     }
-
-    Ok(output)
+    output
 }
 
 fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
@@ -749,4 +799,80 @@ fn simple_summary(severity: Severity) -> RuleConfigSummary {
         severity,
         options: Vec::new(),
     }
+}
+
+#[derive(Serialize)]
+struct ConfiguredRuleJson {
+    name: &'static str,
+    severity: &'static str,
+}
+
+#[derive(Serialize)]
+struct RuleExplanationJson {
+    name: &'static str,
+    severity: &'static str,
+    intent: &'static str,
+    examples: Vec<RuleExampleJson>,
+    options: Vec<RuleOptionJson>,
+    current_config: CurrentConfigJson,
+}
+
+#[derive(Serialize)]
+struct RuleExampleJson {
+    label: &'static str,
+    code: &'static str,
+}
+
+#[derive(Serialize)]
+struct RuleOptionJson {
+    name: &'static str,
+    description: &'static str,
+}
+
+#[derive(Serialize)]
+struct CurrentConfigJson {
+    severity: &'static str,
+    options: Vec<String>,
+}
+
+pub fn render_rules_json(rules: &[ConfiguredRule]) -> Result<String> {
+    let rules_json: Vec<ConfiguredRuleJson> = rules
+        .iter()
+        .map(|r| ConfiguredRuleJson {
+            name: r.name,
+            severity: r.severity.as_str(),
+        })
+        .collect();
+
+    Ok(serde_json::to_string_pretty(&rules_json)?)
+}
+
+pub fn render_explanation_json(explanation: &RuleExplanation) -> Result<String> {
+    let json = RuleExplanationJson {
+        name: explanation.name,
+        severity: explanation.severity.as_str(),
+        intent: explanation.intent,
+        examples: explanation
+            .examples
+            .iter()
+            .map(|e| RuleExampleJson {
+                label: e.label,
+                code: e.code,
+            })
+            .collect(),
+        options: explanation
+            .options
+            .iter()
+            .map(|o| RuleOptionJson {
+                name: o.name,
+                description: o.description,
+            })
+            .collect(),
+        current_config: CurrentConfigJson {
+            severity: explanation.current_severity.as_str(),
+            options: explanation.current_options.clone(),
+        },
+    };
+
+    Ok(serde_json::to_string_pretty(&json)?)
 }
