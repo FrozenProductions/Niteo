@@ -17,37 +17,41 @@ pub struct Cli {
 
 #[derive(Debug, Clone, Args)]
 pub struct CliOptions {
-    /// Override the project root to scan.
+    /// Project root to scan.
     #[arg(long, global = true)]
     pub root: Option<PathBuf>,
 
-    /// Restrict the scan to a path prefix.
+    /// Limit scanning to this path.
     #[arg(long, global = true)]
     pub scope: Option<PathBuf>,
 
-    /// Print every violation instead of grouped, capped output.
+    /// Show every violation.
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
-    /// Scan only changed TypeScript files (skips prompt).
+    /// Scan changed TypeScript files only.
     #[arg(long, global = true)]
     pub git: bool,
 
-    /// Report output format.
+    /// Output format.
     #[arg(long, global = true, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 
-    /// Write the report to a file instead of stdout.
+    /// Write output to a file.
     #[arg(short, long, global = true)]
     pub output: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Generate the initial config file.
+    /// Create niteo.toml.
     Init,
-    /// Scan the project for structural issues.
+    /// Scan for structural issues.
     Lint,
+    /// List rules and severities.
+    Rules,
+    /// Explain a rule.
+    Explain { rule: String },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

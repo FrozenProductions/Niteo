@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::cli::{Cli, Command, OutputFormat};
-use crate::{config, discovery, git, report, rules};
+use crate::{config, discovery, git, report, rule_documentation, rules};
 
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
@@ -13,6 +13,8 @@ pub fn run() -> Result<()> {
 
     match cli.command.unwrap_or(Command::Lint) {
         Command::Init => create_config(&workspace),
+        Command::Rules => list_rules(&workspace, cli.options.root),
+        Command::Explain { rule } => explain_rule(&workspace, cli.options.root, &rule),
         Command::Lint => lint_workspace(
             &workspace,
             cli.options.root,
@@ -28,6 +30,33 @@ pub fn run() -> Result<()> {
 fn create_config(workspace: &Path) -> Result<()> {
     let config_path = config::write_default_config(workspace)?;
     println!("Created {}", config_path.display());
+
+    Ok(())
+}
+
+fn list_rules(workspace: &Path, root_override: Option<PathBuf>) -> Result<()> {
+    let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
+    let rows = rule_documentation::configured_rules(&project_config);
+    let name_width = rows
+        .iter()
+        .map(|row| row.name.len())
+        .max()
+        .unwrap_or("rule".len());
+
+    println!("{:<name_width$}  severity", "rule");
+    println!("{:-<name_width$}  --------", "");
+    for row in rows {
+        println!("{:<name_width$}  {}", row.name, row.severity.as_str());
+    }
+
+    Ok(())
+}
+
+fn explain_rule(workspace: &Path, root_override: Option<PathBuf>, rule_name: &str) -> Result<()> {
+    let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
+    let explanation = rule_documentation::explain_rule(rule_name, &project_config)?;
+
+    println!("{explanation}");
 
     Ok(())
 }

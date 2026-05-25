@@ -154,10 +154,14 @@ impl Default for ProjectConfig {
             max_items_per_directory: MaxItemsPerDirectoryRuleConfig::default(),
             min_items_per_directory: MinItemsPerDirectoryRuleConfig::default(),
             max_directory_depth: MaxDirectoryDepthRuleConfig::default(),
-            no_empty_interface: RuleConfig::default(),
+            no_empty_interface: RuleConfig {
+                severity: Severity::Error,
+            },
             no_interface: NoInterfaceRuleConfig::default(),
             no_mutable_exports: RuleConfig::default(),
-            prefer_satisfies: RuleConfig::default(),
+            prefer_satisfies: RuleConfig {
+                severity: Severity::Info,
+            },
             hook_no_jsx: RuleConfig::default(),
             gitignore: GitignoreConfig::default(),
         }
@@ -318,6 +322,15 @@ impl Severity {
     pub fn is_enabled(self) -> bool {
         self != Self::Off
     }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Info => "info",
+            Self::Warn => "warn",
+            Self::Error => "error",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -358,7 +371,7 @@ impl Default for FileLengthRuleConfig {
     fn default() -> Self {
         Self {
             severity: Severity::Warn,
-            max_lines: 300,
+            max_lines: 500,
         }
     }
 }
@@ -733,8 +746,10 @@ impl RawConfig {
         self.rules
             .as_ref()
             .and_then(|rules| rules.get("no-empty-interface"))
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
+            .map(|rule| rule.to_rule_config_with_default(Severity::Error))
+            .unwrap_or(RuleConfig {
+                severity: Severity::Error,
+            })
     }
 
     fn no_interface(&self) -> NoInterfaceRuleConfig {
@@ -757,8 +772,10 @@ impl RawConfig {
         self.rules
             .as_ref()
             .and_then(|rules| rules.get("prefer-satisfies"))
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
+            .map(|rule| rule.to_rule_config_with_default(Severity::Info))
+            .unwrap_or(RuleConfig {
+                severity: Severity::Info,
+            })
     }
 
     fn hook_no_jsx(&self) -> RuleConfig {
@@ -808,12 +825,20 @@ impl RawRuleConfig {
     }
 
     fn to_rule_config(&self) -> RuleConfig {
+        self.to_rule_config_with_default(Severity::Warn)
+    }
+
+    fn to_rule_config_with_default(&self, default_severity: Severity) -> RuleConfig {
         match self {
             Self::Severity(severity) => RuleConfig {
                 severity: Severity::from_str(severity),
             },
             Self::Options(options) => RuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                severity: options
+                    .severity
+                    .as_deref()
+                    .map(Severity::from_str)
+                    .unwrap_or(default_severity),
             },
         }
     }
@@ -822,11 +847,13 @@ impl RawRuleConfig {
         match self {
             Self::Severity(severity) => FileLengthRuleConfig {
                 severity: Severity::from_str(severity),
-                max_lines: 300,
+                max_lines: FileLengthRuleConfig::default().max_lines,
             },
             Self::Options(options) => FileLengthRuleConfig {
                 severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                max_lines: options.max_lines.unwrap_or(300),
+                max_lines: options
+                    .max_lines
+                    .unwrap_or(FileLengthRuleConfig::default().max_lines),
             },
         }
     }

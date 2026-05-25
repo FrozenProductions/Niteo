@@ -6,6 +6,7 @@ mod git;
 mod ignore;
 mod jsx;
 mod report;
+mod rule_documentation;
 mod rules;
 
 use anyhow::Result;

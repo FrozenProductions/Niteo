@@ -74,6 +74,18 @@ npx @frozenproductions/niteo init
 niteo init
 ```
 
+List available rules and their configured severities:
+
+```sh
+niteo rules
+```
+
+Explain one rule:
+
+```sh
+niteo explain no-console
+```
+
 Scan a specific root:
 
 ```sh
