@@ -596,14 +596,15 @@ fn absolutize(workspace: &Path, path: PathBuf) -> PathBuf {
 
 fn read_config_file(workspace: &Path) -> Result<RawConfig> {
     let config_path = workspace.join(CONFIG_FILE_NAME);
-    if !config_path.exists() {
-        return Ok(RawConfig::default());
-    }
+    let source = if config_path.exists() {
+        fs::read_to_string(&config_path)
+            .with_context(|| format!("failed to read {}", config_path.display()))?
+    } else {
+        DEFAULT_CONFIG_SOURCE.to_owned()
+    };
 
-    let source = fs::read_to_string(&config_path)
-        .with_context(|| format!("failed to read {}", config_path.display()))?;
     let config = toml::from_str(&source)
-        .with_context(|| format!("failed to parse {}", config_path.display()))?;
+        .with_context(|| format!("failed to parse config from {}", config_path.display()))?;
 
     Ok(config)
 }
