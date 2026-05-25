@@ -33,6 +33,7 @@ use crate::config::{
     NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
     NoLogicInDomainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
 };
+use crate::ignore;
 
 #[derive(Debug, Clone)]
 pub struct Violation {
@@ -98,28 +99,32 @@ pub fn check_files(
     for file in files {
         let source = fs::read_to_string(file)
             .with_context(|| format!("failed to read {}", file.display()))?;
+
+        let directives = ignore::parse_ignore_directives(&source);
+        let mut file_violations = Vec::new();
+
         if no_comments.severity.is_enabled() {
-            violations.extend(no_comments::check_file(file, &source, &no_comments));
+            file_violations.extend(no_comments::check_file(file, &source, &no_comments));
         }
         if no_logic_in_barrel.severity.is_enabled() {
-            violations.extend(no_logic_in_barrel::check_file(
+            file_violations.extend(no_logic_in_barrel::check_file(
                 file,
                 &source,
                 &no_logic_in_barrel,
             ));
         }
         if no_default_export.severity.is_enabled() {
-            violations.extend(no_default_export::check_file(
+            file_violations.extend(no_default_export::check_file(
                 file,
                 &source,
                 &no_default_export,
             ));
         }
         if no_export_star.severity.is_enabled() {
-            violations.extend(no_export_star::check_file(file, &source, &no_export_star));
+            file_violations.extend(no_export_star::check_file(file, &source, &no_export_star));
         }
         if no_inline_types.severity.is_enabled() {
-            violations.extend(no_inline_types::check_file(
+            file_violations.extend(no_inline_types::check_file(
                 file,
                 &source,
                 &no_inline_types,
@@ -127,71 +132,75 @@ pub fn check_files(
             ));
         }
         if max_file_exports.severity.is_enabled() {
-            violations.extend(max_file_exports::check_file(
+            file_violations.extend(max_file_exports::check_file(
                 file,
                 &source,
                 &max_file_exports,
             ));
         }
         if no_upward_import.severity.is_enabled() {
-            violations.extend(no_upward_import::check_file(
+            file_violations.extend(no_upward_import::check_file(
                 file,
                 &source,
                 &no_upward_import,
             ));
         }
         if no_large_file.severity.is_enabled() {
-            violations.extend(no_large_file::check_file(file, &source, &no_large_file));
+            file_violations.extend(no_large_file::check_file(file, &source, &no_large_file));
         }
         if no_enums.severity.is_enabled() {
-            violations.extend(no_enums::check_file(file, &source, &no_enums));
+            file_violations.extend(no_enums::check_file(file, &source, &no_enums));
         }
         if no_barrel_files.severity.is_enabled() {
-            violations.extend(no_barrel_files::check_file(file, &source, &no_barrel_files));
+            file_violations.extend(no_barrel_files::check_file(file, &source, &no_barrel_files));
         }
         if no_console.severity.is_enabled() {
-            violations.extend(no_console::check_file(file, &source, &no_console));
+            file_violations.extend(no_console::check_file(file, &source, &no_console));
         }
         if no_debugger.severity.is_enabled() {
-            violations.extend(no_debugger::check_file(file, &source, &no_debugger));
+            file_violations.extend(no_debugger::check_file(file, &source, &no_debugger));
         }
         if no_eval.severity.is_enabled() {
-            violations.extend(no_eval::check_file(file, &source, &no_eval));
+            file_violations.extend(no_eval::check_file(file, &source, &no_eval));
         }
         if no_logic_in_domain.severity.is_enabled() {
-            violations.extend(no_logic_in_domain::check_file(
+            file_violations.extend(no_logic_in_domain::check_file(
                 file,
                 &source,
                 &no_logic_in_domain,
             ));
         }
         if no_empty_interface.severity.is_enabled() {
-            violations.extend(no_empty_interface::check_file(
+            file_violations.extend(no_empty_interface::check_file(
                 file,
                 &source,
                 &no_empty_interface,
             ));
         }
         if no_interface.severity.is_enabled() {
-            violations.extend(no_interface::check_file(file, &source, &no_interface));
+            file_violations.extend(no_interface::check_file(file, &source, &no_interface));
         }
         if no_mutable_exports.severity.is_enabled() {
-            violations.extend(no_mutable_exports::check_file(
+            file_violations.extend(no_mutable_exports::check_file(
                 file,
                 &source,
                 &no_mutable_exports,
             ));
         }
         if prefer_satisfies.severity.is_enabled() {
-            violations.extend(prefer_satisfies::check_file(
+            file_violations.extend(prefer_satisfies::check_file(
                 file,
                 &source,
                 &prefer_satisfies,
             ));
         }
         if hook_no_jsx.severity.is_enabled() {
-            violations.extend(hook_no_jsx::check_file(file, &source, &hook_no_jsx));
+            file_violations.extend(hook_no_jsx::check_file(file, &source, &hook_no_jsx));
         }
+
+        file_violations.retain(|v| !ignore::should_suppress_violation(&directives, v.line, v.rule));
+
+        violations.extend(file_violations);
     }
 
     Ok(violations)
