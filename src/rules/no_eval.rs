@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-eval";
+use crate::rules::{NO_EVAL_RULE_ID, Violation};
 const MESSAGE: &str = "Disallow eval() and new Function() as they execute arbitrary code.";
 
 pub fn check_file(file: &Path, source: &str, config: &RuleConfig) -> Vec<Violation> {
@@ -90,7 +88,7 @@ fn eval_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_EVAL_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

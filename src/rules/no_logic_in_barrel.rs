@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-logic-in-barrel";
+use crate::rules::{NO_LOGIC_IN_BARREL_RULE_ID, Violation};
 const MESSAGE: &str = "Keep barrel files limited to re-exports.";
 const BARREL_FILE_NAME: &str = "index.ts";
 
@@ -67,7 +65,7 @@ fn barrel_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violati
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_LOGIC_IN_BARREL_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

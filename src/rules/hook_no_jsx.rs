@@ -2,9 +2,7 @@ use std::path::Path;
 
 use crate::config::RuleConfig;
 use crate::jsx::{first_jsx_location, is_hook_file};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "hook-no-jsx";
+use crate::rules::{HOOK_NO_JSX_RULE_ID, Violation};
 const MESSAGE: &str = "Hook files should not contain JSX. Extract UI into a separate component.";
 
 pub fn check_file(file: &Path, source: &str, config: &RuleConfig) -> Vec<Violation> {
@@ -17,7 +15,7 @@ pub fn check_file(file: &Path, source: &str, config: &RuleConfig) -> Vec<Violati
             file: file.to_path_buf(),
             line: Some(cursor.line),
             column: Some(cursor.column),
-            rule: RULE_NAME,
+            rule: HOOK_NO_JSX_RULE_ID,
             message: MESSAGE,
             severity: config.severity,
             detail: None,

@@ -1,9 +1,7 @@
 use std::path::{Component, Path};
 
 use crate::config::{NoLogicInDomainRuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-logic-in-domain";
+use crate::rules::{NO_LOGIC_IN_DOMAIN_RULE_ID, Violation};
 const MESSAGE: &str =
     "Keep domain files free of logic. Move implementation to feature or service files.";
 
@@ -538,7 +536,7 @@ fn logic_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violatio
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_LOGIC_IN_DOMAIN_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

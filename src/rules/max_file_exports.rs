@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::FileExportsRuleConfig;
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "max-file-exports";
+use crate::rules::{MAX_FILE_EXPORTS_RULE_ID, Violation};
 const MESSAGE: &str = "Split this file or reduce its public surface area.";
 
 pub fn check_file(file: &Path, source: &str, config: &FileExportsRuleConfig) -> Vec<Violation> {
@@ -16,7 +14,7 @@ pub fn check_file(file: &Path, source: &str, config: &FileExportsRuleConfig) -> 
         file: file.to_path_buf(),
         line: Some(1),
         column: Some(1),
-        rule: RULE_NAME,
+        rule: MAX_FILE_EXPORTS_RULE_ID,
         message: MESSAGE,
         severity: config.severity,
         detail: None,

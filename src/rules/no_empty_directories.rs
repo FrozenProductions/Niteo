@@ -2,9 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::config::{NoEmptyDirectoriesRuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-empty-directories";
+use crate::rules::{NO_EMPTY_DIRECTORIES_RULE_ID, Violation};
 const MESSAGE: &str = "Remove directories with no source files or only empty barrel files.";
 
 const IGNORED_DIRECTORIES: &[&str] = &[
@@ -213,7 +211,7 @@ fn directory_violation(dir: &Path, severity: Severity) -> Violation {
         file: dir.to_path_buf(),
         line: None,
         column: None,
-        rule: RULE_NAME,
+        rule: NO_EMPTY_DIRECTORIES_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

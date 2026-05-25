@@ -2,9 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::config::{MaxDirectoryDepthRuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "max-directory-depth";
+use crate::rules::{MAX_DIRECTORY_DEPTH_RULE_ID, Violation};
 const MESSAGE: &str = "Directory nesting depth exceeds the configured limit.";
 
 const IGNORED_DIRECTORIES: &[&str] = &[
@@ -104,7 +102,7 @@ fn depth_violation(path: &Path, severity: Severity, depth: usize, max_depth: usi
         file: path.to_path_buf(),
         line: None,
         column: None,
-        rule: RULE_NAME,
+        rule: MAX_DIRECTORY_DEPTH_RULE_ID,
         message: MESSAGE,
         severity,
         detail: Some(format!("Depth {} exceeds maximum of {}.", depth, max_depth)),

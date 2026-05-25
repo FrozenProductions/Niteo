@@ -1,9 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-inline-types";
+use crate::rules::{NO_INLINE_TYPES_RULE_ID, Violation};
 const MESSAGE: &str = "Move exported contracts to a colocated type file or accepted types folder.";
 const TYPES_DIRECTORY_NAME: &str = "types";
 const TYPE_FILE_SUFFIX: &str = ".type.ts";
@@ -128,7 +126,7 @@ fn inline_type_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Vi
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_INLINE_TYPES_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

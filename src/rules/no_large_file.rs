@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::FileLengthRuleConfig;
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-large-file";
+use crate::rules::{NO_LARGE_FILE_RULE_ID, Violation};
 const MESSAGE: &str = "Split this file into focused modules.";
 
 pub fn check_file(file: &Path, source: &str, config: &FileLengthRuleConfig) -> Vec<Violation> {
@@ -18,7 +16,7 @@ pub fn check_file(file: &Path, source: &str, config: &FileLengthRuleConfig) -> V
         file: file.to_path_buf(),
         line: Some(location.line),
         column: Some(location.column),
-        rule: RULE_NAME,
+        rule: NO_LARGE_FILE_RULE_ID,
         message: MESSAGE,
         severity: config.severity,
         detail: None,

@@ -1,9 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-barrel-chain";
+use crate::rules::{NO_BARREL_CHAIN_RULE_ID, Violation};
 const MESSAGE: &str = "Barrel files cannot re-export from other barrel files.";
 const BARREL_FILE_NAME: &str = "index.ts";
 const TYPESCRIPT_EXTENSIONS: &[&str] = &["ts", "tsx"];
@@ -88,7 +86,7 @@ fn barrel_chain_violation(
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_BARREL_CHAIN_RULE_ID,
         message: MESSAGE,
         severity,
         detail: Some(format!(

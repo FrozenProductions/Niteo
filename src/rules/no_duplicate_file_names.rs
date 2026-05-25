@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::config::{NoDuplicateFileNamesRuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-duplicate-file-names";
+use crate::rules::{NO_DUPLICATE_FILE_NAMES_RULE_ID, Violation};
 const MESSAGE: &str = "Duplicate file names across directories are confusing in stack traces.";
 
 const DEFAULT_IGNORED_NAMES: &[&str] = &["index.ts", "index.tsx"];
@@ -79,7 +77,7 @@ fn duplicate_violation(file: &Path, other: &Path, name: &str, severity: Severity
         file: file.to_path_buf(),
         line: None,
         column: None,
-        rule: RULE_NAME,
+        rule: NO_DUPLICATE_FILE_NAMES_RULE_ID,
         message: MESSAGE,
         severity,
         detail: Some(format!("Also exists at: {}", other.display())),

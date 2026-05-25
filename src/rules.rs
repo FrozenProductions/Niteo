@@ -36,12 +36,41 @@ use crate::config::{
 };
 use crate::ignore;
 
+pub type RuleId = &'static str;
+
+pub const HOOK_NO_JSX_RULE_ID: RuleId = "hook-no-jsx";
+pub const MAX_DIRECTORY_DEPTH_RULE_ID: RuleId = "max-directory-depth";
+pub const MAX_FILE_EXPORTS_RULE_ID: RuleId = "max-file-exports";
+pub const MAX_ITEMS_PER_DIRECTORY_RULE_ID: RuleId = "max-items-per-directory";
+pub const MIN_ITEMS_PER_DIRECTORY_RULE_ID: RuleId = "min-items-per-directory";
+pub const NO_BARREL_CHAIN_RULE_ID: RuleId = "no-barrel-chain";
+pub const NO_BARREL_FILES_RULE_ID: RuleId = "no-barrel-files";
+pub const NO_COMMENTS_RULE_ID: RuleId = "no-comments";
+pub const NO_CONSOLE_RULE_ID: RuleId = "no-console";
+pub const NO_DEBUGGER_RULE_ID: RuleId = "no-debugger";
+pub const NO_DEFAULT_EXPORT_RULE_ID: RuleId = "no-default-export";
+pub const NO_DUPLICATE_FILE_NAMES_RULE_ID: RuleId = "no-duplicate-file-names";
+pub const NO_DUMP_FILES_RULE_ID: RuleId = "no-dump-files";
+pub const NO_EMPTY_DIRECTORIES_RULE_ID: RuleId = "no-empty-directories";
+pub const NO_EMPTY_INTERFACE_RULE_ID: RuleId = "no-empty-interface";
+pub const NO_ENUMS_RULE_ID: RuleId = "no-enums";
+pub const NO_EVAL_RULE_ID: RuleId = "no-eval";
+pub const NO_EXPORT_STAR_RULE_ID: RuleId = "no-export-star";
+pub const NO_INLINE_TYPES_RULE_ID: RuleId = "no-inline-types";
+pub const NO_INTERFACE_RULE_ID: RuleId = "no-interface";
+pub const NO_LARGE_FILE_RULE_ID: RuleId = "no-large-file";
+pub const NO_LOGIC_IN_BARREL_RULE_ID: RuleId = "no-logic-in-barrel";
+pub const NO_LOGIC_IN_DOMAIN_RULE_ID: RuleId = "no-logic-in-domain";
+pub const NO_MUTABLE_EXPORTS_RULE_ID: RuleId = "no-mutable-exports";
+pub const NO_UPWARD_IMPORT_RULE_ID: RuleId = "no-upward-import";
+pub const PREFER_SATISFIES_RULE_ID: RuleId = "prefer-satisfies";
+
 #[derive(Debug, Clone)]
 pub struct Violation {
     pub file: PathBuf,
     pub line: Option<usize>,
     pub column: Option<usize>,
-    pub rule: &'static str,
+    pub rule: RuleId,
     pub message: &'static str,
     pub severity: Severity,
     pub detail: Option<String>,

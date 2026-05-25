@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-barrel-files";
+use crate::rules::{NO_BARREL_FILES_RULE_ID, Violation};
 const MESSAGE: &str = "Avoid barrel files; import directly from the source module.";
 const BARREL_FILE_NAME: &str = "index.ts";
 
@@ -41,7 +39,7 @@ fn barrel_violation(file: &Path, severity: Severity) -> Violation {
         file: file.to_path_buf(),
         line: None,
         column: None,
-        rule: RULE_NAME,
+        rule: NO_BARREL_FILES_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

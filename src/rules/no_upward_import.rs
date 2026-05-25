@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{Severity, UpwardImportRuleConfig};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-upward-import";
+use crate::rules::{NO_UPWARD_IMPORT_RULE_ID, Violation};
 const MESSAGE: &str = "Replace upward relative imports with local or project-root imports.";
 
 pub fn check_file(file: &Path, source: &str, config: &UpwardImportRuleConfig) -> Vec<Violation> {
@@ -190,7 +188,7 @@ fn violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation {
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_UPWARD_IMPORT_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

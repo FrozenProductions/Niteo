@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-export-star";
+use crate::rules::{NO_EXPORT_STAR_RULE_ID, Violation};
 const MESSAGE: &str =
     "Avoid export * because it hides the public API shape. Use explicit named re-exports.";
 
@@ -87,7 +85,7 @@ fn export_star_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Vi
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_EXPORT_STAR_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

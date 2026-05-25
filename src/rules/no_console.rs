@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::NoConsoleRuleConfig;
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-console";
+use crate::rules::{NO_CONSOLE_RULE_ID, Violation};
 const MESSAGE: &str = "Disallow console statements outside allowed file patterns.";
 
 pub fn check_file(file: &Path, source: &str, config: &NoConsoleRuleConfig) -> Vec<Violation> {
@@ -88,7 +86,7 @@ fn console_violation(file: &Path, cursor: &Cursor, severity: crate::config::Seve
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_CONSOLE_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

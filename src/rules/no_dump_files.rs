@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{NoDumpFilesRuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-dump-files";
+use crate::rules::{NO_DUMP_FILES_RULE_ID, Violation};
 const MESSAGE: &str = "Generic file names like utils.ts, helpers.ts, and types.ts hide intent and become dumping grounds.";
 
 const DEFAULT_FORBIDDEN_NAMES: &[&str] = &["utils", "helpers", "types"];
@@ -41,7 +39,7 @@ fn dump_violation(file: &Path, stem: &str, severity: Severity) -> Violation {
         file: file.to_path_buf(),
         line: None,
         column: None,
-        rule: RULE_NAME,
+        rule: NO_DUMP_FILES_RULE_ID,
         message: MESSAGE,
         severity,
         detail: Some(format!(
@@ -70,7 +68,7 @@ mod tests {
         let files = vec![PathBuf::from("src/utils.ts")];
         let violations = check_files(&files, &test_config());
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].rule, "no-dump-files");
+        assert_eq!(violations[0].rule, crate::rules::NO_DUMP_FILES_RULE_ID);
     }
 
     #[test]

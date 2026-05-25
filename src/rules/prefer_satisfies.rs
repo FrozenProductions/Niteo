@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "prefer-satisfies";
+use crate::rules::{PREFER_SATISFIES_RULE_ID, Violation};
 const MESSAGE: &str =
     "Prefer 'satisfies' over 'as' for type validation without changing the inferred type.";
 
@@ -89,7 +87,7 @@ fn as_cast_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violat
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: PREFER_SATISFIES_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

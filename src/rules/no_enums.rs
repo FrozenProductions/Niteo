@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-enums";
+use crate::rules::{NO_ENUMS_RULE_ID, Violation};
 const MESSAGE: &str = "Use union types or const objects instead of enums.";
 
 pub fn check_file(file: &Path, source: &str, config: &RuleConfig) -> Vec<Violation> {
@@ -87,7 +85,7 @@ fn enum_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_ENUMS_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

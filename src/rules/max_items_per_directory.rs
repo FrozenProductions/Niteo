@@ -2,9 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::config::{MaxItemsPerDirectoryRuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "max-items-per-directory";
+use crate::rules::{MAX_ITEMS_PER_DIRECTORY_RULE_ID, Violation};
 const MESSAGE: &str = "Directory exceeds the maximum number of items. Consider sub-grouping.";
 
 const IGNORED_DIRECTORIES: &[&str] = &[
@@ -110,7 +108,7 @@ fn directory_violation(
         file: dir.to_path_buf(),
         line: None,
         column: None,
-        rule: RULE_NAME,
+        rule: MAX_ITEMS_PER_DIRECTORY_RULE_ID,
         message: MESSAGE,
         severity,
         detail: Some(format!(

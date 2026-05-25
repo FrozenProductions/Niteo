@@ -2,9 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::config::{MinItemsPerDirectoryRuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "min-items-per-directory";
+use crate::rules::{MIN_ITEMS_PER_DIRECTORY_RULE_ID, Violation};
 const MESSAGE: &str =
     "Directory has too few source items. Consider merging with a sibling or removing.";
 
@@ -111,7 +109,7 @@ fn directory_violation(
         file: dir.to_path_buf(),
         line: None,
         column: None,
-        rule: RULE_NAME,
+        rule: MIN_ITEMS_PER_DIRECTORY_RULE_ID,
         message: MESSAGE,
         severity,
         detail: Some(format!(

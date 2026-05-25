@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{CommentsRuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-comments";
+use crate::rules::{NO_COMMENTS_RULE_ID, Violation};
 const MESSAGE: &str = "Remove implementation comments or convert them to allowed documentation.";
 
 pub fn check_file(file: &Path, source: &str, config: &CommentsRuleConfig) -> Vec<Violation> {
@@ -94,7 +92,7 @@ fn comment_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violat
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_COMMENTS_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

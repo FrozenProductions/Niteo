@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-default-export";
+use crate::rules::{NO_DEFAULT_EXPORT_RULE_ID, Violation};
 const MESSAGE: &str = "Use named exports so imports stay explicit and refactorable.";
 
 pub fn check_file(file: &Path, source: &str, config: &RuleConfig) -> Vec<Violation> {
@@ -86,7 +84,7 @@ fn default_export_violation(file: &Path, cursor: &Cursor, severity: Severity) ->
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_DEFAULT_EXPORT_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,

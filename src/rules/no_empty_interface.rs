@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::Violation;
-
-const RULE_NAME: &str = "no-empty-interface";
+use crate::rules::{NO_EMPTY_INTERFACE_RULE_ID, Violation};
 const MESSAGE: &str = "Use a type alias instead of an empty interface.";
 
 pub fn check_file(file: &Path, source: &str, config: &RuleConfig) -> Vec<Violation> {
@@ -140,7 +138,7 @@ fn interface_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Viol
         file: file.to_path_buf(),
         line: Some(cursor.line),
         column: Some(cursor.column),
-        rule: RULE_NAME,
+        rule: NO_EMPTY_INTERFACE_RULE_ID,
         message: MESSAGE,
         severity,
         detail: None,
