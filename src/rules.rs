@@ -87,29 +87,29 @@ pub struct Violation {
 pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Violation>> {
     let mut violations = Vec::new();
 
-    let needs_scan = config.no_comments.severity.is_enabled()
-        || config.no_logic_in_barrel.severity.is_enabled()
-        || config.no_large_file.severity.is_enabled()
-        || config.no_barrel_files.severity.is_enabled()
-        || config.no_barrel_chain.severity.is_enabled()
-        || config.no_logic_in_domain.severity.is_enabled()
-        || config.prefer_satisfies.severity.is_enabled();
+    let needs_scan = config.rules.no_comments.severity.is_enabled()
+        || config.rules.no_logic_in_barrel.severity.is_enabled()
+        || config.rules.no_large_file.severity.is_enabled()
+        || config.rules.no_barrel_files.severity.is_enabled()
+        || config.rules.no_barrel_chain.severity.is_enabled()
+        || config.rules.no_logic_in_domain.severity.is_enabled()
+        || config.rules.prefer_satisfies.severity.is_enabled();
 
-    let needs_ast = config.no_default_export.severity.is_enabled()
-        || config.boolean_prefix.severity.is_enabled()
-        || config.no_export_star.severity.is_enabled()
-        || config.no_inline_types.severity.is_enabled()
-        || config.max_file_exports.severity.is_enabled()
-        || config.no_upward_import.severity.is_enabled()
-        || config.no_enums.severity.is_enabled()
-        || config.no_console.severity.is_enabled()
-        || config.no_debugger.severity.is_enabled()
-        || config.no_eval.severity.is_enabled()
-        || config.no_empty_interface.severity.is_enabled()
-        || config.no_interface.severity.is_enabled()
-        || config.no_mutable_exports.severity.is_enabled()
-        || config.no_silent_catch.severity.is_enabled()
-        || config.hook_no_jsx.severity.is_enabled();
+    let needs_ast = config.rules.no_default_export.severity.is_enabled()
+        || config.rules.boolean_prefix.severity.is_enabled()
+        || config.rules.no_export_star.severity.is_enabled()
+        || config.rules.no_inline_types.severity.is_enabled()
+        || config.rules.max_file_exports.severity.is_enabled()
+        || config.rules.no_upward_import.severity.is_enabled()
+        || config.rules.no_enums.severity.is_enabled()
+        || config.rules.no_console.severity.is_enabled()
+        || config.rules.no_debugger.severity.is_enabled()
+        || config.rules.no_eval.severity.is_enabled()
+        || config.rules.no_empty_interface.severity.is_enabled()
+        || config.rules.no_interface.severity.is_enabled()
+        || config.rules.no_mutable_exports.severity.is_enabled()
+        || config.rules.no_silent_catch.severity.is_enabled()
+        || config.rules.hook_no_jsx.severity.is_enabled();
 
     if !needs_scan && !needs_ast {
         return Ok(violations);
@@ -142,173 +142,177 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
             None
         };
 
-        if config.no_comments.severity.is_enabled() {
-            file_violations.extend(no_comments::check_file(file, &source, &config.no_comments));
+        if config.rules.no_comments.severity.is_enabled() {
+            file_violations.extend(no_comments::check_file(
+                file,
+                &source,
+                &config.rules.no_comments,
+            ));
         }
-        if config.no_logic_in_barrel.severity.is_enabled() {
+        if config.rules.no_logic_in_barrel.severity.is_enabled() {
             file_violations.extend(no_logic_in_barrel::check_file(
                 file,
                 &source,
-                &config.no_logic_in_barrel,
+                &config.rules.no_logic_in_barrel,
             ));
         }
         if let Some(ref program) = parse_result {
-            if config.boolean_prefix.severity.is_enabled() {
+            if config.rules.boolean_prefix.severity.is_enabled() {
                 file_violations.extend(boolean_prefix::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.boolean_prefix,
+                    &config.rules.boolean_prefix,
                 ));
             }
-            if config.no_default_export.severity.is_enabled() {
+            if config.rules.no_default_export.severity.is_enabled() {
                 file_violations.extend(no_default_export::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_default_export,
+                    &config.rules.no_default_export,
                 ));
             }
-            if config.no_export_star.severity.is_enabled() {
+            if config.rules.no_export_star.severity.is_enabled() {
                 file_violations.extend(no_export_star::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_export_star,
+                    &config.rules.no_export_star,
                 ));
             }
-            if config.no_inline_types.severity.is_enabled() {
+            if config.rules.no_inline_types.severity.is_enabled() {
                 file_violations.extend(no_inline_types::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_inline_types,
+                    &config.rules.no_inline_types,
                     type_location_style,
                 ));
             }
-            if config.max_file_exports.severity.is_enabled() {
+            if config.rules.max_file_exports.severity.is_enabled() {
                 file_violations.extend(max_file_exports::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.max_file_exports,
+                    &config.rules.max_file_exports,
                 ));
             }
-            if config.no_upward_import.severity.is_enabled() {
+            if config.rules.no_upward_import.severity.is_enabled() {
                 file_violations.extend(no_upward_import::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_upward_import,
+                    &config.rules.no_upward_import,
                 ));
             }
-            if config.no_enums.severity.is_enabled() {
+            if config.rules.no_enums.severity.is_enabled() {
                 file_violations.extend(no_enums::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_enums,
+                    &config.rules.no_enums,
                 ));
             }
-            if config.no_console.severity.is_enabled() {
+            if config.rules.no_console.severity.is_enabled() {
                 file_violations.extend(no_console::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_console,
+                    &config.rules.no_console,
                 ));
             }
-            if config.no_debugger.severity.is_enabled() {
+            if config.rules.no_debugger.severity.is_enabled() {
                 file_violations.extend(no_debugger::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_debugger,
+                    &config.rules.no_debugger,
                 ));
             }
-            if config.no_eval.severity.is_enabled() {
+            if config.rules.no_eval.severity.is_enabled() {
                 file_violations.extend(no_eval::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_eval,
+                    &config.rules.no_eval,
                 ));
             }
-            if config.no_empty_interface.severity.is_enabled() {
+            if config.rules.no_empty_interface.severity.is_enabled() {
                 file_violations.extend(no_empty_interface::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_empty_interface,
+                    &config.rules.no_empty_interface,
                 ));
             }
-            if config.no_interface.severity.is_enabled() {
+            if config.rules.no_interface.severity.is_enabled() {
                 file_violations.extend(no_interface::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_interface,
+                    &config.rules.no_interface,
                 ));
             }
-            if config.no_mutable_exports.severity.is_enabled() {
+            if config.rules.no_mutable_exports.severity.is_enabled() {
                 file_violations.extend(no_mutable_exports::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_mutable_exports,
+                    &config.rules.no_mutable_exports,
                 ));
             }
-            if config.no_silent_catch.severity.is_enabled() {
+            if config.rules.no_silent_catch.severity.is_enabled() {
                 file_violations.extend(no_silent_catch::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.no_silent_catch,
+                    &config.rules.no_silent_catch,
                 ));
             }
-            if config.hook_no_jsx.severity.is_enabled() {
+            if config.rules.hook_no_jsx.severity.is_enabled() {
                 file_violations.extend(hook_no_jsx::check_file(
                     file,
                     program,
                     &line_index,
-                    &config.hook_no_jsx,
+                    &config.rules.hook_no_jsx,
                 ));
             }
         }
-        if config.no_large_file.severity.is_enabled() {
+        if config.rules.no_large_file.severity.is_enabled() {
             file_violations.extend(no_large_file::check_file(
                 file,
                 &source,
-                &config.no_large_file,
+                &config.rules.no_large_file,
             ));
         }
-        if config.no_barrel_files.severity.is_enabled() {
+        if config.rules.no_barrel_files.severity.is_enabled() {
             file_violations.extend(no_barrel_files::check_file(
                 file,
                 &source,
-                &config.no_barrel_files,
+                &config.rules.no_barrel_files,
             ));
         }
-        if config.no_barrel_chain.severity.is_enabled() {
+        if config.rules.no_barrel_chain.severity.is_enabled() {
             file_violations.extend(no_barrel_chain::check_file(
                 file,
                 &source,
                 files,
-                &config.no_barrel_chain,
+                &config.rules.no_barrel_chain,
             ));
         }
-        if config.no_logic_in_domain.severity.is_enabled() {
+        if config.rules.no_logic_in_domain.severity.is_enabled() {
             file_violations.extend(no_logic_in_domain::check_file(
                 file,
                 &source,
-                &config.no_logic_in_domain,
+                &config.rules.no_logic_in_domain,
             ));
         }
-        if config.prefer_satisfies.severity.is_enabled() {
+        if config.rules.prefer_satisfies.severity.is_enabled() {
             file_violations.extend(prefer_satisfies::check_file(
                 file,
                 &source,
-                &config.prefer_satisfies,
+                &config.rules.prefer_satisfies,
             ));
         }
 

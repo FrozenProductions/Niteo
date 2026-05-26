@@ -1,0 +1,112 @@
+pub const CONFIG_FILE_NAME: &str = "niteo.toml";
+
+pub const DEFAULT_CONFIG_SOURCE: &str = r#"[project]
+root = "src"
+respect-gitignore = true
+
+[rules]
+[rules.boolean-prefix]
+severity = "warn"
+prefixes = ["is", "has", "can"]
+ignore-constants = false
+
+[rules.no-comments]
+severity = "warn"
+allow-doc-comments = true
+
+[rules.no-logic-in-barrel]
+severity = "warn"
+
+[rules.no-default-export]
+severity = "warn"
+
+[rules.no-export-star]
+severity = "warn"
+
+[rules.no-inline-types]
+severity = "warn"
+
+[rules.max-file-exports]
+severity = "warn"
+max-exports = 10
+
+[rules.no-upward-import]
+severity = "warn"
+max-depth = 0
+
+[rules.no-large-file]
+severity = "warn"
+max-lines = 500
+
+[rules.no-enums]
+severity = "warn"
+
+[rules.no-barrel-files]
+severity = "warn"
+
+[rules.no-barrel-chain]
+severity = "warn"
+
+[rules.no-console]
+severity = "warn"
+allow-patterns = []
+
+[rules.no-debugger]
+severity = "warn"
+
+[rules.no-eval]
+severity = "warn"
+
+[rules.no-logic-in-domain]
+severity = "warn"
+extra-folders = []
+extra-file-suffixes = []
+
+[rules.no-empty-directories]
+severity = "warn"
+ignore-dirs = []
+
+[rules.no-duplicate-file-names]
+severity = "warn"
+ignore-names = []
+
+[rules.max-items-per-directory]
+severity = "warn"
+max-items = 20
+ignore-dirs = []
+count-folders = false
+
+[rules.min-items-per-directory]
+severity = "warn"
+min-items = 3
+ignore-dirs = []
+count-folders = false
+
+[rules.max-directory-depth]
+severity = "warn"
+max-depth = 5
+ignore-dirs = []
+
+[rules.no-empty-interface]
+severity = "error"
+
+[rules.no-interface]
+severity = "warn"
+allow-declaration-merging = true
+
+[rules.no-mutable-exports]
+severity = "warn"
+
+[rules.no-silent-catch]
+severity = "warn"
+
+[rules.prefer-satisfies]
+severity = "info"
+
+[rules.hook-no-jsx]
+severity = "warn"
+
+[rules.no-dump-files]
+severity = "warn"
+extra-names = []
+"#;

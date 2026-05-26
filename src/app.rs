@@ -133,26 +133,30 @@ fn lint_workspace(
 
     let violations = rules::check_files(&files, &project_config)?;
 
-    let mut dir_violations =
-        rules::check_directories(&project_config.root, project_config.no_empty_directories);
+    let mut dir_violations = rules::check_directories(
+        &project_config.root,
+        project_config.rules.no_empty_directories,
+    );
 
     let mut name_violations =
-        rules::check_duplicate_file_names(&files, project_config.no_duplicate_file_names);
+        rules::check_duplicate_file_names(&files, project_config.rules.no_duplicate_file_names);
 
     let mut max_items_violations = rules::check_max_items_per_directory(
         &project_config.root,
-        project_config.max_items_per_directory,
+        project_config.rules.max_items_per_directory,
     );
 
     let mut min_items_violations = rules::check_min_items_per_directory(
         &project_config.root,
-        project_config.min_items_per_directory,
+        project_config.rules.min_items_per_directory,
     );
 
-    let mut depth_violations =
-        rules::check_max_directory_depth(&project_config.root, project_config.max_directory_depth);
+    let mut depth_violations = rules::check_max_directory_depth(
+        &project_config.root,
+        project_config.rules.max_directory_depth,
+    );
 
-    let mut dump_violations = rules::check_dump_files(&files, project_config.no_dump_files);
+    let mut dump_violations = rules::check_dump_files(&files, project_config.rules.no_dump_files);
 
     let mut all_violations = violations;
     all_violations.append(&mut dir_violations);

@@ -736,134 +736,149 @@ pub fn render_explanation_text(explanation: &RuleExplanation) -> String {
 fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
     match kind {
         RuleKind::BooleanPrefix => RuleConfigSummary {
-            severity: config.boolean_prefix.severity,
+            severity: config.rules.boolean_prefix.severity,
             options: vec![
-                format!("prefixes: {:?}", config.boolean_prefix.prefixes),
+                format!("prefixes: {:?}", config.rules.boolean_prefix.prefixes),
                 format!(
                     "ignore-constants: {}",
-                    config.boolean_prefix.ignore_constants
+                    config.rules.boolean_prefix.ignore_constants
                 ),
             ],
         },
-        RuleKind::HookNoJsx => simple_summary(config.hook_no_jsx.severity),
+        RuleKind::HookNoJsx => simple_summary(config.rules.hook_no_jsx.severity),
         RuleKind::MaxDirectoryDepth => RuleConfigSummary {
-            severity: config.max_directory_depth.severity,
+            severity: config.rules.max_directory_depth.severity,
             options: vec![
-                format!("max-depth: {}", config.max_directory_depth.max_depth),
-                format!("ignore-dirs: {:?}", config.max_directory_depth.ignore_dirs),
+                format!("max-depth: {}", config.rules.max_directory_depth.max_depth),
+                format!(
+                    "ignore-dirs: {:?}",
+                    config.rules.max_directory_depth.ignore_dirs
+                ),
             ],
         },
         RuleKind::MaxFileExports => RuleConfigSummary {
-            severity: config.max_file_exports.severity,
+            severity: config.rules.max_file_exports.severity,
             options: vec![format!(
                 "max-exports: {}",
-                config.max_file_exports.max_exports
+                config.rules.max_file_exports.max_exports
             )],
         },
         RuleKind::MaxItemsPerDirectory => RuleConfigSummary {
-            severity: config.max_items_per_directory.severity,
+            severity: config.rules.max_items_per_directory.severity,
             options: vec![
-                format!("max-items: {}", config.max_items_per_directory.max_items),
+                format!(
+                    "max-items: {}",
+                    config.rules.max_items_per_directory.max_items
+                ),
                 format!(
                     "ignore-dirs: {:?}",
-                    config.max_items_per_directory.ignore_dirs
+                    config.rules.max_items_per_directory.ignore_dirs
                 ),
                 format!(
                     "count-folders: {}",
-                    config.max_items_per_directory.count_folders
+                    config.rules.max_items_per_directory.count_folders
                 ),
             ],
         },
         RuleKind::MinItemsPerDirectory => RuleConfigSummary {
-            severity: config.min_items_per_directory.severity,
+            severity: config.rules.min_items_per_directory.severity,
             options: vec![
-                format!("min-items: {}", config.min_items_per_directory.min_items),
+                format!(
+                    "min-items: {}",
+                    config.rules.min_items_per_directory.min_items
+                ),
                 format!(
                     "ignore-dirs: {:?}",
-                    config.min_items_per_directory.ignore_dirs
+                    config.rules.min_items_per_directory.ignore_dirs
                 ),
                 format!(
                     "count-folders: {}",
-                    config.min_items_per_directory.count_folders
+                    config.rules.min_items_per_directory.count_folders
                 ),
             ],
         },
-        RuleKind::NoBarrelChain => simple_summary(config.no_barrel_chain.severity),
-        RuleKind::NoBarrelFiles => simple_summary(config.no_barrel_files.severity),
+        RuleKind::NoBarrelChain => simple_summary(config.rules.no_barrel_chain.severity),
+        RuleKind::NoBarrelFiles => simple_summary(config.rules.no_barrel_files.severity),
         RuleKind::NoComments => RuleConfigSummary {
-            severity: config.no_comments.severity,
+            severity: config.rules.no_comments.severity,
             options: vec![format!(
                 "allow-doc-comments: {}",
-                config.no_comments.allow_doc_comments
+                config.rules.no_comments.allow_doc_comments
             )],
         },
         RuleKind::NoConsole => RuleConfigSummary {
-            severity: config.no_console.severity,
+            severity: config.rules.no_console.severity,
             options: vec![format!(
                 "allow-patterns: {:?}",
-                config.no_console.allow_patterns
+                config.rules.no_console.allow_patterns
             )],
         },
-        RuleKind::NoDebugger => simple_summary(config.no_debugger.severity),
-        RuleKind::NoDefaultExport => simple_summary(config.no_default_export.severity),
+        RuleKind::NoDebugger => simple_summary(config.rules.no_debugger.severity),
+        RuleKind::NoDefaultExport => simple_summary(config.rules.no_default_export.severity),
         RuleKind::NoDuplicateFileNames => RuleConfigSummary {
-            severity: config.no_duplicate_file_names.severity,
+            severity: config.rules.no_duplicate_file_names.severity,
             options: vec![format!(
                 "ignore-names: {:?}",
-                config.no_duplicate_file_names.ignore_names
+                config.rules.no_duplicate_file_names.ignore_names
             )],
         },
         RuleKind::NoDumpFiles => RuleConfigSummary {
-            severity: config.no_dump_files.severity,
+            severity: config.rules.no_dump_files.severity,
             options: vec![format!(
                 "extra-names: {:?}",
-                config.no_dump_files.extra_names
+                config.rules.no_dump_files.extra_names
             )],
         },
         RuleKind::NoEmptyDirectories => RuleConfigSummary {
-            severity: config.no_empty_directories.severity,
+            severity: config.rules.no_empty_directories.severity,
             options: vec![format!(
                 "ignore-dirs: {:?}",
-                config.no_empty_directories.ignore_dirs
+                config.rules.no_empty_directories.ignore_dirs
             )],
         },
-        RuleKind::NoEmptyInterface => simple_summary(config.no_empty_interface.severity),
-        RuleKind::NoEnums => simple_summary(config.no_enums.severity),
-        RuleKind::NoEval => simple_summary(config.no_eval.severity),
-        RuleKind::NoExportStar => simple_summary(config.no_export_star.severity),
-        RuleKind::NoInlineTypes => simple_summary(config.no_inline_types.severity),
+        RuleKind::NoEmptyInterface => simple_summary(config.rules.no_empty_interface.severity),
+        RuleKind::NoEnums => simple_summary(config.rules.no_enums.severity),
+        RuleKind::NoEval => simple_summary(config.rules.no_eval.severity),
+        RuleKind::NoExportStar => simple_summary(config.rules.no_export_star.severity),
+        RuleKind::NoInlineTypes => simple_summary(config.rules.no_inline_types.severity),
         RuleKind::NoInterface => RuleConfigSummary {
-            severity: config.no_interface.severity,
+            severity: config.rules.no_interface.severity,
             options: vec![format!(
                 "allow-declaration-merging: {}",
-                config.no_interface.allow_declaration_merging
+                config.rules.no_interface.allow_declaration_merging
             )],
         },
         RuleKind::NoLargeFile => RuleConfigSummary {
-            severity: config.no_large_file.severity,
-            options: vec![format!("max-lines: {}", config.no_large_file.max_lines)],
+            severity: config.rules.no_large_file.severity,
+            options: vec![format!(
+                "max-lines: {}",
+                config.rules.no_large_file.max_lines
+            )],
         },
-        RuleKind::NoLogicInBarrel => simple_summary(config.no_logic_in_barrel.severity),
+        RuleKind::NoLogicInBarrel => simple_summary(config.rules.no_logic_in_barrel.severity),
         RuleKind::NoLogicInDomain => RuleConfigSummary {
-            severity: config.no_logic_in_domain.severity,
+            severity: config.rules.no_logic_in_domain.severity,
             options: vec![
                 format!(
                     "extra-folders: {:?}",
-                    config.no_logic_in_domain.extra_folders
+                    config.rules.no_logic_in_domain.extra_folders
                 ),
                 format!(
                     "extra-file-suffixes: {:?}",
-                    config.no_logic_in_domain.extra_file_suffixes
+                    config.rules.no_logic_in_domain.extra_file_suffixes
                 ),
             ],
         },
-        RuleKind::NoMutableExports => simple_summary(config.no_mutable_exports.severity),
-        RuleKind::NoSilentCatch => simple_summary(config.no_silent_catch.severity),
+        RuleKind::NoMutableExports => simple_summary(config.rules.no_mutable_exports.severity),
+        RuleKind::NoSilentCatch => simple_summary(config.rules.no_silent_catch.severity),
         RuleKind::NoUpwardImport => RuleConfigSummary {
-            severity: config.no_upward_import.severity,
-            options: vec![format!("max-depth: {}", config.no_upward_import.max_depth)],
+            severity: config.rules.no_upward_import.severity,
+            options: vec![format!(
+                "max-depth: {}",
+                config.rules.no_upward_import.max_depth
+            )],
         },
-        RuleKind::PreferSatisfies => simple_summary(config.prefer_satisfies.severity),
+        RuleKind::PreferSatisfies => simple_summary(config.rules.prefer_satisfies.severity),
     }
 }
 
