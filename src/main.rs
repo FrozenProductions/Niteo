@@ -8,6 +8,7 @@ mod jsx;
 mod report;
 mod rule_documentation;
 mod rules;
+mod syntax;
 
 use anyhow::Result;
 

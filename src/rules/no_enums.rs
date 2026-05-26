@@ -1,152 +1,76 @@
 use std::path::Path;
 
-use crate::config::{RuleConfig, Severity};
+use oxc_ast::ast::TSEnumDeclaration;
+use oxc_ast_visit::Visit;
+
+use crate::config::RuleConfig;
 use crate::rules::{NO_ENUMS_RULE_ID, Violation};
+use crate::syntax::LineIndex;
 const MESSAGE: &str = "Use union types or const objects instead of enums.";
 
-pub fn check_file(file: &Path, source: &str, config: &RuleConfig) -> Vec<Violation> {
-    let bytes = source.as_bytes();
-    let mut violations = Vec::new();
-    let mut cursor = Cursor::default();
-    let mut string_quote: Option<u8> = None;
-
-    while cursor.index < bytes.len() {
-        let current = bytes[cursor.index];
-        let next = bytes.get(cursor.index + 1).copied();
-
-        if let Some(quote) = string_quote {
-            if current == b'\\' {
-                cursor.advance(bytes);
-                if cursor.index < bytes.len() {
-                    cursor.advance(bytes);
-                }
-                continue;
-            }
-
-            if current == quote {
-                string_quote = None;
-            }
-
-            cursor.advance(bytes);
-            continue;
-        }
-
-        match (current, next) {
-            (b'\'', _) | (b'"', _) | (b'`', _) => {
-                string_quote = Some(current);
-                cursor.advance(bytes);
-            }
-            (b'/', Some(b'/')) => skip_line_comment(bytes, &mut cursor),
-            (b'/', Some(b'*')) => skip_block_comment(bytes, &mut cursor),
-            _ if starts_enum(bytes, cursor.index) => {
-                violations.push(enum_violation(file, &cursor, config.severity));
-                cursor.index += b"enum".len();
-                cursor.column += b"enum".len();
-            }
-            _ => cursor.advance(bytes),
-        }
-    }
-
-    violations
+pub fn check_file(
+    file: &Path,
+    program: &oxc_ast::ast::Program,
+    line_index: &LineIndex,
+    config: &RuleConfig,
+) -> Vec<Violation> {
+    let mut visitor = EnumVisitor {
+        violations: Vec::new(),
+        file,
+        line_index,
+        severity: config.severity,
+        _phantom: std::marker::PhantomData,
+    };
+    visitor.visit_program(program);
+    visitor.violations
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Cursor {
-    index: usize,
-    line: usize,
-    column: usize,
+struct EnumVisitor<'a, 'f> {
+    violations: Vec<Violation>,
+    file: &'f Path,
+    line_index: &'f LineIndex,
+    severity: crate::config::Severity,
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl Default for Cursor {
-    fn default() -> Self {
-        Self {
-            index: 0,
-            line: 1,
-            column: 1,
-        }
-    }
-}
-
-impl Cursor {
-    fn advance(&mut self, bytes: &[u8]) {
-        if bytes[self.index] == b'\n' {
-            self.line += 1;
-            self.column = 1;
-        } else {
-            self.column += 1;
-        }
-
-        self.index += 1;
-    }
-}
-
-fn enum_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation {
-    Violation {
-        file: file.to_path_buf(),
-        line: Some(cursor.line),
-        column: Some(cursor.column),
-        rule: NO_ENUMS_RULE_ID,
-        message: MESSAGE,
-        severity,
-        detail: None,
-        subject: None,
-    }
-}
-
-fn starts_enum(bytes: &[u8], index: usize) -> bool {
-    starts_keyword(bytes, index, b"enum")
-}
-
-fn starts_keyword(bytes: &[u8], index: usize, keyword: &[u8]) -> bool {
-    bytes.get(index..index + keyword.len()) == Some(keyword)
-        && !is_identifier_byte(bytes.get(index.wrapping_sub(1)).copied())
-        && !is_identifier_byte(bytes.get(index + keyword.len()).copied())
-}
-
-fn is_identifier_byte(byte: Option<u8>) -> bool {
-    matches!(
-        byte,
-        Some(b'a'..=b'z') | Some(b'A'..=b'Z') | Some(b'0'..=b'9') | Some(b'_') | Some(b'$')
-    )
-}
-
-fn skip_line_comment(bytes: &[u8], cursor: &mut Cursor) {
-    while cursor.index < bytes.len() && bytes[cursor.index] != b'\n' {
-        cursor.advance(bytes);
-    }
-}
-
-fn skip_block_comment(bytes: &[u8], cursor: &mut Cursor) {
-    cursor.advance(bytes);
-    cursor.advance(bytes);
-
-    while cursor.index < bytes.len() {
-        let current = bytes[cursor.index];
-        let next = bytes.get(cursor.index + 1).copied();
-
-        cursor.advance(bytes);
-
-        if current == b'*' && next == Some(b'/') {
-            cursor.advance(bytes);
-            break;
-        }
+impl<'a, 'f> Visit<'a> for EnumVisitor<'a, 'f> {
+    fn visit_ts_enum_declaration(&mut self, decl: &TSEnumDeclaration<'a>) {
+        let pos = self.line_index.position_for(decl.span);
+        self.violations.push(Violation {
+            file: self.file.to_path_buf(),
+            line: Some(pos.line),
+            column: Some(pos.column),
+            rule: NO_ENUMS_RULE_ID,
+            message: MESSAGE,
+            severity: self.severity,
+            detail: None,
+            subject: None,
+        });
+        oxc_ast_visit::walk::walk_ts_enum_declaration(self, decl);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::check_file;
+    use super::*;
     use crate::config::{RuleConfig, Severity};
+    use crate::syntax::LineIndex;
+    use oxc_allocator::Allocator;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
     use std::path::Path;
+
+    fn run_check(source: &str) -> Vec<Violation> {
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
+        let program = parser_return.program;
+        check_file(Path::new("types.ts"), &program, &line_index, &test_config())
+    }
 
     #[test]
     fn reports_enum_declaration() {
-        let violations = check_file(
-            Path::new("types.ts"),
-            "enum Status { Active, Inactive }\n",
-            &test_config(),
-        );
-
+        let violations = run_check("enum Status { Active, Inactive }\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
@@ -154,15 +78,10 @@ mod tests {
 
     #[test]
     fn reports_const_enum() {
-        let violations = check_file(
-            Path::new("types.ts"),
-            "const enum Color { Red, Green, Blue }\n",
-            &test_config(),
-        );
-
+        let violations = run_check("const enum Color { Red, Green, Blue }\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-        assert_eq!(violations[0].column, Some(7));
+        assert_eq!(violations[0].column, Some(1));
     }
 
     #[test]
@@ -170,8 +89,7 @@ mod tests {
         let source = r#"enum A { X }
 enum B { Y }
 "#;
-        let violations = check_file(Path::new("types.ts"), source, &test_config());
-
+        let violations = run_check(source);
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[1].line, Some(2));
@@ -183,8 +101,7 @@ enum B { Y }
 const text = "enum Status";
 /* enum Color { Red } */
 "#;
-        let violations = check_file(Path::new("types.ts"), source, &test_config());
-
+        let violations = run_check(source);
         assert!(violations.is_empty());
     }
 
@@ -193,8 +110,7 @@ const text = "enum Status";
         let source = r#"const enumeration = true;
 const value = "before enum after";
 "#;
-        let violations = check_file(Path::new("types.ts"), source, &test_config());
-
+        let violations = run_check(source);
         assert!(violations.is_empty());
     }
 

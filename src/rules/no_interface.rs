@@ -1,305 +1,57 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use oxc_ast::ast::TSInterfaceDeclaration;
+use oxc_ast_visit::Visit;
+
 use crate::config::{NoInterfaceRuleConfig, Severity};
-use crate::jsx::{Cursor, is_jsx_tag_start};
 use crate::rules::{NO_INTERFACE_RULE_ID, Violation};
+use crate::syntax::LineIndex;
 const MESSAGE: &str = "Use a type alias instead of an interface.";
 
-pub fn check_file(file: &Path, source: &str, config: &NoInterfaceRuleConfig) -> Vec<Violation> {
-    let scanner = Scanner::new(source);
-    let interfaces = scanner.find_interfaces();
+pub fn check_file(
+    file: &Path,
+    program: &oxc_ast::ast::Program,
+    line_index: &LineIndex,
+    config: &NoInterfaceRuleConfig,
+) -> Vec<Violation> {
+    let mut visitor = InterfaceVisitor {
+        interfaces: Vec::new(),
+        _phantom: std::marker::PhantomData,
+    };
+    visitor.visit_program(program);
 
     if config.allow_declaration_merging {
-        let name_counts = count_interface_names(&interfaces);
-        interfaces
+        let name_counts = count_interface_names(&visitor.interfaces);
+        visitor
+            .interfaces
             .into_iter()
             .filter(|(name, _)| name_counts.get(name).copied().unwrap_or(0) <= 1)
-            .map(|(_, cursor)| interface_violation(file, &cursor, config.severity))
+            .map(|(_, span)| interface_violation(file, line_index, span, config.severity))
             .collect()
     } else {
-        interfaces
+        visitor
+            .interfaces
             .into_iter()
-            .map(|(_, cursor)| interface_violation(file, &cursor, config.severity))
+            .map(|(_, span)| interface_violation(file, line_index, span, config.severity))
             .collect()
     }
 }
 
-#[derive(Debug)]
-struct Scanner<'source> {
-    bytes: &'source [u8],
+struct InterfaceVisitor<'a> {
+    interfaces: Vec<(String, oxc_span::Span)>,
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'source> Scanner<'source> {
-    fn new(source: &'source str) -> Self {
-        Self {
-            bytes: source.as_bytes(),
-        }
-    }
-
-    fn find_interfaces(&self) -> Vec<(String, Cursor)> {
-        let mut interfaces = Vec::new();
-        let mut cursor = Cursor::default();
-        self.scan_code(&mut cursor, StopAt::End, &mut interfaces);
-        interfaces
-    }
-
-    fn scan_code(
-        &self,
-        cursor: &mut Cursor,
-        stop_at: StopAt,
-        interfaces: &mut Vec<(String, Cursor)>,
-    ) {
-        while cursor.index < self.bytes.len() {
-            if stop_at.should_stop(self.bytes, cursor.index) {
-                return;
-            }
-
-            let current = self.bytes[cursor.index];
-            let next = self.bytes.get(cursor.index + 1).copied();
-
-            match (current, next) {
-                (b'\'', _) | (b'"', _) => self.skip_quoted_string(cursor, current),
-                (b'`', _) => self.skip_template_literal(cursor),
-                (b'/', Some(b'/')) => self.skip_line_comment(cursor),
-                (b'/', Some(b'*')) => self.skip_block_comment(cursor),
-                (b'<', _) if is_jsx_tag_start(self.bytes, cursor.index) => {
-                    self.skip_jsx_element(cursor, interfaces);
-                }
-                _ if self.starts_interface(cursor.index) => {
-                    self.collect_interface(cursor, interfaces);
-                }
-                _ => cursor.advance(self.bytes),
-            }
-        }
-    }
-
-    fn skip_jsx_element(&self, cursor: &mut Cursor, interfaces: &mut Vec<(String, Cursor)>) {
-        let opening_tag = self.skip_jsx_tag(cursor, interfaces);
-        if opening_tag.is_self_closing || opening_tag.is_closing {
-            return;
-        }
-
-        self.skip_jsx_children(cursor, interfaces);
-    }
-
-    fn skip_jsx_children(&self, cursor: &mut Cursor, interfaces: &mut Vec<(String, Cursor)>) {
-        while cursor.index < self.bytes.len() {
-            let current = self.bytes[cursor.index];
-
-            match current {
-                b'{' => {
-                    cursor.advance(self.bytes);
-                    self.scan_code(cursor, StopAt::JsxExpressionEnd, interfaces);
-                    if self.bytes.get(cursor.index) == Some(&b'}') {
-                        cursor.advance(self.bytes);
-                    }
-                }
-                b'<' if self.starts_jsx_closing_tag(cursor.index) => {
-                    self.skip_jsx_tag(cursor, interfaces);
-                    return;
-                }
-                b'<' if is_jsx_tag_start(self.bytes, cursor.index) => {
-                    self.skip_jsx_element(cursor, interfaces);
-                }
-                _ => cursor.advance(self.bytes),
-            }
-        }
-    }
-
-    fn skip_jsx_tag(&self, cursor: &mut Cursor, interfaces: &mut Vec<(String, Cursor)>) -> JsxTag {
-        let is_closing = self.starts_jsx_closing_tag(cursor.index);
-        cursor.advance(self.bytes);
-
-        while cursor.index < self.bytes.len() {
-            let current = self.bytes[cursor.index];
-            let next = self.bytes.get(cursor.index + 1).copied();
-
-            match (current, next) {
-                (b'\'', _) | (b'"', _) => self.skip_quoted_string(cursor, current),
-                (b'`', _) => self.skip_template_literal(cursor),
-                (b'/', Some(b'>')) => {
-                    cursor.advance(self.bytes);
-                    cursor.advance(self.bytes);
-                    return JsxTag {
-                        is_closing,
-                        is_self_closing: true,
-                    };
-                }
-                (b'{', _) => {
-                    cursor.advance(self.bytes);
-                    self.scan_code(cursor, StopAt::JsxExpressionEnd, interfaces);
-                    if self.bytes.get(cursor.index) == Some(&b'}') {
-                        cursor.advance(self.bytes);
-                    }
-                }
-                (b'>', _) => {
-                    cursor.advance(self.bytes);
-                    return JsxTag {
-                        is_closing,
-                        is_self_closing: false,
-                    };
-                }
-                _ => cursor.advance(self.bytes),
-            }
-        }
-
-        JsxTag {
-            is_closing,
-            is_self_closing: false,
-        }
-    }
-
-    fn collect_interface(&self, cursor: &mut Cursor, interfaces: &mut Vec<(String, Cursor)>) {
-        let saved_cursor = *cursor;
-        cursor.index += b"interface".len();
-        cursor.column += b"interface".len();
-
-        self.skip_whitespace_and_comments(cursor);
-
-        let name_start = cursor.index;
-        if !self
-            .bytes
-            .get(name_start)
-            .copied()
-            .is_some_and(is_identifier_start)
-        {
-            return;
-        }
-
-        cursor.advance(self.bytes);
-        while cursor.index < self.bytes.len()
-            && self
-                .bytes
-                .get(cursor.index)
-                .copied()
-                .is_some_and(is_identifier_part)
-        {
-            cursor.advance(self.bytes);
-        }
-
-        let name = String::from_utf8_lossy(&self.bytes[name_start..cursor.index]).to_string();
-        interfaces.push((name, saved_cursor));
-    }
-
-    fn skip_template_literal(&self, cursor: &mut Cursor) {
-        cursor.advance(self.bytes);
-
-        while cursor.index < self.bytes.len() {
-            let current = self.bytes[cursor.index];
-
-            if current == b'\\' {
-                cursor.advance(self.bytes);
-                if cursor.index < self.bytes.len() {
-                    cursor.advance(self.bytes);
-                }
-                continue;
-            }
-
-            if current == b'`' {
-                cursor.advance(self.bytes);
-                return;
-            }
-
-            cursor.advance(self.bytes);
-        }
-    }
-
-    fn skip_quoted_string(&self, cursor: &mut Cursor, quote: u8) {
-        cursor.advance(self.bytes);
-
-        while cursor.index < self.bytes.len() {
-            let current = self.bytes[cursor.index];
-
-            if current == b'\\' {
-                cursor.advance(self.bytes);
-                if cursor.index < self.bytes.len() {
-                    cursor.advance(self.bytes);
-                }
-                continue;
-            }
-
-            cursor.advance(self.bytes);
-
-            if current == quote {
-                return;
-            }
-        }
-    }
-
-    fn skip_line_comment(&self, cursor: &mut Cursor) {
-        while cursor.index < self.bytes.len() && self.bytes[cursor.index] != b'\n' {
-            cursor.advance(self.bytes);
-        }
-    }
-
-    fn skip_block_comment(&self, cursor: &mut Cursor) {
-        cursor.advance(self.bytes);
-        cursor.advance(self.bytes);
-
-        while cursor.index < self.bytes.len() {
-            let current = self.bytes[cursor.index];
-            let next = self.bytes.get(cursor.index + 1).copied();
-
-            cursor.advance(self.bytes);
-
-            if current == b'*' && next == Some(b'/') {
-                cursor.advance(self.bytes);
-                break;
-            }
-        }
-    }
-
-    fn skip_whitespace_and_comments(&self, cursor: &mut Cursor) {
-        loop {
-            while cursor.index < self.bytes.len() && self.bytes[cursor.index].is_ascii_whitespace()
-            {
-                cursor.advance(self.bytes);
-            }
-
-            if cursor.index >= self.bytes.len() {
-                break;
-            }
-
-            match (
-                self.bytes.get(cursor.index),
-                self.bytes.get(cursor.index + 1),
-            ) {
-                (Some(b'/'), Some(b'/')) => self.skip_line_comment(cursor),
-                (Some(b'/'), Some(b'*')) => self.skip_block_comment(cursor),
-                _ => break,
-            }
-        }
-    }
-
-    fn starts_interface(&self, index: usize) -> bool {
-        starts_keyword(self.bytes, index, b"interface")
-    }
-
-    fn starts_jsx_closing_tag(&self, index: usize) -> bool {
-        self.bytes.get(index) == Some(&b'<') && self.bytes.get(index + 1) == Some(&b'/')
+impl<'a> Visit<'a> for InterfaceVisitor<'a> {
+    fn visit_ts_interface_declaration(&mut self, decl: &TSInterfaceDeclaration<'a>) {
+        let name = decl.id.name.to_string();
+        self.interfaces.push((name, decl.span));
+        oxc_ast_visit::walk::walk_ts_interface_declaration(self, decl);
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct JsxTag {
-    is_closing: bool,
-    is_self_closing: bool,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum StopAt {
-    End,
-    JsxExpressionEnd,
-}
-
-impl StopAt {
-    fn should_stop(self, bytes: &[u8], index: usize) -> bool {
-        matches!(self, Self::JsxExpressionEnd) && bytes.get(index) == Some(&b'}')
-    }
-}
-
-fn count_interface_names(interfaces: &[(String, Cursor)]) -> HashMap<String, usize> {
+fn count_interface_names(interfaces: &[(String, oxc_span::Span)]) -> HashMap<String, usize> {
     let mut counts = HashMap::new();
     for (name, _) in interfaces {
         *counts.entry(name.clone()).or_insert(0) += 1;
@@ -307,11 +59,17 @@ fn count_interface_names(interfaces: &[(String, Cursor)]) -> HashMap<String, usi
     counts
 }
 
-fn interface_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation {
+fn interface_violation(
+    file: &Path,
+    line_index: &LineIndex,
+    span: oxc_span::Span,
+    severity: Severity,
+) -> Violation {
+    let pos = line_index.position_for(span);
     Violation {
         file: file.to_path_buf(),
-        line: Some(cursor.line),
-        column: Some(cursor.column),
+        line: Some(pos.line),
+        column: Some(pos.column),
         rule: NO_INTERFACE_RULE_ID,
         message: MESSAGE,
         severity,
@@ -320,28 +78,14 @@ fn interface_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Viol
     }
 }
 
-fn starts_keyword(bytes: &[u8], index: usize, keyword: &[u8]) -> bool {
-    bytes.get(index..index + keyword.len()) == Some(keyword)
-        && !is_identifier_byte(bytes.get(index.wrapping_sub(1)).copied())
-        && !is_identifier_byte(bytes.get(index + keyword.len()).copied())
-}
-
-fn is_identifier_byte(byte: Option<u8>) -> bool {
-    byte.is_some_and(is_identifier_part)
-}
-
-fn is_identifier_start(byte: u8) -> bool {
-    byte.is_ascii_alphabetic() || matches!(byte, b'_' | b'$')
-}
-
-fn is_identifier_part(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$')
-}
-
 #[cfg(test)]
 mod tests {
-    use super::check_file;
+    use super::*;
     use crate::config::{NoInterfaceRuleConfig, Severity};
+    use crate::syntax::LineIndex;
+    use oxc_allocator::Allocator;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
     use std::path::Path;
 
     fn test_config() -> NoInterfaceRuleConfig {
@@ -358,14 +102,25 @@ mod tests {
         }
     }
 
+    fn run_check(source: &str, config: &NoInterfaceRuleConfig) -> Vec<Violation> {
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
+        let program = parser_return.program;
+        check_file(Path::new("types.ts"), &program, &line_index, config)
+    }
+
+    fn run_check_tsx(source: &str, config: &NoInterfaceRuleConfig) -> Vec<Violation> {
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        check_file(Path::new("component.tsx"), &program, &line_index, config)
+    }
+
     #[test]
     fn reports_single_interface() {
-        let violations = check_file(
-            Path::new("types.ts"),
-            "interface User { name: string }\n",
-            &test_config(),
-        );
-
+        let violations = run_check("interface User { name: string }\n", &test_config());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
@@ -376,8 +131,7 @@ mod tests {
         let source = r#"interface User { name: string }
 interface User { age: number }
 "#;
-        let violations = check_file(Path::new("types.ts"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
     }
 
@@ -386,8 +140,7 @@ interface User { age: number }
         let source = r#"interface User { name: string }
 interface User { age: number }
 "#;
-        let violations = check_file(Path::new("types.ts"), source, &strict_config());
-
+        let violations = run_check(source, &strict_config());
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[1].line, Some(2));
@@ -399,8 +152,7 @@ interface User { age: number }
 interface User { age: number }
 interface Post { title: string }
 "#;
-        let violations = check_file(Path::new("types.ts"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(3));
         assert_eq!(violations[0].column, Some(1));
@@ -412,8 +164,7 @@ interface Post { title: string }
 const text = "interface User";
 /* interface Post { title: string } */
 "#;
-        let violations = check_file(Path::new("types.ts"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
     }
 
@@ -421,8 +172,7 @@ const text = "interface User";
     fn does_not_match_identifier_fragments() {
         let source = r#"const interfacex = true;
 "#;
-        let violations = check_file(Path::new("types.ts"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
     }
 
@@ -432,8 +182,7 @@ const text = "interface User";
     Scale the full app interface for the current window.
 </p>
 "#;
-        let violations = check_file(Path::new("component.tsx"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
     }
 
@@ -443,8 +192,7 @@ const text = "interface User";
     Scale the full app interface for the current window.
 </p>
 "#;
-        let violations = check_file(Path::new("component.tsx"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
     }
 
@@ -455,28 +203,28 @@ const text = "interface User";
     <span>interface keyword in text</span>
 </div>
 "#;
-        let violations = check_file(Path::new("component.tsx"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
     }
 
     #[test]
     fn reports_interface_in_jsx_expression() {
         let source = r#"<div>
-    {interface User { name: string }}
+    {user.name}
 </div>
-"#;
-        let violations = check_file(Path::new("component.tsx"), source, &strict_config());
 
+interface User { name: string }
+"#;
+        let violations = run_check_tsx(source, &strict_config());
         assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, Some(5));
     }
 
     #[test]
     fn ignores_interface_in_jsx_attribute_values() {
         let source = r#"<Component tooltip="This interface is deprecated" />
 "#;
-        let violations = check_file(Path::new("component.tsx"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
     }
 
@@ -484,8 +232,7 @@ const text = "interface User";
     fn handles_jsx_fragments() {
         let source = r#"<><p>interface text</p></>
 "#;
-        let violations = check_file(Path::new("component.tsx"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
     }
 
@@ -497,8 +244,7 @@ const text = "interface User";
     {count}
 </div>
 "#;
-        let violations = check_file(Path::new("component.tsx"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
     }
 
@@ -510,8 +256,7 @@ const text = "interface User";
     interface text
 </Component>
 "#;
-        let violations = check_file(Path::new("component.tsx"), source, &test_config());
-
+        let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
     }
 
@@ -521,8 +266,7 @@ const text = "interface User";
 
 interface User { name: string }
 "#;
-        let violations = check_file(Path::new("component.tsx"), source, &strict_config());
-
+        let violations = run_check_tsx(source, &strict_config());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(3));
         assert_eq!(violations[0].column, Some(1));
