@@ -22,6 +22,7 @@ mod no_large_file;
 mod no_logic_in_barrel;
 mod no_logic_in_domain;
 mod no_mutable_exports;
+mod no_silent_catch;
 mod no_upward_import;
 mod prefer_satisfies;
 
@@ -65,6 +66,7 @@ pub const NO_LARGE_FILE_RULE_ID: RuleId = "no-large-file";
 pub const NO_LOGIC_IN_BARREL_RULE_ID: RuleId = "no-logic-in-barrel";
 pub const NO_LOGIC_IN_DOMAIN_RULE_ID: RuleId = "no-logic-in-domain";
 pub const NO_MUTABLE_EXPORTS_RULE_ID: RuleId = "no-mutable-exports";
+pub const NO_SILENT_CATCH_RULE_ID: RuleId = "no-silent-catch";
 pub const NO_UPWARD_IMPORT_RULE_ID: RuleId = "no-upward-import";
 pub const PREFER_SATISFIES_RULE_ID: RuleId = "prefer-satisfies";
 
@@ -103,6 +105,7 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
         || config.no_empty_interface.severity.is_enabled()
         || config.no_interface.severity.is_enabled()
         || config.no_mutable_exports.severity.is_enabled()
+        || config.no_silent_catch.severity.is_enabled()
         || config.hook_no_jsx.severity.is_enabled();
 
     if !needs_scan && !needs_ast {
@@ -242,6 +245,14 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     program,
                     &line_index,
                     &config.no_mutable_exports,
+                ));
+            }
+            if config.no_silent_catch.severity.is_enabled() {
+                file_violations.extend(no_silent_catch::check_file(
+                    file,
+                    program,
+                    &line_index,
+                    &config.no_silent_catch,
                 ));
             }
             if config.hook_no_jsx.severity.is_enabled() {

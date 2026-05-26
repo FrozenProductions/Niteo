@@ -75,6 +75,7 @@ enum RuleKind {
     NoLogicInBarrel,
     NoLogicInDomain,
     NoMutableExports,
+    NoSilentCatch,
     NoUpwardImport,
     PreferSatisfies,
 }
@@ -574,6 +575,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         kind: RuleKind::NoMutableExports,
     },
     RuleDocumentation {
+        name: "no-silent-catch",
+        intent: "Require catch blocks to log the error, rethrow it, or return a typed fallback.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "try { doWork(); } catch (e) {}",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "try { doWork(); } catch (e) { console.error(e); return null; }",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoSilentCatch,
+    },
+    RuleDocumentation {
         name: "no-upward-import",
         intent: "Avoid fragile ../../ imports in favor of local or project-root imports.",
         examples: &[
@@ -804,6 +821,7 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
             ],
         },
         RuleKind::NoMutableExports => simple_summary(config.no_mutable_exports.severity),
+        RuleKind::NoSilentCatch => simple_summary(config.no_silent_catch.severity),
         RuleKind::NoUpwardImport => RuleConfigSummary {
             severity: config.no_upward_import.severity,
             options: vec![format!("max-depth: {}", config.no_upward_import.max_depth)],

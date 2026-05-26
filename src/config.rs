@@ -97,6 +97,9 @@ allow-declaration-merging = true
 [rules.no-mutable-exports]
 severity = "warn"
 
+[rules.no-silent-catch]
+severity = "warn"
+
 [rules.prefer-satisfies]
 severity = "info"
 
@@ -134,6 +137,7 @@ pub struct ProjectConfig {
     pub no_empty_interface: RuleConfig,
     pub no_interface: NoInterfaceRuleConfig,
     pub no_mutable_exports: RuleConfig,
+    pub no_silent_catch: RuleConfig,
     pub prefer_satisfies: RuleConfig,
     pub hook_no_jsx: RuleConfig,
     pub no_dump_files: NoDumpFilesRuleConfig,
@@ -169,6 +173,7 @@ impl Default for ProjectConfig {
             },
             no_interface: NoInterfaceRuleConfig::default(),
             no_mutable_exports: RuleConfig::default(),
+            no_silent_catch: RuleConfig::default(),
             prefer_satisfies: RuleConfig {
                 severity: Severity::Info,
             },
@@ -209,6 +214,7 @@ impl ProjectConfig {
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
+                no_silent_catch: config.no_silent_catch(),
                 prefer_satisfies: config.prefer_satisfies(),
                 hook_no_jsx: config.hook_no_jsx(),
                 no_dump_files: config.no_dump_files(),
@@ -246,6 +252,7 @@ impl ProjectConfig {
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
+                no_silent_catch: config.no_silent_catch(),
                 prefer_satisfies: config.prefer_satisfies(),
                 hook_no_jsx: config.hook_no_jsx(),
                 no_dump_files: config.no_dump_files(),
@@ -280,6 +287,7 @@ impl ProjectConfig {
                 no_empty_interface: config.no_empty_interface(),
                 no_interface: config.no_interface(),
                 no_mutable_exports: config.no_mutable_exports(),
+                no_silent_catch: config.no_silent_catch(),
                 prefer_satisfies: config.prefer_satisfies(),
                 hook_no_jsx: config.hook_no_jsx(),
                 no_dump_files: config.no_dump_files(),
@@ -312,6 +320,7 @@ impl ProjectConfig {
             no_empty_interface: config.no_empty_interface(),
             no_interface: config.no_interface(),
             no_mutable_exports: config.no_mutable_exports(),
+            no_silent_catch: config.no_silent_catch(),
             prefer_satisfies: config.prefer_satisfies(),
             hook_no_jsx: config.hook_no_jsx(),
             no_dump_files: config.no_dump_files(),
@@ -807,6 +816,14 @@ impl RawConfig {
         self.rules
             .as_ref()
             .and_then(|rules| rules.get("no-mutable-exports"))
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn no_silent_catch(&self) -> RuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("no-silent-catch"))
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
