@@ -131,7 +131,7 @@ fn has_valid_prefix(name: &str, prefixes: &[&str]) -> bool {
             && name
                 .as_bytes()
                 .get(prefix.len())
-                .map_or(false, |c| c.is_ascii_uppercase())
+                .is_some_and(|c| c.is_ascii_uppercase())
     })
 }
 

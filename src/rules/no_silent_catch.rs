@@ -36,20 +36,20 @@ struct SilentCatchVisitor<'a, 'f> {
 
 impl<'a, 'f> Visit<'a> for SilentCatchVisitor<'a, 'f> {
     fn visit_try_statement(&mut self, try_stmt: &TryStatement<'a>) {
-        if let Some(handler) = &try_stmt.handler {
-            if !handler.body.body.iter().any(has_error_handling) {
-                let pos = self.line_index.position_for(try_stmt.span);
-                self.violations.push(Violation {
-                    file: self.file.to_path_buf(),
-                    line: Some(pos.line),
-                    column: Some(pos.column),
-                    rule: NO_SILENT_CATCH_RULE_ID,
-                    message: MESSAGE,
-                    severity: self.severity,
-                    detail: None,
-                    subject: None,
-                });
-            }
+        if let Some(handler) = &try_stmt.handler
+            && !handler.body.body.iter().any(has_error_handling)
+        {
+            let pos = self.line_index.position_for(try_stmt.span);
+            self.violations.push(Violation {
+                file: self.file.to_path_buf(),
+                line: Some(pos.line),
+                column: Some(pos.column),
+                rule: NO_SILENT_CATCH_RULE_ID,
+                message: MESSAGE,
+                severity: self.severity,
+                detail: None,
+                subject: None,
+            });
         }
         oxc_ast_visit::walk::walk_try_statement(self, try_stmt);
     }
@@ -66,7 +66,7 @@ fn has_error_handling(stmt: &Statement<'_>) -> bool {
                 || if_stmt
                     .alternate
                     .as_ref()
-                    .map_or(false, |alt| has_error_handling(alt))
+                    .is_some_and(|alt| has_error_handling(alt))
         }
         Statement::SwitchStatement(switch) => switch
             .cases
@@ -82,11 +82,11 @@ fn has_error_handling(stmt: &Statement<'_>) -> bool {
                 || try_stmt
                     .handler
                     .as_ref()
-                    .map_or(false, |h| h.body.body.iter().any(has_error_handling))
+                    .is_some_and(|h| h.body.body.iter().any(has_error_handling))
                 || try_stmt
                     .finalizer
                     .as_ref()
-                    .map_or(false, |f| f.body.iter().any(has_error_handling))
+                    .is_some_and(|f| f.body.iter().any(has_error_handling))
         }
         Statement::LabeledStatement(labeled) => has_error_handling(&labeled.body),
         _ => false,
