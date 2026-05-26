@@ -200,23 +200,6 @@ impl Default for MaxDirectoryDepthRuleConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct NoLogicInDomainRuleConfig {
-    pub severity: Severity,
-    pub extra_folders: Vec<String>,
-    pub extra_file_suffixes: Vec<String>,
-}
-
-impl Default for NoLogicInDomainRuleConfig {
-    fn default() -> Self {
-        Self {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct NoConsoleRuleConfig {
     pub severity: Severity,
     pub allow_patterns: Vec<String>,
@@ -321,7 +304,7 @@ pub struct RulesConfig {
     pub no_interface: NoInterfaceRuleConfig,
     pub no_large_file: FileLengthRuleConfig,
     pub no_logic_in_barrel: RuleConfig,
-    pub no_logic_in_domain: NoLogicInDomainRuleConfig,
+    pub no_logic_in_domain: RuleConfig,
     pub no_mutable_exports: RuleConfig,
     pub no_silent_catch: RuleConfig,
     pub no_then_chain: RuleConfig,
@@ -359,7 +342,7 @@ impl Default for RulesConfig {
             no_interface: NoInterfaceRuleConfig::default(),
             no_large_file: FileLengthRuleConfig::default(),
             no_logic_in_barrel: RuleConfig::default(),
-            no_logic_in_domain: NoLogicInDomainRuleConfig::default(),
+            no_logic_in_domain: RuleConfig::default(),
             no_mutable_exports: RuleConfig::default(),
             no_namespace: RuleConfig::default(),
             no_silent_catch: RuleConfig::default(),

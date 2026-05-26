@@ -4,6 +4,22 @@ pub const DEFAULT_CONFIG_SOURCE: &str = r#"[project]
 root = "src"
 respect-gitignore = true
 
+[project.structure.hooks]
+folders = ["hooks"]
+file-suffixes = [".hook.ts", ".hooks.ts"]
+
+[project.structure.components]
+folders = ["components"]
+file-suffixes = [".component.tsx", ".components.tsx"]
+
+[project.structure.types]
+folders = ["types"]
+file-suffixes = [".type.ts", ".types.ts"]
+
+[project.structure.constants]
+folders = ["constants"]
+file-suffixes = [".constant.ts", ".constants.ts"]
+
 [rules]
 [rules.component-file-only-components]
 severity = "warn"
@@ -62,8 +78,6 @@ severity = "warn"
 
 [rules.no-logic-in-domain]
 severity = "warn"
-extra-folders = []
-extra-file-suffixes = []
 
 [rules.no-empty-directories]
 severity = "warn"

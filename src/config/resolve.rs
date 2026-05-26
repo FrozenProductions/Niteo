@@ -5,11 +5,13 @@ use std::path::{Path, PathBuf};
 use super::defaults::{CONFIG_FILE_NAME, DEFAULT_CONFIG_SOURCE};
 use super::raw::RawConfig;
 use super::rules::{GitignoreConfig, RulesConfig};
+use super::structure::ProjectStructureConfig;
 
 #[derive(Debug, Clone)]
 pub struct ProjectConfig {
     pub root: PathBuf,
     pub gitignore: GitignoreConfig,
+    pub structure: ProjectStructureConfig,
     pub rules: RulesConfig,
 }
 
@@ -18,6 +20,7 @@ impl Default for ProjectConfig {
         Self {
             root: PathBuf::from("."),
             gitignore: GitignoreConfig::default(),
+            structure: ProjectStructureConfig::default(),
             rules: RulesConfig::default(),
         }
     }
@@ -88,6 +91,7 @@ impl RawConfig {
         ProjectConfig {
             root,
             gitignore: self.gitignore(),
+            structure: self.structure(),
             rules: self.rules_config(),
         }
     }

@@ -7,9 +7,9 @@ use super::rules::{
     GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
     MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoConsoleRuleConfig,
     NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
-    NoInterfaceRuleConfig, NoLogicInDomainRuleConfig, RuleConfig, RulesConfig, Severity,
-    UpwardImportRuleConfig,
+    NoInterfaceRuleConfig, RuleConfig, RulesConfig, Severity, UpwardImportRuleConfig,
 };
+use super::structure::{DomainConfig, ProjectStructureConfig};
 
 #[derive(Debug, Default, Deserialize)]
 pub struct RawConfig {
@@ -66,6 +66,33 @@ impl RawConfig {
                 .and_then(|p| p.respect_gitignore)
                 .unwrap_or_default(),
         }
+    }
+
+    pub fn structure(&self) -> ProjectStructureConfig {
+        let raw_structure = self.project.as_ref().and_then(|p| p.structure.as_ref());
+
+        let defaults = ProjectStructureConfig::default();
+
+        let structure = ProjectStructureConfig {
+            hooks: raw_structure
+                .and_then(|s| s.hooks.as_ref())
+                .map(|d| d.to_domain_config(&defaults.hooks))
+                .unwrap_or(defaults.hooks),
+            components: raw_structure
+                .and_then(|s| s.components.as_ref())
+                .map(|d| d.to_domain_config(&defaults.components))
+                .unwrap_or(defaults.components),
+            types: raw_structure
+                .and_then(|s| s.types.as_ref())
+                .map(|d| d.to_domain_config(&defaults.types))
+                .unwrap_or(defaults.types),
+            constants: raw_structure
+                .and_then(|s| s.constants.as_ref())
+                .map(|d| d.to_domain_config(&defaults.constants))
+                .unwrap_or(defaults.constants),
+        };
+
+        structure
     }
 
     fn no_comments(&self) -> CommentsRuleConfig {
@@ -158,9 +185,9 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
-    fn no_logic_in_domain(&self) -> NoLogicInDomainRuleConfig {
+    fn no_logic_in_domain(&self) -> RuleConfig {
         self.rule("no-logic-in-domain")
-            .map(RawRuleConfig::to_no_logic_in_domain_config)
+            .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
 
@@ -270,6 +297,37 @@ pub struct RawProjectConfig {
     pub root: Option<PathBuf>,
     #[serde(rename = "respect-gitignore")]
     pub respect_gitignore: Option<bool>,
+    pub structure: Option<RawProjectStructure>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RawProjectStructure {
+    pub hooks: Option<RawDomainConfig>,
+    pub components: Option<RawDomainConfig>,
+    pub types: Option<RawDomainConfig>,
+    pub constants: Option<RawDomainConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RawDomainConfig {
+    pub folders: Option<Vec<String>>,
+    #[serde(rename = "file-suffixes")]
+    pub file_suffixes: Option<Vec<String>>,
+}
+
+impl RawDomainConfig {
+    fn to_domain_config(&self, defaults: &DomainConfig) -> DomainConfig {
+        DomainConfig {
+            folders: self
+                .folders
+                .clone()
+                .unwrap_or_else(|| defaults.folders.clone()),
+            file_suffixes: self
+                .file_suffixes
+                .clone()
+                .unwrap_or_else(|| defaults.file_suffixes.clone()),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -362,21 +420,6 @@ impl RawRuleConfig {
             Self::Options(options) => NoEmptyDirectoriesRuleConfig {
                 severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
                 ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
-            },
-        }
-    }
-
-    pub fn to_no_logic_in_domain_config(&self) -> NoLogicInDomainRuleConfig {
-        match self {
-            Self::Severity(severity) => NoLogicInDomainRuleConfig {
-                severity: Severity::from_str(severity),
-                extra_folders: vec![],
-                extra_file_suffixes: vec![],
-            },
-            Self::Options(options) => NoLogicInDomainRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                extra_folders: options.extra_folders.clone().unwrap_or_default(),
-                extra_file_suffixes: options.extra_file_suffixes.clone().unwrap_or_default(),
             },
         }
     }
@@ -524,10 +567,6 @@ pub struct RawRuleOptions {
     pub max_depth: Option<usize>,
     #[serde(rename = "allow-patterns")]
     pub allow_patterns: Option<Vec<String>>,
-    #[serde(rename = "extra-folders")]
-    pub extra_folders: Option<Vec<String>>,
-    #[serde(rename = "extra-file-suffixes")]
-    pub extra_file_suffixes: Option<Vec<String>>,
     #[serde(rename = "ignore-dirs")]
     pub ignore_dirs: Option<Vec<String>>,
     #[serde(rename = "ignore-names")]
@@ -545,4 +584,84 @@ pub struct RawRuleOptions {
     pub prefixes: Option<Vec<String>>,
     #[serde(rename = "ignore-constants")]
     pub ignore_constants: Option<bool>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_config_parses_structure() {
+        let source = r#"
+[project]
+root = "src"
+
+[project.structure.hooks]
+folders = ["hooks"]
+file-suffixes = [".hook.ts", ".hooks.ts"]
+
+[project.structure.components]
+folders = ["components"]
+file-suffixes = [".component.tsx", ".components.tsx"]
+
+[project.structure.types]
+folders = ["types"]
+file-suffixes = [".type.ts", ".types.ts"]
+
+[project.structure.constants]
+folders = ["constants"]
+file-suffixes = [".constant.ts", ".constants.ts"]
+"#;
+        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let structure = raw.structure();
+        assert_eq!(structure.hooks.folders, vec!["hooks"]);
+        assert_eq!(structure.hooks.file_suffixes, vec![".hook.ts", ".hooks.ts"]);
+        assert_eq!(structure.components.folders, vec!["components"]);
+        assert_eq!(structure.types.folders, vec!["types"]);
+        assert_eq!(structure.constants.folders, vec!["constants"]);
+    }
+
+    #[test]
+    fn missing_structure_uses_defaults() {
+        let source = r#"
+[project]
+root = "src"
+"#;
+        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let structure = raw.structure();
+        let defaults = ProjectStructureConfig::default();
+        assert_eq!(structure.hooks.folders, defaults.hooks.folders);
+        assert_eq!(structure.hooks.file_suffixes, defaults.hooks.file_suffixes);
+        assert_eq!(structure.components.folders, defaults.components.folders);
+        assert_eq!(structure.types.folders, defaults.types.folders);
+        assert_eq!(structure.constants.folders, defaults.constants.folders);
+    }
+
+    #[test]
+    fn custom_structure_overrides_defaults() {
+        let source = r#"
+[project.structure.hooks]
+folders = ["custom-hooks"]
+file-suffixes = [".custom.ts"]
+"#;
+        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let structure = raw.structure();
+        assert_eq!(structure.hooks.folders, vec!["custom-hooks"]);
+        assert_eq!(structure.hooks.file_suffixes, vec![".custom.ts"]);
+        let defaults = ProjectStructureConfig::default();
+        assert_eq!(structure.components.folders, defaults.components.folders);
+    }
+
+    #[test]
+    fn partial_domain_config_preserves_defaults() {
+        let source = r#"
+[project.structure.types]
+folders = ["typings"]
+"#;
+        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let structure = raw.structure();
+        assert_eq!(structure.types.folders, vec!["typings"]);
+        let defaults = ProjectStructureConfig::default();
+        assert_eq!(structure.types.file_suffixes, defaults.types.file_suffixes);
+    }
 }

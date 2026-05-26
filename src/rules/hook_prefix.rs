@@ -4,6 +4,7 @@ use oxc_ast::ast::{BindingPattern, Expression, VariableDeclarationKind};
 use oxc_ast_visit::Visit;
 
 use crate::config::HookPrefixRuleConfig;
+use crate::config::structure::DomainConfig;
 use crate::jsx::is_hook_file;
 use crate::rules::{HOOK_PREFIX_RULE_ID, Violation};
 use crate::syntax::LineIndex;
@@ -17,8 +18,9 @@ pub fn check_file(
     program: &oxc_ast::ast::Program,
     line_index: &LineIndex,
     config: &HookPrefixRuleConfig,
+    hooks: &DomainConfig,
 ) -> Vec<Violation> {
-    if !is_hook_file(file) {
+    if !is_hook_file(file, hooks) {
         return Vec::new();
     }
 
@@ -148,6 +150,7 @@ fn has_valid_prefix(name: &str, prefixes: &[&str]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::structure::ProjectStructureConfig;
     use crate::config::{HookPrefixRuleConfig, Severity};
     use crate::syntax::LineIndex;
     use oxc_allocator::Allocator;
@@ -160,7 +163,14 @@ mod tests {
         let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
         let program = parser_return.program;
-        check_file(Path::new(file_path), &program, &line_index, &test_config())
+        let hooks = ProjectStructureConfig::default().hooks;
+        check_file(
+            Path::new(file_path),
+            &program,
+            &line_index,
+            &test_config(),
+            &hooks,
+        )
     }
 
     fn test_config() -> HookPrefixRuleConfig {
@@ -266,11 +276,13 @@ mod tests {
         let source = "export function shouldRender() { return true; }\n";
         let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let hooks = ProjectStructureConfig::default().hooks;
         let violations = check_file(
             Path::new("src/hooks/render.ts"),
             &parser_return.program,
             &line_index,
             &config,
+            &hooks,
         );
         assert!(violations.is_empty());
     }
@@ -285,11 +297,13 @@ mod tests {
         let source = "export function useRender() { return true; }\n";
         let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let hooks = ProjectStructureConfig::default().hooks;
         let violations = check_file(
             Path::new("src/hooks/render.ts"),
             &parser_return.program,
             &line_index,
             &config,
+            &hooks,
         );
         assert_eq!(violations.len(), 1);
     }

@@ -138,7 +138,13 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
                 code: "export function Button() {} // only components exported",
             },
         ],
-        options: NO_OPTIONS,
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "project.structure.components",
+                description: "Folders and file suffixes that identify component files.",
+            },
+        ],
         kind: RuleKind::ComponentFileOnlyComponents,
     },
     RuleDocumentation {
@@ -154,7 +160,13 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
                 code: "export function useMenu() { return { isOpen, toggle }; }",
             },
         ],
-        options: NO_OPTIONS,
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "project.structure.hooks",
+                description: "Folders and file suffixes that identify hook files.",
+            },
+        ],
         kind: RuleKind::HookNoJsx,
     },
     RuleDocumentation {
@@ -175,6 +187,10 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             RuleOption {
                 name: "prefixes",
                 description: "Custom list of allowed hook prefixes.",
+            },
+            RuleOption {
+                name: "project.structure.hooks",
+                description: "Folders and file suffixes that identify hook files.",
             },
         ],
         kind: RuleKind::HookPrefix,
@@ -538,7 +554,13 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
                 code: "Move exported contracts to Component.type.ts or a types folder.",
             },
         ],
-        options: NO_OPTIONS,
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "project.structure.types",
+                description: "Folders and file suffixes that identify type files. Declaration files (.d.ts) are always allowed.",
+            },
+        ],
         kind: RuleKind::NoInlineTypes,
     },
     RuleDocumentation {
@@ -617,12 +639,12 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         options: &[
             SEVERITY_OPTION,
             RuleOption {
-                name: "extra-folders",
-                description: "Additional folder names treated as domain-only folders.",
+                name: "project.structure.types",
+                description: "Folders and file suffixes that identify type domain files.",
             },
             RuleOption {
-                name: "extra-file-suffixes",
-                description: "Additional file suffixes treated as domain-only files.",
+                name: "project.structure.constants",
+                description: "Folders and file suffixes that identify constants domain files.",
             },
         ],
         kind: RuleKind::NoLogicInDomain,
@@ -819,13 +841,30 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
                 ),
             ],
         },
-        RuleKind::ComponentFileOnlyComponents => {
-            simple_summary(config.rules.component_file_only_components.severity)
-        }
-        RuleKind::HookNoJsx => simple_summary(config.rules.hook_no_jsx.severity),
+        RuleKind::ComponentFileOnlyComponents => RuleConfigSummary {
+            severity: config.rules.component_file_only_components.severity,
+            options: vec![
+                format!("folders: {:?}", config.structure.components.folders),
+                format!(
+                    "file-suffixes: {:?}",
+                    config.structure.components.file_suffixes
+                ),
+            ],
+        },
+        RuleKind::HookNoJsx => RuleConfigSummary {
+            severity: config.rules.hook_no_jsx.severity,
+            options: vec![
+                format!("folders: {:?}", config.structure.hooks.folders),
+                format!("file-suffixes: {:?}", config.structure.hooks.file_suffixes),
+            ],
+        },
         RuleKind::HookPrefix => RuleConfigSummary {
             severity: config.rules.hook_prefix.severity,
-            options: vec![format!("prefixes: {:?}", config.rules.hook_prefix.prefixes)],
+            options: vec![
+                format!("prefixes: {:?}", config.rules.hook_prefix.prefixes),
+                format!("folders: {:?}", config.structure.hooks.folders),
+                format!("file-suffixes: {:?}", config.structure.hooks.file_suffixes),
+            ],
         },
         RuleKind::MaxDirectoryDepth => RuleConfigSummary {
             severity: config.rules.max_directory_depth.severity,
@@ -921,7 +960,13 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
         RuleKind::NoEnums => simple_summary(config.rules.no_enums.severity),
         RuleKind::NoEval => simple_summary(config.rules.no_eval.severity),
         RuleKind::NoExportStar => simple_summary(config.rules.no_export_star.severity),
-        RuleKind::NoInlineTypes => simple_summary(config.rules.no_inline_types.severity),
+        RuleKind::NoInlineTypes => RuleConfigSummary {
+            severity: config.rules.no_inline_types.severity,
+            options: vec![
+                format!("folders: {:?}", config.structure.types.folders),
+                format!("file-suffixes: {:?}", config.structure.types.file_suffixes),
+            ],
+        },
         RuleKind::NoInterface => RuleConfigSummary {
             severity: config.rules.no_interface.severity,
             options: vec![format!(
@@ -940,13 +985,18 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
         RuleKind::NoLogicInDomain => RuleConfigSummary {
             severity: config.rules.no_logic_in_domain.severity,
             options: vec![
+                format!("types-folders: {:?}", config.structure.types.folders),
                 format!(
-                    "extra-folders: {:?}",
-                    config.rules.no_logic_in_domain.extra_folders
+                    "types-file-suffixes: {:?}",
+                    config.structure.types.file_suffixes
                 ),
                 format!(
-                    "extra-file-suffixes: {:?}",
-                    config.rules.no_logic_in_domain.extra_file_suffixes
+                    "constants-folders: {:?}",
+                    config.structure.constants.folders
+                ),
+                format!(
+                    "constants-file-suffixes: {:?}",
+                    config.structure.constants.file_suffixes
                 ),
             ],
         },

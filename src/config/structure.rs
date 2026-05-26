@@ -1,0 +1,137 @@
+use std::path::{Component, Path};
+
+#[derive(Debug, Clone)]
+pub struct DomainConfig {
+    pub folders: Vec<String>,
+    pub file_suffixes: Vec<String>,
+}
+
+impl DomainConfig {
+    pub fn matches_file(&self, file: &Path) -> bool {
+        let in_folder = file.components().any(|component| {
+            matches!(
+                component,
+                Component::Normal(name) if self.folders.iter().any(|f| name.to_str() == Some(f))
+            )
+        });
+
+        let has_suffix = file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|name| {
+                self.file_suffixes
+                    .iter()
+                    .any(|suffix| name.ends_with(suffix.as_str()))
+            });
+
+        in_folder || has_suffix
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProjectStructureConfig {
+    pub hooks: DomainConfig,
+    pub components: DomainConfig,
+    pub types: DomainConfig,
+    pub constants: DomainConfig,
+}
+
+impl Default for ProjectStructureConfig {
+    fn default() -> Self {
+        Self {
+            hooks: DomainConfig {
+                folders: vec!["hooks".to_string()],
+                file_suffixes: vec![".hook.ts".to_string(), ".hooks.ts".to_string()],
+            },
+            components: DomainConfig {
+                folders: vec!["components".to_string()],
+                file_suffixes: vec![".component.tsx".to_string(), ".components.tsx".to_string()],
+            },
+            types: DomainConfig {
+                folders: vec!["types".to_string()],
+                file_suffixes: vec![".type.ts".to_string(), ".types.ts".to_string()],
+            },
+            constants: DomainConfig {
+                folders: vec!["constants".to_string()],
+                file_suffixes: vec![".constant.ts".to_string(), ".constants.ts".to_string()],
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn default_hooks_domain() {
+        let config = ProjectStructureConfig::default();
+        assert!(config.hooks.matches_file(Path::new("src/hooks/useAuth.ts")));
+        assert!(config.hooks.matches_file(Path::new("useAuth.hook.ts")));
+        assert!(config.hooks.matches_file(Path::new("useAuth.hooks.ts")));
+        assert!(!config.hooks.matches_file(Path::new("src/utils/format.ts")));
+    }
+
+    #[test]
+    fn default_components_domain() {
+        let config = ProjectStructureConfig::default();
+        assert!(
+            config
+                .components
+                .matches_file(Path::new("src/components/Button.tsx"))
+        );
+        assert!(
+            config
+                .components
+                .matches_file(Path::new("Button.component.tsx"))
+        );
+        assert!(
+            config
+                .components
+                .matches_file(Path::new("Button.components.tsx"))
+        );
+        assert!(
+            !config
+                .components
+                .matches_file(Path::new("src/hooks/useAuth.ts"))
+        );
+    }
+
+    #[test]
+    fn default_types_domain() {
+        let config = ProjectStructureConfig::default();
+        assert!(config.types.matches_file(Path::new("types/Button.ts")));
+        assert!(config.types.matches_file(Path::new("Button.type.ts")));
+        assert!(config.types.matches_file(Path::new("Button.types.ts")));
+        assert!(!config.types.matches_file(Path::new("Button.tsx")));
+    }
+
+    #[test]
+    fn default_constants_domain() {
+        let config = ProjectStructureConfig::default();
+        assert!(
+            config
+                .constants
+                .matches_file(Path::new("constants/routes.ts"))
+        );
+        assert!(config.constants.matches_file(Path::new("api.constant.ts")));
+        assert!(config.constants.matches_file(Path::new("api.constants.ts")));
+        assert!(
+            !config
+                .constants
+                .matches_file(Path::new("src/utils/format.ts"))
+        );
+    }
+
+    #[test]
+    fn custom_domain_config() {
+        let domain = DomainConfig {
+            folders: vec!["custom-hooks".to_string()],
+            file_suffixes: vec![".custom.ts".to_string()],
+        };
+        assert!(domain.matches_file(Path::new("custom-hooks/useAuth.ts")));
+        assert!(domain.matches_file(Path::new("useAuth.custom.ts")));
+        assert!(!domain.matches_file(Path::new("hooks/useAuth.ts")));
+    }
+}

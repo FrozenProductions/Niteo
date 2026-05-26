@@ -8,6 +8,7 @@ use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 
 use crate::config::RuleConfig;
+use crate::config::structure::DomainConfig;
 use crate::jsx::is_component_file;
 use crate::rules::{COMPONENT_FILE_ONLY_COMPONENTS_RULE_ID, Violation};
 use crate::syntax::LineIndex;
@@ -19,8 +20,13 @@ pub fn check_file(
     program: &oxc_ast::ast::Program,
     line_index: &LineIndex,
     config: &RuleConfig,
+    components: &DomainConfig,
 ) -> Vec<Violation> {
-    if !is_component_file(file) {
+    if !is_component_file(file, components) {
+        return Vec::new();
+    }
+
+    if file.extension().and_then(|e| e.to_str()) != Some("tsx") {
         return Vec::new();
     }
 
@@ -182,6 +188,7 @@ fn is_default_export_component(decl: &ExportDefaultDeclaration) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::structure::ProjectStructureConfig;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
     use oxc_allocator::Allocator;
@@ -194,7 +201,14 @@ mod tests {
         let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
         let program = parser_return.program;
-        check_file(Path::new(file_path), &program, &line_index, &test_config())
+        let structure = ProjectStructureConfig::default();
+        check_file(
+            Path::new(file_path),
+            &program,
+            &line_index,
+            &test_config(),
+            &structure.components,
+        )
     }
 
     fn test_config() -> RuleConfig {
@@ -345,5 +359,48 @@ mod tests {
         let source = "export const pageSize = 10;\n";
         let violations = run_check(source, "src/components/Button.tsx");
         assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn ignores_type_file_in_components_folder() {
+        let source = "export type Account = { id: string; };\n";
+        let violations = run_check(source, "src/components/account.type.ts");
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn ignores_types_file_in_components_folder() {
+        let source =
+            "export type Account = { id: string; };\nexport type User = { name: string; };\n";
+        let violations = run_check(source, "src/components/account.types.ts");
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn ignores_constant_file_in_components_folder() {
+        let source = "export const SIZES = { small: 10, large: 20 };\n";
+        let violations = run_check(source, "src/components/sizes.constant.ts");
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn ignores_constants_file_in_components_folder() {
+        let source = "export const SIZES = { small: 10, large: 20 };\n";
+        let violations = run_check(source, "src/components/sizes.constants.ts");
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn ignores_hook_file_in_components_folder() {
+        let source = "export function useButton() { return { ref: null }; }\n";
+        let violations = run_check(source, "src/components/useButton.hook.ts");
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn ignores_ts_files_in_components_folder() {
+        let source = "export const helper = () => {};\nexport type Props = { id: string };\n";
+        let violations = run_check(source, "src/components/utils.ts");
+        assert!(violations.is_empty());
     }
 }

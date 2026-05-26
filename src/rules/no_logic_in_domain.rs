@@ -1,6 +1,7 @@
-use std::path::{Component, Path};
+use std::path::Path;
 
-use crate::config::{NoLogicInDomainRuleConfig, Severity};
+use crate::config::structure::DomainConfig;
+use crate::config::{RuleConfig, Severity};
 use crate::rules::{NO_LOGIC_IN_DOMAIN_RULE_ID, Violation};
 const MESSAGE: &str =
     "Keep domain files free of logic. Move implementation to feature or service files.";
@@ -11,66 +12,34 @@ enum DomainKind {
     Constants,
 }
 
-pub fn check_file(file: &Path, source: &str, config: &NoLogicInDomainRuleConfig) -> Vec<Violation> {
-    let Some(kind) = classify_domain_file(file, config) else {
+pub fn check_file(
+    file: &Path,
+    source: &str,
+    config: &RuleConfig,
+    types: &DomainConfig,
+    constants: &DomainConfig,
+) -> Vec<Violation> {
+    let Some(kind) = classify_domain_file(file, types, constants) else {
         return Vec::new();
     };
 
     find_logic_in_file(file, source, config.severity, kind)
 }
 
-fn classify_domain_file(file: &Path, config: &NoLogicInDomainRuleConfig) -> Option<DomainKind> {
-    if is_types_file(file, config) {
+fn classify_domain_file(
+    file: &Path,
+    types: &DomainConfig,
+    constants: &DomainConfig,
+) -> Option<DomainKind> {
+    if types.matches_file(file) {
         return Some(DomainKind::Types);
     }
 
-    if is_constants_file(file, config) {
+    if constants.matches_file(file) {
         return Some(DomainKind::Constants);
     }
 
     None
-}
-
-fn is_types_file(file: &Path, config: &NoLogicInDomainRuleConfig) -> bool {
-    let mut folders = vec!["types".to_string()];
-    folders.extend(config.extra_folders.clone());
-
-    let in_types_folder = file.components().any(|component| {
-        matches!(
-            component,
-            Component::Normal(name) if folders.iter().any(|f| name.to_str() == Some(f))
-        )
-    });
-
-    let has_types_suffix = {
-        let file_name = file.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        let mut suffixes = vec![".type.ts".to_string(), ".types.ts".to_string()];
-        suffixes.extend(config.extra_file_suffixes.clone());
-        suffixes.iter().any(|suffix| file_name.ends_with(suffix))
-    };
-
-    in_types_folder || has_types_suffix
-}
-
-fn is_constants_file(file: &Path, config: &NoLogicInDomainRuleConfig) -> bool {
-    let mut folders = vec!["constants".to_string()];
-    folders.extend(config.extra_folders.clone());
-
-    let in_constants_folder = file.components().any(|component| {
-        matches!(
-            component,
-            Component::Normal(name) if folders.iter().any(|f| name.to_str() == Some(f))
-        )
-    });
-
-    let has_constants_suffix = {
-        let file_name = file.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        let mut suffixes = vec![".constant.ts".to_string(), ".constants.ts".to_string()];
-        suffixes.extend(config.extra_file_suffixes.clone());
-        suffixes.iter().any(|suffix| file_name.ends_with(suffix))
-    };
-
-    in_constants_folder || has_constants_suffix
 }
 
 fn find_logic_in_file(
@@ -674,21 +643,32 @@ fn skip_regex_literal(bytes: &[u8], cursor: &mut Cursor) {
 #[cfg(test)]
 mod tests {
     use super::check_file;
-    use crate::config::{NoLogicInDomainRuleConfig, Severity};
+    use crate::config::structure::{DomainConfig, ProjectStructureConfig};
+    use crate::config::{RuleConfig, Severity};
     use std::path::Path;
+
+    fn default_config() -> RuleConfig {
+        RuleConfig {
+            severity: Severity::Warn,
+        }
+    }
+
+    fn default_types() -> DomainConfig {
+        ProjectStructureConfig::default().types
+    }
+
+    fn default_constants() -> DomainConfig {
+        ProjectStructureConfig::default().constants
+    }
 
     #[test]
     fn reports_function_in_types_folder() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("types/Button.ts"),
             "function handleClick() {}\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert_eq!(violations.len(), 1);
@@ -697,16 +677,12 @@ mod tests {
 
     #[test]
     fn allows_const_in_constants_folder() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("constants/routes.ts"),
             "export const ROUTES = { HOME: '/' };\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert!(violations.is_empty());
@@ -714,16 +690,12 @@ mod tests {
 
     #[test]
     fn reports_function_in_constants_folder() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("constants/routes.ts"),
             "function getRoute() { return '/'; }\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert_eq!(violations.len(), 1);
@@ -731,16 +703,12 @@ mod tests {
 
     #[test]
     fn reports_const_arrow_function_in_constants_folder() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("constants/routes.ts"),
             "const getRoute = () => '/';\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert_eq!(violations.len(), 1);
@@ -748,16 +716,12 @@ mod tests {
 
     #[test]
     fn reports_function_in_type_file() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("Button.type.ts"),
             "export function handleClick() {}\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert_eq!(violations.len(), 1);
@@ -765,16 +729,12 @@ mod tests {
 
     #[test]
     fn reports_class_in_constant_file() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("api.constants.ts"),
             "export class ApiClient {}\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert_eq!(violations.len(), 1);
@@ -782,16 +742,12 @@ mod tests {
 
     #[test]
     fn allows_type_declaration_in_type_file() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("Button.type.ts"),
             "export type ButtonProps = { label: string };\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert!(violations.is_empty());
@@ -799,42 +755,38 @@ mod tests {
 
     #[test]
     fn reports_const_in_type_file() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
-        let violations = check_file(Path::new("Button.type.ts"), "const VALUE = 1;\n", &config);
+        let violations = check_file(
+            Path::new("Button.type.ts"),
+            "const VALUE = 1;\n",
+            &default_config(),
+            &default_types(),
+            &default_constants(),
+        );
 
         assert_eq!(violations.len(), 1);
     }
 
     #[test]
     fn reports_let_declaration() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
-        let violations = check_file(Path::new("types/state.ts"), "let count = 0;\n", &config);
+        let violations = check_file(
+            Path::new("types/state.ts"),
+            "let count = 0;\n",
+            &default_config(),
+            &default_types(),
+            &default_constants(),
+        );
 
         assert_eq!(violations.len(), 1);
     }
 
     #[test]
     fn reports_async_function() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("types/api.ts"),
             "async function fetchData() {}\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert_eq!(violations.len(), 1);
@@ -842,106 +794,123 @@ mod tests {
 
     #[test]
     fn ignores_logic_in_comments() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let source = "// function handleClick() {}\n/* const value = 1; */\n";
-        let violations = check_file(Path::new("types/test.ts"), source, &config);
+        let violations = check_file(
+            Path::new("types/test.ts"),
+            source,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
+        );
 
         assert!(violations.is_empty());
     }
 
     #[test]
     fn ignores_logic_in_strings() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let source = r#"const text = "function handleClick() {}";"#;
-        let violations = check_file(Path::new("constants/test.ts"), source, &config);
+        let violations = check_file(
+            Path::new("constants/test.ts"),
+            source,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
+        );
 
         assert!(violations.is_empty());
     }
 
     #[test]
     fn ignores_keywords_in_regex() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let source = r#"export const PATTERN = /\b(function|const|local|export)\b/g;"#;
-        let violations = check_file(Path::new("constants/test.ts"), source, &config);
+        let violations = check_file(
+            Path::new("constants/test.ts"),
+            source,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
+        );
 
         assert!(violations.is_empty());
     }
 
     #[test]
     fn ignores_keywords_in_object_literals() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let source = r#"export const DOCS = {
     function: "Define a function body.",
     local: "Declare a local variable.",
     typeof: "Capture the inferred type.",
 };"#;
-        let violations = check_file(Path::new("constants/test.ts"), source, &config);
+        let violations = check_file(
+            Path::new("constants/test.ts"),
+            source,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
+        );
 
         assert!(violations.is_empty());
     }
 
     #[test]
-    fn respects_extra_folders_config() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec!["enums".to_string()],
-            extra_file_suffixes: vec![],
+    fn respects_custom_type_folder() {
+        let types = DomainConfig {
+            folders: vec!["typings".to_string()],
+            file_suffixes: vec![".type.ts".to_string(), ".types.ts".to_string()],
         };
-
         let violations = check_file(
-            Path::new("enums/status.ts"),
+            Path::new("typings/status.ts"),
             "function getStatus() {}\n",
-            &config,
+            &default_config(),
+            &types,
+            &default_constants(),
         );
 
         assert_eq!(violations.len(), 1);
     }
 
     #[test]
-    fn respects_extra_file_suffixes_config() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![".model.ts".to_string()],
+    fn respects_custom_type_suffix() {
+        let types = DomainConfig {
+            folders: vec!["types".to_string()],
+            file_suffixes: vec![".model.ts".to_string()],
         };
+        let violations = check_file(
+            Path::new("User.model.ts"),
+            "class User {}\n",
+            &default_config(),
+            &types,
+            &default_constants(),
+        );
 
-        let violations = check_file(Path::new("User.model.ts"), "class User {}\n", &config);
+        assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn respects_custom_constants_folder() {
+        let constants = DomainConfig {
+            folders: vec!["config".to_string()],
+            file_suffixes: vec![".constant.ts".to_string(), ".constants.ts".to_string()],
+        };
+        let violations = check_file(
+            Path::new("config/routes.ts"),
+            "function getRoute() {}\n",
+            &default_config(),
+            &default_types(),
+            &constants,
+        );
 
         assert_eq!(violations.len(), 1);
     }
 
     #[test]
     fn ignores_non_domain_files() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("Button.tsx"),
             "function handleClick() {}\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert!(violations.is_empty());
@@ -949,16 +918,12 @@ mod tests {
 
     #[test]
     fn reports_exported_arrow_function_in_constants() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("constants/helpers.ts"),
             "export const formatName = (name: string) => name.trim();\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert_eq!(violations.len(), 1);
@@ -966,16 +931,12 @@ mod tests {
 
     #[test]
     fn reports_exported_function_expression_in_constants() {
-        let config = NoLogicInDomainRuleConfig {
-            severity: Severity::Warn,
-            extra_folders: vec![],
-            extra_file_suffixes: vec![],
-        };
-
         let violations = check_file(
             Path::new("constants/helpers.ts"),
             "export const formatName = function(name: string) { return name.trim(); };\n",
-            &config,
+            &default_config(),
+            &default_types(),
+            &default_constants(),
         );
 
         assert_eq!(violations.len(), 1);

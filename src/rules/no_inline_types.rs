@@ -4,11 +4,10 @@ use oxc_ast::ast::{TSInterfaceDeclaration, TSTypeAliasDeclaration};
 use oxc_ast_visit::Visit;
 
 use crate::config::RuleConfig;
+use crate::config::structure::DomainConfig;
 use crate::rules::{NO_INLINE_TYPES_RULE_ID, Violation};
 use crate::syntax::LineIndex;
 const MESSAGE: &str = "Move exported contracts to a colocated type file or accepted types folder.";
-const TYPES_DIRECTORY_NAME: &str = "types";
-const TYPE_FILE_SUFFIX: &str = ".type.ts";
 const DECLARATION_FILE_SUFFIX: &str = ".d.ts";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,9 +17,9 @@ pub struct TypeLocationStyle {
 }
 
 impl TypeLocationStyle {
-    pub fn detect(files: &[PathBuf]) -> Self {
-        let allows_type_files = files.iter().any(|file| is_type_file(file));
-        let allows_types_directories = files.iter().any(|file| is_in_types_directory(file));
+    pub fn detect(files: &[PathBuf], types: &DomainConfig) -> Self {
+        let allows_type_files = files.iter().any(|file| is_type_file(file, types));
+        let allows_types_directories = files.iter().any(|file| is_in_types_directory(file, types));
 
         Self {
             allows_type_files: allows_type_files || !allows_types_directories,
@@ -28,10 +27,10 @@ impl TypeLocationStyle {
         }
     }
 
-    fn allows_file(self, file: &Path) -> bool {
+    fn allows_file(self, file: &Path, types: &DomainConfig) -> bool {
         is_declaration_file(file)
-            || (self.allows_type_files && is_type_file(file))
-            || (self.allows_types_directories && is_in_types_directory(file))
+            || (self.allows_type_files && is_type_file(file, types))
+            || (self.allows_types_directories && is_in_types_directory(file, types))
     }
 }
 
@@ -41,8 +40,9 @@ pub fn check_file(
     line_index: &LineIndex,
     config: &RuleConfig,
     location_style: TypeLocationStyle,
+    types: &DomainConfig,
 ) -> Vec<Violation> {
-    if location_style.allows_file(file) {
+    if location_style.allows_file(file, types) {
         return Vec::new();
     }
 
@@ -97,10 +97,15 @@ impl<'a, 'f> Visit<'a> for InlineTypesVisitor<'a, 'f> {
     }
 }
 
-fn is_type_file(file: &Path) -> bool {
+fn is_type_file(file: &Path, types: &DomainConfig) -> bool {
     file.file_name()
         .and_then(|name| name.to_str())
-        .is_some_and(|name| name.ends_with(TYPE_FILE_SUFFIX))
+        .is_some_and(|name| {
+            types
+                .file_suffixes
+                .iter()
+                .any(|suffix| name.ends_with(suffix.as_str()))
+        })
 }
 
 fn is_declaration_file(file: &Path) -> bool {
@@ -109,11 +114,11 @@ fn is_declaration_file(file: &Path) -> bool {
         .is_some_and(|name| name.ends_with(DECLARATION_FILE_SUFFIX))
 }
 
-fn is_in_types_directory(file: &Path) -> bool {
+fn is_in_types_directory(file: &Path, types: &DomainConfig) -> bool {
     file.components().any(|component| {
         matches!(
             component,
-            Component::Normal(name) if name == TYPES_DIRECTORY_NAME
+            Component::Normal(name) if types.folders.iter().any(|f| name.to_str() == Some(f))
         )
     })
 }
@@ -121,6 +126,7 @@ fn is_in_types_directory(file: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{TypeLocationStyle, check_file};
+    use crate::config::structure::{DomainConfig, ProjectStructureConfig};
     use crate::config::{RuleConfig, Severity};
     use crate::rules::Violation;
     use crate::syntax::LineIndex;
@@ -135,7 +141,12 @@ mod tests {
         }
     }
 
+    fn default_types() -> DomainConfig {
+        ProjectStructureConfig::default().types
+    }
+
     fn run_check(source: &str, file_path: &str, style: TypeLocationStyle) -> Vec<Violation> {
+        let types = default_types();
         let allocator = Allocator::default();
         let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
@@ -146,15 +157,17 @@ mod tests {
             &line_index,
             &test_config(),
             style,
+            &types,
         )
     }
 
     #[test]
     fn reports_type_aliases_outside_type_files() {
+        let types = default_types();
         let violations = run_check(
             "type ButtonProps = { label: string };\n",
             "Button.tsx",
-            TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")]),
+            TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")], &types),
         );
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
@@ -162,6 +175,7 @@ mod tests {
 
     #[test]
     fn reports_interfaces_outside_type_files() {
+        let types = default_types();
         let source = r#"export interface ButtonProps {
   label: string;
 }
@@ -169,53 +183,58 @@ mod tests {
         let violations = run_check(
             source,
             "Button.tsx",
-            TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")]),
+            TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")], &types),
         );
         assert_eq!(violations.len(), 1);
     }
 
     #[test]
     fn allows_type_declarations_in_type_files() {
+        let types = default_types();
         let violations = run_check(
             "export type ButtonProps = { label: string };\n",
             "Button.type.ts",
-            TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")]),
+            TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")], &types),
         );
         assert!(violations.is_empty());
     }
 
     #[test]
     fn allows_type_declarations_in_detected_types_directories() {
+        let types = default_types();
         let violations = run_check(
             "export interface ButtonProps {}\n",
             "types/Button.ts",
-            TypeLocationStyle::detect(&[PathBuf::from("types/Button.ts")]),
+            TypeLocationStyle::detect(&[PathBuf::from("types/Button.ts")], &types),
         );
         assert!(violations.is_empty());
     }
 
     #[test]
     fn reports_outside_detected_types_directories() {
+        let types = default_types();
         let violations = run_check(
             "interface ButtonProps {}\n",
             "Button.ts",
-            TypeLocationStyle::detect(&[PathBuf::from("types/Button.ts")]),
+            TypeLocationStyle::detect(&[PathBuf::from("types/Button.ts")], &types),
         );
         assert_eq!(violations.len(), 1);
     }
 
     #[test]
     fn defaults_to_type_file_style_when_no_structure_exists() {
+        let types = default_types();
         let violations = run_check(
             "type ButtonProps = { label: string };\n",
             "Button.ts",
-            TypeLocationStyle::detect(&[PathBuf::from("Button.ts")]),
+            TypeLocationStyle::detect(&[PathBuf::from("Button.ts")], &types),
         );
         assert_eq!(violations.len(), 1);
     }
 
     #[test]
     fn ignores_imports_re_exports_comments_and_strings() {
+        let types = default_types();
         let source = r#"import type { ButtonProps } from "./Button.type";
 export type { ButtonProps } from "./Button.type";
 const text = "type ButtonProps = {}";
@@ -225,17 +244,64 @@ const text = "type ButtonProps = {}";
         let violations = run_check(
             source,
             "Button.ts",
-            TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")]),
+            TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")], &types),
         );
         assert!(violations.is_empty());
     }
 
     #[test]
     fn allows_declaration_files() {
+        let types = default_types();
         let violations = run_check(
             "interface Window { appVersion: string }\n",
             "global.d.ts",
-            TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")]),
+            TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")], &types),
+        );
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn custom_type_folder() {
+        let types = DomainConfig {
+            folders: vec!["typings".to_string()],
+            file_suffixes: vec![".type.ts".to_string()],
+        };
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new("export type Foo = string;\n");
+        let parser_return =
+            Parser::new(&allocator, "export type Foo = string;\n", SourceType::ts()).parse();
+        let program = parser_return.program;
+        let style = TypeLocationStyle::detect(&[PathBuf::from("typings/Foo.ts")], &types);
+        let violations = check_file(
+            Path::new("typings/Foo.ts"),
+            &program,
+            &line_index,
+            &test_config(),
+            style,
+            &types,
+        );
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn custom_type_suffix() {
+        let types = DomainConfig {
+            folders: vec!["types".to_string()],
+            file_suffixes: vec![".types.ts".to_string()],
+        };
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new("export type Foo = string;\n");
+        let parser_return =
+            Parser::new(&allocator, "export type Foo = string;\n", SourceType::ts()).parse();
+        let program = parser_return.program;
+        let style = TypeLocationStyle::detect(&[PathBuf::from("Foo.types.ts")], &types);
+        let violations = check_file(
+            Path::new("Foo.types.ts"),
+            &program,
+            &line_index,
+            &test_config(),
+            style,
+            &types,
         );
         assert!(violations.is_empty());
     }

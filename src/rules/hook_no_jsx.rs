@@ -4,6 +4,7 @@ use oxc_ast::ast::{JSXElement, JSXFragment};
 use oxc_ast_visit::Visit;
 
 use crate::config::RuleConfig;
+use crate::config::structure::DomainConfig;
 use crate::jsx::is_hook_file;
 use crate::rules::{HOOK_NO_JSX_RULE_ID, Violation};
 use crate::syntax::LineIndex;
@@ -14,8 +15,9 @@ pub fn check_file(
     program: &oxc_ast::ast::Program,
     line_index: &LineIndex,
     config: &RuleConfig,
+    hooks: &DomainConfig,
 ) -> Vec<Violation> {
-    if !is_hook_file(file) {
+    if !is_hook_file(file, hooks) {
         return Vec::new();
     }
 
@@ -62,6 +64,7 @@ impl<'a> Visit<'a> for HookJsxVisitor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::structure::ProjectStructureConfig;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
     use oxc_allocator::Allocator;
@@ -74,7 +77,14 @@ mod tests {
         let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
         let program = parser_return.program;
-        check_file(Path::new(file_path), &program, &line_index, &test_config())
+        let hooks = ProjectStructureConfig::default().hooks;
+        check_file(
+            Path::new(file_path),
+            &program,
+            &line_index,
+            &test_config(),
+            &hooks,
+        )
     }
 
     #[test]

@@ -124,6 +124,35 @@ niteo init
 
 The config format is not stable yet, so prefer generating it from the CLI instead of copying old examples.
 
+### Project structure
+
+Define your project conventions once under `[project.structure]`. Multiple rules share these definitions so folders and file suffixes stay consistent.
+
+```toml
+[project.structure.hooks]
+folders = ["hooks"]
+file-suffixes = [".hook.ts", ".hooks.ts"]
+
+[project.structure.components]
+folders = ["components"]
+file-suffixes = [".component.tsx", ".components.tsx"]
+
+[project.structure.types]
+folders = ["types"]
+file-suffixes = [".type.ts", ".types.ts"]
+
+[project.structure.constants]
+folders = ["constants"]
+file-suffixes = [".constant.ts", ".constants.ts"]
+```
+
+Rules that consume the structure config:
+
+- `hook-no-jsx`, `hook-prefix` use `project.structure.hooks`
+- `component-file-only-components` uses `project.structure.components`
+- `no-inline-types` uses `project.structure.types`
+- `no-logic-in-domain` uses `project.structure.types` and `project.structure.constants`
+
 ## Current Limitations
 
 - The rule set is incomplete.

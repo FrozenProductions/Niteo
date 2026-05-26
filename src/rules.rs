@@ -130,7 +130,8 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
         return Ok(violations);
     }
 
-    let type_location_style = no_inline_types::TypeLocationStyle::detect(files);
+    let type_location_style =
+        no_inline_types::TypeLocationStyle::detect(files, &config.structure.types);
 
     for file in files {
         let source = fs::read_to_string(file)
@@ -203,6 +204,7 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     &line_index,
                     &config.rules.no_inline_types,
                     type_location_style,
+                    &config.structure.types,
                 ));
             }
             if config.rules.max_file_exports.severity.is_enabled() {
@@ -307,6 +309,7 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     program,
                     &line_index,
                     &config.rules.hook_no_jsx,
+                    &config.structure.hooks,
                 ));
             }
             if config.rules.hook_prefix.severity.is_enabled() {
@@ -315,6 +318,7 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     program,
                     &line_index,
                     &config.rules.hook_prefix,
+                    &config.structure.hooks,
                 ));
             }
             if config
@@ -328,6 +332,7 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     program,
                     &line_index,
                     &config.rules.component_file_only_components,
+                    &config.structure.components,
                 ));
             }
         }
@@ -358,6 +363,8 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                 file,
                 &source,
                 &config.rules.no_logic_in_domain,
+                &config.structure.types,
+                &config.structure.constants,
             ));
         }
         if config.rules.prefer_satisfies.severity.is_enabled() {
