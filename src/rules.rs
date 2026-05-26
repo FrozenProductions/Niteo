@@ -26,6 +26,7 @@ mod no_logic_in_domain;
 mod no_mutable_exports;
 mod no_namespace;
 mod no_silent_catch;
+mod no_then_chain;
 mod no_upward_import;
 mod prefer_satisfies;
 
@@ -73,6 +74,7 @@ pub const NO_LOGIC_IN_DOMAIN_RULE_ID: RuleId = "no-logic-in-domain";
 pub const NO_MUTABLE_EXPORTS_RULE_ID: RuleId = "no-mutable-exports";
 pub const NO_NAMESPACE_RULE_ID: RuleId = "no-namespace";
 pub const NO_SILENT_CATCH_RULE_ID: RuleId = "no-silent-catch";
+pub const NO_THEN_CHAIN_RULE_ID: RuleId = "no-then-chain";
 pub const NO_UPWARD_IMPORT_RULE_ID: RuleId = "no-upward-import";
 pub const PREFER_SATISFIES_RULE_ID: RuleId = "prefer-satisfies";
 
@@ -114,6 +116,7 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
         || config.rules.no_mutable_exports.severity.is_enabled()
         || config.rules.no_namespace.severity.is_enabled()
         || config.rules.no_silent_catch.severity.is_enabled()
+        || config.rules.no_then_chain.severity.is_enabled()
         || config.rules.hook_no_jsx.severity.is_enabled();
 
     if !needs_scan && !needs_ast {
@@ -281,6 +284,14 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     program,
                     &line_index,
                     &config.rules.no_silent_catch,
+                ));
+            }
+            if config.rules.no_then_chain.severity.is_enabled() {
+                file_violations.extend(no_then_chain::check_file(
+                    file,
+                    program,
+                    &line_index,
+                    &config.rules.no_then_chain,
                 ));
             }
             if config.rules.hook_no_jsx.severity.is_enabled() {

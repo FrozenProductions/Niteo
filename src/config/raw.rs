@@ -52,6 +52,7 @@ impl RawConfig {
             no_mutable_exports: self.no_mutable_exports(),
             no_namespace: self.no_namespace(),
             no_silent_catch: self.no_silent_catch(),
+            no_then_chain: self.no_then_chain(),
             no_upward_import: self.no_upward_import(),
             prefer_satisfies: self.prefer_satisfies(),
         }
@@ -220,6 +221,12 @@ impl RawConfig {
 
     fn no_silent_catch(&self) -> RuleConfig {
         self.rule("no-silent-catch")
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn no_then_chain(&self) -> RuleConfig {
+        self.rule("no-then-chain")
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }

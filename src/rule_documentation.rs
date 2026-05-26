@@ -79,6 +79,7 @@ enum RuleKind {
     NoMutableExports,
     NoNamespace,
     NoSilentCatch,
+    NoThenChain,
     NoUpwardImport,
     PreferSatisfies,
 }
@@ -658,6 +659,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         kind: RuleKind::NoSilentCatch,
     },
     RuleDocumentation {
+        name: "no-then-chain",
+        intent: "Prefer async/await over .then() chains for better readability and error handling.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "fetch('/api').then(res => res.json());",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "const res = await fetch('/api');",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoThenChain,
+    },
+    RuleDocumentation {
         name: "no-upward-import",
         intent: "Avoid fragile ../../ imports in favor of local or project-root imports.",
         examples: &[
@@ -916,6 +933,7 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
         RuleKind::NoMutableExports => simple_summary(config.rules.no_mutable_exports.severity),
         RuleKind::NoNamespace => simple_summary(config.rules.no_namespace.severity),
         RuleKind::NoSilentCatch => simple_summary(config.rules.no_silent_catch.severity),
+        RuleKind::NoThenChain => simple_summary(config.rules.no_then_chain.severity),
         RuleKind::NoUpwardImport => RuleConfigSummary {
             severity: config.rules.no_upward_import.severity,
             options: vec![format!(
