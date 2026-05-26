@@ -109,6 +109,10 @@ severity = "info"
 [rules.hook-no-jsx]
 severity = "warn"
 
+[rules.hook-prefix]
+severity = "warn"
+prefixes = ["use"]
+
 [rules.no-dump-files]
 severity = "warn"
 extra-names = []

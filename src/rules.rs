@@ -1,5 +1,6 @@
 mod boolean_prefix;
 mod hook_no_jsx;
+mod hook_prefix;
 mod max_directory_depth;
 mod max_file_exports;
 mod max_items_per_directory;
@@ -46,6 +47,7 @@ pub type RuleId = &'static str;
 
 pub const BOOLEAN_PREFIX_RULE_ID: RuleId = "boolean-prefix";
 pub const HOOK_NO_JSX_RULE_ID: RuleId = "hook-no-jsx";
+pub const HOOK_PREFIX_RULE_ID: RuleId = "hook-prefix";
 pub const MAX_DIRECTORY_DEPTH_RULE_ID: RuleId = "max-directory-depth";
 pub const MAX_FILE_EXPORTS_RULE_ID: RuleId = "max-file-exports";
 pub const MAX_ITEMS_PER_DIRECTORY_RULE_ID: RuleId = "max-items-per-directory";
@@ -287,6 +289,14 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     program,
                     &line_index,
                     &config.rules.hook_no_jsx,
+                ));
+            }
+            if config.rules.hook_prefix.severity.is_enabled() {
+                file_violations.extend(hook_prefix::check_file(
+                    file,
+                    program,
+                    &line_index,
+                    &config.rules.hook_prefix,
                 ));
             }
         }

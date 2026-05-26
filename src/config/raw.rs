@@ -4,10 +4,11 @@ use std::path::PathBuf;
 
 use super::rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig,
-    GitignoreConfig, MaxDirectoryDepthRuleConfig, MaxItemsPerDirectoryRuleConfig,
-    MinItemsPerDirectoryRuleConfig, NoConsoleRuleConfig, NoDumpFilesRuleConfig,
-    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
-    NoLogicInDomainRuleConfig, RuleConfig, RulesConfig, Severity, UpwardImportRuleConfig,
+    GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
+    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoConsoleRuleConfig,
+    NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
+    NoInterfaceRuleConfig, NoLogicInDomainRuleConfig, RuleConfig, RulesConfig, Severity,
+    UpwardImportRuleConfig,
 };
 
 #[derive(Debug, Default, Deserialize)]
@@ -25,6 +26,7 @@ impl RawConfig {
         RulesConfig {
             boolean_prefix: self.boolean_prefix(),
             hook_no_jsx: self.hook_no_jsx(),
+            hook_prefix: self.hook_prefix(),
             max_directory_depth: self.max_directory_depth(),
             max_file_exports: self.max_file_exports(),
             max_items_per_directory: self.max_items_per_directory(),
@@ -233,6 +235,12 @@ impl RawConfig {
     fn hook_no_jsx(&self) -> RuleConfig {
         self.rule("hook-no-jsx")
             .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn hook_prefix(&self) -> HookPrefixRuleConfig {
+        self.rule("hook-prefix")
+            .map(RawRuleConfig::to_hook_prefix_config)
             .unwrap_or_default()
     }
 
@@ -471,6 +479,19 @@ impl RawRuleConfig {
                 severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
                 prefixes: options.prefixes.clone().unwrap_or_default(),
                 ignore_constants: options.ignore_constants.unwrap_or(false),
+            },
+        }
+    }
+
+    pub fn to_hook_prefix_config(&self) -> HookPrefixRuleConfig {
+        match self {
+            Self::Severity(severity) => HookPrefixRuleConfig {
+                severity: Severity::from_str(severity),
+                prefixes: vec![],
+            },
+            Self::Options(options) => HookPrefixRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                prefixes: options.prefixes.clone().unwrap_or_default(),
             },
         }
     }

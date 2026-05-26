@@ -249,6 +249,21 @@ impl Default for BooleanPrefixRuleConfig {
 }
 
 #[derive(Debug, Clone)]
+pub struct HookPrefixRuleConfig {
+    pub severity: Severity,
+    pub prefixes: Vec<String>,
+}
+
+impl Default for HookPrefixRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            prefixes: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct NoInterfaceRuleConfig {
     pub severity: Severity,
     pub allow_declaration_merging: bool,
@@ -282,6 +297,7 @@ impl Default for NoDumpFilesRuleConfig {
 pub struct RulesConfig {
     pub boolean_prefix: BooleanPrefixRuleConfig,
     pub hook_no_jsx: RuleConfig,
+    pub hook_prefix: HookPrefixRuleConfig,
     pub max_directory_depth: MaxDirectoryDepthRuleConfig,
     pub max_file_exports: FileExportsRuleConfig,
     pub max_items_per_directory: MaxItemsPerDirectoryRuleConfig,
@@ -316,6 +332,7 @@ impl Default for RulesConfig {
         Self {
             boolean_prefix: BooleanPrefixRuleConfig::default(),
             hook_no_jsx: RuleConfig::default(),
+            hook_prefix: HookPrefixRuleConfig::default(),
             max_directory_depth: MaxDirectoryDepthRuleConfig::default(),
             max_file_exports: FileExportsRuleConfig::default(),
             max_items_per_directory: MaxItemsPerDirectoryRuleConfig::default(),

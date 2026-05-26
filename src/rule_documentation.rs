@@ -53,6 +53,7 @@ struct RuleOption {
 enum RuleKind {
     BooleanPrefix,
     HookNoJsx,
+    HookPrefix,
     MaxDirectoryDepth,
     MaxFileExports,
     MaxItemsPerDirectory,
@@ -137,6 +138,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::HookNoJsx,
+    },
+    RuleDocumentation {
+        name: "hook-prefix",
+        intent: "Hook functions in hook files should start with 'use' to follow React conventions.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "export function authenticate() { return true; }",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "export function useAuth() { return { user: null }; }",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "prefixes",
+                description: "Custom list of allowed hook prefixes.",
+            },
+        ],
+        kind: RuleKind::HookPrefix,
     },
     RuleDocumentation {
         name: "max-directory-depth",
@@ -763,6 +786,10 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
             ],
         },
         RuleKind::HookNoJsx => simple_summary(config.rules.hook_no_jsx.severity),
+        RuleKind::HookPrefix => RuleConfigSummary {
+            severity: config.rules.hook_prefix.severity,
+            options: vec![format!("prefixes: {:?}", config.rules.hook_prefix.prefixes)],
+        },
         RuleKind::MaxDirectoryDepth => RuleConfigSummary {
             severity: config.rules.max_directory_depth.severity,
             options: vec![

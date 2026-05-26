@@ -6,8 +6,8 @@ pub mod rules;
 pub use resolve::{ProjectConfig, write_default_config};
 pub use rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig,
-    GitignoreConfig, MaxDirectoryDepthRuleConfig, MaxItemsPerDirectoryRuleConfig,
-    MinItemsPerDirectoryRuleConfig, NoConsoleRuleConfig, NoDumpFilesRuleConfig,
-    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
-    NoLogicInDomainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
+    GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
+    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoConsoleRuleConfig,
+    NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
+    NoInterfaceRuleConfig, NoLogicInDomainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
 };
