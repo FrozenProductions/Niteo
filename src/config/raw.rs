@@ -73,7 +73,7 @@ impl RawConfig {
 
         let defaults = ProjectStructureConfig::default();
 
-        let structure = ProjectStructureConfig {
+        ProjectStructureConfig {
             hooks: raw_structure
                 .and_then(|s| s.hooks.as_ref())
                 .map(|d| d.to_domain_config(&defaults.hooks))
@@ -90,9 +90,7 @@ impl RawConfig {
                 .and_then(|s| s.constants.as_ref())
                 .map(|d| d.to_domain_config(&defaults.constants))
                 .unwrap_or(defaults.constants),
-        };
-
-        structure
+        }
     }
 
     fn no_comments(&self) -> CommentsRuleConfig {
