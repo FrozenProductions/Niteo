@@ -10,6 +10,11 @@ root = "src"
 respect-gitignore = true
 
 [rules]
+[rules.boolean-prefix]
+severity = "warn"
+prefixes = ["is", "has", "can"]
+ignore-constants = false
+
 [rules.no-comments]
 severity = "warn"
 allow-doc-comments = true
@@ -125,6 +130,7 @@ pub struct ProjectConfig {
     pub no_enums: RuleConfig,
     pub no_barrel_files: RuleConfig,
     pub no_barrel_chain: RuleConfig,
+    pub boolean_prefix: BooleanPrefixRuleConfig,
     pub no_console: NoConsoleRuleConfig,
     pub no_debugger: RuleConfig,
     pub no_eval: RuleConfig,
@@ -159,6 +165,7 @@ impl Default for ProjectConfig {
             no_enums: RuleConfig::default(),
             no_barrel_files: RuleConfig::default(),
             no_barrel_chain: RuleConfig::default(),
+            boolean_prefix: BooleanPrefixRuleConfig::default(),
             no_console: NoConsoleRuleConfig::default(),
             no_debugger: RuleConfig::default(),
             no_eval: RuleConfig::default(),
@@ -202,6 +209,7 @@ impl ProjectConfig {
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
                 no_barrel_chain: config.no_barrel_chain(),
+                boolean_prefix: config.boolean_prefix(),
                 no_console: config.no_console(),
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
@@ -240,6 +248,7 @@ impl ProjectConfig {
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
                 no_barrel_chain: config.no_barrel_chain(),
+                boolean_prefix: config.boolean_prefix(),
                 no_console: config.no_console(),
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
@@ -275,6 +284,7 @@ impl ProjectConfig {
                 no_enums: config.no_enums(),
                 no_barrel_files: config.no_barrel_files(),
                 no_barrel_chain: config.no_barrel_chain(),
+                boolean_prefix: config.boolean_prefix(),
                 no_console: config.no_console(),
                 no_debugger: config.no_debugger(),
                 no_eval: config.no_eval(),
@@ -308,6 +318,7 @@ impl ProjectConfig {
             no_enums: config.no_enums(),
             no_barrel_files: config.no_barrel_files(),
             no_barrel_chain: config.no_barrel_chain(),
+            boolean_prefix: config.boolean_prefix(),
             no_console: config.no_console(),
             no_debugger: config.no_debugger(),
             no_eval: config.no_eval(),
@@ -563,6 +574,23 @@ impl Default for NoConsoleRuleConfig {
 }
 
 #[derive(Debug, Clone)]
+pub struct BooleanPrefixRuleConfig {
+    pub severity: Severity,
+    pub prefixes: Vec<String>,
+    pub ignore_constants: bool,
+}
+
+impl Default for BooleanPrefixRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            prefixes: vec![],
+            ignore_constants: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct NoInterfaceRuleConfig {
     pub severity: Severity,
     pub allow_declaration_merging: bool,
@@ -719,6 +747,14 @@ impl RawConfig {
             .as_ref()
             .and_then(|rules| rules.get("no-barrel-chain"))
             .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn boolean_prefix(&self) -> BooleanPrefixRuleConfig {
+        self.rules
+            .as_ref()
+            .and_then(|rules| rules.get("boolean-prefix"))
+            .map(RawRuleConfig::to_boolean_prefix_config)
             .unwrap_or_default()
     }
 
@@ -1080,6 +1116,21 @@ impl RawRuleConfig {
             },
         }
     }
+
+    fn to_boolean_prefix_config(&self) -> BooleanPrefixRuleConfig {
+        match self {
+            Self::Severity(severity) => BooleanPrefixRuleConfig {
+                severity: Severity::from_str(severity),
+                prefixes: vec![],
+                ignore_constants: false,
+            },
+            Self::Options(options) => BooleanPrefixRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                prefixes: options.prefixes.clone().unwrap_or_default(),
+                ignore_constants: options.ignore_constants.unwrap_or(false),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -1113,4 +1164,7 @@ struct RawRuleOptions {
     allow_declaration_merging: Option<bool>,
     #[serde(rename = "extra-names")]
     extra_names: Option<Vec<String>>,
+    prefixes: Option<Vec<String>>,
+    #[serde(rename = "ignore-constants")]
+    ignore_constants: Option<bool>,
 }

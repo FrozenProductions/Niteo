@@ -1,3 +1,4 @@
+mod boolean_prefix;
 mod hook_no_jsx;
 mod max_directory_depth;
 mod max_file_exports;
@@ -42,6 +43,7 @@ use crate::ignore;
 
 pub type RuleId = &'static str;
 
+pub const BOOLEAN_PREFIX_RULE_ID: RuleId = "boolean-prefix";
 pub const HOOK_NO_JSX_RULE_ID: RuleId = "hook-no-jsx";
 pub const MAX_DIRECTORY_DEPTH_RULE_ID: RuleId = "max-directory-depth";
 pub const MAX_FILE_EXPORTS_RULE_ID: RuleId = "max-file-exports";
@@ -94,6 +96,7 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
         || config.prefer_satisfies.severity.is_enabled();
 
     let needs_ast = config.no_default_export.severity.is_enabled()
+        || config.boolean_prefix.severity.is_enabled()
         || config.no_export_star.severity.is_enabled()
         || config.no_inline_types.severity.is_enabled()
         || config.max_file_exports.severity.is_enabled()
@@ -150,6 +153,14 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
             ));
         }
         if let Some(ref program) = parse_result {
+            if config.boolean_prefix.severity.is_enabled() {
+                file_violations.extend(boolean_prefix::check_file(
+                    file,
+                    program,
+                    &line_index,
+                    &config.boolean_prefix,
+                ));
+            }
             if config.no_default_export.severity.is_enabled() {
                 file_violations.extend(no_default_export::check_file(
                     file,

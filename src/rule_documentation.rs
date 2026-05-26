@@ -51,6 +51,7 @@ struct RuleOption {
 
 #[derive(Debug, Clone, Copy)]
 enum RuleKind {
+    BooleanPrefix,
     HookNoJsx,
     MaxDirectoryDepth,
     MaxFileExports,
@@ -94,6 +95,32 @@ const SEVERITY_OPTION: RuleOption = RuleOption {
 const NO_OPTIONS: &[RuleOption] = &[SEVERITY_OPTION];
 
 const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
+    RuleDocumentation {
+        name: "boolean-prefix",
+        intent: "Boolean variables should be prefixed with is, has, or can to signal intent.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "const open = true;",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "const isOpen = true;",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "prefixes",
+                description: "Custom list of allowed boolean prefixes.",
+            },
+            RuleOption {
+                name: "ignore-constants",
+                description: "When true, skips checking const declarations.",
+            },
+        ],
+        kind: RuleKind::BooleanPrefix,
+    },
     RuleDocumentation {
         name: "hook-no-jsx",
         intent: "Keep hook files focused on state and effects. JSX belongs in components.",
@@ -708,6 +735,16 @@ pub fn render_explanation_text(explanation: &RuleExplanation) -> String {
 
 fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
     match kind {
+        RuleKind::BooleanPrefix => RuleConfigSummary {
+            severity: config.boolean_prefix.severity,
+            options: vec![
+                format!("prefixes: {:?}", config.boolean_prefix.prefixes),
+                format!(
+                    "ignore-constants: {}",
+                    config.boolean_prefix.ignore_constants
+                ),
+            ],
+        },
         RuleKind::HookNoJsx => simple_summary(config.hook_no_jsx.severity),
         RuleKind::MaxDirectoryDepth => RuleConfigSummary {
             severity: config.max_directory_depth.severity,
