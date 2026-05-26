@@ -25,6 +25,7 @@ impl RawConfig {
     pub fn rules_config(&self) -> RulesConfig {
         RulesConfig {
             boolean_prefix: self.boolean_prefix(),
+            component_file_only_components: self.component_file_only_components(),
             hook_no_jsx: self.hook_no_jsx(),
             hook_prefix: self.hook_prefix(),
             max_directory_depth: self.max_directory_depth(),
@@ -241,6 +242,12 @@ impl RawConfig {
 
     fn hook_no_jsx(&self) -> RuleConfig {
         self.rule("hook-no-jsx")
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn component_file_only_components(&self) -> RuleConfig {
+        self.rule("component-file-only-components")
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }

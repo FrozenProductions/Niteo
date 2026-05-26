@@ -296,6 +296,7 @@ impl Default for NoDumpFilesRuleConfig {
 #[derive(Debug, Clone)]
 pub struct RulesConfig {
     pub boolean_prefix: BooleanPrefixRuleConfig,
+    pub component_file_only_components: RuleConfig,
     pub hook_no_jsx: RuleConfig,
     pub hook_prefix: HookPrefixRuleConfig,
     pub max_directory_depth: MaxDirectoryDepthRuleConfig,
@@ -332,6 +333,7 @@ impl Default for RulesConfig {
     fn default() -> Self {
         Self {
             boolean_prefix: BooleanPrefixRuleConfig::default(),
+            component_file_only_components: RuleConfig::default(),
             hook_no_jsx: RuleConfig::default(),
             hook_prefix: HookPrefixRuleConfig::default(),
             max_directory_depth: MaxDirectoryDepthRuleConfig::default(),

@@ -52,6 +52,7 @@ struct RuleOption {
 #[derive(Debug, Clone, Copy)]
 enum RuleKind {
     BooleanPrefix,
+    ComponentFileOnlyComponents,
     HookNoJsx,
     HookPrefix,
     MaxDirectoryDepth,
@@ -123,6 +124,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::BooleanPrefix,
+    },
+    RuleDocumentation {
+        name: "component-file-only-components",
+        intent: "Component files should export components only. Move utilities, types, and hooks to separate files.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "export function formatDate() {} // in Button.component.tsx",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "export function Button() {} // only components exported",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::ComponentFileOnlyComponents,
     },
     RuleDocumentation {
         name: "hook-no-jsx",
@@ -802,6 +819,9 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
                 ),
             ],
         },
+        RuleKind::ComponentFileOnlyComponents => {
+            simple_summary(config.rules.component_file_only_components.severity)
+        }
         RuleKind::HookNoJsx => simple_summary(config.rules.hook_no_jsx.severity),
         RuleKind::HookPrefix => RuleConfigSummary {
             severity: config.rules.hook_prefix.severity,

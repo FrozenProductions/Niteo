@@ -5,6 +5,9 @@ root = "src"
 respect-gitignore = true
 
 [rules]
+[rules.component-file-only-components]
+severity = "warn"
+
 [rules.boolean-prefix]
 severity = "warn"
 prefixes = ["is", "has", "can"]

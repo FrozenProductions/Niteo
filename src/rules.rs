@@ -1,4 +1,5 @@
 mod boolean_prefix;
+mod component_file_only_components;
 mod hook_no_jsx;
 mod hook_prefix;
 mod max_directory_depth;
@@ -47,6 +48,7 @@ use crate::ignore;
 pub type RuleId = &'static str;
 
 pub const BOOLEAN_PREFIX_RULE_ID: RuleId = "boolean-prefix";
+pub const COMPONENT_FILE_ONLY_COMPONENTS_RULE_ID: RuleId = "component-file-only-components";
 pub const HOOK_NO_JSX_RULE_ID: RuleId = "hook-no-jsx";
 pub const HOOK_PREFIX_RULE_ID: RuleId = "hook-prefix";
 pub const MAX_DIRECTORY_DEPTH_RULE_ID: RuleId = "max-directory-depth";
@@ -117,7 +119,12 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
         || config.rules.no_namespace.severity.is_enabled()
         || config.rules.no_silent_catch.severity.is_enabled()
         || config.rules.no_then_chain.severity.is_enabled()
-        || config.rules.hook_no_jsx.severity.is_enabled();
+        || config.rules.hook_no_jsx.severity.is_enabled()
+        || config
+            .rules
+            .component_file_only_components
+            .severity
+            .is_enabled();
 
     if !needs_scan && !needs_ast {
         return Ok(violations);
@@ -308,6 +315,19 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     program,
                     &line_index,
                     &config.rules.hook_prefix,
+                ));
+            }
+            if config
+                .rules
+                .component_file_only_components
+                .severity
+                .is_enabled()
+            {
+                file_violations.extend(component_file_only_components::check_file(
+                    file,
+                    program,
+                    &line_index,
+                    &config.rules.component_file_only_components,
                 ));
             }
         }

@@ -17,6 +17,25 @@ pub fn is_hook_file(path: &std::path::Path) -> bool {
     false
 }
 
+pub fn is_component_file(path: &std::path::Path) -> bool {
+    let file_stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy())
+        .unwrap_or_default();
+
+    if file_stem.ends_with(".component") || file_stem.ends_with(".components") {
+        return true;
+    }
+
+    if let Some(parent) = path.parent()
+        && parent.file_name().map(|n| n.to_string_lossy()) == Some("components".into())
+    {
+        return true;
+    }
+
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -38,5 +57,23 @@ mod tests {
     fn non_hook_file() {
         assert!(!is_hook_file(Path::new("src/components/Button.tsx")));
         assert!(!is_hook_file(Path::new("src/utils/format.ts")));
+    }
+
+    #[test]
+    fn component_file_by_suffix() {
+        assert!(is_component_file(Path::new("Button.component.tsx")));
+        assert!(is_component_file(Path::new("Card.components.tsx")));
+    }
+
+    #[test]
+    fn component_file_in_components_folder() {
+        assert!(is_component_file(Path::new("src/components/Button.tsx")));
+        assert!(is_component_file(Path::new("components/Modal.tsx")));
+    }
+
+    #[test]
+    fn non_component_file() {
+        assert!(!is_component_file(Path::new("src/hooks/useAuth.ts")));
+        assert!(!is_component_file(Path::new("src/utils/format.ts")));
     }
 }
