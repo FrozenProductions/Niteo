@@ -299,6 +299,7 @@ pub struct RulesConfig {
     pub no_enums: RuleConfig,
     pub no_eval: RuleConfig,
     pub no_export_star: RuleConfig,
+    pub no_namespace: RuleConfig,
     pub no_inline_types: RuleConfig,
     pub no_interface: NoInterfaceRuleConfig,
     pub no_large_file: FileLengthRuleConfig,
@@ -340,6 +341,7 @@ impl Default for RulesConfig {
             no_logic_in_barrel: RuleConfig::default(),
             no_logic_in_domain: NoLogicInDomainRuleConfig::default(),
             no_mutable_exports: RuleConfig::default(),
+            no_namespace: RuleConfig::default(),
             no_silent_catch: RuleConfig::default(),
             no_upward_import: UpwardImportRuleConfig::default(),
             prefer_satisfies: RuleConfig {

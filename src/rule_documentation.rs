@@ -76,6 +76,7 @@ enum RuleKind {
     NoLogicInBarrel,
     NoLogicInDomain,
     NoMutableExports,
+    NoNamespace,
     NoSilentCatch,
     NoUpwardImport,
     PreferSatisfies,
@@ -602,6 +603,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         kind: RuleKind::NoMutableExports,
     },
     RuleDocumentation {
+        name: "no-namespace",
+        intent: "Prefer ES modules over TypeScript namespace declarations.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "namespace Utils { export function go() {} }",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "import { go } from './Utils';",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoNamespace,
+    },
+    RuleDocumentation {
         name: "no-silent-catch",
         intent: "Require catch blocks to log the error, rethrow it, or return a typed fallback.",
         examples: &[
@@ -870,6 +887,7 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
             ],
         },
         RuleKind::NoMutableExports => simple_summary(config.rules.no_mutable_exports.severity),
+        RuleKind::NoNamespace => simple_summary(config.rules.no_namespace.severity),
         RuleKind::NoSilentCatch => simple_summary(config.rules.no_silent_catch.severity),
         RuleKind::NoUpwardImport => RuleConfigSummary {
             severity: config.rules.no_upward_import.severity,

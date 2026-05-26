@@ -48,6 +48,7 @@ impl RawConfig {
             no_logic_in_barrel: self.no_logic_in_barrel(),
             no_logic_in_domain: self.no_logic_in_domain(),
             no_mutable_exports: self.no_mutable_exports(),
+            no_namespace: self.no_namespace(),
             no_silent_catch: self.no_silent_catch(),
             no_upward_import: self.no_upward_import(),
             prefer_satisfies: self.prefer_satisfies(),
@@ -205,6 +206,12 @@ impl RawConfig {
 
     fn no_mutable_exports(&self) -> RuleConfig {
         self.rule("no-mutable-exports")
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn no_namespace(&self) -> RuleConfig {
+        self.rule("no-namespace")
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }

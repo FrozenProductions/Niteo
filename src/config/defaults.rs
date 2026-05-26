@@ -97,6 +97,9 @@ allow-declaration-merging = true
 [rules.no-mutable-exports]
 severity = "warn"
 
+[rules.no-namespace]
+severity = "warn"
+
 [rules.no-silent-catch]
 severity = "warn"
 
