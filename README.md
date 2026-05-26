@@ -2,24 +2,13 @@
 
 Niteo is a standalone Rust CLI for structural linting in TypeScript projects.
 
-It is intended to check project shape and source structure rather than formatting. The current alpha build only covers a small part of that goal, so treat it as an experiment and development preview.
+It checks project shape and source structure rather than formatting. Niteo uses [oxc](https://github.com/oxc-project/oxc) for AST parsing.
 
 ## Status
 
 Niteo is in alpha.
 
-Do not use it as a production quality linter yet. The rule set is small, the output format may change, configuration is not stable, and some intended project guidance is not implemented. It is useful right now for testing the direction of the tool and contributing early feedback.
-
-## What It Does Today
-
-Niteo is being built around a few core jobs:
-
-- scan TypeScript project files
-- apply structural linting rules
-- read project-level configuration
-- print terminal reports that are useful during development
-
-Exact rules, configuration options, and report details are still changing during alpha.
+The rule set, output format, and configuration shape may change. It is useful for testing the direction of the tool and contributing early feedback.
 
 ## Installation
 
@@ -29,7 +18,7 @@ Run directly with `npx`:
 npx niteo-cli lint
 ```
 
-Or install globally and use the `niteo` command:
+Or install globally:
 
 ```sh
 npm i -g niteo-cli
@@ -38,95 +27,78 @@ niteo lint
 
 The npm package builds the Rust binary during installation, so Rust and Cargo must be installed on the machine running `npx` or `npm i -g`.
 
-For local development, run it from source:
+For local development:
 
 ```sh
 cargo run -- lint
-```
-
-For local development, you can also build the binary:
-
-```sh
 cargo build
-```
-
-Then run:
-
-```sh
 ./target/debug/niteo lint
 ```
 
 ## Usage
 
-Scan the default project root:
+### Commands
 
 ```sh
-npx @frozenproductions/niteo lint
-# or, after npm i -g @frozenproductions/niteo
-niteo lint
+niteo lint              # Scan for structural issues
+niteo init              # Create niteo.toml with default configuration
+niteo rules             # List rules and their configured severities
+niteo explain <rule>    # Explain a rule (e.g. niteo explain no-console)
 ```
 
-Generate a starter config:
+### Options
+
+| Flag                | Description                                         |
+| ------------------- | --------------------------------------------------- |
+| `--root <path>`     | Project root to scan                                |
+| `--scope <path>`    | Limit scanning to this path                         |
+| `--verbose`         | Show every violation (default groups and truncates) |
+| `--git`             | Scan changed TypeScript files only                  |
+| `--format <format>` | Output format: `text` (default), `json`, `sarif`    |
+| `--output <path>`   | Write output to a file                              |
+
+All options are global and work with any command.
+
+### Examples
 
 ```sh
-npx @frozenproductions/niteo init
-# or
-niteo init
-```
-
-List available rules and their configured severities:
-
-```sh
-niteo rules
-```
-
-Explain one rule:
-
-```sh
-niteo explain no-console
-```
-
-Scan a specific root:
-
-```sh
-npx @frozenproductions/niteo lint --root src
-# or
 niteo lint --root src
-```
-
-Restrict the scan to a path:
-
-```sh
-npx @frozenproductions/niteo lint --scope src/components
-# or
 niteo lint --scope src/components
+niteo lint --git
+niteo lint --format json --output report.json
+niteo lint --format sarif --output report.sarif
+niteo lint --verbose
+niteo rules --format json
+niteo explain no-barrel-files
 ```
 
-Show help:
+When `--git` is not passed but changed TypeScript files are detected, Niteo prompts to scan only those files.
 
-```sh
-npx @frozenproductions/niteo --help
-# or
-niteo --help
-```
+## Output
+
+The text report includes a health score (0-100), a status label, and a rule overview grouped by severity. Use `--verbose` to see all violations without truncation.
+
+JSON and SARIF output formats are available via `--format`.
 
 ## Configuration
 
-Niteo looks for `niteo.toml` in the current workspace.
-
-You can generate a starter config with:
+Niteo reads `niteo.toml` from the current workspace. Generate a starter config with:
 
 ```sh
-npx @frozenproductions/niteo init
-# or, after npm i -g @frozenproductions/niteo
 niteo init
 ```
 
-The config format is not stable yet, so prefer generating it from the CLI instead of copying old examples.
+### Project settings
+
+```toml
+[project]
+root = "src"
+respect-gitignore = true
+```
 
 ### Project structure
 
-Define your project conventions once under `[project.structure]`. Multiple rules share these definitions so folders and file suffixes stay consistent.
+Define conventions once under `[project.structure]`. Multiple rules share these definitions.
 
 ```toml
 [project.structure.hooks]
@@ -146,25 +118,65 @@ folders = ["constants"]
 file-suffixes = [".constant.ts", ".constants.ts"]
 ```
 
-Rules that consume the structure config:
+### Configuration examples
 
-- `hook-no-jsx`, `hook-prefix` use `project.structure.hooks`
-- `component-file-only-components` uses `project.structure.components`
-- `no-inline-types` uses `project.structure.types`
-- `no-logic-in-domain` uses `project.structure.types` and `project.structure.constants`
+Simple severity override:
 
-## Current Limitations
+```toml
+[rules]
+no-console = "error"
+no-debugger = "error"
+prefer-satisfies = "off"
+```
 
-- The rule set is incomplete.
-- Some checks may be shallow while the project is still being shaped.
-- The config shape may change.
-- The report format may change.
-- It has not been tested across large real-world codebases.
-- It should not replace ESLint, TypeScript, or existing CI checks.
+Options table:
+
+```toml
+[rules.no-console]
+severity = "error"
+allow-patterns = ["logger", "debug"]
+
+[rules.no-large-file]
+severity = "warn"
+max-lines = 300
+
+[rules.max-file-exports]
+severity = "warn"
+max-exports = 5
+
+[rules.boolean-prefix]
+severity = "warn"
+prefixes = ["is", "has", "can", "should"]
+ignore-constants = true
+
+[rules.max-items-per-directory]
+severity = "warn"
+max-items = 15
+ignore-dirs = ["__tests__"]
+count-folders = true
+
+[rules.no-dump-files]
+severity = "warn"
+extra-names = ["misc", "common"]
+```
+
+## Suppressing violations
+
+Use inline comment directives to suppress specific violations:
+
+```ts
+// niteo-ignore-file                    — suppress all rules in this file
+// niteo-ignore-file: no-console        — suppress one rule in this file
+// niteo-ignore-file: no-console, no-eval — suppress multiple rules
+
+// niteo-ignore-next-line              — suppress all rules on the next line
+// niteo-ignore-next-line: no-console  — suppress one rule on the next line
+
+console.log("debug"); // niteo-ignore-line         — suppress all rules on this line
+console.log("debug"); // niteo-ignore-line: no-console — suppress one rule on this line
+```
 
 ## Development
-
-Useful commands:
 
 ```sh
 cargo fmt
@@ -172,4 +184,4 @@ cargo check
 cargo test
 ```
 
-The project currently keeps the CLI, config loading, file discovery, rule checks, and reporting in separate modules.
+The project keeps the CLI, config loading, file discovery, rule checks, and reporting in separate modules.
