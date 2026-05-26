@@ -36,6 +36,9 @@ allow-doc-comments = true
 [rules.no-logic-in-barrel]
 severity = "warn"
 
+[rules.no-component-default-export]
+severity = "warn"
+
 [rules.no-default-export]
 severity = "warn"
 

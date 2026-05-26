@@ -64,6 +64,7 @@ enum RuleKind {
     NoComments,
     NoConsole,
     NoDebugger,
+    NoComponentDefaultExport,
     NoDefaultExport,
     NoDuplicateFileNames,
     NoDumpFiles,
@@ -394,6 +395,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::NoDebugger,
+    },
+    RuleDocumentation {
+        name: "no-component-default-export",
+        intent: "Components must use named exports so imports stay explicit and refactorable.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "export default function Button() {} // in Button.tsx",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "export function Button() {}",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "project.structure.components",
+                description: "Folders and file suffixes that identify component files.",
+            },
+        ],
+        kind: RuleKind::NoComponentDefaultExport,
     },
     RuleDocumentation {
         name: "no-default-export",
@@ -934,6 +957,16 @@ fn config_summary(config: &ProjectConfig, kind: RuleKind) -> RuleConfigSummary {
             )],
         },
         RuleKind::NoDebugger => simple_summary(config.rules.no_debugger.severity),
+        RuleKind::NoComponentDefaultExport => RuleConfigSummary {
+            severity: config.rules.no_component_default_export.severity,
+            options: vec![
+                format!("folders: {:?}", config.structure.components.folders),
+                format!(
+                    "file-suffixes: {:?}",
+                    config.structure.components.file_suffixes
+                ),
+            ],
+        },
         RuleKind::NoDefaultExport => simple_summary(config.rules.no_default_export.severity),
         RuleKind::NoDuplicateFileNames => RuleConfigSummary {
             severity: config.rules.no_duplicate_file_names.severity,

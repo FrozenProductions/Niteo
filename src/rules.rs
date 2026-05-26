@@ -9,6 +9,7 @@ mod min_items_per_directory;
 mod no_barrel_chain;
 mod no_barrel_files;
 mod no_comments;
+mod no_component_default_export;
 mod no_console;
 mod no_debugger;
 mod no_default_export;
@@ -60,6 +61,7 @@ pub const NO_BARREL_FILES_RULE_ID: RuleId = "no-barrel-files";
 pub const NO_COMMENTS_RULE_ID: RuleId = "no-comments";
 pub const NO_CONSOLE_RULE_ID: RuleId = "no-console";
 pub const NO_DEBUGGER_RULE_ID: RuleId = "no-debugger";
+pub const NO_COMPONENT_DEFAULT_EXPORT_RULE_ID: RuleId = "no-component-default-export";
 pub const NO_DEFAULT_EXPORT_RULE_ID: RuleId = "no-default-export";
 pub const NO_DUPLICATE_FILE_NAMES_RULE_ID: RuleId = "no-duplicate-file-names";
 pub const NO_DUMP_FILES_RULE_ID: RuleId = "no-dump-files";
@@ -104,6 +106,11 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
         || config.rules.prefer_satisfies.severity.is_enabled();
 
     let needs_ast = config.rules.no_default_export.severity.is_enabled()
+        || config
+            .rules
+            .no_component_default_export
+            .severity
+            .is_enabled()
         || config.rules.boolean_prefix.severity.is_enabled()
         || config.rules.no_export_star.severity.is_enabled()
         || config.rules.no_inline_types.severity.is_enabled()
@@ -187,6 +194,20 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     program,
                     &line_index,
                     &config.rules.no_default_export,
+                ));
+            }
+            if config
+                .rules
+                .no_component_default_export
+                .severity
+                .is_enabled()
+            {
+                file_violations.extend(no_component_default_export::check_file(
+                    file,
+                    program,
+                    &line_index,
+                    &config.rules.no_component_default_export,
+                    &config.structure.components,
                 ));
             }
             if config.rules.no_export_star.severity.is_enabled() {

@@ -37,6 +37,7 @@ impl RawConfig {
             no_comments: self.no_comments(),
             no_console: self.no_console(),
             no_debugger: self.no_debugger(),
+            no_component_default_export: self.no_component_default_export(),
             no_default_export: self.no_default_export(),
             no_duplicate_file_names: self.no_duplicate_file_names(),
             no_dump_files: self.no_dump_files(),
@@ -101,6 +102,12 @@ impl RawConfig {
 
     fn no_logic_in_barrel(&self) -> RuleConfig {
         self.rule("no-logic-in-barrel")
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
+    fn no_component_default_export(&self) -> RuleConfig {
+        self.rule("no-component-default-export")
             .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
