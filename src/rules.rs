@@ -28,6 +28,7 @@ mod no_logic_in_barrel;
 mod no_logic_in_domain;
 mod no_mutable_exports;
 mod no_namespace;
+mod no_non_null_assertion;
 mod no_silent_catch;
 mod no_test_code_in_production;
 mod no_test_import;
@@ -87,6 +88,7 @@ pub const NO_UPWARD_IMPORT_RULE_ID: RuleId = "no-upward-import";
 pub const PREFER_SATISFIES_RULE_ID: RuleId = "prefer-satisfies";
 pub const NO_TEST_IMPORT_RULE_ID: RuleId = "no-test-import";
 pub const ENTRY_FILE_NO_LOGIC_RULE_ID: RuleId = "entry-file-no-logic";
+pub const NO_NON_NULL_ASSERTION_RULE_ID: RuleId = "no-non-null-assertion";
 
 #[derive(Debug, Clone)]
 pub struct Violation {
@@ -144,7 +146,8 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
             .severity
             .is_enabled()
         || config.rules.no_test_import.severity.is_enabled()
-        || config.rules.entry_file_no_logic.severity.is_enabled();
+        || config.rules.entry_file_no_logic.severity.is_enabled()
+        || config.rules.no_non_null_assertion.severity.is_enabled();
 
     if !needs_scan && !needs_ast {
         return Ok(violations);
@@ -398,6 +401,14 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     program,
                     &line_index,
                     &config.rules.entry_file_no_logic,
+                ));
+            }
+            if config.rules.no_non_null_assertion.severity.is_enabled() {
+                file_violations.extend(no_non_null_assertion::check_file(
+                    file,
+                    program,
+                    &line_index,
+                    &config.rules.no_non_null_assertion,
                 ));
             }
         }

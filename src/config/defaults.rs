@@ -150,4 +150,7 @@ severity = "warn"
 [rules.entry-file-no-logic]
 severity = "warn"
 entry-files = []
+
+[rules.no-non-null-assertion]
+severity = "warn"
 "#;

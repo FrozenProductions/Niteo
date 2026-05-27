@@ -222,6 +222,7 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
                 config.rules.entry_file_no_logic.entry_files
             )],
         },
+        RuleKind::NoNonNullAssertion => simple_summary(config.rules.no_non_null_assertion.severity),
     }
 }
 

@@ -57,6 +57,7 @@ pub(crate) enum RuleKind {
     PreferSatisfies,
     NoTestImport,
     EntryFileNoLogic,
+    NoNonNullAssertion,
 }
 
 pub(crate) const SEVERITY_OPTION: RuleOption = RuleOption {
@@ -806,6 +807,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::EntryFileNoLogic,
+    },
+    RuleDocumentation {
+        name: "no-non-null-assertion",
+        intent: "Disallow the non-null assertion operator (!) which bypasses TypeScript's null safety checks.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "const value = obj!.prop;",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "const value = obj?.prop ?? 'default';",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoNonNullAssertion,
     },
 ];
 

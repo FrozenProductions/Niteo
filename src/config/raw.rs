@@ -60,6 +60,7 @@ impl RawConfig {
             no_upward_import: self.no_upward_import(),
             prefer_satisfies: self.prefer_satisfies(),
             no_test_import: self.no_test_import(),
+            no_non_null_assertion: self.no_non_null_assertion(),
         }
     }
 
@@ -312,6 +313,12 @@ impl RawConfig {
     fn no_dump_files(&self) -> NoDumpFilesRuleConfig {
         self.rule("no-dump-files")
             .map(RawRuleConfig::to_no_dump_files_config)
+            .unwrap_or_default()
+    }
+
+    fn no_non_null_assertion(&self) -> RuleConfig {
+        self.rule("no-non-null-assertion")
+            .map(RawRuleConfig::to_rule_config)
             .unwrap_or_default()
     }
 

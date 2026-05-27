@@ -329,6 +329,7 @@ pub struct RulesConfig {
     pub no_upward_import: UpwardImportRuleConfig,
     pub prefer_satisfies: RuleConfig,
     pub no_test_import: RuleConfig,
+    pub no_non_null_assertion: RuleConfig,
 }
 
 impl Default for RulesConfig {
@@ -374,6 +375,7 @@ impl Default for RulesConfig {
                 severity: Severity::Info,
             },
             no_test_import: RuleConfig::default(),
+            no_non_null_assertion: RuleConfig::default(),
         }
     }
 }
