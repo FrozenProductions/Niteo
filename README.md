@@ -42,6 +42,7 @@ cargo build
 ```sh
 niteo lint              # Scan for structural issues
 niteo init              # Create niteo.toml with default configuration
+niteo baseline create   # Snapshot current violations into niteo-baseline.json
 niteo rules             # List rules and their configured severities
 niteo explain <rule>    # Explain a rule (e.g. niteo explain no-console)
 ```
@@ -56,6 +57,7 @@ niteo explain <rule>    # Explain a rule (e.g. niteo explain no-console)
 | `--git`             | Scan changed TypeScript files only                  |
 | `--format <format>` | Output format: `text` (default), `json`, `sarif`    |
 | `--output <path>`   | Write output to a file                              |
+| `--baseline <path>` | Baseline file path (default: `niteo-baseline.json`) |
 
 All options are global and work with any command.
 
@@ -68,6 +70,8 @@ niteo lint --git
 niteo lint --format json --output report.json
 niteo lint --format sarif --output report.sarif
 niteo lint --verbose
+niteo baseline create
+niteo lint --baseline niteo-baseline.json
 niteo rules --format json
 niteo explain no-barrel-files
 ```
@@ -79,6 +83,18 @@ When `--git` is not passed but changed TypeScript files are detected, Niteo prom
 The text report includes a health score (0-100), a status label, and a rule overview grouped by severity. Use `--verbose` to see all violations without truncation.
 
 JSON and SARIF output formats are available via `--format`.
+
+`niteo lint` exits with a non-zero status when it reports violations. If a baseline file exists, violations already captured in that baseline are ignored, so CI fails only when new violations are introduced.
+
+## Baseline
+
+Generate a baseline before adding Niteo to an existing codebase:
+
+```sh
+niteo baseline create
+```
+
+This writes `niteo-baseline.json` with the current violations. Commit that file, then run `niteo lint` in CI. Re-run `niteo baseline create` intentionally when you want to refresh the accepted set of existing violations.
 
 ## Configuration
 

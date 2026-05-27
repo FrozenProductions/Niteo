@@ -28,6 +28,10 @@ impl Report {
         Self { files, violations }
     }
 
+    pub fn has_violations(&self) -> bool {
+        !self.violations.is_empty()
+    }
+
     pub fn render_text(&self, verbose: bool) -> String {
         let warning_count = self.count_by_severity(Severity::Warn);
         let error_count = self.count_by_severity(Severity::Error);

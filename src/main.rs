@@ -1,4 +1,5 @@
 mod app;
+mod baseline;
 mod cli;
 mod config;
 mod discovery;
@@ -11,7 +12,8 @@ mod rules;
 mod syntax;
 
 use anyhow::Result;
+use std::process::ExitCode;
 
-fn main() -> Result<()> {
+fn main() -> Result<ExitCode> {
     app::run()
 }

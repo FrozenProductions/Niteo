@@ -3,44 +3,95 @@ use clap::Parser;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
-use crate::cli::{Cli, Command, OutputFormat};
-use crate::{config, discovery, git, report, rule_documentation, rules};
+use crate::cli::{BaselineCommand, Cli, Command, OutputFormat};
+use crate::rules::Violation;
+use crate::{baseline, config, discovery, git, report, rule_documentation, rules};
 
-pub fn run() -> Result<()> {
+pub fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
     let workspace = env::current_dir()?;
 
-    match cli.command.unwrap_or(Command::Lint) {
-        Command::Init => create_config(&workspace),
-        Command::Rules => list_rules(
-            &workspace,
-            cli.options.root,
-            cli.options.format,
-            cli.options.output,
-        ),
-        Command::Explain { rule } => explain_rule(
-            &workspace,
-            cli.options.root,
-            cli.options.format,
-            cli.options.output,
-            &rule,
-        ),
+    let exit_code = match cli.command.unwrap_or(Command::Lint) {
+        Command::Init => {
+            create_config(&workspace)?;
+            ExitCode::SUCCESS
+        }
+        Command::Baseline { command } => match command {
+            BaselineCommand::Create => {
+                create_baseline(
+                    &workspace,
+                    cli.options.root,
+                    cli.options.scope,
+                    cli.options.git,
+                    cli.options.baseline,
+                )?;
+                ExitCode::SUCCESS
+            }
+        },
+        Command::Rules => {
+            list_rules(
+                &workspace,
+                cli.options.root,
+                cli.options.format,
+                cli.options.output,
+            )?;
+            ExitCode::SUCCESS
+        }
+        Command::Explain { rule } => {
+            explain_rule(
+                &workspace,
+                cli.options.root,
+                cli.options.format,
+                cli.options.output,
+                &rule,
+            )?;
+            ExitCode::SUCCESS
+        }
         Command::Lint => lint_workspace(
             &workspace,
             cli.options.root,
             cli.options.scope,
-            cli.options.verbose,
-            cli.options.git,
-            cli.options.format,
-            cli.options.output,
-        ),
-    }
+            LintOptions {
+                verbose: cli.options.verbose,
+                git_flag: cli.options.git,
+                output_format: cli.options.format,
+                output_path: cli.options.output,
+                baseline_path: cli.options.baseline,
+            },
+        )?,
+    };
+
+    Ok(exit_code)
 }
 
 fn create_config(workspace: &Path) -> Result<()> {
     let config_path = config::write_default_config(workspace)?;
     println!("Created {}", config_path.display());
+
+    Ok(())
+}
+
+fn create_baseline(
+    workspace: &Path,
+    root_override: Option<PathBuf>,
+    scope_override: Option<PathBuf>,
+    git_flag: bool,
+    baseline_path: PathBuf,
+) -> Result<()> {
+    let collected = collect_violations(workspace, root_override, scope_override, git_flag, false)?;
+    let resolved_baseline_path = resolve_path(workspace, baseline_path);
+    let baseline =
+        baseline::Baseline::from_violations(&collected.project_root, &collected.violations);
+
+    baseline::write_baseline(&resolved_baseline_path, &baseline)?;
+
+    println!(
+        "Created {} with {} violations",
+        resolved_baseline_path.display(),
+        baseline.violation_count()
+    );
 
     Ok(())
 }
@@ -104,15 +155,65 @@ fn explain_rule(
     Ok(())
 }
 
-fn lint_workspace(
-    workspace: &Path,
-    root_override: Option<PathBuf>,
-    scope_override: Option<PathBuf>,
+struct LintOptions {
     verbose: bool,
     git_flag: bool,
     output_format: OutputFormat,
     output_path: Option<PathBuf>,
-) -> Result<()> {
+    baseline_path: PathBuf,
+}
+
+fn lint_workspace(
+    workspace: &Path,
+    root_override: Option<PathBuf>,
+    scope_override: Option<PathBuf>,
+    opts: LintOptions,
+) -> Result<ExitCode> {
+    let collected = collect_violations(
+        workspace,
+        root_override,
+        scope_override,
+        opts.git_flag,
+        true,
+    )?;
+    let resolved_baseline_path = resolve_path(workspace, opts.baseline_path);
+    let filtered_violations = match baseline::read_baseline(&resolved_baseline_path)? {
+        Some(baseline) => {
+            baseline.filter_new_violations(&collected.project_root, collected.violations)
+        }
+        None => collected.violations,
+    };
+
+    let report = report::Report::new(collected.files, filtered_violations);
+    let has_violations = report.has_violations();
+    let rendered_report = match opts.output_format {
+        OutputFormat::Text => report.render_text(opts.verbose),
+        OutputFormat::Json => report.render_json()?,
+        OutputFormat::Sarif => report.render_sarif()?,
+    };
+
+    write_report(workspace, opts.output_path, &rendered_report)?;
+
+    if has_violations {
+        return Ok(ExitCode::FAILURE);
+    }
+
+    Ok(ExitCode::SUCCESS)
+}
+
+struct CollectedViolations {
+    project_root: PathBuf,
+    files: Vec<PathBuf>,
+    violations: Vec<Violation>,
+}
+
+fn collect_violations(
+    workspace: &Path,
+    root_override: Option<PathBuf>,
+    scope_override: Option<PathBuf>,
+    git_flag: bool,
+    prompt_for_changed_files: bool,
+) -> Result<CollectedViolations> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
     let scan_scope = scope_override.map(|scope| resolve_path(workspace, scope));
 
@@ -120,7 +221,10 @@ fn lint_workspace(
         resolve_changed_files(workspace)
     } else {
         let changed_files = git::get_changed_typescript_files();
-        if !changed_files.is_empty() && git::prompt_scan_changed_files(&changed_files) {
+        if prompt_for_changed_files
+            && !changed_files.is_empty()
+            && git::prompt_scan_changed_files(&changed_files)
+        {
             resolve_changed_files(workspace)
         } else {
             discovery::discover_files(
@@ -166,16 +270,11 @@ fn lint_workspace(
     all_violations.append(&mut depth_violations);
     all_violations.append(&mut dump_violations);
 
-    let report = report::Report::new(files, all_violations);
-    let rendered_report = match output_format {
-        OutputFormat::Text => report.render_text(verbose),
-        OutputFormat::Json => report.render_json()?,
-        OutputFormat::Sarif => report.render_sarif()?,
-    };
-
-    write_report(workspace, output_path, &rendered_report)?;
-
-    Ok(())
+    Ok(CollectedViolations {
+        project_root: project_config.root,
+        files,
+        violations: all_violations,
+    })
 }
 
 fn write_report(

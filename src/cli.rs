@@ -40,18 +40,33 @@ pub struct CliOptions {
     /// Write output to a file.
     #[arg(short, long, global = true)]
     pub output: Option<PathBuf>,
+
+    /// Baseline file for suppressing existing violations.
+    #[arg(long, global = true, default_value = "niteo-baseline.json")]
+    pub baseline: PathBuf,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Create niteo.toml.
     Init,
+    /// Manage the current violation baseline.
+    Baseline {
+        #[command(subcommand)]
+        command: BaselineCommand,
+    },
     /// Scan for structural issues.
     Lint,
     /// List rules and severities.
     Rules,
     /// Explain a rule.
     Explain { rule: String },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum BaselineCommand {
+    /// Write current violations to the baseline file.
+    Create,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
