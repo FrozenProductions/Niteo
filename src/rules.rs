@@ -1,107 +1,98 @@
-mod boolean_prefix;
-mod component_file_only_components;
-mod entry_file_no_logic;
-mod hook_no_jsx;
-mod hook_prefix;
-mod max_directory_depth;
-mod max_file_exports;
-mod max_items_per_directory;
-mod min_items_per_directory;
-mod no_any;
-mod no_barrel_chain;
-mod no_barrel_files;
-mod no_comments;
-mod no_component_default_export;
-mod no_console;
-mod no_debugger;
-mod no_default_export;
-mod no_dump_files;
-mod no_duplicate_file_names;
-mod no_empty_directories;
-mod no_empty_interface;
-mod no_enums;
-mod no_eval;
-mod no_export_star;
-mod no_inline_types;
-mod no_interface;
-mod no_large_file;
-mod no_logic_in_barrel;
-mod no_logic_in_domain;
-mod no_mutable_exports;
-mod no_namespace;
-mod no_non_null_assertion;
-mod no_silent_catch;
-mod no_test_code_in_production;
-mod no_test_import;
-mod no_then_chain;
-mod no_upward_import;
-mod prefer_satisfies;
+macro_rules! declare_rules {
+    (
+        $( $mod_name:ident => { id: $rule_id:ident, value: $rule_value:literal, config: $config_type:ty $(, default_severity: $default_sev:expr )? } ),* $(,)?
+    ) => {
+        $( mod $mod_name; )*
 
-use anyhow::{Context, Result};
-use std::fs;
-use std::path::PathBuf;
+        use anyhow::{Context, Result};
+        use std::fs;
+        use std::path::PathBuf;
 
-use oxc_allocator::Allocator;
-use oxc_parser::Parser;
+        use oxc_allocator::Allocator;
+        use oxc_parser::Parser;
 
-use crate::config::{
-    MaxDirectoryDepthRuleConfig, MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig,
-    NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
-    ProjectConfig, Severity,
-};
-use crate::ignore;
+        use crate::config::{ProjectConfig, Severity};
+        use crate::ignore;
 
-pub type RuleId = &'static str;
+        pub type RuleId = &'static str;
 
-pub const BOOLEAN_PREFIX_RULE_ID: RuleId = "boolean-prefix";
-pub const COMPONENT_FILE_ONLY_COMPONENTS_RULE_ID: RuleId = "component-file-only-components";
-pub const HOOK_NO_JSX_RULE_ID: RuleId = "hook-no-jsx";
-pub const HOOK_PREFIX_RULE_ID: RuleId = "hook-prefix";
-pub const MAX_DIRECTORY_DEPTH_RULE_ID: RuleId = "max-directory-depth";
-pub const MAX_FILE_EXPORTS_RULE_ID: RuleId = "max-file-exports";
-pub const MAX_ITEMS_PER_DIRECTORY_RULE_ID: RuleId = "max-items-per-directory";
-pub const MIN_ITEMS_PER_DIRECTORY_RULE_ID: RuleId = "min-items-per-directory";
-pub const NO_BARREL_CHAIN_RULE_ID: RuleId = "no-barrel-chain";
-pub const NO_BARREL_FILES_RULE_ID: RuleId = "no-barrel-files";
-pub const NO_COMMENTS_RULE_ID: RuleId = "no-comments";
-pub const NO_CONSOLE_RULE_ID: RuleId = "no-console";
-pub const NO_DEBUGGER_RULE_ID: RuleId = "no-debugger";
-pub const NO_COMPONENT_DEFAULT_EXPORT_RULE_ID: RuleId = "no-component-default-export";
-pub const NO_DEFAULT_EXPORT_RULE_ID: RuleId = "no-default-export";
-pub const NO_DUPLICATE_FILE_NAMES_RULE_ID: RuleId = "no-duplicate-file-names";
-pub const NO_DUMP_FILES_RULE_ID: RuleId = "no-dump-files";
-pub const NO_EMPTY_DIRECTORIES_RULE_ID: RuleId = "no-empty-directories";
-pub const NO_EMPTY_INTERFACE_RULE_ID: RuleId = "no-empty-interface";
-pub const NO_ENUMS_RULE_ID: RuleId = "no-enums";
-pub const NO_EVAL_RULE_ID: RuleId = "no-eval";
-pub const NO_EXPORT_STAR_RULE_ID: RuleId = "no-export-star";
-pub const NO_INLINE_TYPES_RULE_ID: RuleId = "no-inline-types";
-pub const NO_INTERFACE_RULE_ID: RuleId = "no-interface";
-pub const NO_LARGE_FILE_RULE_ID: RuleId = "no-large-file";
-pub const NO_LOGIC_IN_BARREL_RULE_ID: RuleId = "no-logic-in-barrel";
-pub const NO_LOGIC_IN_DOMAIN_RULE_ID: RuleId = "no-logic-in-domain";
-pub const NO_MUTABLE_EXPORTS_RULE_ID: RuleId = "no-mutable-exports";
-pub const NO_NAMESPACE_RULE_ID: RuleId = "no-namespace";
-pub const NO_SILENT_CATCH_RULE_ID: RuleId = "no-silent-catch";
-pub const NO_TEST_CODE_IN_PRODUCTION_RULE_ID: RuleId = "no-test-code-in-production";
-pub const NO_THEN_CHAIN_RULE_ID: RuleId = "no-then-chain";
-pub const NO_UPWARD_IMPORT_RULE_ID: RuleId = "no-upward-import";
-pub const PREFER_SATISFIES_RULE_ID: RuleId = "prefer-satisfies";
-pub const NO_TEST_IMPORT_RULE_ID: RuleId = "no-test-import";
-pub const ENTRY_FILE_NO_LOGIC_RULE_ID: RuleId = "entry-file-no-logic";
-pub const NO_NON_NULL_ASSERTION_RULE_ID: RuleId = "no-non-null-assertion";
-pub const NO_ANY_RULE_ID: RuleId = "no-any";
+        $( pub const $rule_id: RuleId = $rule_value; )*
 
-#[derive(Debug, Clone)]
-pub struct Violation {
-    pub file: PathBuf,
-    pub line: Option<usize>,
-    pub column: Option<usize>,
-    pub rule: RuleId,
-    pub message: &'static str,
-    pub severity: Severity,
-    pub detail: Option<String>,
-    pub subject: Option<String>,
+        #[derive(Debug, Clone)]
+        pub struct Violation {
+            pub file: PathBuf,
+            pub line: Option<usize>,
+            pub column: Option<usize>,
+            pub rule: RuleId,
+            pub message: &'static str,
+            pub severity: Severity,
+            pub detail: Option<String>,
+            pub subject: Option<String>,
+        }
+
+        #[derive(Debug, Clone)]
+        pub struct RulesConfig {
+            $( pub $mod_name: $config_type, )*
+        }
+
+        impl Default for RulesConfig {
+            fn default() -> Self {
+                Self {
+                    $(
+                        $mod_name: {
+                            let mut cfg = <$config_type>::default();
+                            cfg.severity = declare_rules!(@sev $($default_sev)?);
+                            cfg
+                        },
+                    )*
+                }
+            }
+        }
+    };
+
+    (@sev) => { Severity::Warn };
+    (@sev $sev:expr) => { $sev };
+}
+
+declare_rules! {
+    boolean_prefix => { id: BOOLEAN_PREFIX_RULE_ID, value: "boolean-prefix", config: crate::config::BooleanPrefixRuleConfig },
+    component_file_only_components => { id: COMPONENT_FILE_ONLY_COMPONENTS_RULE_ID, value: "component-file-only-components", config: crate::config::RuleConfig },
+    entry_file_no_logic => { id: ENTRY_FILE_NO_LOGIC_RULE_ID, value: "entry-file-no-logic", config: crate::config::EntryFileNoLogicRuleConfig },
+    hook_no_jsx => { id: HOOK_NO_JSX_RULE_ID, value: "hook-no-jsx", config: crate::config::RuleConfig },
+    hook_prefix => { id: HOOK_PREFIX_RULE_ID, value: "hook-prefix", config: crate::config::HookPrefixRuleConfig },
+    max_directory_depth => { id: MAX_DIRECTORY_DEPTH_RULE_ID, value: "max-directory-depth", config: crate::config::MaxDirectoryDepthRuleConfig },
+    max_file_exports => { id: MAX_FILE_EXPORTS_RULE_ID, value: "max-file-exports", config: crate::config::FileExportsRuleConfig },
+    max_items_per_directory => { id: MAX_ITEMS_PER_DIRECTORY_RULE_ID, value: "max-items-per-directory", config: crate::config::MaxItemsPerDirectoryRuleConfig },
+    min_items_per_directory => { id: MIN_ITEMS_PER_DIRECTORY_RULE_ID, value: "min-items-per-directory", config: crate::config::MinItemsPerDirectoryRuleConfig },
+    no_any => { id: NO_ANY_RULE_ID, value: "no-any", config: crate::config::NoAnyRuleConfig },
+    no_barrel_chain => { id: NO_BARREL_CHAIN_RULE_ID, value: "no-barrel-chain", config: crate::config::RuleConfig },
+    no_barrel_files => { id: NO_BARREL_FILES_RULE_ID, value: "no-barrel-files", config: crate::config::RuleConfig },
+    no_comments => { id: NO_COMMENTS_RULE_ID, value: "no-comments", config: crate::config::CommentsRuleConfig },
+    no_component_default_export => { id: NO_COMPONENT_DEFAULT_EXPORT_RULE_ID, value: "no-component-default-export", config: crate::config::RuleConfig },
+    no_console => { id: NO_CONSOLE_RULE_ID, value: "no-console", config: crate::config::NoConsoleRuleConfig },
+    no_debugger => { id: NO_DEBUGGER_RULE_ID, value: "no-debugger", config: crate::config::RuleConfig },
+    no_default_export => { id: NO_DEFAULT_EXPORT_RULE_ID, value: "no-default-export", config: crate::config::RuleConfig },
+    no_dump_files => { id: NO_DUMP_FILES_RULE_ID, value: "no-dump-files", config: crate::config::NoDumpFilesRuleConfig },
+    no_duplicate_file_names => { id: NO_DUPLICATE_FILE_NAMES_RULE_ID, value: "no-duplicate-file-names", config: crate::config::NoDuplicateFileNamesRuleConfig },
+    no_empty_directories => { id: NO_EMPTY_DIRECTORIES_RULE_ID, value: "no-empty-directories", config: crate::config::NoEmptyDirectoriesRuleConfig },
+    no_empty_interface => { id: NO_EMPTY_INTERFACE_RULE_ID, value: "no-empty-interface", config: crate::config::RuleConfig, default_severity: Severity::Error },
+    no_enums => { id: NO_ENUMS_RULE_ID, value: "no-enums", config: crate::config::RuleConfig },
+    no_eval => { id: NO_EVAL_RULE_ID, value: "no-eval", config: crate::config::RuleConfig },
+    no_export_star => { id: NO_EXPORT_STAR_RULE_ID, value: "no-export-star", config: crate::config::RuleConfig },
+    no_inline_types => { id: NO_INLINE_TYPES_RULE_ID, value: "no-inline-types", config: crate::config::RuleConfig },
+    no_interface => { id: NO_INTERFACE_RULE_ID, value: "no-interface", config: crate::config::NoInterfaceRuleConfig },
+    no_large_file => { id: NO_LARGE_FILE_RULE_ID, value: "no-large-file", config: crate::config::FileLengthRuleConfig },
+    no_logic_in_barrel => { id: NO_LOGIC_IN_BARREL_RULE_ID, value: "no-logic-in-barrel", config: crate::config::RuleConfig },
+    no_logic_in_domain => { id: NO_LOGIC_IN_DOMAIN_RULE_ID, value: "no-logic-in-domain", config: crate::config::RuleConfig },
+    no_mutable_exports => { id: NO_MUTABLE_EXPORTS_RULE_ID, value: "no-mutable-exports", config: crate::config::RuleConfig },
+    no_namespace => { id: NO_NAMESPACE_RULE_ID, value: "no-namespace", config: crate::config::RuleConfig },
+    no_non_null_assertion => { id: NO_NON_NULL_ASSERTION_RULE_ID, value: "no-non-null-assertion", config: crate::config::RuleConfig },
+    no_silent_catch => { id: NO_SILENT_CATCH_RULE_ID, value: "no-silent-catch", config: crate::config::RuleConfig },
+    no_test_code_in_production => { id: NO_TEST_CODE_IN_PRODUCTION_RULE_ID, value: "no-test-code-in-production", config: crate::config::RuleConfig },
+    no_test_import => { id: NO_TEST_IMPORT_RULE_ID, value: "no-test-import", config: crate::config::RuleConfig },
+    no_then_chain => { id: NO_THEN_CHAIN_RULE_ID, value: "no-then-chain", config: crate::config::RuleConfig },
+    no_upward_import => { id: NO_UPWARD_IMPORT_RULE_ID, value: "no-upward-import", config: crate::config::UpwardImportRuleConfig },
+    prefer_satisfies => { id: PREFER_SATISFIES_RULE_ID, value: "prefer-satisfies", config: crate::config::RuleConfig, default_severity: Severity::Info },
 }
 
 pub fn check_files(
@@ -194,20 +185,6 @@ pub fn check_files(
             None
         };
 
-        if config.rules.no_comments.severity.is_enabled() {
-            file_violations.extend(no_comments::check_file(
-                file,
-                &source,
-                &config.rules.no_comments,
-            ));
-        }
-        if config.rules.no_logic_in_barrel.severity.is_enabled() {
-            file_violations.extend(no_logic_in_barrel::check_file(
-                file,
-                &source,
-                &config.rules.no_logic_in_barrel,
-            ));
-        }
         if let Some(ref program) = parse_result {
             if config.rules.boolean_prefix.severity.is_enabled() {
                 file_violations.extend(boolean_prefix::check_file(
@@ -434,6 +411,20 @@ pub fn check_files(
                 ));
             }
         }
+        if config.rules.no_comments.severity.is_enabled() {
+            file_violations.extend(no_comments::check_file(
+                file,
+                &source,
+                &config.rules.no_comments,
+            ));
+        }
+        if config.rules.no_logic_in_barrel.severity.is_enabled() {
+            file_violations.extend(no_logic_in_barrel::check_file(
+                file,
+                &source,
+                &config.rules.no_logic_in_barrel,
+            ));
+        }
         if config.rules.no_large_file.severity.is_enabled() {
             file_violations.extend(no_large_file::check_file(
                 file,
@@ -511,7 +502,7 @@ pub fn check_files(
 
 pub fn check_directories(
     root: &std::path::Path,
-    no_empty_directories: NoEmptyDirectoriesRuleConfig,
+    no_empty_directories: crate::config::NoEmptyDirectoriesRuleConfig,
 ) -> Vec<Violation> {
     if !no_empty_directories.severity.is_enabled() {
         return Vec::new();
@@ -522,7 +513,7 @@ pub fn check_directories(
 
 pub fn check_duplicate_file_names(
     files: &[PathBuf],
-    no_duplicate_file_names: NoDuplicateFileNamesRuleConfig,
+    no_duplicate_file_names: crate::config::NoDuplicateFileNamesRuleConfig,
 ) -> Vec<Violation> {
     if !no_duplicate_file_names.severity.is_enabled() {
         return Vec::new();
@@ -533,7 +524,7 @@ pub fn check_duplicate_file_names(
 
 pub fn check_max_items_per_directory(
     root: &std::path::Path,
-    config: MaxItemsPerDirectoryRuleConfig,
+    config: crate::config::MaxItemsPerDirectoryRuleConfig,
 ) -> Vec<Violation> {
     if !config.severity.is_enabled() {
         return Vec::new();
@@ -544,7 +535,7 @@ pub fn check_max_items_per_directory(
 
 pub fn check_min_items_per_directory(
     root: &std::path::Path,
-    config: MinItemsPerDirectoryRuleConfig,
+    config: crate::config::MinItemsPerDirectoryRuleConfig,
 ) -> Vec<Violation> {
     if !config.severity.is_enabled() {
         return Vec::new();
@@ -555,7 +546,7 @@ pub fn check_min_items_per_directory(
 
 pub fn check_max_directory_depth(
     root: &std::path::Path,
-    config: MaxDirectoryDepthRuleConfig,
+    config: crate::config::MaxDirectoryDepthRuleConfig,
 ) -> Vec<Violation> {
     if !config.severity.is_enabled() {
         return Vec::new();
@@ -564,7 +555,10 @@ pub fn check_max_directory_depth(
     max_directory_depth::check_directories(root, &config)
 }
 
-pub fn check_dump_files(files: &[PathBuf], config: NoDumpFilesRuleConfig) -> Vec<Violation> {
+pub fn check_dump_files(
+    files: &[PathBuf],
+    config: crate::config::NoDumpFilesRuleConfig,
+) -> Vec<Violation> {
     if !config.severity.is_enabled() {
         return Vec::new();
     }

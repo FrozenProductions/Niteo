@@ -19,8 +19,16 @@ pub(crate) struct RuleOption {
     pub(crate) description: &'static str,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum RuleKind {
+macro_rules! define_rule_kinds {
+    ( $( $variant:ident ),* $(,)? ) => {
+        #[derive(Debug, Clone, Copy)]
+        pub(crate) enum RuleKind {
+            $( $variant, )*
+        }
+    };
+}
+
+define_rule_kinds! {
     BooleanPrefix,
     ComponentFileOnlyComponents,
     HookNoJsx,

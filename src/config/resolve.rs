@@ -4,8 +4,9 @@ use std::path::{Path, PathBuf};
 
 use super::defaults::{CONFIG_FILE_NAME, DEFAULT_CONFIG_SOURCE};
 use super::raw::RawConfig;
-use super::rules::{GitignoreConfig, RulesConfig};
+use super::rules::GitignoreConfig;
 use super::structure::ProjectStructureConfig;
+use crate::rules::RulesConfig;
 
 #[derive(Debug, Clone)]
 pub struct ProjectConfig {

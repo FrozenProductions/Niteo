@@ -7,10 +7,11 @@ use super::rules::{
     FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
     MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAnyRuleConfig,
     NoConsoleRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
-    NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig, RuleConfig, RulesConfig, Severity,
+    NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig, RuleConfig, Severity,
     UpwardImportRuleConfig,
 };
 use super::structure::{DomainConfig, ProjectStructureConfig};
+use crate::rules::RulesConfig;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct RawConfig {
@@ -18,54 +19,106 @@ pub struct RawConfig {
     pub rules: Option<HashMap<String, RawRuleConfig>>,
 }
 
-impl RawConfig {
-    pub fn rule(&self, name: &str) -> Option<&RawRuleConfig> {
-        self.rules.as_ref().and_then(|rules| rules.get(name))
-    }
-
-    pub fn rules_config(&self) -> RulesConfig {
-        RulesConfig {
-            boolean_prefix: self.boolean_prefix(),
-            component_file_only_components: self.component_file_only_components(),
-            hook_no_jsx: self.hook_no_jsx(),
-            hook_prefix: self.hook_prefix(),
-            max_directory_depth: self.max_directory_depth(),
-            max_file_exports: self.max_file_exports(),
-            max_items_per_directory: self.max_items_per_directory(),
-            min_items_per_directory: self.min_items_per_directory(),
-            no_barrel_chain: self.no_barrel_chain(),
-            no_barrel_files: self.no_barrel_files(),
-            no_comments: self.no_comments(),
-            no_console: self.no_console(),
-            no_debugger: self.no_debugger(),
-            no_component_default_export: self.no_component_default_export(),
-            no_default_export: self.no_default_export(),
-            no_duplicate_file_names: self.no_duplicate_file_names(),
-            no_dump_files: self.no_dump_files(),
-            no_empty_directories: self.no_empty_directories(),
-            entry_file_no_logic: self.entry_file_no_logic(),
-            no_empty_interface: self.no_empty_interface(),
-            no_enums: self.no_enums(),
-            no_eval: self.no_eval(),
-            no_export_star: self.no_export_star(),
-            no_inline_types: self.no_inline_types(),
-            no_interface: self.no_interface(),
-            no_large_file: self.no_large_file(),
-            no_logic_in_barrel: self.no_logic_in_barrel(),
-            no_logic_in_domain: self.no_logic_in_domain(),
-            no_mutable_exports: self.no_mutable_exports(),
-            no_namespace: self.no_namespace(),
-            no_silent_catch: self.no_silent_catch(),
-            no_test_code_in_production: self.no_test_code_in_production(),
-            no_then_chain: self.no_then_chain(),
-            no_upward_import: self.no_upward_import(),
-            prefer_satisfies: self.prefer_satisfies(),
-            no_test_import: self.no_test_import(),
-            no_non_null_assertion: self.no_non_null_assertion(),
-            no_any: self.no_any(),
+macro_rules! declare_raw_rules {
+    (
+        simple {
+            $( $simple_method:ident => $simple_name:literal ),* $(,)?
         }
-    }
+        custom_default {
+            $( $cd_method:ident => ($cd_name:literal, $cd_sev:expr) ),* $(,)?
+        }
+        custom {
+            $( $custom_method:ident => ($custom_name:literal, $custom_converter:ident, $custom_type:ty) ),* $(,)?
+        }
+    ) => {
+        impl RawConfig {
+            pub fn rule(&self, name: &str) -> Option<&RawRuleConfig> {
+                self.rules.as_ref().and_then(|rules| rules.get(name))
+            }
 
+            pub fn rules_config(&self) -> RulesConfig {
+                RulesConfig {
+                    $( $simple_method: self.$simple_method(), )*
+                    $( $cd_method: self.$cd_method(), )*
+                    $( $custom_method: self.$custom_method(), )*
+                }
+            }
+
+            $(
+                fn $simple_method(&self) -> RuleConfig {
+                    self.rule($simple_name)
+                        .map(RawRuleConfig::to_rule_config)
+                        .unwrap_or_default()
+                }
+            )*
+
+            $(
+                fn $cd_method(&self) -> RuleConfig {
+                    self.rule($cd_name)
+                        .map(|rule| rule.to_rule_config_with_default($cd_sev))
+                        .unwrap_or(RuleConfig { severity: $cd_sev })
+                }
+            )*
+
+            $(
+                fn $custom_method(&self) -> $custom_type {
+                    self.rule($custom_name)
+                        .map(RawRuleConfig::$custom_converter)
+                        .unwrap_or_default()
+                }
+            )*
+        }
+    };
+}
+
+declare_raw_rules! {
+    simple {
+        component_file_only_components => "component-file-only-components",
+        hook_no_jsx => "hook-no-jsx",
+        no_barrel_chain => "no-barrel-chain",
+        no_barrel_files => "no-barrel-files",
+        no_component_default_export => "no-component-default-export",
+        no_debugger => "no-debugger",
+        no_default_export => "no-default-export",
+        no_enums => "no-enums",
+        no_eval => "no-eval",
+        no_export_star => "no-export-star",
+        no_inline_types => "no-inline-types",
+        no_logic_in_barrel => "no-logic-in-barrel",
+        no_logic_in_domain => "no-logic-in-domain",
+        no_mutable_exports => "no-mutable-exports",
+        no_namespace => "no-namespace",
+        no_non_null_assertion => "no-non-null-assertion",
+        no_silent_catch => "no-silent-catch",
+        no_test_code_in_production => "no-test-code-in-production",
+        no_test_import => "no-test-import",
+        no_then_chain => "no-then-chain",
+    }
+    custom_default {
+        no_empty_interface => ("no-empty-interface", Severity::Error),
+        prefer_satisfies => ("prefer-satisfies", Severity::Info),
+    }
+    custom {
+        boolean_prefix => ("boolean-prefix", to_boolean_prefix_config, BooleanPrefixRuleConfig),
+        entry_file_no_logic => ("entry-file-no-logic", to_entry_file_no_logic_config, EntryFileNoLogicRuleConfig),
+        hook_prefix => ("hook-prefix", to_hook_prefix_config, HookPrefixRuleConfig),
+        max_directory_depth => ("max-directory-depth", to_max_directory_depth_config, MaxDirectoryDepthRuleConfig),
+        max_file_exports => ("max-file-exports", to_file_exports_config, FileExportsRuleConfig),
+        max_items_per_directory => ("max-items-per-directory", to_max_items_per_directory_config, MaxItemsPerDirectoryRuleConfig),
+        min_items_per_directory => ("min-items-per-directory", to_min_items_per_directory_config, MinItemsPerDirectoryRuleConfig),
+        no_any => ("no-any", to_no_any_config, NoAnyRuleConfig),
+        no_comments => ("no-comments", to_comments_config, CommentsRuleConfig),
+        no_console => ("no-console", to_no_console_config, NoConsoleRuleConfig),
+        no_dump_files => ("no-dump-files", to_no_dump_files_config, NoDumpFilesRuleConfig),
+        no_duplicate_file_names => ("no-duplicate-file-names", to_no_duplicate_file_names_config, NoDuplicateFileNamesRuleConfig),
+        no_empty_directories => ("no-empty-directories", to_no_empty_directories_config, NoEmptyDirectoriesRuleConfig),
+        no_interface => ("no-interface", to_no_interface_config, NoInterfaceRuleConfig),
+        no_large_file => ("no-large-file", to_file_length_config, FileLengthRuleConfig),
+        no_upward_import => ("no-upward-import", to_upward_import_config, UpwardImportRuleConfig),
+    }
+}
+
+impl RawConfig {
     pub fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
@@ -106,238 +159,6 @@ impl RawConfig {
                 .map(|d| d.to_domain_config(&defaults.generated))
                 .unwrap_or(defaults.generated),
         }
-    }
-
-    fn no_comments(&self) -> CommentsRuleConfig {
-        self.rule("no-comments")
-            .map(RawRuleConfig::to_comments_config)
-            .unwrap_or_default()
-    }
-
-    fn no_logic_in_barrel(&self) -> RuleConfig {
-        self.rule("no-logic-in-barrel")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_component_default_export(&self) -> RuleConfig {
-        self.rule("no-component-default-export")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_default_export(&self) -> RuleConfig {
-        self.rule("no-default-export")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_export_star(&self) -> RuleConfig {
-        self.rule("no-export-star")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_inline_types(&self) -> RuleConfig {
-        self.rule("no-inline-types")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn max_file_exports(&self) -> FileExportsRuleConfig {
-        self.rule("max-file-exports")
-            .map(RawRuleConfig::to_file_exports_config)
-            .unwrap_or_default()
-    }
-
-    fn no_upward_import(&self) -> UpwardImportRuleConfig {
-        self.rule("no-upward-import")
-            .map(RawRuleConfig::to_upward_import_config)
-            .unwrap_or_default()
-    }
-
-    fn no_large_file(&self) -> FileLengthRuleConfig {
-        self.rule("no-large-file")
-            .map(RawRuleConfig::to_file_length_config)
-            .unwrap_or_default()
-    }
-
-    fn no_enums(&self) -> RuleConfig {
-        self.rule("no-enums")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_barrel_files(&self) -> RuleConfig {
-        self.rule("no-barrel-files")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_barrel_chain(&self) -> RuleConfig {
-        self.rule("no-barrel-chain")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn boolean_prefix(&self) -> BooleanPrefixRuleConfig {
-        self.rule("boolean-prefix")
-            .map(RawRuleConfig::to_boolean_prefix_config)
-            .unwrap_or_default()
-    }
-
-    fn no_console(&self) -> NoConsoleRuleConfig {
-        self.rule("no-console")
-            .map(RawRuleConfig::to_no_console_config)
-            .unwrap_or_default()
-    }
-
-    fn no_debugger(&self) -> RuleConfig {
-        self.rule("no-debugger")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_eval(&self) -> RuleConfig {
-        self.rule("no-eval")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_logic_in_domain(&self) -> RuleConfig {
-        self.rule("no-logic-in-domain")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_empty_directories(&self) -> NoEmptyDirectoriesRuleConfig {
-        self.rule("no-empty-directories")
-            .map(RawRuleConfig::to_no_empty_directories_config)
-            .unwrap_or_default()
-    }
-
-    fn no_duplicate_file_names(&self) -> NoDuplicateFileNamesRuleConfig {
-        self.rule("no-duplicate-file-names")
-            .map(RawRuleConfig::to_no_duplicate_file_names_config)
-            .unwrap_or_default()
-    }
-
-    fn max_items_per_directory(&self) -> MaxItemsPerDirectoryRuleConfig {
-        self.rule("max-items-per-directory")
-            .map(RawRuleConfig::to_max_items_per_directory_config)
-            .unwrap_or_default()
-    }
-
-    fn min_items_per_directory(&self) -> MinItemsPerDirectoryRuleConfig {
-        self.rule("min-items-per-directory")
-            .map(RawRuleConfig::to_min_items_per_directory_config)
-            .unwrap_or_default()
-    }
-
-    fn max_directory_depth(&self) -> MaxDirectoryDepthRuleConfig {
-        self.rule("max-directory-depth")
-            .map(RawRuleConfig::to_max_directory_depth_config)
-            .unwrap_or_default()
-    }
-
-    fn no_empty_interface(&self) -> RuleConfig {
-        self.rule("no-empty-interface")
-            .map(|rule| rule.to_rule_config_with_default(Severity::Error))
-            .unwrap_or(RuleConfig {
-                severity: Severity::Error,
-            })
-    }
-
-    fn no_interface(&self) -> NoInterfaceRuleConfig {
-        self.rule("no-interface")
-            .map(RawRuleConfig::to_no_interface_config)
-            .unwrap_or_default()
-    }
-
-    fn no_mutable_exports(&self) -> RuleConfig {
-        self.rule("no-mutable-exports")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_namespace(&self) -> RuleConfig {
-        self.rule("no-namespace")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_silent_catch(&self) -> RuleConfig {
-        self.rule("no-silent-catch")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_test_code_in_production(&self) -> RuleConfig {
-        self.rule("no-test-code-in-production")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_then_chain(&self) -> RuleConfig {
-        self.rule("no-then-chain")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn prefer_satisfies(&self) -> RuleConfig {
-        self.rule("prefer-satisfies")
-            .map(|rule| rule.to_rule_config_with_default(Severity::Info))
-            .unwrap_or(RuleConfig {
-                severity: Severity::Info,
-            })
-    }
-
-    fn no_test_import(&self) -> RuleConfig {
-        self.rule("no-test-import")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn hook_no_jsx(&self) -> RuleConfig {
-        self.rule("hook-no-jsx")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn component_file_only_components(&self) -> RuleConfig {
-        self.rule("component-file-only-components")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn hook_prefix(&self) -> HookPrefixRuleConfig {
-        self.rule("hook-prefix")
-            .map(RawRuleConfig::to_hook_prefix_config)
-            .unwrap_or_default()
-    }
-
-    fn no_dump_files(&self) -> NoDumpFilesRuleConfig {
-        self.rule("no-dump-files")
-            .map(RawRuleConfig::to_no_dump_files_config)
-            .unwrap_or_default()
-    }
-
-    fn no_non_null_assertion(&self) -> RuleConfig {
-        self.rule("no-non-null-assertion")
-            .map(RawRuleConfig::to_rule_config)
-            .unwrap_or_default()
-    }
-
-    fn no_any(&self) -> NoAnyRuleConfig {
-        self.rule("no-any")
-            .map(RawRuleConfig::to_no_any_config)
-            .unwrap_or_default()
-    }
-
-    fn entry_file_no_logic(&self) -> EntryFileNoLogicRuleConfig {
-        self.rule("entry-file-no-logic")
-            .map(RawRuleConfig::to_entry_file_no_logic_config)
-            .unwrap_or_default()
     }
 }
 
@@ -381,6 +202,39 @@ impl RawDomainConfig {
     }
 }
 
+macro_rules! declare_option_converters {
+    (
+        $(
+            $method:ident => ($config_type:ty) {
+                $( $field:ident: default($default:expr) ),* $(,)?
+                ;
+                $( $clone_field:ident: clone_default ),* $(,)?
+            }
+        ),* $(,)?
+    ) => {
+        $(
+            pub fn $method(&self) -> $config_type {
+                match self {
+                    Self::Severity(severity) => {
+                        let mut cfg = <$config_type>::default();
+                        cfg.severity = Severity::from_str(severity);
+                        cfg
+                    }
+                    Self::Options(options) => {
+                        let mut cfg = <$config_type>::default();
+                        cfg.severity = Severity::from_str(
+                            options.severity.as_deref().unwrap_or("warn"),
+                        );
+                        $( cfg.$field = options.$field.unwrap_or($default); )*
+                        $( cfg.$clone_field = options.$clone_field.clone().unwrap_or_default(); )*
+                        cfg
+                    }
+                }
+            }
+        )*
+    };
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum RawRuleConfig {
@@ -389,19 +243,6 @@ pub enum RawRuleConfig {
 }
 
 impl RawRuleConfig {
-    pub fn to_comments_config(&self) -> CommentsRuleConfig {
-        match self {
-            Self::Severity(severity) => CommentsRuleConfig {
-                severity: Severity::from_str(severity),
-                allow_doc_comments: true,
-            },
-            Self::Options(options) => CommentsRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                allow_doc_comments: options.allow_doc_comments.unwrap_or(true),
-            },
-        }
-    }
-
     pub fn to_rule_config(&self) -> RuleConfig {
         self.to_rule_config_with_default(Severity::Warn)
     }
@@ -421,212 +262,76 @@ impl RawRuleConfig {
         }
     }
 
-    pub fn to_file_length_config(&self) -> FileLengthRuleConfig {
-        match self {
-            Self::Severity(severity) => FileLengthRuleConfig {
-                severity: Severity::from_str(severity),
-                max_lines: FileLengthRuleConfig::default().max_lines,
-            },
-            Self::Options(options) => FileLengthRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                max_lines: options
-                    .max_lines
-                    .unwrap_or(FileLengthRuleConfig::default().max_lines),
-            },
-        }
-    }
-
-    pub fn to_file_exports_config(&self) -> FileExportsRuleConfig {
-        match self {
-            Self::Severity(severity) => FileExportsRuleConfig {
-                severity: Severity::from_str(severity),
-                max_exports: 10,
-            },
-            Self::Options(options) => FileExportsRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                max_exports: options.max_exports.unwrap_or(10),
-            },
-        }
-    }
-
-    pub fn to_upward_import_config(&self) -> UpwardImportRuleConfig {
-        match self {
-            Self::Severity(severity) => UpwardImportRuleConfig {
-                severity: Severity::from_str(severity),
-                max_depth: 0,
-            },
-            Self::Options(options) => UpwardImportRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                max_depth: options.max_depth.unwrap_or(0),
-            },
-        }
-    }
-
-    pub fn to_no_empty_directories_config(&self) -> NoEmptyDirectoriesRuleConfig {
-        match self {
-            Self::Severity(severity) => NoEmptyDirectoriesRuleConfig {
-                severity: Severity::from_str(severity),
-                ignore_dirs: vec![],
-            },
-            Self::Options(options) => NoEmptyDirectoriesRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
-            },
-        }
-    }
-
-    pub fn to_no_console_config(&self) -> NoConsoleRuleConfig {
-        match self {
-            Self::Severity(severity) => NoConsoleRuleConfig {
-                severity: Severity::from_str(severity),
-                allow_patterns: vec![],
-            },
-            Self::Options(options) => NoConsoleRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                allow_patterns: options.allow_patterns.clone().unwrap_or_default(),
-            },
-        }
-    }
-
-    pub fn to_no_duplicate_file_names_config(&self) -> NoDuplicateFileNamesRuleConfig {
-        match self {
-            Self::Severity(severity) => NoDuplicateFileNamesRuleConfig {
-                severity: Severity::from_str(severity),
-                ignore_names: vec![],
-            },
-            Self::Options(options) => NoDuplicateFileNamesRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                ignore_names: options.ignore_names.clone().unwrap_or_default(),
-            },
-        }
-    }
-
-    pub fn to_max_items_per_directory_config(&self) -> MaxItemsPerDirectoryRuleConfig {
-        match self {
-            Self::Severity(severity) => MaxItemsPerDirectoryRuleConfig {
-                severity: Severity::from_str(severity),
-                max_items: 20,
-                ignore_dirs: vec![],
-                count_folders: false,
-            },
-            Self::Options(options) => MaxItemsPerDirectoryRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                max_items: options.max_items.unwrap_or(20),
-                ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
-                count_folders: options.count_folders.unwrap_or(false),
-            },
-        }
-    }
-
-    pub fn to_min_items_per_directory_config(&self) -> MinItemsPerDirectoryRuleConfig {
-        match self {
-            Self::Severity(severity) => MinItemsPerDirectoryRuleConfig {
-                severity: Severity::from_str(severity),
-                min_items: 3,
-                ignore_dirs: vec![],
-                count_folders: false,
-            },
-            Self::Options(options) => MinItemsPerDirectoryRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                min_items: options.min_items.unwrap_or(3),
-                ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
-                count_folders: options.count_folders.unwrap_or(false),
-            },
-        }
-    }
-
-    pub fn to_max_directory_depth_config(&self) -> MaxDirectoryDepthRuleConfig {
-        match self {
-            Self::Severity(severity) => MaxDirectoryDepthRuleConfig {
-                severity: Severity::from_str(severity),
-                max_depth: 5,
-                ignore_dirs: vec![],
-            },
-            Self::Options(options) => MaxDirectoryDepthRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                max_depth: options.max_depth.unwrap_or(5),
-                ignore_dirs: options.ignore_dirs.clone().unwrap_or_default(),
-            },
-        }
-    }
-
-    pub fn to_no_interface_config(&self) -> NoInterfaceRuleConfig {
-        match self {
-            Self::Severity(severity) => NoInterfaceRuleConfig {
-                severity: Severity::from_str(severity),
-                allow_declaration_merging: true,
-            },
-            Self::Options(options) => NoInterfaceRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                allow_declaration_merging: options.allow_declaration_merging.unwrap_or(true),
-            },
-        }
-    }
-
-    pub fn to_no_dump_files_config(&self) -> NoDumpFilesRuleConfig {
-        match self {
-            Self::Severity(severity) => NoDumpFilesRuleConfig {
-                severity: Severity::from_str(severity),
-                extra_names: vec![],
-            },
-            Self::Options(options) => NoDumpFilesRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                extra_names: options.extra_names.clone().unwrap_or_default(),
-            },
-        }
-    }
-
-    pub fn to_boolean_prefix_config(&self) -> BooleanPrefixRuleConfig {
-        match self {
-            Self::Severity(severity) => BooleanPrefixRuleConfig {
-                severity: Severity::from_str(severity),
-                prefixes: vec![],
-                ignore_constants: false,
-            },
-            Self::Options(options) => BooleanPrefixRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                prefixes: options.prefixes.clone().unwrap_or_default(),
-                ignore_constants: options.ignore_constants.unwrap_or(false),
-            },
-        }
-    }
-
-    pub fn to_no_any_config(&self) -> NoAnyRuleConfig {
-        match self {
-            Self::Severity(severity) => NoAnyRuleConfig {
-                severity: Severity::from_str(severity),
-                allowed_folders: vec![],
-            },
-            Self::Options(options) => NoAnyRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                allowed_folders: options.allowed_folders.clone().unwrap_or_default(),
-            },
-        }
-    }
-
-    pub fn to_entry_file_no_logic_config(&self) -> EntryFileNoLogicRuleConfig {
-        match self {
-            Self::Severity(severity) => EntryFileNoLogicRuleConfig {
-                severity: Severity::from_str(severity),
-                entry_files: vec![],
-            },
-            Self::Options(options) => EntryFileNoLogicRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                entry_files: options.entry_files.clone().unwrap_or_default(),
-            },
-        }
-    }
-
-    pub fn to_hook_prefix_config(&self) -> HookPrefixRuleConfig {
-        match self {
-            Self::Severity(severity) => HookPrefixRuleConfig {
-                severity: Severity::from_str(severity),
-                prefixes: vec![],
-            },
-            Self::Options(options) => HookPrefixRuleConfig {
-                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
-                prefixes: options.prefixes.clone().unwrap_or_default(),
-            },
+    declare_option_converters! {
+        to_boolean_prefix_config => (BooleanPrefixRuleConfig) {
+            ignore_constants: default(false)
+            ;
+            prefixes: clone_default
+        },
+        to_comments_config => (CommentsRuleConfig) {
+            allow_doc_comments: default(true)
+            ;
+        },
+        to_entry_file_no_logic_config => (EntryFileNoLogicRuleConfig) {
+            ;
+            entry_files: clone_default
+        },
+        to_file_exports_config => (FileExportsRuleConfig) {
+            max_exports: default(10)
+            ;
+        },
+        to_file_length_config => (FileLengthRuleConfig) {
+            max_lines: default(FileLengthRuleConfig::default().max_lines)
+            ;
+        },
+        to_hook_prefix_config => (HookPrefixRuleConfig) {
+            ;
+            prefixes: clone_default
+        },
+        to_max_directory_depth_config => (MaxDirectoryDepthRuleConfig) {
+            max_depth: default(5)
+            ;
+            ignore_dirs: clone_default
+        },
+        to_max_items_per_directory_config => (MaxItemsPerDirectoryRuleConfig) {
+            max_items: default(20),
+            count_folders: default(false)
+            ;
+            ignore_dirs: clone_default
+        },
+        to_min_items_per_directory_config => (MinItemsPerDirectoryRuleConfig) {
+            min_items: default(3),
+            count_folders: default(false)
+            ;
+            ignore_dirs: clone_default
+        },
+        to_no_any_config => (NoAnyRuleConfig) {
+            ;
+            allowed_folders: clone_default
+        },
+        to_no_console_config => (NoConsoleRuleConfig) {
+            ;
+            allow_patterns: clone_default
+        },
+        to_no_dump_files_config => (NoDumpFilesRuleConfig) {
+            ;
+            extra_names: clone_default
+        },
+        to_no_duplicate_file_names_config => (NoDuplicateFileNamesRuleConfig) {
+            ;
+            ignore_names: clone_default
+        },
+        to_no_empty_directories_config => (NoEmptyDirectoriesRuleConfig) {
+            ;
+            ignore_dirs: clone_default
+        },
+        to_no_interface_config => (NoInterfaceRuleConfig) {
+            allow_declaration_merging: default(true)
+            ;
+        },
+        to_upward_import_config => (UpwardImportRuleConfig) {
+            max_depth: default(0)
+            ;
         }
     }
 }
