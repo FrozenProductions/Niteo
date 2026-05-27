@@ -58,6 +58,7 @@ impl RawConfig {
             no_then_chain: self.no_then_chain(),
             no_upward_import: self.no_upward_import(),
             prefer_satisfies: self.prefer_satisfies(),
+            no_test_import: self.no_test_import(),
         }
     }
 
@@ -281,6 +282,12 @@ impl RawConfig {
             .unwrap_or(RuleConfig {
                 severity: Severity::Info,
             })
+    }
+
+    fn no_test_import(&self) -> RuleConfig {
+        self.rule("no-test-import")
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
     }
 
     fn hook_no_jsx(&self) -> RuleConfig {

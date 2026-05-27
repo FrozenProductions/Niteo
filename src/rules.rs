@@ -29,6 +29,7 @@ mod no_mutable_exports;
 mod no_namespace;
 mod no_silent_catch;
 mod no_test_code_in_production;
+mod no_test_import;
 mod no_then_chain;
 mod no_upward_import;
 mod prefer_satisfies;
@@ -83,6 +84,7 @@ pub const NO_TEST_CODE_IN_PRODUCTION_RULE_ID: RuleId = "no-test-code-in-producti
 pub const NO_THEN_CHAIN_RULE_ID: RuleId = "no-then-chain";
 pub const NO_UPWARD_IMPORT_RULE_ID: RuleId = "no-upward-import";
 pub const PREFER_SATISFIES_RULE_ID: RuleId = "prefer-satisfies";
+pub const NO_TEST_IMPORT_RULE_ID: RuleId = "no-test-import";
 
 #[derive(Debug, Clone)]
 pub struct Violation {
@@ -138,7 +140,8 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
             .rules
             .component_file_only_components
             .severity
-            .is_enabled();
+            .is_enabled()
+        || config.rules.no_test_import.severity.is_enabled();
 
     if !needs_scan && !needs_ast {
         return Ok(violations);
@@ -375,6 +378,15 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     &line_index,
                     &config.rules.component_file_only_components,
                     &config.structure.components,
+                ));
+            }
+            if config.rules.no_test_import.severity.is_enabled() {
+                file_violations.extend(no_test_import::check_file(
+                    file,
+                    program,
+                    &line_index,
+                    &config.rules.no_test_import,
+                    &config.structure.tests,
                 ));
             }
         }

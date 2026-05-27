@@ -312,6 +312,7 @@ pub struct RulesConfig {
     pub no_then_chain: RuleConfig,
     pub no_upward_import: UpwardImportRuleConfig,
     pub prefer_satisfies: RuleConfig,
+    pub no_test_import: RuleConfig,
 }
 
 impl Default for RulesConfig {
@@ -355,6 +356,7 @@ impl Default for RulesConfig {
             prefer_satisfies: RuleConfig {
                 severity: Severity::Info,
             },
+            no_test_import: RuleConfig::default(),
         }
     }
 }

@@ -55,6 +55,7 @@ pub(crate) enum RuleKind {
     NoThenChain,
     NoUpwardImport,
     PreferSatisfies,
+    NoTestImport,
 }
 
 pub(crate) const SEVERITY_OPTION: RuleOption = RuleOption {
@@ -760,6 +761,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::PreferSatisfies,
+    },
+    RuleDocumentation {
+        name: "no-test-import",
+        intent: "Production code may not import test files.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "import { helper } from './helper.test'; // in src/auth.ts",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "Move shared helpers out of test files into production modules.",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "project.structure.tests",
+                description: "Folders and file suffixes that identify test files.",
+            },
+        ],
+        kind: RuleKind::NoTestImport,
     },
 ];
 

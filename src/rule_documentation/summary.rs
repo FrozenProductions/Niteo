@@ -208,6 +208,13 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
             )],
         },
         RuleKind::PreferSatisfies => simple_summary(config.rules.prefer_satisfies.severity),
+        RuleKind::NoTestImport => RuleConfigSummary {
+            severity: config.rules.no_test_import.severity,
+            options: vec![
+                format!("folders: {:?}", config.structure.tests.folders),
+                format!("file-suffixes: {:?}", config.structure.tests.file_suffixes),
+            ],
+        },
     }
 }
 

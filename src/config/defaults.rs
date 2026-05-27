@@ -143,4 +143,7 @@ prefixes = ["use"]
 [rules.no-dump-files]
 severity = "warn"
 extra-names = []
+
+[rules.no-test-import]
+severity = "warn"
 "#;
