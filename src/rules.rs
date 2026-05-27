@@ -104,7 +104,10 @@ pub struct Violation {
     pub subject: Option<String>,
 }
 
-pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Violation>> {
+pub fn check_files(
+    files: &[PathBuf],
+    config: &ProjectConfig,
+) -> Result<(Vec<Violation>, ignore::SuppressionReport)> {
     let mut violations = Vec::new();
 
     let needs_scan = config.rules.no_comments.severity.is_enabled()
@@ -152,8 +155,15 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
         || config.rules.no_non_null_assertion.severity.is_enabled()
         || config.rules.no_any.severity.is_enabled();
 
+    let mut suppression_files = Vec::new();
+
     if !needs_scan && !needs_ast {
-        return Ok(violations);
+        return Ok((
+            violations,
+            ignore::SuppressionReport {
+                files: suppression_files,
+            },
+        ));
     }
 
     let type_location_style =
@@ -463,12 +473,40 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
             ));
         }
 
+        let suppressed_count = file_violations
+            .iter()
+            .filter(|v| ignore::should_suppress_violation(&directives, v.line, v.rule))
+            .count();
+
+        let stale_directives: Vec<ignore::IgnoreDirective> = directives
+            .iter()
+            .filter(|d| {
+                !file_violations
+                    .iter()
+                    .any(|v| d.should_suppress(v.line, v.rule))
+            })
+            .cloned()
+            .collect();
+
+        if !directives.is_empty() {
+            suppression_files.push(ignore::FileSuppressionInfo {
+                file: file.clone(),
+                suppressed_count,
+                stale_directives,
+            });
+        }
+
         file_violations.retain(|v| !ignore::should_suppress_violation(&directives, v.line, v.rule));
 
         violations.extend(file_violations);
     }
 
-    Ok(violations)
+    Ok((
+        violations,
+        ignore::SuppressionReport {
+            files: suppression_files,
+        },
+    ))
 }
 
 pub fn check_directories(

@@ -24,6 +24,11 @@ struct BaselineViolation {
     subject: Option<String>,
 }
 
+pub struct PruneResult {
+    pub baseline: Baseline,
+    pub removed_count: usize,
+}
+
 impl Baseline {
     pub fn from_violations(root: &Path, violations: &[Violation]) -> Self {
         let mut baseline_violations = violations
@@ -57,6 +62,30 @@ impl Baseline {
 
     pub fn violation_count(&self) -> usize {
         self.violations.len()
+    }
+
+    pub fn prune(&self, root: &Path, current_violations: &[Violation]) -> PruneResult {
+        let current_set: HashSet<BaselineViolation> = current_violations
+            .iter()
+            .map(|v| BaselineViolation::from_violation(root, v))
+            .collect();
+
+        let remaining: Vec<BaselineViolation> = self
+            .violations
+            .iter()
+            .filter(|v| current_set.contains(v))
+            .cloned()
+            .collect();
+
+        let removed_count = self.violations.len() - remaining.len();
+
+        PruneResult {
+            baseline: Baseline {
+                version: self.version,
+                violations: remaining,
+            },
+            removed_count,
+        }
     }
 }
 
@@ -192,5 +221,54 @@ mod tests {
             detail: None,
             subject: None,
         }
+    }
+
+    #[test]
+    fn prune_removes_stale_entries() {
+        let root = Path::new("/repo");
+        let baseline = Baseline::from_violations(
+            root,
+            &[
+                violation("/repo/src/app.ts", Some(1), "no-console"),
+                violation("/repo/src/old.ts", Some(5), "no-debugger"),
+                violation("/repo/src/keep.ts", Some(10), "no-eval"),
+            ],
+        );
+
+        let current = vec![
+            violation("/repo/src/app.ts", Some(1), "no-console"),
+            violation("/repo/src/keep.ts", Some(10), "no-eval"),
+        ];
+
+        let result = baseline.prune(root, &current);
+
+        assert_eq!(result.removed_count, 1);
+        assert_eq!(result.baseline.violation_count(), 2);
+    }
+
+    #[test]
+    fn prune_keeps_all_when_current() {
+        let root = Path::new("/repo");
+        let violations = vec![violation("/repo/src/app.ts", Some(1), "no-console")];
+        let baseline = Baseline::from_violations(root, &violations);
+
+        let result = baseline.prune(root, &violations);
+
+        assert_eq!(result.removed_count, 0);
+        assert_eq!(result.baseline.violation_count(), 1);
+    }
+
+    #[test]
+    fn prune_removes_all_when_no_current_violations() {
+        let root = Path::new("/repo");
+        let baseline = Baseline::from_violations(
+            root,
+            &[violation("/repo/src/app.ts", Some(1), "no-console")],
+        );
+
+        let result = baseline.prune(root, &[]);
+
+        assert_eq!(result.removed_count, 1);
+        assert_eq!(result.baseline.violation_count(), 0);
     }
 }

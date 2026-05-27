@@ -44,6 +44,10 @@ pub struct CliOptions {
     /// Baseline file for suppressing existing violations.
     #[arg(long, global = true, default_value = "niteo-baseline.json")]
     pub baseline: PathBuf,
+
+    /// Report suppressed violations and stale ignore directives.
+    #[arg(long, global = true)]
+    pub report_suppressions: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -67,6 +71,8 @@ pub enum Command {
 pub enum BaselineCommand {
     /// Write current violations to the baseline file.
     Create,
+    /// Remove stale entries from the baseline file.
+    Prune,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

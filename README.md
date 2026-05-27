@@ -43,6 +43,7 @@ cargo build
 niteo lint              # Scan for structural issues
 niteo init              # Create niteo.toml with default configuration
 niteo baseline create   # Snapshot current violations into niteo-baseline.json
+niteo baseline prune    # Remove stale entries from the baseline file
 niteo rules             # List rules and their configured severities
 niteo explain <rule>    # Explain a rule (e.g. niteo explain no-console)
 ```
@@ -58,6 +59,7 @@ niteo explain <rule>    # Explain a rule (e.g. niteo explain no-console)
 | `--format <format>` | Output format: `text` (default), `json`, `sarif`    |
 | `--output <path>`   | Write output to a file                              |
 | `--baseline <path>` | Baseline file path (default: `niteo-baseline.json`) |
+| `--report-suppressions` | Report suppressed violations and stale ignore directives |
 
 All options are global and work with any command.
 
@@ -71,7 +73,10 @@ niteo lint --format json --output report.json
 niteo lint --format sarif --output report.sarif
 niteo lint --verbose
 niteo baseline create
+niteo baseline prune
 niteo lint --baseline niteo-baseline.json
+niteo lint --report-suppressions
+niteo baseline create --report-suppressions
 niteo rules --format json
 niteo explain no-barrel-files
 ```
@@ -95,6 +100,28 @@ niteo baseline create
 ```
 
 This writes `niteo-baseline.json` with the current violations. Commit that file, then run `niteo lint` in CI. Re-run `niteo baseline create` intentionally when you want to refresh the accepted set of existing violations.
+
+### Pruning stale entries
+
+As violations are fixed, baseline entries become stale. Prune them to keep the baseline accurate:
+
+```sh
+niteo baseline prune
+```
+
+This compares the baseline against current violations and removes entries that no longer apply.
+
+### Reporting suppressions
+
+Use `--report-suppressions` with `lint` or `baseline create` to see:
+
+- How many violations are suppressed by `niteo-ignore-*` directives
+- Which directives are stale (not suppressing any violations)
+
+```sh
+niteo lint --report-suppressions
+niteo baseline create --report-suppressions
+```
 
 ## Configuration
 

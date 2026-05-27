@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use crate::cli::{BaselineCommand, Cli, Command, OutputFormat};
+use crate::ignore::SuppressionReport;
 use crate::rules::Violation;
 use crate::{baseline, config, discovery, git, report, rule_documentation, rules};
 
@@ -21,6 +22,17 @@ pub fn run() -> Result<ExitCode> {
         Command::Baseline { command } => match command {
             BaselineCommand::Create => {
                 create_baseline(
+                    &workspace,
+                    cli.options.root,
+                    cli.options.scope,
+                    cli.options.git,
+                    cli.options.baseline,
+                    cli.options.report_suppressions,
+                )?;
+                ExitCode::SUCCESS
+            }
+            BaselineCommand::Prune => {
+                prune_baseline(
                     &workspace,
                     cli.options.root,
                     cli.options.scope,
@@ -59,6 +71,7 @@ pub fn run() -> Result<ExitCode> {
                 output_format: cli.options.format,
                 output_path: cli.options.output,
                 baseline_path: cli.options.baseline,
+                report_suppressions: cli.options.report_suppressions,
             },
         )?,
     };
@@ -79,8 +92,17 @@ fn create_baseline(
     scope_override: Option<PathBuf>,
     git_flag: bool,
     baseline_path: PathBuf,
+    report_suppressions: bool,
 ) -> Result<()> {
     let collected = collect_violations(workspace, root_override, scope_override, git_flag, false)?;
+
+    if report_suppressions {
+        let rendered = report::render_suppression_report_text(&collected.suppression_report);
+        if !rendered.is_empty() {
+            print!("{rendered}");
+        }
+    }
+
     let resolved_baseline_path = resolve_path(workspace, baseline_path);
     let baseline =
         baseline::Baseline::from_violations(&collected.project_root, &collected.violations);
@@ -92,6 +114,40 @@ fn create_baseline(
         resolved_baseline_path.display(),
         baseline.violation_count()
     );
+
+    Ok(())
+}
+
+fn prune_baseline(
+    workspace: &Path,
+    root_override: Option<PathBuf>,
+    scope_override: Option<PathBuf>,
+    git_flag: bool,
+    baseline_path: PathBuf,
+) -> Result<()> {
+    let resolved_baseline_path = resolve_path(workspace, baseline_path.clone());
+    let Some(existing_baseline) = baseline::read_baseline(&resolved_baseline_path)? else {
+        bail!("No baseline file found at {}", baseline_path.display());
+    };
+
+    let collected = collect_violations(workspace, root_override, scope_override, git_flag, false)?;
+    let result = existing_baseline.prune(&collected.project_root, &collected.violations);
+
+    baseline::write_baseline(&resolved_baseline_path, &result.baseline)?;
+
+    if result.removed_count > 0 {
+        println!(
+            "Pruned {}: removed {} stale entries ({} remaining)",
+            resolved_baseline_path.display(),
+            result.removed_count,
+            result.baseline.violation_count(),
+        );
+    } else {
+        println!(
+            "Baseline is up to date ({} entries)",
+            result.baseline.violation_count(),
+        );
+    }
 
     Ok(())
 }
@@ -161,6 +217,7 @@ struct LintOptions {
     output_format: OutputFormat,
     output_path: Option<PathBuf>,
     baseline_path: PathBuf,
+    report_suppressions: bool,
 }
 
 fn lint_workspace(
@@ -184,7 +241,10 @@ fn lint_workspace(
         None => collected.violations,
     };
 
-    let report = report::Report::new(collected.files, filtered_violations);
+    let mut report = report::Report::new(collected.files, filtered_violations);
+    if opts.report_suppressions {
+        report = report.with_suppression_report(collected.suppression_report);
+    }
     let has_violations = report.has_violations();
     let rendered_report = match opts.output_format {
         OutputFormat::Text => report.render_text(opts.verbose),
@@ -205,6 +265,7 @@ struct CollectedViolations {
     project_root: PathBuf,
     files: Vec<PathBuf>,
     violations: Vec<Violation>,
+    suppression_report: SuppressionReport,
 }
 
 fn collect_violations(
@@ -235,7 +296,7 @@ fn collect_violations(
         }
     };
 
-    let violations = rules::check_files(&files, &project_config)?;
+    let (file_violations, suppression_report) = rules::check_files(&files, &project_config)?;
 
     let mut dir_violations = rules::check_directories(
         &project_config.root,
@@ -262,7 +323,7 @@ fn collect_violations(
 
     let mut dump_violations = rules::check_dump_files(&files, project_config.rules.no_dump_files);
 
-    let mut all_violations = violations;
+    let mut all_violations = file_violations;
     all_violations.append(&mut dir_violations);
     all_violations.append(&mut name_violations);
     all_violations.append(&mut max_items_violations);
@@ -274,6 +335,7 @@ fn collect_violations(
         project_root: project_config.root,
         files,
         violations: all_violations,
+        suppression_report,
     })
 }
 

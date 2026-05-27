@@ -3,6 +3,7 @@ use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
 use crate::config::Severity;
+use crate::ignore::SuppressionReport;
 use crate::rules::Violation;
 
 const RED: &str = "\x1b[31m";
@@ -21,11 +22,21 @@ const DEFAULT_MAX_LINES_PER_FILE: usize = 8;
 pub struct Report {
     files: Vec<PathBuf>,
     violations: Vec<Violation>,
+    suppression_report: Option<SuppressionReport>,
 }
 
 impl Report {
     pub fn new(files: Vec<PathBuf>, violations: Vec<Violation>) -> Self {
-        Self { files, violations }
+        Self {
+            files,
+            violations,
+            suppression_report: None,
+        }
+    }
+
+    pub fn with_suppression_report(mut self, report: SuppressionReport) -> Self {
+        self.suppression_report = Some(report);
+        self
     }
 
     pub fn has_violations(&self) -> bool {
@@ -60,25 +71,49 @@ impl Report {
             output.push_str(&render_end_summary(&summary, &rule_groups, verbose));
         }
 
+        if let Some(ref suppression_report) = self.suppression_report
+            && !suppression_report.is_empty()
+        {
+            let rendered = render_suppression_report_text(suppression_report);
+            if !rendered.is_empty() {
+                output.push('\n');
+                output.push_str(&rendered);
+            }
+        }
+
         output
     }
 
     pub fn render_json(&self) -> Result<String> {
-        let report = json!({
-            "summary": self.summary_json(),
-            "files": self
-                .files
-                .iter()
-                .map(|file| path_to_string(file))
-                .collect::<Vec<String>>(),
-            "violations": self
-                .violations
-                .iter()
-                .map(violation_json)
-                .collect::<Vec<Value>>(),
-        });
+        let mut report = serde_json::Map::new();
+        report.insert("summary".to_string(), self.summary_json());
+        report.insert(
+            "files".to_string(),
+            json!(
+                self.files
+                    .iter()
+                    .map(|file| path_to_string(file))
+                    .collect::<Vec<String>>()
+            ),
+        );
+        report.insert(
+            "violations".to_string(),
+            json!(
+                self.violations
+                    .iter()
+                    .map(violation_json)
+                    .collect::<Vec<Value>>()
+            ),
+        );
 
-        Ok(serde_json::to_string_pretty(&report)?)
+        if let Some(ref suppression_report) = self.suppression_report {
+            report.insert(
+                "suppressions".to_string(),
+                suppression_report_json(suppression_report),
+            );
+        }
+
+        Ok(serde_json::to_string_pretty(&Value::Object(report))?)
     }
 
     pub fn render_sarif(&self) -> Result<String> {
@@ -687,4 +722,75 @@ fn score_color(score: usize) -> &'static str {
     }
 
     RED
+}
+
+pub fn render_suppression_report_text(report: &SuppressionReport) -> String {
+    if report.total_suppressed() == 0 && report.total_stale() == 0 {
+        return String::new();
+    }
+
+    let mut output = String::new();
+    let total_suppressed = report.total_suppressed();
+    let total_stale = report.total_stale();
+
+    output.push_str(&format!("{BOLD}Suppressions{RESET}\n"));
+
+    if total_suppressed > 0 {
+        output.push_str(&format!(
+            "  {DIM}{} violations suppressed by ignore directives{RESET}\n",
+            total_suppressed,
+        ));
+    }
+
+    if total_stale > 0 {
+        output.push_str(&format!(
+            "  {YELLOW}{BOLD}{} stale directives found{RESET}\n",
+            total_stale,
+        ));
+
+        for file_info in &report.files {
+            if file_info.stale_directives.is_empty() {
+                continue;
+            }
+
+            output.push_str(&format!("  {CYAN}{}{RESET}\n", file_info.file.display(),));
+
+            for directive in &file_info.stale_directives {
+                output.push_str(&format!(
+                    "    {YELLOW}line {}{RESET}  {}\n",
+                    directive.line, directive,
+                ));
+            }
+        }
+    }
+
+    output
+}
+
+fn suppression_report_json(report: &SuppressionReport) -> Value {
+    json!({
+        "totalSuppressed": report.total_suppressed(),
+        "totalStale": report.total_stale(),
+        "files": report
+            .files
+            .iter()
+            .map(|file_info| {
+                json!({
+                    "file": path_to_string(&file_info.file),
+                    "suppressedCount": file_info.suppressed_count,
+                    "staleDirectives": file_info
+                        .stale_directives
+                        .iter()
+                        .map(|d| {
+                            json!({
+                                "kind": format!("{}", d.kind),
+                                "line": d.line,
+                                "rules": d.rules,
+                            })
+                        })
+                        .collect::<Vec<Value>>(),
+                })
+            })
+            .collect::<Vec<Value>>(),
+    })
 }

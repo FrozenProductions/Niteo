@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 const FILE_DIRECTIVE: &str = "niteo-ignore-file";
 const NEXT_LINE_DIRECTIVE: &str = "niteo-ignore-next-line";
 const LINE_DIRECTIVE: &str = "niteo-ignore-line";
@@ -7,6 +9,16 @@ pub enum IgnoreKind {
     File,
     Line,
     NextLine,
+}
+
+impl std::fmt::Display for IgnoreKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IgnoreKind::File => write!(f, "niteo-ignore-file"),
+            IgnoreKind::Line => write!(f, "niteo-ignore-line"),
+            IgnoreKind::NextLine => write!(f, "niteo-ignore-next-line"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -27,6 +39,16 @@ impl IgnoreDirective {
             IgnoreKind::Line => violation_line == Some(self.line),
             IgnoreKind::NextLine => violation_line == Some(self.line + 1),
         }
+    }
+}
+
+impl std::fmt::Display for IgnoreDirective {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.kind)?;
+        if !self.rules.is_empty() {
+            write!(f, ": {}", self.rules.join(", "))?;
+        }
+        Ok(())
     }
 }
 
@@ -140,6 +162,32 @@ pub fn should_suppress_violation(
     directives
         .iter()
         .any(|d| d.should_suppress(violation_line, rule_name))
+}
+
+#[derive(Debug, Clone)]
+pub struct SuppressionReport {
+    pub files: Vec<FileSuppressionInfo>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FileSuppressionInfo {
+    pub file: PathBuf,
+    pub suppressed_count: usize,
+    pub stale_directives: Vec<IgnoreDirective>,
+}
+
+impl SuppressionReport {
+    pub fn total_suppressed(&self) -> usize {
+        self.files.iter().map(|f| f.suppressed_count).sum()
+    }
+
+    pub fn total_stale(&self) -> usize {
+        self.files.iter().map(|f| f.stale_directives.len()).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.files.is_empty()
+    }
 }
 
 #[cfg(test)]
@@ -309,5 +357,87 @@ mod tests {
         assert_eq!(directives[0].kind, IgnoreKind::File);
         assert_eq!(directives[1].kind, IgnoreKind::NextLine);
         assert_eq!(directives[1].line, 3);
+    }
+
+    #[test]
+    fn display_ignore_kind() {
+        assert_eq!(format!("{}", IgnoreKind::File), "niteo-ignore-file");
+        assert_eq!(format!("{}", IgnoreKind::Line), "niteo-ignore-line");
+        assert_eq!(
+            format!("{}", IgnoreKind::NextLine),
+            "niteo-ignore-next-line"
+        );
+    }
+
+    #[test]
+    fn display_ignore_directive_no_rules() {
+        let directive = IgnoreDirective {
+            kind: IgnoreKind::File,
+            line: 1,
+            rules: vec![],
+        };
+        assert_eq!(format!("{directive}"), "niteo-ignore-file");
+    }
+
+    #[test]
+    fn display_ignore_directive_with_rules() {
+        let directive = IgnoreDirective {
+            kind: IgnoreKind::NextLine,
+            line: 5,
+            rules: vec!["no-console".to_string(), "no-debugger".to_string()],
+        };
+        assert_eq!(
+            format!("{directive}"),
+            "niteo-ignore-next-line: no-console, no-debugger"
+        );
+    }
+
+    #[test]
+    fn suppression_report_total_suppressed() {
+        let report = SuppressionReport {
+            files: vec![
+                FileSuppressionInfo {
+                    file: PathBuf::from("a.ts"),
+                    suppressed_count: 3,
+                    stale_directives: vec![],
+                },
+                FileSuppressionInfo {
+                    file: PathBuf::from("b.ts"),
+                    suppressed_count: 2,
+                    stale_directives: vec![],
+                },
+            ],
+        };
+
+        assert_eq!(report.total_suppressed(), 5);
+        assert_eq!(report.total_stale(), 0);
+        assert!(!report.is_empty());
+    }
+
+    #[test]
+    fn suppression_report_total_stale() {
+        let report = SuppressionReport {
+            files: vec![FileSuppressionInfo {
+                file: PathBuf::from("a.ts"),
+                suppressed_count: 0,
+                stale_directives: vec![IgnoreDirective {
+                    kind: IgnoreKind::File,
+                    line: 1,
+                    rules: vec![],
+                }],
+            }],
+        };
+
+        assert_eq!(report.total_suppressed(), 0);
+        assert_eq!(report.total_stale(), 1);
+    }
+
+    #[test]
+    fn suppression_report_empty() {
+        let report = SuppressionReport { files: vec![] };
+
+        assert!(report.is_empty());
+        assert_eq!(report.total_suppressed(), 0);
+        assert_eq!(report.total_stale(), 0);
     }
 }
