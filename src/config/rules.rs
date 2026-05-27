@@ -277,6 +277,21 @@ impl Default for NoDumpFilesRuleConfig {
 }
 
 #[derive(Debug, Clone)]
+pub struct EntryFileNoLogicRuleConfig {
+    pub severity: Severity,
+    pub entry_files: Vec<String>,
+}
+
+impl Default for EntryFileNoLogicRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            entry_files: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct RulesConfig {
     pub boolean_prefix: BooleanPrefixRuleConfig,
     pub component_file_only_components: RuleConfig,
@@ -296,6 +311,7 @@ pub struct RulesConfig {
     pub no_duplicate_file_names: NoDuplicateFileNamesRuleConfig,
     pub no_dump_files: NoDumpFilesRuleConfig,
     pub no_empty_directories: NoEmptyDirectoriesRuleConfig,
+    pub entry_file_no_logic: EntryFileNoLogicRuleConfig,
     pub no_empty_interface: RuleConfig,
     pub no_enums: RuleConfig,
     pub no_eval: RuleConfig,
@@ -336,6 +352,7 @@ impl Default for RulesConfig {
             no_duplicate_file_names: NoDuplicateFileNamesRuleConfig::default(),
             no_dump_files: NoDumpFilesRuleConfig::default(),
             no_empty_directories: NoEmptyDirectoriesRuleConfig::default(),
+            entry_file_no_logic: EntryFileNoLogicRuleConfig::default(),
             no_empty_interface: RuleConfig {
                 severity: Severity::Error,
             },

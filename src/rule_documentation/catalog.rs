@@ -56,6 +56,7 @@ pub(crate) enum RuleKind {
     NoUpwardImport,
     PreferSatisfies,
     NoTestImport,
+    EntryFileNoLogic,
 }
 
 pub(crate) const SEVERITY_OPTION: RuleOption = RuleOption {
@@ -783,6 +784,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::NoTestImport,
+    },
+    RuleDocumentation {
+        name: "entry-file-no-logic",
+        intent: "Entry files like main.ts, app.tsx, layout.tsx, and page.tsx should delegate logic to dedicated modules instead of containing implementation details.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "function bootstrap() { /* complex setup logic */ } // in main.ts",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "import { bootstrap } from './bootstrap'; bootstrap(); // delegate to module",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "entry-files",
+                description: "Additional file stems to treat as entry files (beyond main, app, layout, page).",
+            },
+        ],
+        kind: RuleKind::EntryFileNoLogic,
     },
 ];
 

@@ -1,5 +1,6 @@
 mod boolean_prefix;
 mod component_file_only_components;
+mod entry_file_no_logic;
 mod hook_no_jsx;
 mod hook_prefix;
 mod max_directory_depth;
@@ -85,6 +86,7 @@ pub const NO_THEN_CHAIN_RULE_ID: RuleId = "no-then-chain";
 pub const NO_UPWARD_IMPORT_RULE_ID: RuleId = "no-upward-import";
 pub const PREFER_SATISFIES_RULE_ID: RuleId = "prefer-satisfies";
 pub const NO_TEST_IMPORT_RULE_ID: RuleId = "no-test-import";
+pub const ENTRY_FILE_NO_LOGIC_RULE_ID: RuleId = "entry-file-no-logic";
 
 #[derive(Debug, Clone)]
 pub struct Violation {
@@ -141,7 +143,8 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
             .component_file_only_components
             .severity
             .is_enabled()
-        || config.rules.no_test_import.severity.is_enabled();
+        || config.rules.no_test_import.severity.is_enabled()
+        || config.rules.entry_file_no_logic.severity.is_enabled();
 
     if !needs_scan && !needs_ast {
         return Ok(violations);
@@ -387,6 +390,14 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     &line_index,
                     &config.rules.no_test_import,
                     &config.structure.tests,
+                ));
+            }
+            if config.rules.entry_file_no_logic.severity.is_enabled() {
+                file_violations.extend(entry_file_no_logic::check_file(
+                    file,
+                    program,
+                    &line_index,
+                    &config.rules.entry_file_no_logic,
                 ));
             }
         }

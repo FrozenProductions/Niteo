@@ -146,4 +146,8 @@ extra-names = []
 
 [rules.no-test-import]
 severity = "warn"
+
+[rules.entry-file-no-logic]
+severity = "warn"
+entry-files = []
 "#;

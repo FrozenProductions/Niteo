@@ -215,6 +215,13 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
                 format!("file-suffixes: {:?}", config.structure.tests.file_suffixes),
             ],
         },
+        RuleKind::EntryFileNoLogic => RuleConfigSummary {
+            severity: config.rules.entry_file_no_logic.severity,
+            options: vec![format!(
+                "entry-files: {:?}",
+                config.rules.entry_file_no_logic.entry_files
+            )],
+        },
     }
 }
 

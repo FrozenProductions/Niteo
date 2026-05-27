@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use super::rules::{
-    BooleanPrefixRuleConfig, CommentsRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig,
-    GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
+    BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
+    FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
     MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoConsoleRuleConfig,
     NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
     NoInterfaceRuleConfig, RuleConfig, RulesConfig, Severity, UpwardImportRuleConfig,
@@ -42,6 +42,7 @@ impl RawConfig {
             no_duplicate_file_names: self.no_duplicate_file_names(),
             no_dump_files: self.no_dump_files(),
             no_empty_directories: self.no_empty_directories(),
+            entry_file_no_logic: self.entry_file_no_logic(),
             no_empty_interface: self.no_empty_interface(),
             no_enums: self.no_enums(),
             no_eval: self.no_eval(),
@@ -313,6 +314,12 @@ impl RawConfig {
             .map(RawRuleConfig::to_no_dump_files_config)
             .unwrap_or_default()
     }
+
+    fn entry_file_no_logic(&self) -> EntryFileNoLogicRuleConfig {
+        self.rule("entry-file-no-logic")
+            .map(RawRuleConfig::to_entry_file_no_logic_config)
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -564,6 +571,19 @@ impl RawRuleConfig {
         }
     }
 
+    pub fn to_entry_file_no_logic_config(&self) -> EntryFileNoLogicRuleConfig {
+        match self {
+            Self::Severity(severity) => EntryFileNoLogicRuleConfig {
+                severity: Severity::from_str(severity),
+                entry_files: vec![],
+            },
+            Self::Options(options) => EntryFileNoLogicRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                entry_files: options.entry_files.clone().unwrap_or_default(),
+            },
+        }
+    }
+
     pub fn to_hook_prefix_config(&self) -> HookPrefixRuleConfig {
         match self {
             Self::Severity(severity) => HookPrefixRuleConfig {
@@ -608,6 +628,8 @@ pub struct RawRuleOptions {
     pub prefixes: Option<Vec<String>>,
     #[serde(rename = "ignore-constants")]
     pub ignore_constants: Option<bool>,
+    #[serde(rename = "entry-files")]
+    pub entry_files: Option<Vec<String>>,
 }
 
 #[cfg(test)]
