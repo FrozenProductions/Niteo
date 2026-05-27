@@ -192,6 +192,13 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
         RuleKind::NoMutableExports => simple_summary(config.rules.no_mutable_exports.severity),
         RuleKind::NoNamespace => simple_summary(config.rules.no_namespace.severity),
         RuleKind::NoSilentCatch => simple_summary(config.rules.no_silent_catch.severity),
+        RuleKind::NoTestCodeInProduction => RuleConfigSummary {
+            severity: config.rules.no_test_code_in_production.severity,
+            options: vec![
+                format!("folders: {:?}", config.structure.tests.folders),
+                format!("file-suffixes: {:?}", config.structure.tests.file_suffixes),
+            ],
+        },
         RuleKind::NoThenChain => simple_summary(config.rules.no_then_chain.severity),
         RuleKind::NoUpwardImport => RuleConfigSummary {
             severity: config.rules.no_upward_import.severity,

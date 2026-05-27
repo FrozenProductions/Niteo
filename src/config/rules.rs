@@ -308,6 +308,7 @@ pub struct RulesConfig {
     pub no_logic_in_domain: RuleConfig,
     pub no_mutable_exports: RuleConfig,
     pub no_silent_catch: RuleConfig,
+    pub no_test_code_in_production: RuleConfig,
     pub no_then_chain: RuleConfig,
     pub no_upward_import: UpwardImportRuleConfig,
     pub prefer_satisfies: RuleConfig,
@@ -348,6 +349,7 @@ impl Default for RulesConfig {
             no_mutable_exports: RuleConfig::default(),
             no_namespace: RuleConfig::default(),
             no_silent_catch: RuleConfig::default(),
+            no_test_code_in_production: RuleConfig::default(),
             no_then_chain: RuleConfig::default(),
             no_upward_import: UpwardImportRuleConfig::default(),
             prefer_satisfies: RuleConfig {

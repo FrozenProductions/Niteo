@@ -51,6 +51,7 @@ pub(crate) enum RuleKind {
     NoMutableExports,
     NoNamespace,
     NoSilentCatch,
+    NoTestCodeInProduction,
     NoThenChain,
     NoUpwardImport,
     PreferSatisfies,
@@ -683,6 +684,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::NoSilentCatch,
+    },
+    RuleDocumentation {
+        name: "no-test-code-in-production",
+        intent: "Disallow test code (describe, it, test, expect, and test library imports) outside test files.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "describe('auth', () => { it('works', () => { expect(true).toBe(true); }); }); // in src/auth.ts",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "Move test code to a test file (e.g. tests/auth.test.ts).",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "project.structure.tests",
+                description: "Folders and file suffixes that identify test files.",
+            },
+        ],
+        kind: RuleKind::NoTestCodeInProduction,
     },
     RuleDocumentation {
         name: "no-then-chain",

@@ -34,6 +34,7 @@ pub struct ProjectStructureConfig {
     pub components: DomainConfig,
     pub types: DomainConfig,
     pub constants: DomainConfig,
+    pub tests: DomainConfig,
 }
 
 impl Default for ProjectStructureConfig {
@@ -54,6 +55,10 @@ impl Default for ProjectStructureConfig {
             constants: DomainConfig {
                 folders: vec!["constants".to_string()],
                 file_suffixes: vec![".constant.ts".to_string(), ".constants.ts".to_string()],
+            },
+            tests: DomainConfig {
+                folders: vec!["tests".to_string()],
+                file_suffixes: vec![".test.ts".to_string(), ".tests.ts".to_string()],
             },
         }
     }
@@ -122,6 +127,15 @@ mod tests {
                 .constants
                 .matches_file(Path::new("src/utils/format.ts"))
         );
+    }
+
+    #[test]
+    fn default_tests_domain() {
+        let config = ProjectStructureConfig::default();
+        assert!(config.tests.matches_file(Path::new("tests/auth.test.ts")));
+        assert!(config.tests.matches_file(Path::new("src/auth.test.ts")));
+        assert!(config.tests.matches_file(Path::new("src/auth.tests.ts")));
+        assert!(!config.tests.matches_file(Path::new("src/auth.ts")));
     }
 
     #[test]

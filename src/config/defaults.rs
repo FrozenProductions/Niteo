@@ -20,6 +20,10 @@ file-suffixes = [".type.ts", ".types.ts"]
 folders = ["constants"]
 file-suffixes = [".constant.ts", ".constants.ts"]
 
+[project.structure.tests]
+folders = ["tests"]
+file-suffixes = [".test.ts", ".tests.ts"]
+
 [rules]
 [rules.component-file-only-components]
 severity = "warn"
@@ -121,6 +125,9 @@ severity = "warn"
 severity = "warn"
 
 [rules.no-silent-catch]
+severity = "warn"
+
+[rules.no-test-code-in-production]
 severity = "warn"
 
 [rules.prefer-satisfies]

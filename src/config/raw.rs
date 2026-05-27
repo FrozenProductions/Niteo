@@ -54,6 +54,7 @@ impl RawConfig {
             no_mutable_exports: self.no_mutable_exports(),
             no_namespace: self.no_namespace(),
             no_silent_catch: self.no_silent_catch(),
+            no_test_code_in_production: self.no_test_code_in_production(),
             no_then_chain: self.no_then_chain(),
             no_upward_import: self.no_upward_import(),
             prefer_satisfies: self.prefer_satisfies(),
@@ -91,6 +92,10 @@ impl RawConfig {
                 .and_then(|s| s.constants.as_ref())
                 .map(|d| d.to_domain_config(&defaults.constants))
                 .unwrap_or(defaults.constants),
+            tests: raw_structure
+                .and_then(|s| s.tests.as_ref())
+                .map(|d| d.to_domain_config(&defaults.tests))
+                .unwrap_or(defaults.tests),
         }
     }
 
@@ -258,6 +263,12 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn no_test_code_in_production(&self) -> RuleConfig {
+        self.rule("no-test-code-in-production")
+            .map(RawRuleConfig::to_rule_config)
+            .unwrap_or_default()
+    }
+
     fn no_then_chain(&self) -> RuleConfig {
         self.rule("no-then-chain")
             .map(RawRuleConfig::to_rule_config)
@@ -311,6 +322,7 @@ pub struct RawProjectStructure {
     pub components: Option<RawDomainConfig>,
     pub types: Option<RawDomainConfig>,
     pub constants: Option<RawDomainConfig>,
+    pub tests: Option<RawDomainConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -616,6 +628,10 @@ file-suffixes = [".type.ts", ".types.ts"]
 [project.structure.constants]
 folders = ["constants"]
 file-suffixes = [".constant.ts", ".constants.ts"]
+
+[project.structure.tests]
+folders = ["tests"]
+file-suffixes = [".test.ts", ".tests.ts"]
 "#;
         let raw: RawConfig = toml::from_str(source).expect("valid config");
         let structure = raw.structure();
@@ -624,6 +640,8 @@ file-suffixes = [".constant.ts", ".constants.ts"]
         assert_eq!(structure.components.folders, vec!["components"]);
         assert_eq!(structure.types.folders, vec!["types"]);
         assert_eq!(structure.constants.folders, vec!["constants"]);
+        assert_eq!(structure.tests.folders, vec!["tests"]);
+        assert_eq!(structure.tests.file_suffixes, vec![".test.ts", ".tests.ts"]);
     }
 
     #[test]
@@ -640,6 +658,8 @@ root = "src"
         assert_eq!(structure.components.folders, defaults.components.folders);
         assert_eq!(structure.types.folders, defaults.types.folders);
         assert_eq!(structure.constants.folders, defaults.constants.folders);
+        assert_eq!(structure.tests.folders, defaults.tests.folders);
+        assert_eq!(structure.tests.file_suffixes, defaults.tests.file_suffixes);
     }
 
     #[test]
