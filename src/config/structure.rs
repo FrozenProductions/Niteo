@@ -35,6 +35,7 @@ pub struct ProjectStructureConfig {
     pub types: DomainConfig,
     pub constants: DomainConfig,
     pub tests: DomainConfig,
+    pub generated: DomainConfig,
 }
 
 impl Default for ProjectStructureConfig {
@@ -59,6 +60,10 @@ impl Default for ProjectStructureConfig {
             tests: DomainConfig {
                 folders: vec!["tests".to_string()],
                 file_suffixes: vec![".test.ts".to_string(), ".tests.ts".to_string()],
+            },
+            generated: DomainConfig {
+                folders: vec!["generated".to_string(), "__generated__".to_string()],
+                file_suffixes: vec![".generated.ts".to_string(), ".generated.tsx".to_string()],
             },
         }
     }

@@ -5,9 +5,10 @@ use std::path::PathBuf;
 use super::rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
     FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
-    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoConsoleRuleConfig,
-    NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
-    NoInterfaceRuleConfig, RuleConfig, RulesConfig, Severity, UpwardImportRuleConfig,
+    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAnyRuleConfig,
+    NoConsoleRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
+    NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig, RuleConfig, RulesConfig, Severity,
+    UpwardImportRuleConfig,
 };
 use super::structure::{DomainConfig, ProjectStructureConfig};
 
@@ -61,6 +62,7 @@ impl RawConfig {
             prefer_satisfies: self.prefer_satisfies(),
             no_test_import: self.no_test_import(),
             no_non_null_assertion: self.no_non_null_assertion(),
+            no_any: self.no_any(),
         }
     }
 
@@ -99,6 +101,10 @@ impl RawConfig {
                 .and_then(|s| s.tests.as_ref())
                 .map(|d| d.to_domain_config(&defaults.tests))
                 .unwrap_or(defaults.tests),
+            generated: raw_structure
+                .and_then(|s| s.generated.as_ref())
+                .map(|d| d.to_domain_config(&defaults.generated))
+                .unwrap_or(defaults.generated),
         }
     }
 
@@ -322,6 +328,12 @@ impl RawConfig {
             .unwrap_or_default()
     }
 
+    fn no_any(&self) -> NoAnyRuleConfig {
+        self.rule("no-any")
+            .map(RawRuleConfig::to_no_any_config)
+            .unwrap_or_default()
+    }
+
     fn entry_file_no_logic(&self) -> EntryFileNoLogicRuleConfig {
         self.rule("entry-file-no-logic")
             .map(RawRuleConfig::to_entry_file_no_logic_config)
@@ -344,6 +356,7 @@ pub struct RawProjectStructure {
     pub types: Option<RawDomainConfig>,
     pub constants: Option<RawDomainConfig>,
     pub tests: Option<RawDomainConfig>,
+    pub generated: Option<RawDomainConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -578,6 +591,19 @@ impl RawRuleConfig {
         }
     }
 
+    pub fn to_no_any_config(&self) -> NoAnyRuleConfig {
+        match self {
+            Self::Severity(severity) => NoAnyRuleConfig {
+                severity: Severity::from_str(severity),
+                allowed_folders: vec![],
+            },
+            Self::Options(options) => NoAnyRuleConfig {
+                severity: Severity::from_str(options.severity.as_deref().unwrap_or("warn")),
+                allowed_folders: options.allowed_folders.clone().unwrap_or_default(),
+            },
+        }
+    }
+
     pub fn to_entry_file_no_logic_config(&self) -> EntryFileNoLogicRuleConfig {
         match self {
             Self::Severity(severity) => EntryFileNoLogicRuleConfig {
@@ -637,6 +663,8 @@ pub struct RawRuleOptions {
     pub ignore_constants: Option<bool>,
     #[serde(rename = "entry-files")]
     pub entry_files: Option<Vec<String>>,
+    #[serde(rename = "allowed-folders")]
+    pub allowed_folders: Option<Vec<String>>,
 }
 
 #[cfg(test)]

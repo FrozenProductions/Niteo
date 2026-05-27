@@ -58,6 +58,7 @@ pub(crate) enum RuleKind {
     NoTestImport,
     EntryFileNoLogic,
     NoNonNullAssertion,
+    NoAny,
 }
 
 pub(crate) const SEVERITY_OPTION: RuleOption = RuleOption {
@@ -823,6 +824,32 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::NoNonNullAssertion,
+    },
+    RuleDocumentation {
+        name: "no-any",
+        intent: "Disallow explicit `any` type annotations. Files in generated folders or configured allowed folders are exempt.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "const value: any = getData();",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "const value: unknown = getData();",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "allowed-folders",
+                description: "Folder names where `any` is permitted (e.g. legacy code).",
+            },
+            RuleOption {
+                name: "project.structure.generated",
+                description: "Folders and file suffixes that identify generated files (always exempt).",
+            },
+        ],
+        kind: RuleKind::NoAny,
     },
 ];
 

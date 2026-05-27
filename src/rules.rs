@@ -7,6 +7,7 @@ mod max_directory_depth;
 mod max_file_exports;
 mod max_items_per_directory;
 mod min_items_per_directory;
+mod no_any;
 mod no_barrel_chain;
 mod no_barrel_files;
 mod no_comments;
@@ -89,6 +90,7 @@ pub const PREFER_SATISFIES_RULE_ID: RuleId = "prefer-satisfies";
 pub const NO_TEST_IMPORT_RULE_ID: RuleId = "no-test-import";
 pub const ENTRY_FILE_NO_LOGIC_RULE_ID: RuleId = "entry-file-no-logic";
 pub const NO_NON_NULL_ASSERTION_RULE_ID: RuleId = "no-non-null-assertion";
+pub const NO_ANY_RULE_ID: RuleId = "no-any";
 
 #[derive(Debug, Clone)]
 pub struct Violation {
@@ -147,7 +149,8 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
             .is_enabled()
         || config.rules.no_test_import.severity.is_enabled()
         || config.rules.entry_file_no_logic.severity.is_enabled()
-        || config.rules.no_non_null_assertion.severity.is_enabled();
+        || config.rules.no_non_null_assertion.severity.is_enabled()
+        || config.rules.no_any.severity.is_enabled();
 
     if !needs_scan && !needs_ast {
         return Ok(violations);
@@ -409,6 +412,15 @@ pub fn check_files(files: &[PathBuf], config: &ProjectConfig) -> Result<Vec<Viol
                     program,
                     &line_index,
                     &config.rules.no_non_null_assertion,
+                ));
+            }
+            if config.rules.no_any.severity.is_enabled() {
+                file_violations.extend(no_any::check_file(
+                    file,
+                    program,
+                    &line_index,
+                    &config.rules.no_any,
+                    &config.structure.generated,
                 ));
             }
         }

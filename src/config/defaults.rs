@@ -24,6 +24,10 @@ file-suffixes = [".constant.ts", ".constants.ts"]
 folders = ["tests"]
 file-suffixes = [".test.ts", ".tests.ts"]
 
+[project.structure.generated]
+folders = ["generated", "__generated__"]
+file-suffixes = [".generated.ts", ".generated.tsx"]
+
 [rules]
 [rules.component-file-only-components]
 severity = "warn"
@@ -153,4 +157,8 @@ entry-files = []
 
 [rules.no-non-null-assertion]
 severity = "warn"
+
+[rules.no-any]
+severity = "warn"
+allowed-folders = []
 "#;

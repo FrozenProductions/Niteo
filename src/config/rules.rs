@@ -277,6 +277,21 @@ impl Default for NoDumpFilesRuleConfig {
 }
 
 #[derive(Debug, Clone)]
+pub struct NoAnyRuleConfig {
+    pub severity: Severity,
+    pub allowed_folders: Vec<String>,
+}
+
+impl Default for NoAnyRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            allowed_folders: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct EntryFileNoLogicRuleConfig {
     pub severity: Severity,
     pub entry_files: Vec<String>,
@@ -330,6 +345,7 @@ pub struct RulesConfig {
     pub prefer_satisfies: RuleConfig,
     pub no_test_import: RuleConfig,
     pub no_non_null_assertion: RuleConfig,
+    pub no_any: NoAnyRuleConfig,
 }
 
 impl Default for RulesConfig {
@@ -376,6 +392,7 @@ impl Default for RulesConfig {
             },
             no_test_import: RuleConfig::default(),
             no_non_null_assertion: RuleConfig::default(),
+            no_any: NoAnyRuleConfig::default(),
         }
     }
 }

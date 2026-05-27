@@ -223,6 +223,20 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
             )],
         },
         RuleKind::NoNonNullAssertion => simple_summary(config.rules.no_non_null_assertion.severity),
+        RuleKind::NoAny => RuleConfigSummary {
+            severity: config.rules.no_any.severity,
+            options: vec![
+                format!("allowed-folders: {:?}", config.rules.no_any.allowed_folders),
+                format!(
+                    "generated-folders: {:?}",
+                    config.structure.generated.folders
+                ),
+                format!(
+                    "generated-file-suffixes: {:?}",
+                    config.structure.generated.file_suffixes
+                ),
+            ],
+        },
     }
 }
 
