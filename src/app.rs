@@ -62,6 +62,17 @@ pub fn run() -> Result<ExitCode> {
             )?;
             ExitCode::SUCCESS
         }
+        Command::Stats => {
+            show_stats(
+                &workspace,
+                cli.options.root,
+                cli.options.scope,
+                cli.options.git,
+                cli.options.format,
+                cli.options.output,
+            )?;
+            ExitCode::SUCCESS
+        }
         Command::Lint => lint_workspace(
             &workspace,
             cli.options.root,
@@ -210,6 +221,115 @@ fn explain_rule(
     write_report(workspace, output_path, &rendered)?;
 
     Ok(())
+}
+
+fn show_stats(
+    workspace: &Path,
+    root_override: Option<PathBuf>,
+    scope_override: Option<PathBuf>,
+    git_flag: bool,
+    output_format: OutputFormat,
+    output_path: Option<PathBuf>,
+) -> Result<()> {
+    let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
+    let scan_scope = scope_override.map(|scope| resolve_path(workspace, scope));
+
+    let files = if git_flag {
+        resolve_changed_files(workspace)
+    } else {
+        discovery::discover_files(
+            &project_config.root,
+            scan_scope.as_deref(),
+            &project_config.gitignore,
+        )?
+    };
+
+    let graph = import_graph::build_import_graph(&files, &project_config.structure.tests);
+
+    let rendered = match output_format {
+        OutputFormat::Text => render_stats_text(&graph),
+        OutputFormat::Json => render_stats_json(&graph)?,
+        OutputFormat::Sarif => bail!("SARIF format is not supported for the 'stats' command"),
+    };
+
+    write_report(workspace, output_path, &rendered)?;
+
+    Ok(())
+}
+
+fn render_stats_text(graph: &ImportGraph) -> String {
+    let mut output = String::new();
+    output.push_str("Project Statistics\n");
+    output.push_str("==================\n\n");
+    output.push_str(&format!("Files: {}\n", graph.file_count()));
+    output.push_str(&format!("Import edges: {}\n", graph.edge_count()));
+    output.push_str(&format!(
+        "Unresolved local imports: {}\n",
+        graph.unresolved_count()
+    ));
+    output.push_str("\n");
+
+    let most_imported = graph.most_imported_files(5);
+    if !most_imported.is_empty() {
+        output.push_str("Most imported files:\n");
+        for (path, count) in &most_imported {
+            output.push_str(&format!("  {} ({})\n", path.display(), count));
+        }
+        output.push_str("\n");
+    }
+
+    let highest_fanout = graph.highest_fanout_files(5);
+    if !highest_fanout.is_empty() {
+        output.push_str("Highest fan-out files:\n");
+        for (path, count) in &highest_fanout {
+            output.push_str(&format!("  {} ({})\n", path.display(), count));
+        }
+    }
+
+    output
+}
+
+fn render_stats_json(graph: &ImportGraph) -> Result<String> {
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    struct Stats {
+        files: usize,
+        import_edges: usize,
+        unresolved_local_imports: usize,
+        most_imported: Vec<FileCount>,
+        highest_fanout: Vec<FileCount>,
+    }
+
+    #[derive(Serialize)]
+    struct FileCount {
+        path: String,
+        count: usize,
+    }
+
+    let stats = Stats {
+        files: graph.file_count(),
+        import_edges: graph.edge_count(),
+        unresolved_local_imports: graph.unresolved_count(),
+        most_imported: graph
+            .most_imported_files(5)
+            .into_iter()
+            .map(|(path, count)| FileCount {
+                path: path.display().to_string(),
+                count,
+            })
+            .collect(),
+        highest_fanout: graph
+            .highest_fanout_files(5)
+            .into_iter()
+            .map(|(path, count)| FileCount {
+                path: path.display().to_string(),
+                count,
+            })
+            .collect(),
+    };
+
+    Ok(serde_json::to_string_pretty(&stats)?)
 }
 
 struct LintOptions {

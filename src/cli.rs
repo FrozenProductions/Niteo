@@ -65,6 +65,8 @@ pub enum Command {
     Rules,
     /// Explain a rule.
     Explain { rule: String },
+    /// Show project statistics.
+    Stats,
 }
 
 #[derive(Debug, Subcommand)]

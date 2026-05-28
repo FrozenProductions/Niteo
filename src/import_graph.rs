@@ -292,6 +292,83 @@ fn is_barrel_file(file: &Path) -> bool {
     file.file_name().and_then(|name| name.to_str()) == Some("index.ts")
 }
 
+mod serialization {
+    use super::*;
+
+    #[derive(Debug)]
+    pub struct GraphFormatter {
+        graph: ImportGraph,
+    }
+
+    impl GraphFormatter {
+        pub fn new(graph: ImportGraph) -> Self {
+            Self { graph }
+        }
+
+        pub fn to_dot(&self) -> String {
+            let mut output = String::new();
+            output.push_str("digraph imports {\n");
+            output.push_str("  rankdir=LR;\n");
+            output.push_str("  node [shape=box];\n\n");
+
+            for (path, node) in &self.graph.files {
+                let label = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown");
+                let style = if node.is_barrel {
+                    ", style=filled, fillcolor=lightblue"
+                } else if node.is_test {
+                    ", style=filled, fillcolor=lightyellow"
+                } else {
+                    ""
+                };
+                output.push_str(&format!(
+                    "  \"{}\" [label=\"{}\"{}];\n",
+                    path.display(),
+                    label,
+                    style
+                ));
+            }
+
+            output.push_str("\n");
+
+            for edge in &self.graph.edges {
+                if let Some(target) = &edge.resolved_target {
+                    let style = match edge.kind {
+                        ImportKind::Import => "",
+                        ImportKind::Export => ", style=dashed",
+                        ImportKind::ReExport => ", style=bold",
+                        ImportKind::DynamicImport => ", style=dotted",
+                    };
+                    output.push_str(&format!(
+                        "  \"{}\" -> \"{}\" [label=\"{}\"{}];\n",
+                        edge.source_file.display(),
+                        target.display(),
+                        edge.specifier,
+                        style
+                    ));
+                }
+            }
+
+            output.push_str("}\n");
+            output
+        }
+    }
+}
+
+use serialization::GraphFormatter;
+
+impl ImportGraph {
+    pub fn format_dot(&self) -> String {
+        GraphFormatter::new(ImportGraph {
+            files: self.files.clone(),
+            edges: self.edges.clone(),
+        })
+        .to_dot()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
