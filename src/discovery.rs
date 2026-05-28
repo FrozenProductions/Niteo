@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 

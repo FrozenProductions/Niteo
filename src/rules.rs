@@ -265,13 +265,13 @@ ast_rule_adapter!(
     no_non_null_assertion
 );
 
-text_rule_adapter!(
+ast_rule_adapter!(
     NoCommentsAdapter,
     NO_COMMENTS_RULE_ID,
     crate::config::CommentsRuleConfig,
     no_comments
 );
-text_rule_adapter!(
+ast_rule_adapter!(
     NoLogicInBarrelAdapter,
     NO_LOGIC_IN_BARREL_RULE_ID,
     crate::config::RuleConfig,
@@ -283,13 +283,13 @@ text_rule_adapter!(
     crate::config::FileLengthRuleConfig,
     no_large_file
 );
-text_rule_adapter!(
+ast_rule_adapter!(
     NoBarrelFilesAdapter,
     NO_BARREL_FILES_RULE_ID,
     crate::config::RuleConfig,
     no_barrel_files
 );
-text_rule_adapter!(
+ast_rule_adapter!(
     PreferSatisfiesAdapter,
     PREFER_SATISFIES_RULE_ID,
     crate::config::RuleConfig,

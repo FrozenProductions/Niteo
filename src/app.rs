@@ -536,10 +536,8 @@ fn collect_violations(
         project_config.rules.min_items_per_directory,
     );
 
-    let mut depth_violations = rules::check_max_directory_depth(
-        scan_root,
-        project_config.rules.max_directory_depth,
-    );
+    let mut depth_violations =
+        rules::check_max_directory_depth(scan_root, project_config.rules.max_directory_depth);
 
     let mut dump_violations = rules::check_dump_files(&files, project_config.rules.no_dump_files);
 
