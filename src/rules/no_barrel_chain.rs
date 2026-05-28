@@ -67,7 +67,7 @@ mod tests {
     use crate::import_graph::build_import_graph_from_sources;
     use crate::rules::Violation;
     use crate::syntax::LineIndex;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     #[test]
     fn reports_re_export_from_folder_barrel() {
