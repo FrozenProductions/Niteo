@@ -101,7 +101,26 @@ fn comment_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violat
 }
 
 fn should_report_line_comment(bytes: &[u8], index: usize, config: &CommentsRuleConfig) -> bool {
+    if is_niteo_directive(bytes, index) {
+        return false;
+    }
     !config.allow_doc_comments || !is_doc_line_comment(bytes, index)
+}
+
+fn is_niteo_directive(bytes: &[u8], index: usize) -> bool {
+    let rest = &bytes[index + 2..];
+    let trimmed = trim_leading_whitespace(rest);
+    trimmed.starts_with(b"niteo-ignore-file")
+        || trimmed.starts_with(b"niteo-ignore-next-line")
+        || trimmed.starts_with(b"niteo-ignore-line")
+}
+
+fn trim_leading_whitespace(bytes: &[u8]) -> &[u8] {
+    let mut i = 0;
+    while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\t') {
+        i += 1;
+    }
+    &bytes[i..]
 }
 
 fn should_report_block_comment(bytes: &[u8], index: usize, config: &CommentsRuleConfig) -> bool {
@@ -209,6 +228,46 @@ const block = "/* not a comment */"
         let violations = check_file(Path::new("example.ts"), source, &config);
 
         assert_eq!(violations.len(), 2);
+    }
+
+    #[test]
+    fn ignores_niteo_ignore_file_directive() {
+        let source = "// niteo-ignore-file\nconst x = 1;\n";
+        let violations = check_file(Path::new("example.ts"), source, &test_config());
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn ignores_niteo_ignore_next_line_directive() {
+        let source = "// niteo-ignore-next-line: no-console\nconsole.log('test');\n";
+        let violations = check_file(Path::new("example.ts"), source, &test_config());
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn ignores_niteo_ignore_line_directive() {
+        let source = "console.log('test'); // niteo-ignore-line\n";
+        let violations = check_file(Path::new("example.ts"), source, &test_config());
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn ignores_niteo_directive_with_extra_whitespace() {
+        let source = "//   niteo-ignore-file\nconst x = 1;\n";
+        let violations = check_file(Path::new("example.ts"), source, &test_config());
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn still_reports_non_directive_niteo_comments() {
+        let source = "// niteo is a linter\nconst x = 1;\n";
+        let violations = check_file(Path::new("example.ts"), source, &test_config());
+
+        assert_eq!(violations.len(), 1);
     }
 
     fn test_config() -> CommentsRuleConfig {
