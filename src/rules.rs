@@ -109,7 +109,6 @@ pub struct FileContext<'a> {
     pub source: &'a str,
     pub program: Option<&'a oxc_ast::ast::Program<'a>>,
     pub line_index: &'a LineIndex,
-    pub all_files: &'a [PathBuf],
     pub type_location_style: no_inline_types::TypeLocationStyle,
     pub import_graph: &'a ImportGraph,
 }
@@ -686,7 +685,6 @@ pub fn check_files(
             source: &source,
             program: parse_result.as_ref(),
             line_index: &line_index,
-            all_files: files,
             type_location_style,
             import_graph,
         };

@@ -73,6 +73,17 @@ pub fn run() -> Result<ExitCode> {
             )?;
             ExitCode::SUCCESS
         }
+        Command::Graph => {
+            show_graph(
+                &workspace,
+                cli.options.root,
+                cli.options.scope,
+                cli.options.git,
+                cli.options.format,
+                cli.options.output,
+            )?;
+            ExitCode::SUCCESS
+        }
         Command::Lint => lint_workspace(
             &workspace,
             cli.options.root,
@@ -267,7 +278,7 @@ fn render_stats_text(graph: &ImportGraph) -> String {
         "Unresolved local imports: {}\n",
         graph.unresolved_count()
     ));
-    output.push_str("\n");
+    output.push('\n');
 
     let most_imported = graph.most_imported_files(5);
     if !most_imported.is_empty() {
@@ -275,7 +286,7 @@ fn render_stats_text(graph: &ImportGraph) -> String {
         for (path, count) in &most_imported {
             output.push_str(&format!("  {} ({})\n", path.display(), count));
         }
-        output.push_str("\n");
+        output.push('\n');
     }
 
     let highest_fanout = graph.highest_fanout_files(5);
@@ -330,6 +341,92 @@ fn render_stats_json(graph: &ImportGraph) -> Result<String> {
     };
 
     Ok(serde_json::to_string_pretty(&stats)?)
+}
+
+fn show_graph(
+    workspace: &Path,
+    root_override: Option<PathBuf>,
+    scope_override: Option<PathBuf>,
+    git_flag: bool,
+    output_format: OutputFormat,
+    output_path: Option<PathBuf>,
+) -> Result<()> {
+    let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
+    let scan_scope = scope_override.map(|scope| resolve_path(workspace, scope));
+
+    let files = if git_flag {
+        resolve_changed_files(workspace)
+    } else {
+        discovery::discover_files(
+            &project_config.root,
+            scan_scope.as_deref(),
+            &project_config.gitignore,
+        )?
+    };
+
+    let graph = import_graph::build_import_graph(&files, &project_config.structure.tests);
+
+    let rendered = match output_format {
+        OutputFormat::Text => graph.format_dot(),
+        OutputFormat::Json => render_graph_json(&graph)?,
+        OutputFormat::Sarif => bail!("SARIF format is not supported for the 'graph' command"),
+    };
+
+    write_report(workspace, output_path, &rendered)?;
+
+    Ok(())
+}
+
+fn render_graph_json(graph: &ImportGraph) -> Result<String> {
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    struct GraphData {
+        nodes: Vec<NodeData>,
+        edges: Vec<EdgeData>,
+    }
+
+    #[derive(Serialize)]
+    struct NodeData {
+        path: String,
+        is_barrel: bool,
+        is_test: bool,
+    }
+
+    #[derive(Serialize)]
+    struct EdgeData {
+        source: String,
+        target: String,
+        specifier: String,
+        kind: String,
+    }
+
+    let nodes: Vec<NodeData> = graph
+        .files
+        .iter()
+        .map(|(path, node)| NodeData {
+            path: path.display().to_string(),
+            is_barrel: node.is_barrel,
+            is_test: node.is_test,
+        })
+        .collect();
+
+    let edges: Vec<EdgeData> = graph
+        .edges
+        .iter()
+        .filter_map(|edge| {
+            edge.resolved_target.as_ref().map(|target| EdgeData {
+                source: edge.source_file.display().to_string(),
+                target: target.display().to_string(),
+                specifier: edge.specifier.clone(),
+                kind: format!("{:?}", edge.kind),
+            })
+        })
+        .collect();
+
+    let graph_data = GraphData { nodes, edges };
+
+    Ok(serde_json::to_string_pretty(&graph_data)?)
 }
 
 struct LintOptions {
@@ -387,7 +484,6 @@ struct CollectedViolations {
     files: Vec<PathBuf>,
     violations: Vec<Violation>,
     suppression_report: SuppressionReport,
-    import_graph: ImportGraph,
 }
 
 fn collect_violations(
@@ -461,7 +557,6 @@ fn collect_violations(
         files,
         violations: all_violations,
         suppression_report,
-        import_graph: graph,
     })
 }
 

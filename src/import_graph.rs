@@ -12,7 +12,6 @@ use crate::config::structure::DomainConfig;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImportKind {
     Import,
-    Export,
     ReExport,
     DynamicImport,
 }
@@ -24,19 +23,10 @@ pub struct ImportEdge {
     pub resolved_target: Option<PathBuf>,
     pub kind: ImportKind,
     pub span: Span,
-    pub resolution_error: Option<ResolutionError>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ResolutionError {
-    NotRelative,
-    FileNotFound,
-    InvalidPath,
 }
 
 #[derive(Debug, Clone)]
 pub struct FileNode {
-    pub path: PathBuf,
     pub is_barrel: bool,
     pub is_test: bool,
 }
@@ -53,14 +43,7 @@ impl ImportGraph {
     }
 
     pub fn add_file(&mut self, path: PathBuf, is_barrel: bool, is_test: bool) {
-        self.files.insert(
-            path.clone(),
-            FileNode {
-                path,
-                is_barrel,
-                is_test,
-            },
-        );
+        self.files.insert(path, FileNode { is_barrel, is_test });
     }
 
     pub fn edges_from<'a>(&'a self, file: &'a Path) -> impl Iterator<Item = &'a ImportEdge> + 'a {
@@ -217,13 +200,6 @@ impl ImportVisitor<'_> {
     fn add_edge(&mut self, specifier: &str, kind: ImportKind, span: Span) {
         let resolved_target =
             resolve_import_specifier(&self.source_file, specifier, self.all_files);
-        let resolution_error = if is_relative_specifier(specifier) && resolved_target.is_none() {
-            Some(ResolutionError::FileNotFound)
-        } else if !is_relative_specifier(specifier) {
-            Some(ResolutionError::NotRelative)
-        } else {
-            None
-        };
 
         self.edges.push(ImportEdge {
             source_file: self.source_file.clone(),
@@ -231,7 +207,6 @@ impl ImportVisitor<'_> {
             resolved_target,
             kind,
             span,
-            resolution_error,
         });
     }
 }
@@ -331,13 +306,12 @@ mod serialization {
                 ));
             }
 
-            output.push_str("\n");
+            output.push('\n');
 
             for edge in &self.graph.edges {
                 if let Some(target) = &edge.resolved_target {
                     let style = match edge.kind {
                         ImportKind::Import => "",
-                        ImportKind::Export => ", style=dashed",
                         ImportKind::ReExport => ", style=bold",
                         ImportKind::DynamicImport => ", style=dotted",
                     };
