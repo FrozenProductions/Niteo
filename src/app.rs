@@ -243,7 +243,7 @@ fn show_stats(
     output_path: Option<PathBuf>,
 ) -> Result<()> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
-    let scan_scope = scope_override.map(|scope| resolve_path(workspace, scope));
+    let scan_scope = scope_override.map(|scope| resolve_path(&project_config.root, scope));
 
     let files = if git_flag {
         resolve_changed_files(workspace)
@@ -352,7 +352,7 @@ fn show_graph(
     output_path: Option<PathBuf>,
 ) -> Result<()> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
-    let scan_scope = scope_override.map(|scope| resolve_path(workspace, scope));
+    let scan_scope = scope_override.map(|scope| resolve_path(&project_config.root, scope));
 
     let files = if git_flag {
         resolve_changed_files(workspace)
@@ -494,7 +494,8 @@ fn collect_violations(
     prompt_for_changed_files: bool,
 ) -> Result<CollectedViolations> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
-    let scan_scope = scope_override.map(|scope| resolve_path(workspace, scope));
+    let scan_scope = scope_override.map(|scope| resolve_path(&project_config.root, scope));
+    let scan_root = scan_scope.as_deref().unwrap_or(&project_config.root);
 
     let files = if git_flag {
         resolve_changed_files(workspace)
@@ -519,26 +520,24 @@ fn collect_violations(
     let (file_violations, suppression_report) =
         rules::check_files(&files, &project_config, &graph)?;
 
-    let mut dir_violations = rules::check_directories(
-        &project_config.root,
-        project_config.rules.no_empty_directories,
-    );
+    let mut dir_violations =
+        rules::check_directories(scan_root, project_config.rules.no_empty_directories);
 
     let mut name_violations =
         rules::check_duplicate_file_names(&files, project_config.rules.no_duplicate_file_names);
 
     let mut max_items_violations = rules::check_max_items_per_directory(
-        &project_config.root,
+        scan_root,
         project_config.rules.max_items_per_directory,
     );
 
     let mut min_items_violations = rules::check_min_items_per_directory(
-        &project_config.root,
+        scan_root,
         project_config.rules.min_items_per_directory,
     );
 
     let mut depth_violations = rules::check_max_directory_depth(
-        &project_config.root,
+        scan_root,
         project_config.rules.max_directory_depth,
     );
 
