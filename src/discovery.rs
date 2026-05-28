@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
@@ -10,7 +10,7 @@ pub fn discover_files(
     gitignore_config: &GitignoreConfig,
 ) -> Result<Vec<PathBuf>> {
     if !root.exists() {
-        return Ok(Vec::new());
+        bail!("root path does not exist: {}", root.display());
     }
 
     let mut builder = WalkBuilder::new(root);
