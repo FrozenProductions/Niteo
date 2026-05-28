@@ -14,6 +14,7 @@ macro_rules! declare_rules {
         use crate::config::structure::{DomainConfig, ProjectStructureConfig};
         use crate::config::{ProjectConfig, Severity};
         use crate::ignore;
+        use crate::import_graph::ImportGraph;
         use crate::syntax::LineIndex;
 
         pub type RuleId = &'static str;
@@ -110,6 +111,7 @@ pub struct FileContext<'a> {
     pub line_index: &'a LineIndex,
     pub all_files: &'a [PathBuf],
     pub type_location_style: no_inline_types::TypeLocationStyle,
+    pub import_graph: &'a ImportGraph,
 }
 
 macro_rules! ast_rule_adapter {
@@ -183,12 +185,20 @@ ast_rule_adapter!(
     crate::config::FileExportsRuleConfig,
     max_file_exports
 );
-ast_rule_adapter!(
-    NoUpwardImportAdapter,
-    NO_UPWARD_IMPORT_RULE_ID,
-    crate::config::UpwardImportRuleConfig,
-    no_upward_import
-);
+struct NoUpwardImportAdapter {
+    config: crate::config::UpwardImportRuleConfig,
+}
+impl FileRule for NoUpwardImportAdapter {
+    fn severity(&self) -> Severity {
+        self.config.severity
+    }
+    fn needs_ast(&self) -> bool {
+        false
+    }
+    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+        no_upward_import::check_file(ctx.file, ctx.line_index, ctx.import_graph, &self.config)
+    }
+}
 ast_rule_adapter!(
     NoEnumsAdapter,
     NO_ENUMS_RULE_ID,
@@ -435,13 +445,16 @@ impl FileRule for NoTestImportAdapter {
         self.config.severity
     }
     fn needs_ast(&self) -> bool {
-        true
+        false
     }
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        let Some(program) = ctx.program else {
-            return vec![];
-        };
-        no_test_import::check_file(ctx.file, program, ctx.line_index, &self.config, &self.tests)
+        no_test_import::check_file(
+            ctx.file,
+            ctx.line_index,
+            ctx.import_graph,
+            &self.config,
+            &self.tests,
+        )
     }
 }
 
@@ -481,7 +494,7 @@ impl FileRule for NoBarrelChainAdapter {
         false
     }
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        no_barrel_chain::check_file(ctx.file, ctx.source, ctx.all_files, &self.config)
+        no_barrel_chain::check_file(ctx.file, ctx.line_index, ctx.import_graph, &self.config)
     }
 }
 
@@ -625,6 +638,7 @@ fn build_file_rules(
 pub fn check_files(
     files: &[PathBuf],
     config: &ProjectConfig,
+    import_graph: &ImportGraph,
 ) -> Result<(Vec<Violation>, ignore::SuppressionReport)> {
     let rules = build_file_rules(&config.rules, &config.structure);
 
@@ -674,6 +688,7 @@ pub fn check_files(
             line_index: &line_index,
             all_files: files,
             type_location_style,
+            import_graph,
         };
 
         let mut file_violations = Vec::new();

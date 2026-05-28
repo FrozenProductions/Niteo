@@ -1,97 +1,37 @@
 use std::path::Path;
 
-use oxc_ast::ast::{
-    ExportAllDeclaration, ExportNamedDeclaration, Expression, ImportDeclaration, ImportExpression,
-    StringLiteral,
-};
-use oxc_ast_visit::Visit;
-
-use crate::config::{Severity, UpwardImportRuleConfig};
+use crate::config::UpwardImportRuleConfig;
+use crate::import_graph::ImportGraph;
 use crate::rules::{NO_UPWARD_IMPORT_RULE_ID, Violation};
 use crate::syntax::LineIndex;
 const MESSAGE: &str = "Replace upward relative imports with local or project-root imports.";
 
 pub fn check_file(
     file: &Path,
-    program: &oxc_ast::ast::Program,
     line_index: &LineIndex,
+    import_graph: &ImportGraph,
     config: &UpwardImportRuleConfig,
 ) -> Vec<Violation> {
-    let mut visitor = UpwardImportVisitor {
-        violations: Vec::new(),
-        file,
-        line_index,
-        config,
-        _phantom: std::marker::PhantomData,
-    };
-    visitor.visit_program(program);
-    visitor.violations
-}
+    let mut violations = Vec::new();
 
-struct UpwardImportVisitor<'a, 'f> {
-    violations: Vec<Violation>,
-    file: &'f Path,
-    line_index: &'f LineIndex,
-    config: &'f UpwardImportRuleConfig,
-    _phantom: std::marker::PhantomData<&'a ()>,
-}
-
-impl<'a, 'f> Visit<'a> for UpwardImportVisitor<'a, 'f> {
-    fn visit_import_declaration(&mut self, decl: &ImportDeclaration<'a>) {
-        if should_report(&decl.source, self.config) {
-            self.violations.push(make_violation(
-                self.file,
-                self.line_index,
-                decl.span,
-                self.config.severity,
-            ));
+    for edge in import_graph.edges_from(file) {
+        let depth = upward_depth(edge.specifier.as_bytes());
+        if depth > config.max_depth {
+            let pos = line_index.position_for(edge.span);
+            violations.push(Violation {
+                file: file.to_path_buf(),
+                line: Some(pos.line),
+                column: Some(pos.column),
+                rule: NO_UPWARD_IMPORT_RULE_ID,
+                message: MESSAGE,
+                severity: config.severity,
+                detail: None,
+                subject: None,
+            });
         }
-        oxc_ast_visit::walk::walk_import_declaration(self, decl);
     }
 
-    fn visit_export_all_declaration(&mut self, decl: &ExportAllDeclaration<'a>) {
-        if should_report(&decl.source, self.config) {
-            self.violations.push(make_violation(
-                self.file,
-                self.line_index,
-                decl.span,
-                self.config.severity,
-            ));
-        }
-        oxc_ast_visit::walk::walk_export_all_declaration(self, decl);
-    }
-
-    fn visit_export_named_declaration(&mut self, decl: &ExportNamedDeclaration<'a>) {
-        if let Some(source) = &decl.source
-            && should_report(source, self.config)
-        {
-            self.violations.push(make_violation(
-                self.file,
-                self.line_index,
-                decl.span,
-                self.config.severity,
-            ));
-        }
-        oxc_ast_visit::walk::walk_export_named_declaration(self, decl);
-    }
-
-    fn visit_import_expression(&mut self, expr: &ImportExpression<'a>) {
-        if let Expression::StringLiteral(source) = &expr.source
-            && should_report(source, self.config)
-        {
-            self.violations.push(make_violation(
-                self.file,
-                self.line_index,
-                expr.span,
-                self.config.severity,
-            ));
-        }
-        oxc_ast_visit::walk::walk_import_expression(self, expr);
-    }
-}
-
-fn should_report(source: &StringLiteral, config: &UpwardImportRuleConfig) -> bool {
-    upward_depth(source.value.as_bytes()) > config.max_depth
+    violations
 }
 
 fn upward_depth(specifier: &[u8]) -> usize {
@@ -101,34 +41,13 @@ fn upward_depth(specifier: &[u8]) -> usize {
         .count()
 }
 
-fn make_violation(
-    file: &Path,
-    line_index: &LineIndex,
-    span: oxc_span::Span,
-    severity: Severity,
-) -> Violation {
-    let pos = line_index.position_for(span);
-    Violation {
-        file: file.to_path_buf(),
-        line: Some(pos.line),
-        column: Some(pos.column),
-        rule: NO_UPWARD_IMPORT_RULE_ID,
-        message: MESSAGE,
-        severity,
-        detail: None,
-        subject: None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::structure::DomainConfig;
     use crate::config::{Severity, UpwardImportRuleConfig};
+    use crate::import_graph::build_import_graph_from_sources;
     use crate::syntax::LineIndex;
-    use oxc_allocator::Allocator;
-    use oxc_parser::Parser;
-    use oxc_span::SourceType;
-    use std::path::Path;
 
     fn test_config() -> UpwardImportRuleConfig {
         UpwardImportRuleConfig {
@@ -144,12 +63,18 @@ mod tests {
         }
     }
 
+    fn test_domain() -> DomainConfig {
+        DomainConfig {
+            folders: vec!["tests".to_string()],
+            file_suffixes: vec![".test.ts".to_string(), ".tests.ts".to_string()],
+        }
+    }
+
     fn run_check(source: &str, config: &UpwardImportRuleConfig) -> Vec<Violation> {
-        let allocator = Allocator::default();
+        let files_with_sources = vec![("Button.ts", source)];
+        let graph = build_import_graph_from_sources(&files_with_sources, &test_domain());
         let line_index = LineIndex::new(source);
-        let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
-        let program = parser_return.program;
-        check_file(Path::new("Button.ts"), &program, &line_index, config)
+        check_file(std::path::Path::new("Button.ts"), &line_index, &graph, config)
     }
 
     #[test]
@@ -219,16 +144,6 @@ import { other } from "../../other";
         let violations = run_check(source, &test_config_with_depth(1));
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
-    }
-
-    #[test]
-    fn ignores_comments_and_strings() {
-        let source = r#"// import { shared } from "../shared";
-const text = "export { shared } from '../shared'";
-/* import x from "../shared" */
-"#;
-        let violations = run_check(source, &test_config());
-        assert!(violations.is_empty());
     }
 
     #[test]

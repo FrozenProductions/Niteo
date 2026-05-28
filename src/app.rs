@@ -7,8 +7,9 @@ use std::process::ExitCode;
 
 use crate::cli::{BaselineCommand, Cli, Command, OutputFormat};
 use crate::ignore::SuppressionReport;
+use crate::import_graph::ImportGraph;
 use crate::rules::Violation;
-use crate::{baseline, config, discovery, git, report, rule_documentation, rules};
+use crate::{baseline, config, discovery, git, import_graph, report, rule_documentation, rules};
 
 pub fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
@@ -266,6 +267,7 @@ struct CollectedViolations {
     files: Vec<PathBuf>,
     violations: Vec<Violation>,
     suppression_report: SuppressionReport,
+    import_graph: ImportGraph,
 }
 
 fn collect_violations(
@@ -296,7 +298,10 @@ fn collect_violations(
         }
     };
 
-    let (file_violations, suppression_report) = rules::check_files(&files, &project_config)?;
+    let graph = import_graph::build_import_graph(&files, &project_config.structure.tests);
+
+    let (file_violations, suppression_report) =
+        rules::check_files(&files, &project_config, &graph)?;
 
     let mut dir_violations = rules::check_directories(
         &project_config.root,
@@ -336,6 +341,7 @@ fn collect_violations(
         files,
         violations: all_violations,
         suppression_report,
+        import_graph: graph,
     })
 }
 
