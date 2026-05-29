@@ -1,4 +1,8 @@
-# Niteo
+<p align="center">
+  <img src=".github/public/Niteo.png" alt="Niteo" width="128" />
+</p>
+
+---
 
 Niteo is a standalone Rust CLI for structural linting in TypeScript projects.
 
@@ -38,6 +42,7 @@ niteo lint --root src
 niteo lint --scope src/components
 niteo lint --format json --output report.json
 niteo lint --format sarif --output report.sarif
+niteo lint --watch
 ```
 
 ## Monorepos

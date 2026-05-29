@@ -43,6 +43,7 @@ niteo baseline create
 
 ```sh
 niteo lint              # Scan for structural issues
+niteo lint --watch      # Re-lint on every file change
 niteo init              # Create niteo.toml
 niteo baseline create   # Snapshot current violations
 niteo baseline prune    # Remove fixed violations from the baseline
@@ -64,6 +65,7 @@ niteo graph             # Output the import graph
 | `--output <path>` | Write output to a file. |
 | `--baseline <path>` | Baseline file path. |
 | `--report-suppressions` | Report suppressed violations and stale ignore directives. |
+| `--watch` | Re-run lint on file changes. |
 
 ## What Niteo Checks
 

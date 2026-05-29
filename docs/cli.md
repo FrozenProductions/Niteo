@@ -22,6 +22,7 @@ These options are accepted by every command.
 | `--output <path>` | `-o` | Write output to a file instead of stdout. |
 | `--baseline <path>` | | Baseline file path. Defaults to `niteo-baseline.json`. |
 | `--report-suppressions` | | Include suppression counts and stale ignore directives. |
+| `--watch` | | Re-run lint on file changes. |
 
 Not every command supports every output format. `rules`, `explain`, `stats`, and `graph` support `text` and `json`; they reject `sarif`. `lint` supports `text`, `json`, and `sarif`.
 
@@ -47,6 +48,20 @@ Scan only changed files? [Y/n]
 ```
 
 Use `--git` in scripts and CI when you want changed-file scanning without an interactive prompt.
+
+### Watch Mode
+
+Run lint continuously during development:
+
+```sh
+niteo lint --watch
+niteo lint --watch --root src
+niteo lint --watch --scope src/components
+```
+
+Niteo runs a full lint pass on startup, then watches for changes to `.ts`, `.tsx`, and `niteo.toml` files. Each detected change triggers a re-lint after a short debounce. Press Ctrl+C to stop.
+
+Watch mode disables the interactive changed-files prompt and always performs a full scan.
 
 ## `init`
 
