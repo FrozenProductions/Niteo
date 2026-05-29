@@ -548,6 +548,7 @@ fn collect_violations(
 
     let mut all_violations = file_violations;
 
+    // Directory rules run per config node; child directories are excluded to avoid double-reporting
     for (i, node) in config_set.configs().enumerate() {
         let node_root = if node.directory.starts_with(scan_root) {
             &node.directory

@@ -307,6 +307,7 @@ macro_rules! declare_option_converters {
     };
 }
 
+// Enables TOML shorthand: `[rules.no-console]` can be `"warn"` or `{ severity = "warn", allow-patterns = [...] }`
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum RawRuleConfig {

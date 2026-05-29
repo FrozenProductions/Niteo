@@ -49,6 +49,7 @@ fn has_relevant_change(paths: &[PathBuf]) -> bool {
     paths.iter().any(|path| is_relevant_path(path))
 }
 
+// Only TypeScript and config file changes trigger a re-lint
 fn is_relevant_path(path: &Path) -> bool {
     if is_typescript_file(path) {
         return true;

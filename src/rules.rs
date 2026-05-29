@@ -642,6 +642,7 @@ pub fn check_files(
     let mut violations = Vec::new();
     let mut suppression_files = Vec::new();
 
+    // Group files by config pointer identity so rules are built once per unique config
     let mut grouped: std::collections::HashMap<usize, Vec<&PathBuf>> =
         std::collections::HashMap::new();
     for file in files {

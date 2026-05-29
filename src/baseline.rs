@@ -45,6 +45,7 @@ impl Baseline {
         }
     }
 
+    // Baseline identity excludes `detail` and `severity` so rewording doesn't invalidate baselines
     pub fn filter_new_violations(&self, root: &Path, violations: Vec<Violation>) -> Vec<Violation> {
         let known_violations = self
             .violations

@@ -150,6 +150,7 @@ fn extract_imports(source_file: &Path, source: &str, all_files: &[PathBuf]) -> V
     };
 
     let parser_return = oxc_parser::Parser::new(&allocator, source, source_type).parse();
+    // Silently skip parse failures so one broken file doesn't block the entire lint run
     if parser_return.panicked {
         return Vec::new();
     }
@@ -228,6 +229,7 @@ fn resolve_import_specifier(
     let parent = source_file.parent()?;
     let target = normalize_path(&parent.join(specifier));
 
+    // Match TypeScript resolution: exact path, extensionless, or directory-to-barrel
     for candidate in all_files {
         let normalized_candidate = normalize_path(candidate);
         if normalized_candidate == target

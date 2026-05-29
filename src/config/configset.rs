@@ -81,6 +81,7 @@ impl ConfigSet {
         &self.nodes[0].config
     }
 
+    // Walk the config tree: deepest ancestor directory wins (cascading per-scope config)
     pub fn config_for_file(&self, file: &Path) -> &ProjectConfig {
         let mut best_match: Option<&ResolvedConfigNode> = None;
         let mut best_depth = 0;
