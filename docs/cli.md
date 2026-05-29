@@ -1,0 +1,158 @@
+# CLI Reference
+
+Niteo exposes one binary: `niteo`.
+
+```sh
+niteo [global options] [command]
+```
+
+If the command is omitted, Niteo runs `lint`.
+
+## Global Options
+
+These options are accepted by every command.
+
+| Option | Short | Description |
+| --- | --- | --- |
+| `--root <path>` | | Project root to scan. Overrides `[project].root`. |
+| `--scope <path>` | | Limit scanning to a path inside the project root. |
+| `--verbose` | `-v` | Show every violation in text reports. |
+| `--git` | | Scan changed TypeScript files only. |
+| `--format <format>` | | Output format. Supported values: `text`, `json`, `sarif`. |
+| `--output <path>` | `-o` | Write output to a file instead of stdout. |
+| `--baseline <path>` | | Baseline file path. Defaults to `niteo-baseline.json`. |
+| `--report-suppressions` | | Include suppression counts and stale ignore directives. |
+
+Not every command supports every output format. `rules`, `explain`, `stats`, and `graph` support `text` and `json`; they reject `sarif`. `lint` supports `text`, `json`, and `sarif`.
+
+## `lint`
+
+Scan the project for structural issues.
+
+```sh
+niteo lint
+niteo lint --root src
+niteo lint --scope src/components
+niteo lint --verbose
+niteo lint --format json --output niteo-report.json
+niteo lint --format sarif --output niteo.sarif
+```
+
+`lint` reads `niteo.toml`, discovers `.ts` and `.tsx` files, applies enabled rules, applies ignore directives, filters known baseline violations, renders a report, and exits with a non-zero status if new violations remain.
+
+When `--git` is not passed and changed TypeScript files are detected, Niteo prompts:
+
+```text
+Scan only changed files? [Y/n]
+```
+
+Use `--git` in scripts and CI when you want changed-file scanning without an interactive prompt.
+
+## `init`
+
+Create a default `niteo.toml` in the current workspace.
+
+```sh
+niteo init
+```
+
+The command fails if `niteo.toml` already exists.
+
+## `baseline create`
+
+Create a baseline file from current violations.
+
+```sh
+niteo baseline create
+niteo baseline create --baseline config/niteo-baseline.json
+niteo baseline create --report-suppressions
+```
+
+Use this when adding Niteo to a project that already has known violations. `lint` ignores violations recorded in the baseline, so CI can fail only for newly introduced issues.
+
+## `baseline prune`
+
+Remove stale baseline entries that no longer match current violations.
+
+```sh
+niteo baseline prune
+niteo baseline prune --baseline config/niteo-baseline.json
+```
+
+The command fails if the baseline file does not exist.
+
+## `rules`
+
+List all rules with their configured severities.
+
+```sh
+niteo rules
+niteo rules --format json
+niteo rules --output rules.txt
+```
+
+The command uses the current configuration, so severity overrides in `niteo.toml` are reflected in the output.
+
+## `explain`
+
+Print documentation for one rule.
+
+```sh
+niteo explain no-console
+niteo explain no-console --format json
+```
+
+The explanation includes the rule intent, current severity, examples, and supported options.
+
+## `stats`
+
+Show import graph statistics.
+
+```sh
+niteo stats
+niteo stats --format json
+niteo stats --scope src/features/billing
+```
+
+Text output includes:
+
+- file count
+- import edge count
+- unresolved local import count
+- most imported files
+- highest fan-out files
+
+JSON output contains the same information in a machine-readable shape.
+
+## `graph`
+
+Output the project import graph.
+
+```sh
+niteo graph
+niteo graph --format json
+niteo graph --format json --output graph.json
+```
+
+Text output is DOT. It can be piped to Graphviz:
+
+```sh
+niteo graph | dot -Tsvg > imports.svg
+```
+
+JSON output contains `nodes` and `edges`. Nodes include `path`, `is_barrel`, and `is_test`. Edges include `source`, `target`, `specifier`, and `kind`.
+
+## Path Resolution
+
+`--root` is resolved relative to the workspace unless it is absolute.
+
+`--scope` is resolved relative to the resolved project root. For example:
+
+```sh
+niteo lint --root packages/app/src --scope components
+```
+
+This scans `packages/app/src/components`.
+
+`--output` and `--baseline` are resolved relative to the workspace unless they are absolute.
+
