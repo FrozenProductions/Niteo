@@ -812,7 +812,7 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             SEVERITY_OPTION,
             RuleOption {
                 name: "entry-files",
-                description: "Additional file stems to treat as entry files (beyond main, app, layout, page).",
+                description: "File stems to treat as entry files. Defaults to main, app, layout, page.",
             },
         ],
         kind: RuleKind::EntryFileNoLogic,

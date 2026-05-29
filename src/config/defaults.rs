@@ -153,7 +153,7 @@ severity = "warn"
 
 [rules.entry-file-no-logic]
 severity = "warn"
-entry-files = []
+entry-files = ["main", "app", "layout", "page"]
 
 [rules.no-non-null-assertion]
 severity = "warn"

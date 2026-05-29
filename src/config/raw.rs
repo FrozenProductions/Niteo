@@ -226,7 +226,7 @@ macro_rules! declare_option_converters {
                             options.severity.as_deref().unwrap_or("warn"),
                         );
                         $( cfg.$field = options.$field.unwrap_or($default); )*
-                        $( cfg.$clone_field = options.$clone_field.clone().unwrap_or_default(); )*
+                        $( cfg.$clone_field = options.$clone_field.clone().unwrap_or_else(|| <$config_type>::default().$clone_field); )*
                         cfg
                     }
                 }

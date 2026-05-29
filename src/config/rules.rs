@@ -301,7 +301,12 @@ impl Default for EntryFileNoLogicRuleConfig {
     fn default() -> Self {
         Self {
             severity: Severity::Warn,
-            entry_files: vec![],
+            entry_files: vec![
+                "main".to_string(),
+                "app".to_string(),
+                "layout".to_string(),
+                "page".to_string(),
+            ],
         }
     }
 }

@@ -10,8 +10,6 @@ use crate::syntax::LineIndex;
 const MESSAGE: &str =
     "Entry files should delegate logic. Move implementation to dedicated modules.";
 
-const DEFAULT_ENTRY_FILES: &[&str] = &["main", "app", "layout", "page"];
-
 pub fn check_file(
     file: &Path,
     program: &oxc_ast::ast::Program,
@@ -37,10 +35,6 @@ fn is_entry_file(file: &Path, config: &EntryFileNoLogicRuleConfig) -> bool {
     let Some(stem) = file.file_stem().and_then(|s| s.to_str()) else {
         return false;
     };
-
-    if DEFAULT_ENTRY_FILES.contains(&stem) {
-        return true;
-    }
 
     config
         .entry_files
@@ -245,10 +239,7 @@ mod tests {
     }
 
     fn test_config() -> EntryFileNoLogicRuleConfig {
-        EntryFileNoLogicRuleConfig {
-            severity: Severity::Warn,
-            entry_files: vec![],
-        }
+        EntryFileNoLogicRuleConfig::default()
     }
 
     #[test]
