@@ -10,7 +10,9 @@ use crate::config::ConfigSet;
 use crate::ignore::SuppressionReport;
 use crate::import_graph::ImportGraph;
 use crate::rules::Violation;
-use crate::{baseline, config, discovery, git, import_graph, report, rule_documentation, rules};
+use crate::{
+    baseline, config, discovery, git, import_graph, report, rule_documentation, rules, watch,
+};
 
 pub fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
@@ -85,19 +87,30 @@ pub fn run() -> Result<ExitCode> {
             )?;
             ExitCode::SUCCESS
         }
-        Command::Lint => lint_workspace(
-            &workspace,
-            cli.options.root,
-            cli.options.scope,
-            LintOptions {
+        Command::Lint => {
+            let opts = LintOptions {
                 verbose: cli.options.verbose,
                 git_flag: cli.options.git,
                 output_format: cli.options.format,
                 output_path: cli.options.output,
                 baseline_path: cli.options.baseline,
                 report_suppressions: cli.options.report_suppressions,
-            },
-        )?,
+            };
+
+            if cli.options.watch {
+                let watch_root = resolve_watch_root(&workspace, cli.options.root.as_deref())?;
+                let ws = workspace.clone();
+                let root = cli.options.root.clone();
+                let scope = cli.options.scope.clone();
+
+                watch::run(&watch_root, move || {
+                    lint_workspace(&ws, root.clone(), scope.clone(), opts.clone(), false)
+                })?;
+                ExitCode::SUCCESS
+            } else {
+                lint_workspace(&workspace, cli.options.root, cli.options.scope, opts, true)?
+            }
+        }
     };
 
     Ok(exit_code)
@@ -432,6 +445,7 @@ fn render_graph_json(graph: &ImportGraph) -> Result<String> {
     Ok(serde_json::to_string_pretty(&graph_data)?)
 }
 
+#[derive(Clone)]
 struct LintOptions {
     verbose: bool,
     git_flag: bool,
@@ -446,13 +460,14 @@ fn lint_workspace(
     root_override: Option<PathBuf>,
     scope_override: Option<PathBuf>,
     opts: LintOptions,
+    prompt_for_changed_files: bool,
 ) -> Result<ExitCode> {
     let collected = collect_violations(
         workspace,
         root_override,
         scope_override,
         opts.git_flag,
-        true,
+        prompt_for_changed_files,
     )?;
     let resolved_baseline_path = resolve_path(workspace, opts.baseline_path);
     let filtered_violations = match baseline::read_baseline(&resolved_baseline_path)? {
@@ -630,4 +645,13 @@ fn resolve_path(workspace: &Path, path: PathBuf) -> PathBuf {
     }
 
     workspace.join(path)
+}
+
+fn resolve_watch_root(workspace: &Path, root_override: Option<&Path>) -> Result<PathBuf> {
+    if let Some(root) = root_override {
+        return Ok(resolve_path(workspace, root.to_path_buf()));
+    }
+
+    let project_config = config::ProjectConfig::resolve(workspace, None)?;
+    Ok(project_config.root)
 }

@@ -48,6 +48,10 @@ pub struct CliOptions {
     /// Report suppressed violations and stale ignore directives.
     #[arg(long, global = true)]
     pub report_suppressions: bool,
+
+    /// Re-run lint on file changes.
+    #[arg(long, global = true)]
+    pub watch: bool,
 }
 
 #[derive(Debug, Subcommand)]

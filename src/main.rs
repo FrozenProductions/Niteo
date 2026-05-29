@@ -11,6 +11,7 @@ mod report;
 mod rule_documentation;
 mod rules;
 mod syntax;
+mod watch;
 
 use anyhow::Result;
 use std::process::ExitCode;
