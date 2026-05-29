@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use crate::cli::{BaselineCommand, Cli, Command, OutputFormat};
+use crate::config::ConfigSet;
 use crate::ignore::SuppressionReport;
 use crate::import_graph::ImportGraph;
 use crate::rules::Violation;
@@ -255,7 +256,8 @@ fn show_stats(
         )?
     };
 
-    let graph = import_graph::build_import_graph(&files, &project_config.structure.tests);
+    let tests_config = project_config.structure.tests.clone();
+    let graph = import_graph::build_import_graph(&files, |file| tests_config.matches_file(file));
 
     let rendered = match output_format {
         OutputFormat::Text => render_stats_text(&graph),
@@ -364,7 +366,8 @@ fn show_graph(
         )?
     };
 
-    let graph = import_graph::build_import_graph(&files, &project_config.structure.tests);
+    let tests_config = project_config.structure.tests.clone();
+    let graph = import_graph::build_import_graph(&files, |file| tests_config.matches_file(file));
 
     let rendered = match output_format {
         OutputFormat::Text => graph.format_dot(),
@@ -493,9 +496,12 @@ fn collect_violations(
     git_flag: bool,
     prompt_for_changed_files: bool,
 ) -> Result<CollectedViolations> {
-    let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
-    let scan_scope = scope_override.map(|scope| resolve_path(&project_config.root, scope));
-    let scan_root = scan_scope.as_deref().unwrap_or(&project_config.root);
+    let root_config = config::ProjectConfig::resolve(workspace, root_override.clone())?;
+    let scan_scope = scope_override.map(|scope| resolve_path(&root_config.root, scope));
+
+    let config_set = ConfigSet::resolve(workspace, root_override, scan_scope.as_deref())?;
+    let project_root = config_set.root().root.clone();
+    let scan_root = scan_scope.as_deref().unwrap_or(&project_root);
 
     let files = if git_flag {
         resolve_changed_files(workspace)
@@ -508,49 +514,75 @@ fn collect_violations(
             resolve_changed_files(workspace)
         } else {
             discovery::discover_files(
-                &project_config.root,
+                &project_root,
                 scan_scope.as_deref(),
-                &project_config.gitignore,
+                &config_set.root().gitignore,
             )?
         }
     };
 
-    let graph = import_graph::build_import_graph(&files, &project_config.structure.tests);
+    let graph = import_graph::build_import_graph(&files, |file| {
+        config_set
+            .config_for_file(file)
+            .structure
+            .tests
+            .matches_file(file)
+    });
 
-    let (file_violations, suppression_report) =
-        rules::check_files(&files, &project_config, &graph)?;
-
-    let mut dir_violations =
-        rules::check_directories(scan_root, project_config.rules.no_empty_directories);
-
-    let mut name_violations =
-        rules::check_duplicate_file_names(&files, project_config.rules.no_duplicate_file_names);
-
-    let mut max_items_violations = rules::check_max_items_per_directory(
-        scan_root,
-        project_config.rules.max_items_per_directory,
-    );
-
-    let mut min_items_violations = rules::check_min_items_per_directory(
-        scan_root,
-        project_config.rules.min_items_per_directory,
-    );
-
-    let mut depth_violations =
-        rules::check_max_directory_depth(scan_root, project_config.rules.max_directory_depth);
-
-    let mut dump_violations = rules::check_dump_files(&files, project_config.rules.no_dump_files);
+    let (file_violations, suppression_report) = rules::check_files(&files, &config_set, &graph)?;
 
     let mut all_violations = file_violations;
-    all_violations.append(&mut dir_violations);
+
+    for (i, node) in config_set.configs().enumerate() {
+        let node_root = if node.directory.starts_with(scan_root) {
+            &node.directory
+        } else {
+            scan_root
+        };
+        let exclude_dirs = config_set.child_directories(i);
+
+        let mut dir_violations = rules::check_directories(
+            node_root,
+            node.config.rules.no_empty_directories.clone(),
+            &exclude_dirs,
+        );
+        all_violations.append(&mut dir_violations);
+
+        let mut max_items_violations = rules::check_max_items_per_directory(
+            node_root,
+            node.config.rules.max_items_per_directory.clone(),
+            &exclude_dirs,
+        );
+        all_violations.append(&mut max_items_violations);
+
+        let mut min_items_violations = rules::check_min_items_per_directory(
+            node_root,
+            node.config.rules.min_items_per_directory.clone(),
+            &exclude_dirs,
+        );
+        all_violations.append(&mut min_items_violations);
+
+        let mut depth_violations = rules::check_max_directory_depth(
+            node_root,
+            node.config.rules.max_directory_depth.clone(),
+            &exclude_dirs,
+        );
+        all_violations.append(&mut depth_violations);
+    }
+
+    let root_config_ref = config_set.root();
+    let mut name_violations = rules::check_duplicate_file_names(
+        &files,
+        root_config_ref.rules.no_duplicate_file_names.clone(),
+    );
     all_violations.append(&mut name_violations);
-    all_violations.append(&mut max_items_violations);
-    all_violations.append(&mut min_items_violations);
-    all_violations.append(&mut depth_violations);
+
+    let mut dump_violations =
+        rules::check_dump_files(&files, root_config_ref.rules.no_dump_files.clone());
     all_violations.append(&mut dump_violations);
 
     Ok(CollectedViolations {
-        project_root: project_config.root,
+        project_root,
         files,
         violations: all_violations,
         suppression_report,

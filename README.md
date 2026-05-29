@@ -40,6 +40,27 @@ niteo lint --format json --output report.json
 niteo lint --format sarif --output report.sarif
 ```
 
+## Monorepos
+
+Niteo supports cascading configs. Place a `niteo.toml` at the workspace root and additional `niteo.toml` files inside individual packages. Child configs merge on top of the root config, overriding only the fields they declare.
+
+```toml
+# niteo.toml (root)
+[project]
+root = "packages"
+
+[rules.no-console]
+severity = "warn"
+```
+
+```toml
+# packages/admin/niteo.toml
+[rules.no-console]
+severity = "error"
+```
+
+See [Configuration](docs/configuration.md#cascading-configs) for merge semantics and examples.
+
 ## Documentation
 
 See the full [documentation](docs/README.md).

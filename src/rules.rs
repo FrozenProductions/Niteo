@@ -636,92 +636,105 @@ fn build_file_rules(
 
 pub fn check_files(
     files: &[PathBuf],
-    config: &ProjectConfig,
+    config_set: &crate::config::ConfigSet,
     import_graph: &ImportGraph,
 ) -> Result<(Vec<Violation>, ignore::SuppressionReport)> {
-    let rules = build_file_rules(&config.rules, &config.structure);
-
-    let any_enabled = rules.iter().any(|r| r.severity().is_enabled());
-    if !any_enabled {
-        return Ok((vec![], ignore::SuppressionReport { files: vec![] }));
-    }
-
-    let needs_ast = rules
-        .iter()
-        .any(|r| r.severity().is_enabled() && r.needs_ast());
-
-    let type_location_style =
-        no_inline_types::TypeLocationStyle::detect(files, &config.structure.types);
-
     let mut violations = Vec::new();
     let mut suppression_files = Vec::new();
 
+    let mut grouped: std::collections::HashMap<usize, Vec<&PathBuf>> =
+        std::collections::HashMap::new();
     for file in files {
-        let source = fs::read_to_string(file)
-            .with_context(|| format!("failed to read {}", file.display()))?;
+        let config = config_set.config_for_file(file);
+        let config_ptr = config as *const ProjectConfig as usize;
+        grouped.entry(config_ptr).or_default().push(file);
+    }
 
-        let directives = ignore::parse_ignore_directives(&source);
-        let line_index = LineIndex::new(&source);
+    for group_files in grouped.values() {
+        let config = config_set.config_for_file(group_files[0]);
+        let rules = build_file_rules(&config.rules, &config.structure);
 
-        let allocator = Allocator::default();
-        let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
-            match crate::syntax::source_type_from_path(file) {
-                Some(source_type) => {
-                    let parser_return = Parser::new(&allocator, &source, source_type).parse();
-                    if parser_return.panicked {
-                        None
-                    } else {
-                        Some(parser_return.program)
+        let any_enabled = rules.iter().any(|r| r.severity().is_enabled());
+        if !any_enabled {
+            continue;
+        }
+
+        let needs_ast = rules
+            .iter()
+            .any(|r| r.severity().is_enabled() && r.needs_ast());
+
+        let file_refs: Vec<PathBuf> = group_files.iter().map(|f| (*f).clone()).collect();
+        let type_location_style =
+            no_inline_types::TypeLocationStyle::detect(&file_refs, &config.structure.types);
+
+        for file in group_files {
+            let source = fs::read_to_string(*file)
+                .with_context(|| format!("failed to read {}", file.display()))?;
+
+            let directives = ignore::parse_ignore_directives(&source);
+            let line_index = LineIndex::new(&source);
+
+            let allocator = Allocator::default();
+            let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
+                match crate::syntax::source_type_from_path(file) {
+                    Some(source_type) => {
+                        let parser_return = Parser::new(&allocator, &source, source_type).parse();
+                        if parser_return.panicked {
+                            None
+                        } else {
+                            Some(parser_return.program)
+                        }
                     }
+                    None => None,
                 }
-                None => None,
+            } else {
+                None
+            };
+
+            let ctx = FileContext {
+                file,
+                source: &source,
+                program: parse_result.as_ref(),
+                line_index: &line_index,
+                type_location_style,
+                import_graph,
+            };
+
+            let mut file_violations = Vec::new();
+            for rule in &rules {
+                if rule.severity().is_enabled() {
+                    file_violations.extend(rule.check(&ctx));
+                }
             }
-        } else {
-            None
-        };
 
-        let ctx = FileContext {
-            file,
-            source: &source,
-            program: parse_result.as_ref(),
-            line_index: &line_index,
-            type_location_style,
-            import_graph,
-        };
+            let suppressed_count = file_violations
+                .iter()
+                .filter(|v| ignore::should_suppress_violation(&directives, v.line, v.rule))
+                .count();
 
-        let mut file_violations = Vec::new();
-        for rule in &rules {
-            if rule.severity().is_enabled() {
-                file_violations.extend(rule.check(&ctx));
+            let stale_directives: Vec<ignore::IgnoreDirective> = directives
+                .iter()
+                .filter(|d| {
+                    !file_violations
+                        .iter()
+                        .any(|v| d.should_suppress(v.line, v.rule))
+                })
+                .cloned()
+                .collect();
+
+            if !directives.is_empty() {
+                suppression_files.push(ignore::FileSuppressionInfo {
+                    file: (*file).clone(),
+                    suppressed_count,
+                    stale_directives,
+                });
             }
+
+            file_violations
+                .retain(|v| !ignore::should_suppress_violation(&directives, v.line, v.rule));
+
+            violations.extend(file_violations);
         }
-
-        let suppressed_count = file_violations
-            .iter()
-            .filter(|v| ignore::should_suppress_violation(&directives, v.line, v.rule))
-            .count();
-
-        let stale_directives: Vec<ignore::IgnoreDirective> = directives
-            .iter()
-            .filter(|d| {
-                !file_violations
-                    .iter()
-                    .any(|v| d.should_suppress(v.line, v.rule))
-            })
-            .cloned()
-            .collect();
-
-        if !directives.is_empty() {
-            suppression_files.push(ignore::FileSuppressionInfo {
-                file: file.clone(),
-                suppressed_count,
-                stale_directives,
-            });
-        }
-
-        file_violations.retain(|v| !ignore::should_suppress_violation(&directives, v.line, v.rule));
-
-        violations.extend(file_violations);
     }
 
     Ok((
@@ -735,12 +748,13 @@ pub fn check_files(
 pub fn check_directories(
     root: &Path,
     no_empty_directories: crate::config::NoEmptyDirectoriesRuleConfig,
+    exclude_dirs: &[PathBuf],
 ) -> Vec<Violation> {
     if !no_empty_directories.severity.is_enabled() {
         return Vec::new();
     }
 
-    no_empty_directories::check_directories(root, &no_empty_directories)
+    no_empty_directories::check_directories(root, &no_empty_directories, exclude_dirs)
 }
 
 pub fn check_duplicate_file_names(
@@ -757,34 +771,37 @@ pub fn check_duplicate_file_names(
 pub fn check_max_items_per_directory(
     root: &Path,
     config: crate::config::MaxItemsPerDirectoryRuleConfig,
+    exclude_dirs: &[PathBuf],
 ) -> Vec<Violation> {
     if !config.severity.is_enabled() {
         return Vec::new();
     }
 
-    max_items_per_directory::check_directories(root, &config)
+    max_items_per_directory::check_directories(root, &config, exclude_dirs)
 }
 
 pub fn check_min_items_per_directory(
     root: &Path,
     config: crate::config::MinItemsPerDirectoryRuleConfig,
+    exclude_dirs: &[PathBuf],
 ) -> Vec<Violation> {
     if !config.severity.is_enabled() {
         return Vec::new();
     }
 
-    min_items_per_directory::check_directories(root, &config)
+    min_items_per_directory::check_directories(root, &config, exclude_dirs)
 }
 
 pub fn check_max_directory_depth(
     root: &Path,
     config: crate::config::MaxDirectoryDepthRuleConfig,
+    exclude_dirs: &[PathBuf],
 ) -> Vec<Violation> {
     if !config.severity.is_enabled() {
         return Vec::new();
     }
 
-    max_directory_depth::check_directories(root, &config)
+    max_directory_depth::check_directories(root, &config, exclude_dirs)
 }
 
 pub fn check_dump_files(

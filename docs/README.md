@@ -77,3 +77,7 @@ niteo graph             # Output the import graph
 
 See [Rules](./rules.md) for the full rule catalog.
 
+## Monorepos
+
+Niteo supports cascading configs. Place a root `niteo.toml` at the workspace level and additional `niteo.toml` files inside packages. Child configs merge on top of the root, overriding only declared fields. See [Cascading Configs](./configuration.md#cascading-configs) for details.
+

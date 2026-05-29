@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::config::{MaxDirectoryDepthRuleConfig, Severity};
 use crate::rules::{MAX_DIRECTORY_DEPTH_RULE_ID, Violation};
@@ -20,12 +20,16 @@ const IGNORED_DIRECTORIES: &[&str] = &[
 
 const SOURCE_EXTENSIONS: &[&str] = &["ts", "tsx"];
 
-pub fn check_directories(root: &Path, config: &MaxDirectoryDepthRuleConfig) -> Vec<Violation> {
+pub fn check_directories(
+    root: &Path,
+    config: &MaxDirectoryDepthRuleConfig,
+    exclude_dirs: &[PathBuf],
+) -> Vec<Violation> {
     let mut violations = Vec::new();
     let mut ignored = config.ignore_dirs.clone();
     ignored.extend(IGNORED_DIRECTORIES.iter().map(|s| s.to_string()));
 
-    walk_directories(root, &ignored, config.max_depth, 0, &mut violations);
+    walk_directories(root, &ignored, exclude_dirs, config.max_depth, 0, &mut violations);
 
     violations
 }
@@ -33,10 +37,15 @@ pub fn check_directories(root: &Path, config: &MaxDirectoryDepthRuleConfig) -> V
 fn walk_directories(
     current: &Path,
     ignored: &[String],
+    exclude_dirs: &[PathBuf],
     max_depth: usize,
     depth: usize,
     violations: &mut Vec<Violation>,
 ) {
+    if exclude_dirs.iter().any(|excl| current == excl.as_path()) {
+        return;
+    }
+
     let entries = match fs::read_dir(current) {
         Ok(entries) => entries,
         Err(_) => return,
@@ -56,6 +65,9 @@ fn walk_directories(
 
         if path.is_dir() {
             if ignored.iter().any(|ign| name_str == *ign) {
+                continue;
+            }
+            if exclude_dirs.contains(&path) {
                 continue;
             }
 
@@ -86,7 +98,7 @@ fn walk_directories(
     }
 
     for subdir in subdirs {
-        walk_directories(&subdir, ignored, max_depth, depth + 1, violations);
+        walk_directories(&subdir, ignored, exclude_dirs, max_depth, depth + 1, violations);
     }
 }
 

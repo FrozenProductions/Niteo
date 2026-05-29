@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::config::{MinItemsPerDirectoryRuleConfig, Severity};
 use crate::rules::{MIN_ITEMS_PER_DIRECTORY_RULE_ID, Violation};
@@ -21,7 +21,11 @@ const IGNORED_DIRECTORIES: &[&str] = &[
 
 const SOURCE_EXTENSIONS: &[&str] = &["ts", "tsx"];
 
-pub fn check_directories(root: &Path, config: &MinItemsPerDirectoryRuleConfig) -> Vec<Violation> {
+pub fn check_directories(
+    root: &Path,
+    config: &MinItemsPerDirectoryRuleConfig,
+    exclude_dirs: &[PathBuf],
+) -> Vec<Violation> {
     let mut violations = Vec::new();
     let mut ignored = config.ignore_dirs.clone();
     ignored.extend(IGNORED_DIRECTORIES.iter().map(|s| s.to_string()));
@@ -29,6 +33,7 @@ pub fn check_directories(root: &Path, config: &MinItemsPerDirectoryRuleConfig) -
     walk_directories(
         root,
         &ignored,
+        exclude_dirs,
         config.min_items,
         config.count_folders,
         &mut violations,
@@ -40,10 +45,15 @@ pub fn check_directories(root: &Path, config: &MinItemsPerDirectoryRuleConfig) -
 fn walk_directories(
     current: &Path,
     ignored: &[String],
+    exclude_dirs: &[PathBuf],
     min_items: usize,
     count_folders: bool,
     violations: &mut Vec<Violation>,
 ) {
+    if exclude_dirs.iter().any(|excl| current == excl.as_path()) {
+        return;
+    }
+
     let entries = match fs::read_dir(current) {
         Ok(entries) => entries,
         Err(_) => return,
@@ -66,6 +76,9 @@ fn walk_directories(
             if ignored.iter().any(|ign| name_str == *ign) {
                 continue;
             }
+            if exclude_dirs.contains(&path) {
+                continue;
+            }
             if count_folders {
                 item_count += 1;
             }
@@ -86,7 +99,7 @@ fn walk_directories(
     }
 
     for subdir in subdirs {
-        walk_directories(&subdir, ignored, min_items, count_folders, violations);
+        walk_directories(&subdir, ignored, exclude_dirs, min_items, count_folders, violations);
     }
 }
 

@@ -13,10 +13,82 @@ use super::rules::{
 use super::structure::{DomainConfig, ProjectStructureConfig};
 use crate::rules::RulesConfig;
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize)]
 pub struct RawConfig {
     pub project: Option<RawProjectConfig>,
     pub rules: Option<HashMap<String, RawRuleConfig>>,
+}
+
+impl RawConfig {
+    pub fn merge(parent: &RawConfig, child: &RawConfig) -> RawConfig {
+        RawConfig {
+            project: Self::merge_project(parent.project.as_ref(), child.project.as_ref()),
+            rules: Self::merge_rules(parent.rules.as_ref(), child.rules.as_ref()),
+        }
+    }
+
+    fn merge_project(
+        parent: Option<&RawProjectConfig>,
+        child: Option<&RawProjectConfig>,
+    ) -> Option<RawProjectConfig> {
+        match (parent, child) {
+            (None, None) => None,
+            (Some(p), None) => Some(p.clone()),
+            (None, Some(c)) => Some(c.clone()),
+            (Some(p), Some(c)) => Some(RawProjectConfig {
+                root: p.root.clone(),
+                respect_gitignore: c.respect_gitignore.or(p.respect_gitignore),
+                structure: Self::merge_structure(p.structure.as_ref(), c.structure.as_ref()),
+            }),
+        }
+    }
+
+    fn merge_structure(
+        parent: Option<&RawProjectStructure>,
+        child: Option<&RawProjectStructure>,
+    ) -> Option<RawProjectStructure> {
+        match (parent, child) {
+            (None, None) => None,
+            (Some(p), None) => Some(p.clone()),
+            (None, Some(c)) => Some(c.clone()),
+            (Some(p), Some(c)) => Some(RawProjectStructure {
+                hooks: c.hooks.clone().or_else(|| p.hooks.clone()),
+                components: c.components.clone().or_else(|| p.components.clone()),
+                types: c.types.clone().or_else(|| p.types.clone()),
+                constants: c.constants.clone().or_else(|| p.constants.clone()),
+                tests: c.tests.clone().or_else(|| p.tests.clone()),
+                generated: c.generated.clone().or_else(|| p.generated.clone()),
+            }),
+        }
+    }
+
+    fn merge_rules(
+        parent: Option<&HashMap<String, RawRuleConfig>>,
+        child: Option<&HashMap<String, RawRuleConfig>>,
+    ) -> Option<HashMap<String, RawRuleConfig>> {
+        match (parent, child) {
+            (None, None) => None,
+            (Some(p), None) => Some(p.clone()),
+            (None, Some(c)) => Some(c.clone()),
+            (Some(p), Some(c)) => {
+                let mut merged = p.clone();
+                for (name, child_rule) in c {
+                    match merged.get(name) {
+                        Some(parent_rule) => {
+                            merged.insert(
+                                name.clone(),
+                                RawRuleConfig::merge(parent_rule, child_rule),
+                            );
+                        }
+                        None => {
+                            merged.insert(name.clone(), child_rule.clone());
+                        }
+                    }
+                }
+                Some(merged)
+            }
+        }
+    }
 }
 
 macro_rules! declare_raw_rules {
@@ -162,7 +234,7 @@ impl RawConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RawProjectConfig {
     pub root: Option<PathBuf>,
     #[serde(rename = "respect-gitignore")]
@@ -170,7 +242,7 @@ pub struct RawProjectConfig {
     pub structure: Option<RawProjectStructure>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RawProjectStructure {
     pub hooks: Option<RawDomainConfig>,
     pub components: Option<RawDomainConfig>,
@@ -180,7 +252,7 @@ pub struct RawProjectStructure {
     pub generated: Option<RawDomainConfig>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RawDomainConfig {
     pub folders: Option<Vec<String>>,
     #[serde(rename = "file-suffixes")]
@@ -235,11 +307,29 @@ macro_rules! declare_option_converters {
     };
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum RawRuleConfig {
     Severity(String),
     Options(Box<RawRuleOptions>),
+}
+
+impl RawRuleConfig {
+    pub fn merge(parent: &RawRuleConfig, child: &RawRuleConfig) -> RawRuleConfig {
+        match (parent, child) {
+            (_, RawRuleConfig::Severity(sev)) => RawRuleConfig::Severity(sev.clone()),
+            (RawRuleConfig::Severity(parent_sev), RawRuleConfig::Options(child_opts)) => {
+                let mut merged = (**child_opts).clone();
+                if merged.severity.is_none() {
+                    merged.severity = Some(parent_sev.clone());
+                }
+                RawRuleConfig::Options(Box::new(merged))
+            }
+            (RawRuleConfig::Options(parent_opts), RawRuleConfig::Options(child_opts)) => {
+                RawRuleConfig::Options(Box::new(RawRuleOptions::merge(parent_opts, child_opts)))
+            }
+        }
+    }
 }
 
 impl RawRuleConfig {
@@ -336,7 +426,7 @@ impl RawRuleConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RawRuleOptions {
     pub severity: Option<String>,
     #[serde(rename = "allow-doc-comments")]
@@ -370,6 +460,50 @@ pub struct RawRuleOptions {
     pub entry_files: Option<Vec<String>>,
     #[serde(rename = "allowed-folders")]
     pub allowed_folders: Option<Vec<String>>,
+}
+
+impl RawRuleOptions {
+    pub fn merge(parent: &RawRuleOptions, child: &RawRuleOptions) -> RawRuleOptions {
+        RawRuleOptions {
+            severity: child.severity.clone().or_else(|| parent.severity.clone()),
+            allow_doc_comments: child.allow_doc_comments.or(parent.allow_doc_comments),
+            max_lines: child.max_lines.or(parent.max_lines),
+            max_exports: child.max_exports.or(parent.max_exports),
+            max_depth: child.max_depth.or(parent.max_depth),
+            allow_patterns: child
+                .allow_patterns
+                .clone()
+                .or_else(|| parent.allow_patterns.clone()),
+            ignore_dirs: child
+                .ignore_dirs
+                .clone()
+                .or_else(|| parent.ignore_dirs.clone()),
+            ignore_names: child
+                .ignore_names
+                .clone()
+                .or_else(|| parent.ignore_names.clone()),
+            max_items: child.max_items.or(parent.max_items),
+            min_items: child.min_items.or(parent.min_items),
+            count_folders: child.count_folders.or(parent.count_folders),
+            allow_declaration_merging: child
+                .allow_declaration_merging
+                .or(parent.allow_declaration_merging),
+            extra_names: child
+                .extra_names
+                .clone()
+                .or_else(|| parent.extra_names.clone()),
+            prefixes: child.prefixes.clone().or_else(|| parent.prefixes.clone()),
+            ignore_constants: child.ignore_constants.or(parent.ignore_constants),
+            entry_files: child
+                .entry_files
+                .clone()
+                .or_else(|| parent.entry_files.clone()),
+            allowed_folders: child
+                .allowed_folders
+                .clone()
+                .or_else(|| parent.allowed_folders.clone()),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -457,5 +591,126 @@ folders = ["typings"]
         assert_eq!(structure.types.folders, vec!["typings"]);
         let defaults = ProjectStructureConfig::default();
         assert_eq!(structure.types.file_suffixes, defaults.types.file_suffixes);
+    }
+
+    #[test]
+    fn merge_child_severity_overrides_parent_options() {
+        let parent: RawConfig = toml::from_str(
+            r#"
+[rules.no-console]
+severity = "warn"
+allow-patterns = ["debug"]
+"#,
+        )
+        .unwrap();
+        let child: RawConfig = toml::from_str(
+            r#"
+[rules.no-console]
+severity = "error"
+"#,
+        )
+        .unwrap();
+
+        let merged = RawConfig::merge(&parent, &child);
+        let rules_config = merged.rules_config();
+        assert_eq!(rules_config.no_console.severity, Severity::Error);
+    }
+
+    #[test]
+    fn merge_child_options_partial_override() {
+        let parent: RawConfig = toml::from_str(
+            r#"
+[rules.no-large-file]
+severity = "warn"
+max-lines = 300
+"#,
+        )
+        .unwrap();
+        let child: RawConfig = toml::from_str(
+            r#"
+[rules.no-large-file]
+severity = "error"
+"#,
+        )
+        .unwrap();
+
+        let merged = RawConfig::merge(&parent, &child);
+        let rules_config = merged.rules_config();
+        assert_eq!(rules_config.no_large_file.severity, Severity::Error);
+        assert_eq!(rules_config.no_large_file.max_lines, 300);
+    }
+
+    #[test]
+    fn merge_inherits_parent_rules_not_in_child() {
+        let parent: RawConfig = toml::from_str(
+            r#"
+[rules.no-console]
+severity = "warn"
+[rules.no-debugger]
+severity = "error"
+"#,
+        )
+        .unwrap();
+        let child: RawConfig = toml::from_str(
+            r#"
+[rules.no-console]
+severity = "off"
+"#,
+        )
+        .unwrap();
+
+        let merged = RawConfig::merge(&parent, &child);
+        let rules_config = merged.rules_config();
+        assert_eq!(rules_config.no_console.severity, Severity::Off);
+        assert_eq!(rules_config.no_debugger.severity, Severity::Error);
+    }
+
+    #[test]
+    fn merge_structure_child_overrides_parent_domain() {
+        let parent: RawConfig = toml::from_str(
+            r#"
+[project.structure.tests]
+folders = ["tests"]
+file-suffixes = [".test.ts"]
+"#,
+        )
+        .unwrap();
+        let child: RawConfig = toml::from_str(
+            r#"
+[project.structure.tests]
+folders = ["__tests__"]
+file-suffixes = [".spec.ts"]
+"#,
+        )
+        .unwrap();
+
+        let merged = RawConfig::merge(&parent, &child);
+        let structure = merged.structure();
+        assert_eq!(structure.tests.folders, vec!["__tests__"]);
+        assert_eq!(structure.tests.file_suffixes, vec![".spec.ts"]);
+    }
+
+    #[test]
+    fn merge_structure_preserves_parent_root() {
+        let parent: RawConfig = toml::from_str(
+            r#"
+[project]
+root = "src"
+respect-gitignore = true
+"#,
+        )
+        .unwrap();
+        let child: RawConfig = toml::from_str(
+            r#"
+[project]
+respect-gitignore = false
+"#,
+        )
+        .unwrap();
+
+        let merged = RawConfig::merge(&parent, &child);
+        let project = merged.project.as_ref().unwrap();
+        assert_eq!(project.root, Some(PathBuf::from("src")));
+        assert_eq!(project.respect_gitignore, Some(false));
     }
 }

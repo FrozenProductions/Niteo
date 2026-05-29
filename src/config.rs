@@ -1,9 +1,11 @@
+mod configset;
 mod defaults;
-mod raw;
+pub(crate) mod raw;
 mod resolve;
 pub mod rules;
 pub mod structure;
 
+pub use configset::ConfigSet;
 pub use resolve::{ProjectConfig, write_default_config};
 pub use rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,

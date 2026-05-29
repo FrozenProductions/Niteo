@@ -97,16 +97,17 @@ For full protection on main branches, prefer scanning the whole configured root.
 
 ## Monorepos
 
-Niteo currently resolves one workspace config at a time. For multiple packages, run Niteo once per package root:
+Niteo supports cascading configs for monorepos. Place a `niteo.toml` at the workspace root and additional `niteo.toml` files inside individual packages. Child configs merge on top of the root config, overriding only the fields they declare.
 
 ```sh
-npx niteo-cli lint --root packages/web/src
-npx niteo-cli lint --root packages/admin/src
+npx niteo-cli lint --root packages
 ```
 
-Use separate baselines when packages have independent migration paths:
+Niteo discovers every `niteo.toml` under the scan root and applies the nearest config to each file. See [Cascading Configs](./configuration.md#cascading-configs) for merge semantics.
+
+For packages with independent migration paths, use separate baselines:
 
 ```sh
-npx niteo-cli lint --root packages/web/src --baseline packages/web/niteo-baseline.json
+npx niteo-cli lint --root packages --baseline niteo-baseline.json
 ```
 

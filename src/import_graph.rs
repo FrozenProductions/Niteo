@@ -7,6 +7,7 @@ use oxc_ast::ast::{
 use oxc_ast_visit::Visit;
 use oxc_span::Span;
 
+#[cfg(test)]
 use crate::config::structure::DomainConfig;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,12 +97,12 @@ impl ImportGraph {
     }
 }
 
-pub fn build_import_graph(files: &[PathBuf], tests_config: &DomainConfig) -> ImportGraph {
+pub fn build_import_graph(files: &[PathBuf], is_test_file: impl Fn(&Path) -> bool) -> ImportGraph {
     let mut graph = ImportGraph::new();
 
     for file in files {
         let is_barrel = is_barrel_file(file);
-        let is_test = tests_config.matches_file(file);
+        let is_test = is_test_file(file);
         graph.add_file(file.clone(), is_barrel, is_test);
     }
 

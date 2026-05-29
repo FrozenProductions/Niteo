@@ -21,17 +21,30 @@ const IGNORED_DIRECTORIES: &[&str] = &[
 const SOURCE_EXTENSIONS: &[&str] = &["ts", "tsx"];
 const BARREL_FILE: &str = "index.ts";
 
-pub fn check_directories(root: &Path, config: &NoEmptyDirectoriesRuleConfig) -> Vec<Violation> {
+pub fn check_directories(
+    root: &Path,
+    config: &NoEmptyDirectoriesRuleConfig,
+    exclude_dirs: &[PathBuf],
+) -> Vec<Violation> {
     let mut violations = Vec::new();
     let mut ignored = config.ignore_dirs.clone();
     ignored.extend(IGNORED_DIRECTORIES.iter().map(|s| s.to_string()));
 
-    walk_directories(root, &ignored, &mut violations);
+    walk_directories(root, &ignored, exclude_dirs, &mut violations);
 
     violations
 }
 
-fn walk_directories(current: &Path, ignored: &[String], violations: &mut Vec<Violation>) {
+fn walk_directories(
+    current: &Path,
+    ignored: &[String],
+    exclude_dirs: &[PathBuf],
+    violations: &mut Vec<Violation>,
+) {
+    if exclude_dirs.iter().any(|excl| current == excl.as_path()) {
+        return;
+    }
+
     let entries = match fs::read_dir(current) {
         Ok(entries) => entries,
         Err(_) => return,
@@ -53,6 +66,9 @@ fn walk_directories(current: &Path, ignored: &[String], violations: &mut Vec<Vio
 
         if path.is_dir() {
             if ignored.iter().any(|ign| name_str == *ign) {
+                continue;
+            }
+            if exclude_dirs.contains(&path) {
                 continue;
             }
             subdirs.push(path);
@@ -79,7 +95,7 @@ fn walk_directories(current: &Path, ignored: &[String], violations: &mut Vec<Vio
     }
 
     for subdir in subdirs {
-        walk_directories(&subdir, ignored, violations);
+        walk_directories(&subdir, ignored, exclude_dirs, violations);
     }
 }
 
