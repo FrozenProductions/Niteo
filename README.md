@@ -6,9 +6,9 @@ It checks project shape and source structure rather than formatting. Niteo uses 
 
 ## Status
 
-Niteo is in alpha.
+Niteo is in beta.
 
-The rule set, output format, and configuration shape may change. It is useful for testing the direction of the tool and contributing early feedback.
+The rule set, output format, and configuration shape are stabilizing. Feedback and contributions are welcome.
 
 ## Installation
 
