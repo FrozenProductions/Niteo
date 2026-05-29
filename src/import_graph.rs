@@ -79,7 +79,7 @@ impl ImportGraph {
             }
         }
         let mut sorted: Vec<_> = import_counts.into_iter().collect();
-        sorted.sort_by(|a, b| b.1.cmp(&a.1));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.1));
         sorted.truncate(limit);
         sorted
     }
@@ -90,7 +90,7 @@ impl ImportGraph {
             *fanout_counts.entry(edge.source_file.clone()).or_insert(0) += 1;
         }
         let mut sorted: Vec<_> = fanout_counts.into_iter().collect();
-        sorted.sort_by(|a, b| b.1.cmp(&a.1));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.1));
         sorted.truncate(limit);
         sorted
     }
