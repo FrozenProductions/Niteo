@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ## Unreleased
 
+## 0.1.3 - 2026-05-31
+
+### Added
+
+- Homebrew formula for installing Niteo from the repository tap.
+- GitHub Actions automation for Homebrew releases and prebuilt bottles on macOS Intel, macOS Apple Silicon, and Linux.
+
 ## 0.1.2 - 2026-05-29
 
 ### Added
