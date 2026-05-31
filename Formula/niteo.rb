@@ -6,6 +6,7 @@ class Niteo < Formula
   license "MIT"
 
   bottle do
+    root_url "https://github.com/FrozenProductions/Niteo/releases/download/v0.1.3"
     sha256 cellar: :any_skip_relocation, arm64_sequoia: "b2a54dd9495d854b34e42fe024b11daf7721f083be3cc13742d1e3ceb8abc64b"
     sha256 cellar: :any_skip_relocation, sequoia:       "a6a2e178dcfccf95cb5ab388afbaa8cdffeb297df62075487a967994c156ff71"
     sha256 cellar: :any_skip_relocation, x86_64_linux:  "a61ea451be5da0af16b8ba081c3157f581ab6cd7a85ec22b7dc3fffd29efe6ac"

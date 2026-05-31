@@ -209,6 +209,17 @@ jobs:
 
           cp "$tap_dir/Formula/niteo.rb" Formula/niteo.rb
 
+          # Ensure root_url is present in bottle block
+          ruby -i -pe 'BEGIN { $in_bottle = false }
+            if /^  bottle do$/
+              $in_bottle = true
+              $_ = $_ + "    root_url \"${{ needs.prepare.outputs.bottle-root-url }}\"\n"
+            elsif $in_bottle && /^    root_url/
+              next
+            elsif $in_bottle && /^  end$/
+              $in_bottle = false
+            end' Formula/niteo.rb
+
       - name: Commit formula update
         shell: bash
         run: |
