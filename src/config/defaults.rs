@@ -158,6 +158,10 @@ entry-files = ["main", "app", "layout", "page"]
 [rules.no-non-null-assertion]
 severity = "warn"
 
+[rules.no-abbreviations]
+severity = "warn"
+extra-abbreviations = []
+
 [rules.no-any]
 severity = "warn"
 allowed-folders = []

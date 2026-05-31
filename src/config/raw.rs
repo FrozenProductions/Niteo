@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use super::rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
     FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
-    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAnyRuleConfig,
-    NoConsoleRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
+    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAbbreviationsRuleConfig,
+    NoAnyRuleConfig, NoConsoleRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
     NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig, RuleConfig, Severity,
     UpwardImportRuleConfig,
 };
@@ -179,6 +179,7 @@ declare_raw_rules! {
         max_file_exports => ("max-file-exports", to_file_exports_config, FileExportsRuleConfig),
         max_items_per_directory => ("max-items-per-directory", to_max_items_per_directory_config, MaxItemsPerDirectoryRuleConfig),
         min_items_per_directory => ("min-items-per-directory", to_min_items_per_directory_config, MinItemsPerDirectoryRuleConfig),
+        no_abbreviations => ("no-abbreviations", to_no_abbreviations_config, NoAbbreviationsRuleConfig),
         no_any => ("no-any", to_no_any_config, NoAnyRuleConfig),
         no_comments => ("no-comments", to_comments_config, CommentsRuleConfig),
         no_console => ("no-console", to_no_console_config, NoConsoleRuleConfig),
@@ -397,6 +398,10 @@ impl RawRuleConfig {
             ;
             ignore_dirs: clone_default
         },
+        to_no_abbreviations_config => (NoAbbreviationsRuleConfig) {
+            ;
+            extra_abbreviations: clone_default
+        },
         to_no_any_config => (NoAnyRuleConfig) {
             ;
             allowed_folders: clone_default
@@ -462,6 +467,8 @@ pub struct RawRuleOptions {
     pub entry_files: Option<Vec<String>>,
     #[serde(rename = "allowed-folders")]
     pub allowed_folders: Option<Vec<String>>,
+    #[serde(rename = "extra-abbreviations")]
+    pub extra_abbreviations: Option<Vec<String>>,
 }
 
 impl RawRuleOptions {
@@ -504,6 +511,10 @@ impl RawRuleOptions {
                 .allowed_folders
                 .clone()
                 .or_else(|| parent.allowed_folders.clone()),
+            extra_abbreviations: child
+                .extra_abbreviations
+                .clone()
+                .or_else(|| parent.extra_abbreviations.clone()),
         }
     }
 }

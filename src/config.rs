@@ -10,8 +10,8 @@ pub use resolve::{ProjectConfig, write_default_config};
 pub use rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
     FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
-    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAnyRuleConfig,
-    NoConsoleRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
+    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAbbreviationsRuleConfig,
+    NoAnyRuleConfig, NoConsoleRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
     NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig, RuleConfig, Severity,
     UpwardImportRuleConfig,
 };

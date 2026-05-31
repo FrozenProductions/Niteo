@@ -310,3 +310,18 @@ impl Default for EntryFileNoLogicRuleConfig {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct NoAbbreviationsRuleConfig {
+    pub severity: Severity,
+    pub extra_abbreviations: Vec<String>,
+}
+
+impl Default for NoAbbreviationsRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            extra_abbreviations: vec![],
+        }
+    }
+}
