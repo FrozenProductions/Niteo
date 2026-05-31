@@ -90,6 +90,7 @@ declare_rules! {
     no_mutable_exports => { id: NO_MUTABLE_EXPORTS_RULE_ID, value: "no-mutable-exports", config: crate::config::RuleConfig },
     no_namespace => { id: NO_NAMESPACE_RULE_ID, value: "no-namespace", config: crate::config::RuleConfig },
     no_non_null_assertion => { id: NO_NON_NULL_ASSERTION_RULE_ID, value: "no-non-null-assertion", config: crate::config::RuleConfig },
+    no_process_env => { id: NO_PROCESS_ENV_RULE_ID, value: "no-process-env", config: crate::config::RuleConfig },
     no_silent_catch => { id: NO_SILENT_CATCH_RULE_ID, value: "no-silent-catch", config: crate::config::RuleConfig },
     no_test_code_in_production => { id: NO_TEST_CODE_IN_PRODUCTION_RULE_ID, value: "no-test-code-in-production", config: crate::config::RuleConfig },
     no_test_import => { id: NO_TEST_IMPORT_RULE_ID, value: "no-test-import", config: crate::config::RuleConfig },
@@ -263,6 +264,12 @@ ast_rule_adapter!(
     NO_NON_NULL_ASSERTION_RULE_ID,
     crate::config::RuleConfig,
     no_non_null_assertion
+);
+ast_rule_adapter!(
+    NoProcessEnvAdapter,
+    NO_PROCESS_ENV_RULE_ID,
+    crate::config::RuleConfig,
+    no_process_env
 );
 
 ast_rule_adapter!(
@@ -575,6 +582,9 @@ fn build_file_rules(
         }),
         Box::new(NoNonNullAssertionAdapter {
             config: config.no_non_null_assertion.clone(),
+        }),
+        Box::new(NoProcessEnvAdapter {
+            config: config.no_process_env.clone(),
         }),
         Box::new(NoComponentDefaultExportAdapter {
             config: config.no_component_default_export.clone(),

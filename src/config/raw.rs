@@ -161,6 +161,7 @@ declare_raw_rules! {
         no_mutable_exports => "no-mutable-exports",
         no_namespace => "no-namespace",
         no_non_null_assertion => "no-non-null-assertion",
+        no_process_env => "no-process-env",
         no_silent_catch => "no-silent-catch",
         no_test_code_in_production => "no-test-code-in-production",
         no_test_import => "no-test-import",
