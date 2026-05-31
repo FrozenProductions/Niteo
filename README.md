@@ -8,7 +8,7 @@
   <a href="https://www.npmjs.com/package/niteo-cli"><img src="https://img.shields.io/npm/v/niteo-cli" alt="npm version" /></a>
   <a href="https://github.com/FrozenProductions/Niteo/actions/workflows/rust-ci.yml"><img src="https://github.com/FrozenProductions/Niteo/actions/workflows/rust-ci.yml/badge.svg" alt="Rust CI" /></a>
   <a href="https://github.com/FrozenProductions/Niteo/actions/workflows/npm-release.yml"><img src="https://github.com/FrozenProductions/Niteo/actions/workflows/npm-release.yml/badge.svg" alt="npm release" /></a>
-  <a href="https://github.com/FrozenProductions/Niteo/blob/main/LICENSE"><img src="https://img.shields.io/github/license/FrozenProductions/Niteo" alt="license" /></a>
+  <a href="https://github.com/FrozenProductions/Niteo/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="license" /></a>
   <a href="https://www.npmjs.com/package/niteo-cli"><img src="https://img.shields.io/npm/dm/niteo-cli" alt="npm downloads" /></a>
 </p>
 
