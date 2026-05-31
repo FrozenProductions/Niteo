@@ -33,6 +33,8 @@ brew tap FrozenProductions/Niteo https://github.com/FrozenProductions/Niteo
 brew install niteo
 ```
 
+Homebrew bottles are published from GitHub Actions when `Cargo.toml` version changes on `main`.
+
 Run directly with `npx`:
 
 ```sh

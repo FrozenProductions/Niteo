@@ -1,0 +1,97 @@
+name: Homebrew Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - Cargo.toml
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  release:
+    name: Create release tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect Cargo version change
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_version="$(sed -nE 's/^version = "([^"]+)"/\1/p' Cargo.toml | head -n 1)"
+
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            previous_version="$(git show HEAD^:Cargo.toml | sed -nE 's/^version = "([^"]+)"/\1/p' | head -n 1)"
+          else
+            previous_version=""
+          fi
+
+          if [ "$current_version" = "$previous_version" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Cargo.toml changed, but version stayed at $current_version"
+            exit 0
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "version=$current_version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$current_version" >> "$GITHUB_OUTPUT"
+
+      - name: Create Git tag
+        if: steps.version.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${{ steps.version.outputs.tag }}"
+          git fetch --tags origin
+
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "$tag already exists"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "$tag"
+
+      - name: Create GitHub release
+        if: steps.version.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${{ steps.version.outputs.tag }}"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag release already exists"
+            exit 0
+          fi
+
+          gh release create "$tag" \
+            --title "$tag" \
+            --notes "Niteo $tag"
+
+      - name: Build Homebrew bottles
+        if: steps.version.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh workflow run homebrew-bottles.yml \
+            --ref main \
+            -f tag="${{ steps.version.outputs.tag }}"

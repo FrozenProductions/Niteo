@@ -1,0 +1,227 @@
+name: Homebrew Bottles
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to bottle, for example v0.1.3
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  HOMEBREW_NO_ANALYTICS: "1"
+  HOMEBREW_NO_ENV_HINTS: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+
+jobs:
+  prepare:
+    name: Prepare release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+      source-url: ${{ steps.metadata.outputs.source-url }}
+      source-sha256: ${{ steps.metadata.outputs.source-sha256 }}
+      bottle-root-url: ${{ steps.metadata.outputs.bottle-root-url }}
+
+    steps:
+      - name: Resolve tag
+        id: ref
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.tag }}
+
+      - name: Read version and source checksum
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${{ steps.ref.outputs.tag }}"
+          version="$(sed -nE 's/^version = "([^"]+)"/\1/p' Cargo.toml | head -n 1)"
+
+          if [ "$tag" != "v$version" ]; then
+            echo "Tag $tag does not match Cargo.toml version $version" >&2
+            exit 1
+          fi
+
+          source_url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${tag}.tar.gz"
+          source_sha256="$(curl -L "$source_url" | shasum -a 256 | awk '{print $1}')"
+          bottle_root_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "source-url=$source_url" >> "$GITHUB_OUTPUT"
+          echo "source-sha256=$source_sha256" >> "$GITHUB_OUTPUT"
+          echo "bottle-root-url=$bottle_root_url" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure GitHub release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${{ steps.metadata.outputs.tag }}"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            exit 0
+          fi
+
+          gh release create "$tag" \
+            --title "$tag" \
+            --notes "Niteo $tag"
+
+  bottle:
+    name: Bottle ${{ matrix.name }}
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Intel
+            runner: macos-15-intel
+          - name: macOS Apple Silicon
+            runner: macos-15
+          - name: Linux
+            runner: ubuntu-24.04
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+
+      - name: Prepare formula in tap
+        shell: bash
+        env:
+          NITEO_HOMEBREW_SOURCE_URL: ${{ needs.prepare.outputs.source-url }}
+          NITEO_HOMEBREW_SOURCE_SHA256: ${{ needs.prepare.outputs.source-sha256 }}
+        run: |
+          set -euo pipefail
+
+          ruby scripts/update-homebrew-formula.rb Formula/niteo.rb
+
+          tap_dir="$(brew --repo)/Library/Taps/frozenproductions/homebrew-niteo"
+          rm -rf "$tap_dir"
+          mkdir -p "$(dirname "$tap_dir")"
+          rsync -a --delete "$GITHUB_WORKSPACE/" "$tap_dir/"
+
+      - name: Build bottle
+        working-directory: ${{ github.workspace }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          brew install --build-bottle frozenproductions/niteo/niteo
+          brew test frozenproductions/niteo/niteo
+          brew bottle --json frozenproductions/niteo/niteo
+
+      - name: Collect bottle artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p bottle-artifacts
+          find . -maxdepth 1 \( -name "niteo*.bottle*.tar.gz" -o -name "niteo*.json" \) -print -exec mv {} bottle-artifacts/ \;
+
+      - name: Upload bottle artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bottle-${{ matrix.runner }}
+          path: bottle-artifacts/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish bottles and formula
+    needs:
+      - prepare
+      - bottle
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+
+      - name: Download bottle artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bottle-*
+          path: bottle-artifacts
+          merge-multiple: true
+
+      - name: Upload bottles to GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release upload "${{ needs.prepare.outputs.tag }}" bottle-artifacts/*.bottle*.tar.gz --clobber
+
+      - name: Merge bottle metadata into formula
+        shell: bash
+        env:
+          NITEO_HOMEBREW_SOURCE_URL: ${{ needs.prepare.outputs.source-url }}
+          NITEO_HOMEBREW_SOURCE_SHA256: ${{ needs.prepare.outputs.source-sha256 }}
+        run: |
+          set -euo pipefail
+
+          ruby scripts/update-homebrew-formula.rb Formula/niteo.rb
+
+          tap_dir="$(brew --repo)/Library/Taps/frozenproductions/homebrew-niteo"
+          rm -rf "$tap_dir"
+          mkdir -p "$(dirname "$tap_dir")"
+          rsync -a --delete "$GITHUB_WORKSPACE/" "$tap_dir/"
+
+          (
+            cd "$tap_dir"
+            brew bottle --merge --write --no-commit --root-url="${{ needs.prepare.outputs.bottle-root-url }}" "$GITHUB_WORKSPACE"/bottle-artifacts/*.json
+          )
+
+          cp "$tap_dir/Formula/niteo.rb" Formula/niteo.rb
+
+      - name: Commit formula update
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/niteo.rb
+
+          if git diff --cached --quiet; then
+            echo "Formula is already up to date"
+            exit 0
+          fi
+
+          git commit -m "[🔖] Update Homebrew formula for ${{ needs.prepare.outputs.tag }}"
+          git push origin HEAD:main
