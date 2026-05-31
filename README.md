@@ -23,11 +23,15 @@ It checks project shape and source structure rather than formatting. Niteo uses 
 With Homebrew:
 
 ```sh
+brew install FrozenProductions/Niteo/niteo
+```
+
+Or tap the repository first:
+
+```sh
 brew tap FrozenProductions/Niteo https://github.com/FrozenProductions/Niteo
 brew install niteo
 ```
-
-Once tapped, you can also install with `brew install FrozenProductions/Niteo/niteo`.
 
 Run directly with `npx`:
 
