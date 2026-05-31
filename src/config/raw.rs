@@ -6,9 +6,9 @@ use super::rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
     FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
     MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAbbreviationsRuleConfig,
-    NoAnyRuleConfig, NoConsoleRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
-    NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig, RuleConfig, Severity,
-    UpwardImportRuleConfig,
+    NoAnyRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig, NoDumpFilesRuleConfig,
+    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
+    RuleConfig, Severity, UpwardImportRuleConfig,
 };
 use super::structure::{DomainConfig, ProjectStructureConfig};
 use crate::rules::RulesConfig;
@@ -149,9 +149,7 @@ declare_raw_rules! {
         hook_no_jsx => "hook-no-jsx",
         no_barrel_chain => "no-barrel-chain",
         no_barrel_files => "no-barrel-files",
-        no_component_default_export => "no-component-default-export",
         no_debugger => "no-debugger",
-        no_default_export => "no-default-export",
         no_enums => "no-enums",
         no_eval => "no-eval",
         no_export_star => "no-export-star",
@@ -183,6 +181,7 @@ declare_raw_rules! {
         no_any => ("no-any", to_no_any_config, NoAnyRuleConfig),
         no_comments => ("no-comments", to_comments_config, CommentsRuleConfig),
         no_console => ("no-console", to_no_console_config, NoConsoleRuleConfig),
+        no_default_export => ("no-default-export", to_no_default_export_config, NoDefaultExportRuleConfig),
         no_dump_files => ("no-dump-files", to_no_dump_files_config, NoDumpFilesRuleConfig),
         no_duplicate_file_names => ("no-duplicate-file-names", to_no_duplicate_file_names_config, NoDuplicateFileNamesRuleConfig),
         no_empty_directories => ("no-empty-directories", to_no_empty_directories_config, NoEmptyDirectoriesRuleConfig),
@@ -406,6 +405,10 @@ impl RawRuleConfig {
             ;
             allowed_folders: clone_default
         },
+        to_no_default_export_config => (NoDefaultExportRuleConfig) {
+            components_only: default(false)
+            ;
+        },
         to_no_console_config => (NoConsoleRuleConfig) {
             ;
             allow_patterns: clone_default
@@ -463,6 +466,8 @@ pub struct RawRuleOptions {
     pub prefixes: Option<Vec<String>>,
     #[serde(rename = "ignore-constants")]
     pub ignore_constants: Option<bool>,
+    #[serde(rename = "components-only")]
+    pub components_only: Option<bool>,
     #[serde(rename = "entry-files")]
     pub entry_files: Option<Vec<String>>,
     #[serde(rename = "allowed-folders")]
@@ -503,6 +508,7 @@ impl RawRuleOptions {
                 .or_else(|| parent.extra_names.clone()),
             prefixes: child.prefixes.clone().or_else(|| parent.prefixes.clone()),
             ignore_constants: child.ignore_constants.or(parent.ignore_constants),
+            components_only: child.components_only.or(parent.components_only),
             entry_files: child
                 .entry_files
                 .clone()

@@ -71,10 +71,9 @@ declare_rules! {
     no_barrel_chain => { id: NO_BARREL_CHAIN_RULE_ID, value: "no-barrel-chain", config: crate::config::RuleConfig },
     no_barrel_files => { id: NO_BARREL_FILES_RULE_ID, value: "no-barrel-files", config: crate::config::RuleConfig },
     no_comments => { id: NO_COMMENTS_RULE_ID, value: "no-comments", config: crate::config::CommentsRuleConfig },
-    no_component_default_export => { id: NO_COMPONENT_DEFAULT_EXPORT_RULE_ID, value: "no-component-default-export", config: crate::config::RuleConfig },
     no_console => { id: NO_CONSOLE_RULE_ID, value: "no-console", config: crate::config::NoConsoleRuleConfig },
     no_debugger => { id: NO_DEBUGGER_RULE_ID, value: "no-debugger", config: crate::config::RuleConfig },
-    no_default_export => { id: NO_DEFAULT_EXPORT_RULE_ID, value: "no-default-export", config: crate::config::RuleConfig },
+    no_default_export => { id: NO_DEFAULT_EXPORT_RULE_ID, value: "no-default-export", config: crate::config::NoDefaultExportRuleConfig },
     no_dump_files => { id: NO_DUMP_FILES_RULE_ID, value: "no-dump-files", config: crate::config::NoDumpFilesRuleConfig },
     no_duplicate_file_names => { id: NO_DUPLICATE_FILE_NAMES_RULE_ID, value: "no-duplicate-file-names", config: crate::config::NoDuplicateFileNamesRuleConfig },
     no_empty_directories => { id: NO_EMPTY_DIRECTORIES_RULE_ID, value: "no-empty-directories", config: crate::config::NoEmptyDirectoriesRuleConfig },
@@ -168,12 +167,30 @@ ast_rule_adapter!(
     crate::config::NoConsoleRuleConfig,
     no_console
 );
-ast_rule_adapter!(
-    NoDefaultExportAdapter,
-    NO_DEFAULT_EXPORT_RULE_ID,
-    crate::config::RuleConfig,
-    no_default_export
-);
+struct NoDefaultExportAdapter {
+    config: crate::config::NoDefaultExportRuleConfig,
+    components: DomainConfig,
+}
+impl FileRule for NoDefaultExportAdapter {
+    fn severity(&self) -> Severity {
+        self.config.severity
+    }
+    fn needs_ast(&self) -> bool {
+        true
+    }
+    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+        let Some(program) = ctx.program else {
+            return vec![];
+        };
+        no_default_export::check_file(
+            ctx.file,
+            program,
+            ctx.line_index,
+            &self.config,
+            &self.components,
+        )
+    }
+}
 ast_rule_adapter!(
     NoExportStarAdapter,
     NO_EXPORT_STAR_RULE_ID,
@@ -310,31 +327,6 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     prefer_satisfies
 );
-
-struct NoComponentDefaultExportAdapter {
-    config: crate::config::RuleConfig,
-    components: DomainConfig,
-}
-impl FileRule for NoComponentDefaultExportAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn needs_ast(&self) -> bool {
-        true
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        let Some(program) = ctx.program else {
-            return vec![];
-        };
-        no_component_default_export::check_file(
-            ctx.file,
-            program,
-            ctx.line_index,
-            &self.config,
-            &self.components,
-        )
-    }
-}
 
 struct NoInlineTypesAdapter {
     config: crate::config::RuleConfig,
@@ -548,6 +540,7 @@ fn build_file_rules(
         }),
         Box::new(NoDefaultExportAdapter {
             config: config.no_default_export.clone(),
+            components: structure.components.clone(),
         }),
         Box::new(NoExportStarAdapter {
             config: config.no_export_star.clone(),
@@ -596,10 +589,6 @@ fn build_file_rules(
         }),
         Box::new(NoAbbreviationsAdapter {
             config: config.no_abbreviations.clone(),
-        }),
-        Box::new(NoComponentDefaultExportAdapter {
-            config: config.no_component_default_export.clone(),
-            components: structure.components.clone(),
         }),
         Box::new(NoInlineTypesAdapter {
             config: config.no_inline_types.clone(),

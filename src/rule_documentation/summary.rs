@@ -113,17 +113,13 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
             )],
         },
         RuleKind::NoDebugger => simple_summary(config.rules.no_debugger.severity),
-        RuleKind::NoComponentDefaultExport => RuleConfigSummary {
-            severity: config.rules.no_component_default_export.severity,
-            options: vec![
-                format!("folders: {:?}", config.structure.components.folders),
-                format!(
-                    "file-suffixes: {:?}",
-                    config.structure.components.file_suffixes
-                ),
-            ],
+        RuleKind::NoDefaultExport => RuleConfigSummary {
+            severity: config.rules.no_default_export.severity,
+            options: vec![format!(
+                "components-only: {}",
+                config.rules.no_default_export.components_only
+            )],
         },
-        RuleKind::NoDefaultExport => simple_summary(config.rules.no_default_export.severity),
         RuleKind::NoDuplicateFileNames => RuleConfigSummary {
             severity: config.rules.no_duplicate_file_names.severity,
             options: vec![format!(

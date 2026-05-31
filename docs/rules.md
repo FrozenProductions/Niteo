@@ -34,10 +34,7 @@ niteo explain no-console --format json
 | `no-barrel-chain` | `warn` | Prevent `index.ts` barrel files from re-exporting through other barrels. | `severity` |
 | `no-barrel-files` | `warn` | Avoid `index.ts` barrel files. | `severity` |
 | `no-comments` | `warn` | Discourage implementation comments that duplicate code. | `allow-doc-comments` |
-| `no-component-default-export` | `warn` | Component files should use named exports. | `project.structure.components` |
-| `no-console` | `warn` | Prevent committed console usage outside allowed paths. | `allow-patterns` |
-| `no-debugger` | `warn` | Prevent committed `debugger` statements. | `severity` |
-| `no-default-export` | `warn` | Prefer named exports. | `severity` |
+| `no-default-export` | `warn` | Prefer named exports. Set `components-only = true` to scope to component files only. | `components-only`, `project.structure.components` |
 | `no-duplicate-file-names` | `warn` | Avoid repeated file names that make editor tabs and stack traces ambiguous. | `ignore-names` |
 | `no-dump-files` | `warn` | Disallow generic file names such as `utils.ts`, `helpers.ts`, and `types.ts`. | `extra-names` |
 | `no-empty-directories` | `warn` | Remove directories that no longer contain source files. | `ignore-dirs` |
@@ -245,9 +242,23 @@ Reports `.then()` chains. Prefer `async`/`await`.
 
 Reports default exports. Prefer named exports.
 
-### `no-component-default-export`
+```ts
+export default function Button() {}
+```
 
-Reports default exports from component files. Component files are identified by `project.structure.components`.
+Prefer:
+
+```ts
+export function Button() {}
+```
+
+Set `components-only` to limit enforcement to component files only (identified by `project.structure.components`):
+
+```toml
+[rules.no-default-export]
+severity = "warn"
+components-only = true
+```
 
 ### `no-mutable-exports`
 

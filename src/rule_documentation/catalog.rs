@@ -42,7 +42,6 @@ define_rule_kinds! {
     NoComments,
     NoConsole,
     NoDebugger,
-    NoComponentDefaultExport,
     NoDefaultExport,
     NoDuplicateFileNames,
     NoDumpFiles,
@@ -376,30 +375,8 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         kind: RuleKind::NoDebugger,
     },
     RuleDocumentation {
-        name: "no-component-default-export",
-        intent: "Components must use named exports so imports stay explicit and refactorable.",
-        examples: &[
-            RuleExample {
-                label: "Reports",
-                code: "export default function Button() {} // in Button.tsx",
-            },
-            RuleExample {
-                label: "Prefer",
-                code: "export function Button() {}",
-            },
-        ],
-        options: &[
-            SEVERITY_OPTION,
-            RuleOption {
-                name: "project.structure.components",
-                description: "Folders and file suffixes that identify component files.",
-            },
-        ],
-        kind: RuleKind::NoComponentDefaultExport,
-    },
-    RuleDocumentation {
         name: "no-default-export",
-        intent: "Prefer named exports so imports stay explicit and refactors are safer.",
+        intent: "Prefer named exports so imports stay explicit and refactors are safer. When components-only is set, only component files are checked.",
         examples: &[
             RuleExample {
                 label: "Reports",
@@ -410,7 +387,17 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
                 code: "export function Button() {}",
             },
         ],
-        options: NO_OPTIONS,
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "components-only",
+                description: "When true, only enforce named exports in component files.",
+            },
+            RuleOption {
+                name: "project.structure.components",
+                description: "Folders and file suffixes that identify component files (used when components-only is true).",
+            },
+        ],
         kind: RuleKind::NoDefaultExport,
     },
     RuleDocumentation {

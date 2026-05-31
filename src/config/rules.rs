@@ -325,3 +325,18 @@ impl Default for NoAbbreviationsRuleConfig {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct NoDefaultExportRuleConfig {
+    pub severity: Severity,
+    pub components_only: bool,
+}
+
+impl Default for NoDefaultExportRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            components_only: false,
+        }
+    }
+}
