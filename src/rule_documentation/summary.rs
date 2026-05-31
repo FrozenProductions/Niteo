@@ -223,6 +223,14 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
             )],
         },
         RuleKind::NoNonNullAssertion => simple_summary(config.rules.no_non_null_assertion.severity),
+        RuleKind::NoProcessEnv => simple_summary(config.rules.no_process_env.severity),
+        RuleKind::NoAbbreviations => RuleConfigSummary {
+            severity: config.rules.no_abbreviations.severity,
+            options: vec![format!(
+                "extra-abbreviations: {:?}",
+                config.rules.no_abbreviations.extra_abbreviations
+            )],
+        },
         RuleKind::NoAny => RuleConfigSummary {
             severity: config.rules.no_any.severity,
             options: vec![

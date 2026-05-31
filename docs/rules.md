@@ -29,6 +29,7 @@ niteo explain no-console --format json
 | `max-file-exports` | `warn` | Limit the number of exports from one file. | `max-exports` |
 | `max-items-per-directory` | `warn` | Prevent directories from becoming oversized collections. | `max-items`, `ignore-dirs`, `count-folders` |
 | `min-items-per-directory` | `warn` | Find tiny directories that add navigation cost without enough structure. | `min-items`, `ignore-dirs`, `count-folders` |
+| `no-abbreviations` | `warn` | Disallow abbreviated identifiers like `btn`, `ctx`, and `mgr`. | `extra-abbreviations` |
 | `no-any` | `warn` | Disallow explicit `any` type annotations outside generated or allowed folders. | `allowed-folders`, `project.structure.generated` |
 | `no-barrel-chain` | `warn` | Prevent `index.ts` barrel files from re-exporting through other barrels. | `severity` |
 | `no-barrel-files` | `warn` | Avoid `index.ts` barrel files. | `severity` |
@@ -52,6 +53,7 @@ niteo explain no-console --format json
 | `no-mutable-exports` | `warn` | Avoid exported mutable bindings. | `severity` |
 | `no-namespace` | `warn` | Prefer ES modules over TypeScript namespaces. | `severity` |
 | `no-non-null-assertion` | `warn` | Disallow the non-null assertion operator. | `severity` |
+| `no-process-env` | `warn` | Prevent direct access to `process.env`. | `severity` |
 | `no-silent-catch` | `warn` | Require catch blocks to log, rethrow, or return a fallback. | `severity` |
 | `no-test-code-in-production` | `warn` | Disallow test globals and test library imports outside test files. | `project.structure.tests` |
 | `no-test-import` | `warn` | Production code may not import test files. | `project.structure.tests` |
@@ -171,6 +173,20 @@ Reports `debugger` statements.
 
 Reports `eval()` and `new Function()`.
 
+### `no-process-env`
+
+Reports direct access to `process.env`.
+
+```ts
+const key = process.env.API_KEY;
+```
+
+Prefer a centralized config module:
+
+```ts
+const key = config.apiKey;
+```
+
 ### `no-comments`
 
 Reports implementation comments. Documentation comments are allowed by default.
@@ -192,6 +208,32 @@ try {
 ```
 
 Catch blocks should log, rethrow, or return an intentional typed fallback.
+
+### `no-abbreviations`
+
+Reports identifiers that contain common abbreviations.
+
+```ts
+const btn = document.querySelector("button");
+const ctx = getContext();
+const mgr = new Manager();
+```
+
+Prefer fully spelled-out names:
+
+```ts
+const button = document.querySelector("button");
+const context = getContext();
+const manager = new Manager();
+```
+
+Add project-specific abbreviations:
+
+```toml
+[rules.no-abbreviations]
+severity = "warn"
+extra-abbreviations = ["req", "res", "tmp"]
+```
 
 ### `no-then-chain`
 

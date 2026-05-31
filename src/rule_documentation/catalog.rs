@@ -57,6 +57,7 @@ define_rule_kinds! {
     NoLogicInBarrel,
     NoLogicInDomain,
     NoMutableExports,
+    NoProcessEnv,
     NoNamespace,
     NoSilentCatch,
     NoTestCodeInProduction,
@@ -66,6 +67,7 @@ define_rule_kinds! {
     NoTestImport,
     EntryFileNoLogic,
     NoNonNullAssertion,
+    NoAbbreviations,
     NoAny,
 }
 
@@ -650,6 +652,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         kind: RuleKind::NoLogicInDomain,
     },
     RuleDocumentation {
+        name: "no-abbreviations",
+        intent: "Disallow abbreviated identifiers like btn, ctx, and mgr. Expanded names improve readability and self-document the code.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "const btn = document.querySelector('button');",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "const button = document.querySelector('button');",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "extra-abbreviations",
+                description: "Additional abbreviations to flag beyond the defaults (btn, ctx, mgr).",
+            },
+        ],
+        kind: RuleKind::NoAbbreviations,
+    },
+    RuleDocumentation {
         name: "no-mutable-exports",
         intent: "Avoid exported mutable bindings that make module state unpredictable.",
         examples: &[
@@ -832,6 +856,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::NoNonNullAssertion,
+    },
+    RuleDocumentation {
+        name: "no-process-env",
+        intent: "Prevent direct access to process.env. Use a centralized config module instead.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "const key = process.env.API_KEY;",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "const key = config.apiKey;",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoProcessEnv,
     },
     RuleDocumentation {
         name: "no-any",

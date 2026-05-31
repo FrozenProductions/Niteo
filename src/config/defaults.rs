@@ -158,6 +158,9 @@ entry-files = ["main", "app", "layout", "page"]
 [rules.no-non-null-assertion]
 severity = "warn"
 
+[rules.no-process-env]
+severity = "warn"
+
 [rules.no-abbreviations]
 severity = "warn"
 extra-abbreviations = []
