@@ -61,6 +61,10 @@ severity = "warn"
 severity = "warn"
 max-exports = 10
 
+[rules.max-function-params]
+severity = "warn"
+max-params = 3
+
 [rules.no-upward-import]
 severity = "warn"
 max-depth = 0

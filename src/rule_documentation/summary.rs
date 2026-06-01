@@ -62,6 +62,13 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
                 config.rules.max_file_exports.max_exports
             )],
         },
+        RuleKind::MaxFunctionParams => RuleConfigSummary {
+            severity: config.rules.max_function_params.severity,
+            options: vec![format!(
+                "max-params: {}",
+                config.rules.max_function_params.max_params
+            )],
+        },
         RuleKind::MaxItemsPerDirectory => RuleConfigSummary {
             severity: config.rules.max_items_per_directory.severity,
             options: vec![

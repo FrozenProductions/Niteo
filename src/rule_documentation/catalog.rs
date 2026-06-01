@@ -35,6 +35,7 @@ define_rule_kinds! {
     HookPrefix,
     MaxDirectoryDepth,
     MaxFileExports,
+    MaxFunctionParams,
     MaxItemsPerDirectory,
     MinItemsPerDirectory,
     NoBarrelChain,
@@ -228,6 +229,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::MaxFileExports,
+    },
+    RuleDocumentation {
+        name: "max-function-params",
+        intent: "Limit function parameter count. Functions with many parameters are hard to call correctly; prefer an object parameter.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "function createUser(name: string, age: number, email: string, role: string) {}",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "function createUser(options: { name: string; age: number; email: string; role: string }) {}",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "max-params",
+                description: "Maximum number of parameters allowed. Default is 3.",
+            },
+        ],
+        kind: RuleKind::MaxFunctionParams,
     },
     RuleDocumentation {
         name: "max-items-per-directory",

@@ -357,6 +357,21 @@ impl Default for NoRestrictedImportsRuleConfig {
 }
 
 #[derive(Debug, Clone)]
+pub struct MaxFunctionParamsRuleConfig {
+    pub severity: Severity,
+    pub max_params: usize,
+}
+
+impl Default for MaxFunctionParamsRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            max_params: 3,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct NoNestedFunctionsRuleConfig {
     pub severity: Severity,
     pub max_depth: usize,

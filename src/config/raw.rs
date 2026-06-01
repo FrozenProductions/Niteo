@@ -5,11 +5,11 @@ use std::path::PathBuf;
 use super::rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
     FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
-    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAbbreviationsRuleConfig,
-    NoAnyRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig, NoDumpFilesRuleConfig,
-    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
-    NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig,
-    RuleConfig, Severity, UpwardImportRuleConfig,
+    MaxFunctionParamsRuleConfig, MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig,
+    NoAbbreviationsRuleConfig, NoAnyRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig,
+    NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
+    NoInterfaceRuleConfig, NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig,
+    NoRestrictedImportsRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
 };
 use super::structure::{DomainConfig, ProjectStructureConfig};
 use crate::rules::RulesConfig;
@@ -180,6 +180,7 @@ declare_raw_rules! {
         hook_prefix => ("hook-prefix", to_hook_prefix_config, HookPrefixRuleConfig),
         max_directory_depth => ("max-directory-depth", to_max_directory_depth_config, MaxDirectoryDepthRuleConfig),
         max_file_exports => ("max-file-exports", to_file_exports_config, FileExportsRuleConfig),
+        max_function_params => ("max-function-params", to_max_function_params_config, MaxFunctionParamsRuleConfig),
         max_items_per_directory => ("max-items-per-directory", to_max_items_per_directory_config, MaxItemsPerDirectoryRuleConfig),
         min_items_per_directory => ("min-items-per-directory", to_min_items_per_directory_config, MinItemsPerDirectoryRuleConfig),
         no_abbreviations => ("no-abbreviations", to_no_abbreviations_config, NoAbbreviationsRuleConfig),
@@ -383,6 +384,10 @@ impl RawRuleConfig {
             max_exports: default(10)
             ;
         },
+        to_max_function_params_config => (MaxFunctionParamsRuleConfig) {
+            max_params: default(3)
+            ;
+        },
         to_file_length_config => (FileLengthRuleConfig) {
             max_lines: default(FileLengthRuleConfig::default().max_lines)
             ;
@@ -468,6 +473,8 @@ pub struct RawRuleOptions {
     pub max_lines: Option<usize>,
     #[serde(rename = "max-exports")]
     pub max_exports: Option<usize>,
+    #[serde(rename = "max-params")]
+    pub max_params: Option<usize>,
     #[serde(rename = "max-depth")]
     pub max_depth: Option<usize>,
     #[serde(rename = "allow-patterns")]
@@ -507,6 +514,7 @@ impl RawRuleOptions {
             allow_doc_comments: child.allow_doc_comments.or(parent.allow_doc_comments),
             max_lines: child.max_lines.or(parent.max_lines),
             max_exports: child.max_exports.or(parent.max_exports),
+            max_params: child.max_params.or(parent.max_params),
             max_depth: child.max_depth.or(parent.max_depth),
             allow_patterns: child
                 .allow_patterns

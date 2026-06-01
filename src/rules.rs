@@ -66,6 +66,7 @@ declare_rules! {
     hook_prefix => { id: HOOK_PREFIX_RULE_ID, value: "hook-prefix", config: crate::config::HookPrefixRuleConfig },
     max_directory_depth => { id: MAX_DIRECTORY_DEPTH_RULE_ID, value: "max-directory-depth", config: crate::config::MaxDirectoryDepthRuleConfig },
     max_file_exports => { id: MAX_FILE_EXPORTS_RULE_ID, value: "max-file-exports", config: crate::config::FileExportsRuleConfig },
+    max_function_params => { id: MAX_FUNCTION_PARAMS_RULE_ID, value: "max-function-params", config: crate::config::MaxFunctionParamsRuleConfig },
     max_items_per_directory => { id: MAX_ITEMS_PER_DIRECTORY_RULE_ID, value: "max-items-per-directory", config: crate::config::MaxItemsPerDirectoryRuleConfig },
     min_items_per_directory => { id: MIN_ITEMS_PER_DIRECTORY_RULE_ID, value: "min-items-per-directory", config: crate::config::MinItemsPerDirectoryRuleConfig },
     no_any => { id: NO_ANY_RULE_ID, value: "no-any", config: crate::config::NoAnyRuleConfig },
@@ -215,6 +216,12 @@ ast_rule_adapter!(
     MAX_FILE_EXPORTS_RULE_ID,
     crate::config::FileExportsRuleConfig,
     max_file_exports
+);
+ast_rule_adapter!(
+    MaxFunctionParamsAdapter,
+    MAX_FUNCTION_PARAMS_RULE_ID,
+    crate::config::MaxFunctionParamsRuleConfig,
+    max_function_params
 );
 struct NoUpwardImportAdapter {
     config: crate::config::UpwardImportRuleConfig,
@@ -618,6 +625,9 @@ fn build_file_rules(
         }),
         Box::new(MaxFileExportsAdapter {
             config: config.max_file_exports.clone(),
+        }),
+        Box::new(MaxFunctionParamsAdapter {
+            config: config.max_function_params.clone(),
         }),
         Box::new(NoUpwardImportAdapter {
             config: config.no_upward_import.clone(),
