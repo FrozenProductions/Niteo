@@ -49,6 +49,7 @@ niteo explain no-console --format json
 | `no-logic-in-barrel` | `warn` | Keep barrel files limited to import/export forwarding. | `severity` |
 | `no-logic-in-domain` | `warn` | Keep type and constants domains free of runtime implementation logic. | `project.structure.types`, `project.structure.constants` |
 | `no-mutable-exports` | `warn` | Avoid exported mutable bindings. | `severity` |
+| `no-nested-functions` | `warn` | Disallow functions nested beyond a configured depth. | `max-depth` |
 | `no-namespace` | `warn` | Prefer ES modules over TypeScript namespaces. | `severity` |
 | `no-non-null-assertion` | `warn` | Disallow the non-null assertion operator. | `severity` |
 | `no-process-env` | `warn` | Prevent direct access to `process.env`. | `severity` |
@@ -237,6 +238,38 @@ extra-abbreviations = ["req", "res", "tmp"]
 ### `no-then-chain`
 
 Reports `.then()` chains. Prefer `async`/`await`.
+
+### `no-nested-functions`
+
+Reports functions defined inside other functions beyond `max-depth` nesting levels. Deeply nested functions are hard to test and reason about. Extract them to module scope.
+
+```ts
+function outer() {
+  function middle() {
+    function inner() {} // reported when max-depth = 2
+  }
+}
+```
+
+Prefer:
+
+```ts
+function inner() {}
+function middle() {
+  inner();
+}
+function outer() {
+  middle();
+}
+```
+
+Configure the allowed nesting depth:
+
+```toml
+[rules.no-nested-functions]
+severity = "warn"
+max-depth = 2
+```
 
 ## Export And Module Shape Rules
 

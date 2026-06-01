@@ -167,6 +167,7 @@ allowed-folders = ["legacy"]
 | `no-empty-directories` | `ignore-dirs` |
 | `no-interface` | `allow-declaration-merging` |
 | `no-large-file` | `max-lines` |
+| `no-nested-functions` | `max-depth` |
 | `no-upward-import` | `max-depth` |
 
 Every rule also supports `severity`.

@@ -355,3 +355,18 @@ impl Default for NoRestrictedImportsRuleConfig {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct NoNestedFunctionsRuleConfig {
+    pub severity: Severity,
+    pub max_depth: usize,
+}
+
+impl Default for NoNestedFunctionsRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            max_depth: 2,
+        }
+    }
+}

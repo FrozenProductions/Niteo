@@ -173,4 +173,8 @@ allowed-folders = []
 [rules.no-restricted-imports]
 severity = "warn"
 restricted = []
+
+[rules.no-nested-functions]
+severity = "warn"
+max-depth = 2
 "#;

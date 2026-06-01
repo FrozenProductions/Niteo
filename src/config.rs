@@ -13,5 +13,6 @@ pub use rules::{
     MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAbbreviationsRuleConfig,
     NoAnyRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig, NoDumpFilesRuleConfig,
     NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
-    NoRestrictedImportsRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
+    NoNestedFunctionsRuleConfig, NoRestrictedImportsRuleConfig, RuleConfig, Severity,
+    UpwardImportRuleConfig,
 };

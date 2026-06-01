@@ -91,6 +91,7 @@ declare_rules! {
     no_restricted_imports => { id: NO_RESTRICTED_IMPORTS_RULE_ID, value: "no-restricted-imports", config: crate::config::NoRestrictedImportsRuleConfig },
     no_mutable_exports => { id: NO_MUTABLE_EXPORTS_RULE_ID, value: "no-mutable-exports", config: crate::config::RuleConfig },
     no_namespace => { id: NO_NAMESPACE_RULE_ID, value: "no-namespace", config: crate::config::RuleConfig },
+    no_nested_functions => { id: NO_NESTED_FUNCTIONS_RULE_ID, value: "no-nested-functions", config: crate::config::NoNestedFunctionsRuleConfig },
     no_non_null_assertion => { id: NO_NON_NULL_ASSERTION_RULE_ID, value: "no-non-null-assertion", config: crate::config::RuleConfig },
     no_process_env => { id: NO_PROCESS_ENV_RULE_ID, value: "no-process-env", config: crate::config::RuleConfig },
     no_silent_catch => { id: NO_SILENT_CATCH_RULE_ID, value: "no-silent-catch", config: crate::config::RuleConfig },
@@ -306,6 +307,12 @@ ast_rule_adapter!(
     no_restricted_imports
 );
 
+ast_rule_adapter!(
+    NoNestedFunctionsAdapter,
+    NO_NESTED_FUNCTIONS_RULE_ID,
+    crate::config::NoNestedFunctionsRuleConfig,
+    no_nested_functions
+);
 ast_rule_adapter!(
     NoCommentsAdapter,
     NO_COMMENTS_RULE_ID,
@@ -644,6 +651,9 @@ fn build_file_rules(
         Box::new(NoAnyAdapter {
             config: config.no_any.clone(),
             generated: structure.generated.clone(),
+        }),
+        Box::new(NoNestedFunctionsAdapter {
+            config: config.no_nested_functions.clone(),
         }),
         Box::new(NoCommentsAdapter {
             config: config.no_comments.clone(),

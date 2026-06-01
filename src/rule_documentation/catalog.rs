@@ -57,6 +57,7 @@ define_rule_kinds! {
     NoLogicInBarrel,
     NoLogicInDomain,
     NoMutableExports,
+    NoNestedFunctions,
     NoProcessEnv,
     NoNamespace,
     NoRestrictedImports,
@@ -715,6 +716,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::NoMutableExports,
+    },
+    RuleDocumentation {
+        name: "no-nested-functions",
+        intent: "Disallow functions defined inside other functions beyond a configured nesting depth.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "function outer() { function middle() { function inner() {} } }",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "function inner() {} function middle() { inner(); } function outer() { middle(); }",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "max-depth",
+                description: "Maximum allowed function nesting depth. Default is 2.",
+            },
+        ],
+        kind: RuleKind::NoNestedFunctions,
     },
     RuleDocumentation {
         name: "no-namespace",
