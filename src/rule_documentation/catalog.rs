@@ -64,6 +64,7 @@ define_rule_kinds! {
     NoNamespace,
     NoRestrictedImports,
     NoSilentCatch,
+    NoSkippedTest,
     NoTestCodeInProduction,
     NoThenChain,
     NoUpwardImport,
@@ -810,6 +811,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::NoSilentCatch,
+    },
+    RuleDocumentation {
+        name: "no-skipped-test",
+        intent: "Disallow skipped test helpers (describe.skip, it.skip, test.skip) that silently bypass the test suite.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "describe.skip('auth', () => { it.skip('logs in', () => {}); });",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "describe('auth', () => { it('logs in', () => {}); });",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoSkippedTest,
     },
     RuleDocumentation {
         name: "no-test-code-in-production",

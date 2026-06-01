@@ -97,6 +97,7 @@ declare_rules! {
     no_orphan_files => { id: NO_ORPHAN_FILES_RULE_ID, value: "no-orphan-files", config: crate::config::NoOrphanFilesRuleConfig },
     no_process_env => { id: NO_PROCESS_ENV_RULE_ID, value: "no-process-env", config: crate::config::RuleConfig },
     no_silent_catch => { id: NO_SILENT_CATCH_RULE_ID, value: "no-silent-catch", config: crate::config::RuleConfig },
+    no_skipped_test => { id: NO_SKIPPED_TEST_RULE_ID, value: "no-skipped-test", config: crate::config::RuleConfig },
     no_test_code_in_production => { id: NO_TEST_CODE_IN_PRODUCTION_RULE_ID, value: "no-test-code-in-production", config: crate::config::RuleConfig },
     no_test_import => { id: NO_TEST_IMPORT_RULE_ID, value: "no-test-import", config: crate::config::RuleConfig },
     no_then_chain => { id: NO_THEN_CHAIN_RULE_ID, value: "no-then-chain", config: crate::config::RuleConfig },
@@ -275,6 +276,12 @@ ast_rule_adapter!(
     NO_SILENT_CATCH_RULE_ID,
     crate::config::RuleConfig,
     no_silent_catch
+);
+ast_rule_adapter!(
+    NoSkippedTestAdapter,
+    NO_SKIPPED_TEST_RULE_ID,
+    crate::config::RuleConfig,
+    no_skipped_test
 );
 ast_rule_adapter!(
     NoThenChainAdapter,
@@ -631,6 +638,9 @@ fn build_file_rules(
         }),
         Box::new(NoSilentCatchAdapter {
             config: config.no_silent_catch.clone(),
+        }),
+        Box::new(NoSkippedTestAdapter {
+            config: config.no_skipped_test.clone(),
         }),
         Box::new(NoThenChainAdapter {
             config: config.no_then_chain.clone(),

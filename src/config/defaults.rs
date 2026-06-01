@@ -135,6 +135,9 @@ severity = "warn"
 [rules.no-silent-catch]
 severity = "warn"
 
+[rules.no-skipped-test]
+severity = "warn"
+
 [rules.no-test-code-in-production]
 severity = "warn"
 

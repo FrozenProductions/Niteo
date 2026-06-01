@@ -164,6 +164,7 @@ declare_raw_rules! {
         no_non_null_assertion => "no-non-null-assertion",
         no_process_env => "no-process-env",
         no_silent_catch => "no-silent-catch",
+        no_skipped_test => "no-skipped-test",
         no_test_code_in_production => "no-test-code-in-production",
         no_test_import => "no-test-import",
         no_then_chain => "no-then-chain",

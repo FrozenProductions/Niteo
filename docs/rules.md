@@ -57,6 +57,7 @@ niteo explain no-console --format json
 | `no-process-env` | `warn` | Prevent direct access to `process.env`. | `severity` |
 | `no-restricted-imports` | `warn` | Block imports from a configurable deny-list of packages or paths. | `restricted` |
 | `no-silent-catch` | `warn` | Require catch blocks to log, rethrow, or return a fallback. | `severity` |
+| `no-skipped-test` | `warn` | Disallow skipped tests (`describe.skip`, `it.skip`, `test.skip`). | `severity` |
 | `no-test-code-in-production` | `warn` | Disallow test globals and test library imports outside test files. | `project.structure.tests` |
 | `no-test-import` | `warn` | Production code may not import test files. | `project.structure.tests` |
 | `no-then-chain` | `warn` | Prefer `async`/`await` over `.then()` chains. | `severity` |
@@ -248,6 +249,24 @@ Reports focused test helpers that cause the test runner to skip the rest of the 
 ```ts
 describe.only("auth", () => {
   it.only("logs in", () => {});
+});
+```
+
+Prefer:
+
+```ts
+describe("auth", () => {
+  it("logs in", () => {});
+});
+```
+
+### `no-skipped-test`
+
+Reports skipped test helpers that silently bypass tests. Skipped tests hide failures and should be removed or fixed rather than left in the suite.
+
+```ts
+describe.skip("auth", () => {
+  it.skip("logs in", () => {});
 });
 ```
 

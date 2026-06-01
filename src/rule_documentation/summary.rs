@@ -211,6 +211,7 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
             )],
         },
         RuleKind::NoSilentCatch => simple_summary(config.rules.no_silent_catch.severity),
+        RuleKind::NoSkippedTest => simple_summary(config.rules.no_skipped_test.severity),
         RuleKind::NoTestCodeInProduction => RuleConfigSummary {
             severity: config.rules.no_test_code_in_production.severity,
             options: vec![
