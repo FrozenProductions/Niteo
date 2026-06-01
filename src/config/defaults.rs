@@ -75,6 +75,9 @@ severity = "warn"
 [rules.no-barrel-chain]
 severity = "warn"
 
+[rules.no-circular-import]
+severity = "warn"
+
 [rules.no-console]
 severity = "warn"
 allow-patterns = []

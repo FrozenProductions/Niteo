@@ -148,6 +148,7 @@ declare_raw_rules! {
         component_file_only_components => "component-file-only-components",
         hook_no_jsx => "hook-no-jsx",
         no_barrel_chain => "no-barrel-chain",
+        no_circular_import => "no-circular-import",
         no_barrel_files => "no-barrel-files",
         no_debugger => "no-debugger",
         no_enums => "no-enums",

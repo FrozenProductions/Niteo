@@ -33,6 +33,7 @@ niteo explain no-console --format json
 | `no-any` | `warn` | Disallow explicit `any` type annotations outside generated or allowed folders. | `allowed-folders`, `project.structure.generated` |
 | `no-barrel-chain` | `warn` | Prevent `index.ts` barrel files from re-exporting through other barrels. | `severity` |
 | `no-barrel-files` | `warn` | Avoid `index.ts` barrel files. | `severity` |
+| `no-circular-import` | `warn` | Detect circular import chains between modules. | `severity` |
 | `no-comments` | `warn` | Discourage implementation comments that duplicate code. | `allow-doc-comments` |
 | `no-default-export` | `warn` | Prefer named exports. Set `components-only = true` to scope to component files only. | `components-only`, `project.structure.components` |
 | `no-duplicate-file-names` | `warn` | Avoid repeated file names that make editor tabs and stack traces ambiguous. | `ignore-names` |
@@ -415,6 +416,28 @@ entry-files = ["main", "app", "layout", "page"]
 ```
 
 ## Import Rules
+
+### `no-circular-import`
+
+Reports circular import chains between modules. Circular imports can cause runtime initialization issues and make module dependencies harder to reason about.
+
+```ts
+// a.ts
+import { b } from "./b";
+// b.ts
+import { a } from "./a";
+```
+
+Prefer breaking the cycle by extracting shared logic to a third module:
+
+```ts
+// shared.ts
+export const shared = compute();
+// a.ts
+import { shared } from "./shared";
+// b.ts
+import { shared } from "./shared";
+```
 
 ### `no-upward-import`
 

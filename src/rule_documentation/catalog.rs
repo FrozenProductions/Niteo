@@ -39,6 +39,7 @@ define_rule_kinds! {
     MinItemsPerDirectory,
     NoBarrelChain,
     NoBarrelFiles,
+    NoCircularImport,
     NoComments,
     NoConsole,
     NoDebugger,
@@ -297,6 +298,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::NoBarrelChain,
+    },
+    RuleDocumentation {
+        name: "no-circular-import",
+        intent: "Detect circular import chains between modules that can cause runtime initialization issues.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "// a.ts\nimport { b } from './b';\n// b.ts\nimport { a } from './a';",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "Break the cycle by extracting shared logic to a third module.",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoCircularImport,
     },
     RuleDocumentation {
         name: "no-barrel-files",

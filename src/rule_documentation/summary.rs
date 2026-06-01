@@ -97,6 +97,7 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
             ],
         },
         RuleKind::NoBarrelChain => simple_summary(config.rules.no_barrel_chain.severity),
+        RuleKind::NoCircularImport => simple_summary(config.rules.no_circular_import.severity),
         RuleKind::NoBarrelFiles => simple_summary(config.rules.no_barrel_files.severity),
         RuleKind::NoComments => RuleConfigSummary {
             severity: config.rules.no_comments.severity,

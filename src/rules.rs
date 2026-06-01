@@ -69,6 +69,7 @@ declare_rules! {
     min_items_per_directory => { id: MIN_ITEMS_PER_DIRECTORY_RULE_ID, value: "min-items-per-directory", config: crate::config::MinItemsPerDirectoryRuleConfig },
     no_any => { id: NO_ANY_RULE_ID, value: "no-any", config: crate::config::NoAnyRuleConfig },
     no_barrel_chain => { id: NO_BARREL_CHAIN_RULE_ID, value: "no-barrel-chain", config: crate::config::RuleConfig },
+    no_circular_import => { id: NO_CIRCULAR_IMPORT_RULE_ID, value: "no-circular-import", config: crate::config::RuleConfig },
     no_barrel_files => { id: NO_BARREL_FILES_RULE_ID, value: "no-barrel-files", config: crate::config::RuleConfig },
     no_comments => { id: NO_COMMENTS_RULE_ID, value: "no-comments", config: crate::config::CommentsRuleConfig },
     no_console => { id: NO_CONSOLE_RULE_ID, value: "no-console", config: crate::config::NoConsoleRuleConfig },
@@ -504,6 +505,21 @@ impl FileRule for NoBarrelChainAdapter {
     }
 }
 
+struct NoCircularImportAdapter {
+    config: crate::config::RuleConfig,
+}
+impl FileRule for NoCircularImportAdapter {
+    fn severity(&self) -> Severity {
+        self.config.severity
+    }
+    fn needs_ast(&self) -> bool {
+        false
+    }
+    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+        no_circular_import::check_file(ctx.file, ctx.line_index, ctx.import_graph, &self.config)
+    }
+}
+
 struct NoLogicInDomainAdapter {
     config: crate::config::RuleConfig,
     types: DomainConfig,
@@ -635,6 +651,9 @@ fn build_file_rules(
         }),
         Box::new(NoBarrelChainAdapter {
             config: config.no_barrel_chain.clone(),
+        }),
+        Box::new(NoCircularImportAdapter {
+            config: config.no_circular_import.clone(),
         }),
         Box::new(NoLogicInDomainAdapter {
             config: config.no_logic_in_domain.clone(),
