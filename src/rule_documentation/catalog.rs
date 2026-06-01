@@ -59,6 +59,7 @@ define_rule_kinds! {
     NoMutableExports,
     NoProcessEnv,
     NoNamespace,
+    NoRestrictedImports,
     NoSilentCatch,
     NoTestCodeInProduction,
     NoThenChain,
@@ -676,6 +677,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::NoAbbreviations,
+    },
+    RuleDocumentation {
+        name: "no-restricted-imports",
+        intent: "Block imports from a configurable deny-list of packages or paths.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "import { merge } from 'lodash'; // when lodash is restricted",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "import merge from './utils/merge';",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "restricted",
+                description: "List of package names or path prefixes to block.",
+            },
+        ],
+        kind: RuleKind::NoRestrictedImports,
     },
     RuleDocumentation {
         name: "no-mutable-exports",

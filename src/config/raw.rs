@@ -8,7 +8,7 @@ use super::rules::{
     MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAbbreviationsRuleConfig,
     NoAnyRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig, NoDumpFilesRuleConfig,
     NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
-    RuleConfig, Severity, UpwardImportRuleConfig,
+    NoRestrictedImportsRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
 };
 use super::structure::{DomainConfig, ProjectStructureConfig};
 use crate::rules::RulesConfig;
@@ -188,6 +188,7 @@ declare_raw_rules! {
         no_empty_directories => ("no-empty-directories", to_no_empty_directories_config, NoEmptyDirectoriesRuleConfig),
         no_interface => ("no-interface", to_no_interface_config, NoInterfaceRuleConfig),
         no_large_file => ("no-large-file", to_file_length_config, FileLengthRuleConfig),
+        no_restricted_imports => ("no-restricted-imports", to_no_restricted_imports_config, NoRestrictedImportsRuleConfig),
         no_upward_import => ("no-upward-import", to_upward_import_config, UpwardImportRuleConfig),
     }
 }
@@ -433,6 +434,10 @@ impl RawRuleConfig {
             allow_declaration_merging: default(true)
             ;
         },
+        to_no_restricted_imports_config => (NoRestrictedImportsRuleConfig) {
+            ;
+            restricted: clone_default
+        },
         to_upward_import_config => (UpwardImportRuleConfig) {
             max_depth: default(0)
             ;
@@ -478,6 +483,7 @@ pub struct RawRuleOptions {
     pub allowed_folders: Option<Vec<String>>,
     #[serde(rename = "extra-abbreviations")]
     pub extra_abbreviations: Option<Vec<String>>,
+    pub restricted: Option<Vec<String>>,
 }
 
 impl RawRuleOptions {
@@ -525,6 +531,10 @@ impl RawRuleOptions {
                 .extra_abbreviations
                 .clone()
                 .or_else(|| parent.extra_abbreviations.clone()),
+            restricted: child
+                .restricted
+                .clone()
+                .or_else(|| parent.restricted.clone()),
         }
     }
 }

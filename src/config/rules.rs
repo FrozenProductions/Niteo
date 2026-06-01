@@ -340,3 +340,18 @@ impl Default for NoDefaultExportRuleConfig {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct NoRestrictedImportsRuleConfig {
+    pub severity: Severity,
+    pub restricted: Vec<String>,
+}
+
+impl Default for NoRestrictedImportsRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            restricted: vec![],
+        }
+    }
+}

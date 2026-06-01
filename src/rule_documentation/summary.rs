@@ -188,6 +188,13 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
         },
         RuleKind::NoMutableExports => simple_summary(config.rules.no_mutable_exports.severity),
         RuleKind::NoNamespace => simple_summary(config.rules.no_namespace.severity),
+        RuleKind::NoRestrictedImports => RuleConfigSummary {
+            severity: config.rules.no_restricted_imports.severity,
+            options: vec![format!(
+                "restricted: {:?}",
+                config.rules.no_restricted_imports.restricted
+            )],
+        },
         RuleKind::NoSilentCatch => simple_summary(config.rules.no_silent_catch.severity),
         RuleKind::NoTestCodeInProduction => RuleConfigSummary {
             severity: config.rules.no_test_code_in_production.severity,

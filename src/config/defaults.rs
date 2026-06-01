@@ -169,4 +169,8 @@ extra-abbreviations = []
 [rules.no-any]
 severity = "warn"
 allowed-folders = []
+
+[rules.no-restricted-imports]
+severity = "warn"
+restricted = []
 "#;

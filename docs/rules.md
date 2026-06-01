@@ -52,6 +52,7 @@ niteo explain no-console --format json
 | `no-namespace` | `warn` | Prefer ES modules over TypeScript namespaces. | `severity` |
 | `no-non-null-assertion` | `warn` | Disallow the non-null assertion operator. | `severity` |
 | `no-process-env` | `warn` | Prevent direct access to `process.env`. | `severity` |
+| `no-restricted-imports` | `warn` | Block imports from a configurable deny-list of packages or paths. | `restricted` |
 | `no-silent-catch` | `warn` | Require catch blocks to log, rethrow, or return a fallback. | `severity` |
 | `no-test-code-in-production` | `warn` | Disallow test globals and test library imports outside test files. | `project.structure.tests` |
 | `no-test-import` | `warn` | Production code may not import test files. | `project.structure.tests` |
@@ -448,6 +449,30 @@ Reports imports with more upward `../` segments than `max-depth`.
 severity = "warn"
 max-depth = 0
 ```
+
+### `no-restricted-imports`
+
+Reports imports from packages or paths listed in the `restricted` deny-list. Matches exact names and sub-paths (e.g. `lodash` also blocks `lodash/fp`).
+
+```ts
+import { merge } from "lodash";
+```
+
+Prefer an allowed alternative:
+
+```ts
+import merge from "./utils/merge";
+```
+
+Configure the deny-list:
+
+```toml
+[rules.no-restricted-imports]
+severity = "warn"
+restricted = ["lodash", "moment", "@internal/legacy"]
+```
+
+The rule also checks re-exports (`export { x } from '...'` and `export * from '...'`).
 
 ### `no-test-import`
 

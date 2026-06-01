@@ -88,6 +88,7 @@ declare_rules! {
     no_logic_in_barrel => { id: NO_LOGIC_IN_BARREL_RULE_ID, value: "no-logic-in-barrel", config: crate::config::RuleConfig },
     no_logic_in_domain => { id: NO_LOGIC_IN_DOMAIN_RULE_ID, value: "no-logic-in-domain", config: crate::config::RuleConfig },
     no_abbreviations => { id: NO_ABBREVIATIONS_RULE_ID, value: "no-abbreviations", config: crate::config::NoAbbreviationsRuleConfig },
+    no_restricted_imports => { id: NO_RESTRICTED_IMPORTS_RULE_ID, value: "no-restricted-imports", config: crate::config::NoRestrictedImportsRuleConfig },
     no_mutable_exports => { id: NO_MUTABLE_EXPORTS_RULE_ID, value: "no-mutable-exports", config: crate::config::RuleConfig },
     no_namespace => { id: NO_NAMESPACE_RULE_ID, value: "no-namespace", config: crate::config::RuleConfig },
     no_non_null_assertion => { id: NO_NON_NULL_ASSERTION_RULE_ID, value: "no-non-null-assertion", config: crate::config::RuleConfig },
@@ -296,6 +297,13 @@ ast_rule_adapter!(
     NO_ABBREVIATIONS_RULE_ID,
     crate::config::NoAbbreviationsRuleConfig,
     no_abbreviations
+);
+
+ast_rule_adapter!(
+    NoRestrictedImportsAdapter,
+    NO_RESTRICTED_IMPORTS_RULE_ID,
+    crate::config::NoRestrictedImportsRuleConfig,
+    no_restricted_imports
 );
 
 ast_rule_adapter!(
@@ -605,6 +613,9 @@ fn build_file_rules(
         }),
         Box::new(NoAbbreviationsAdapter {
             config: config.no_abbreviations.clone(),
+        }),
+        Box::new(NoRestrictedImportsAdapter {
+            config: config.no_restricted_imports.clone(),
         }),
         Box::new(NoInlineTypesAdapter {
             config: config.no_inline_types.clone(),
