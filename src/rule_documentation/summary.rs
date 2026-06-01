@@ -146,6 +146,7 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
         RuleKind::NoEnums => simple_summary(config.rules.no_enums.severity),
         RuleKind::NoEval => simple_summary(config.rules.no_eval.severity),
         RuleKind::NoExportStar => simple_summary(config.rules.no_export_star.severity),
+        RuleKind::NoFocusedTest => simple_summary(config.rules.no_focused_test.severity),
         RuleKind::NoInlineTypes => RuleConfigSummary {
             severity: config.rules.no_inline_types.severity,
             options: vec![

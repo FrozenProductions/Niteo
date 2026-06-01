@@ -43,6 +43,7 @@ niteo explain no-console --format json
 | `no-enums` | `warn` | Prefer union types or const objects over TypeScript enums. | `severity` |
 | `no-eval` | `warn` | Block dynamic code execution through `eval()` and `new Function()`. | `severity` |
 | `no-export-star` | `warn` | Require explicit re-exports instead of `export *`. | `severity` |
+| `no-focused-test` | `warn` | Disallow focused tests (`describe.only`, `it.only`, `test.only`). | `severity` |
 | `no-inline-types` | `warn` | Keep exported contracts in type files or type folders. | `project.structure.types` |
 | `no-interface` | `warn` | Prefer type aliases unless declaration merging is intentional. | `allow-declaration-merging` |
 | `no-large-file` | `warn` | Keep files under a configured line count. | `max-lines` |
@@ -239,6 +240,24 @@ extra-abbreviations = ["req", "res", "tmp"]
 ### `no-then-chain`
 
 Reports `.then()` chains. Prefer `async`/`await`.
+
+### `no-focused-test`
+
+Reports focused test helpers that cause the test runner to skip the rest of the suite. Focused tests are useful during development but should never be committed.
+
+```ts
+describe.only("auth", () => {
+  it.only("logs in", () => {});
+});
+```
+
+Prefer:
+
+```ts
+describe("auth", () => {
+  it("logs in", () => {});
+});
+```
 
 ### `no-nested-functions`
 

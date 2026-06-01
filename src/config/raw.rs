@@ -155,6 +155,7 @@ declare_raw_rules! {
         no_enums => "no-enums",
         no_eval => "no-eval",
         no_export_star => "no-export-star",
+        no_focused_test => "no-focused-test",
         no_inline_types => "no-inline-types",
         no_logic_in_barrel => "no-logic-in-barrel",
         no_logic_in_domain => "no-logic-in-domain",

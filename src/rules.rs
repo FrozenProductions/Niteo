@@ -82,6 +82,7 @@ declare_rules! {
     no_enums => { id: NO_ENUMS_RULE_ID, value: "no-enums", config: crate::config::RuleConfig },
     no_eval => { id: NO_EVAL_RULE_ID, value: "no-eval", config: crate::config::RuleConfig },
     no_export_star => { id: NO_EXPORT_STAR_RULE_ID, value: "no-export-star", config: crate::config::RuleConfig },
+    no_focused_test => { id: NO_FOCUSED_TEST_RULE_ID, value: "no-focused-test", config: crate::config::RuleConfig },
     no_inline_types => { id: NO_INLINE_TYPES_RULE_ID, value: "no-inline-types", config: crate::config::RuleConfig },
     no_interface => { id: NO_INTERFACE_RULE_ID, value: "no-interface", config: crate::config::NoInterfaceRuleConfig },
     no_large_file => { id: NO_LARGE_FILE_RULE_ID, value: "no-large-file", config: crate::config::FileLengthRuleConfig },
@@ -200,6 +201,12 @@ ast_rule_adapter!(
     NO_EXPORT_STAR_RULE_ID,
     crate::config::RuleConfig,
     no_export_star
+);
+ast_rule_adapter!(
+    NoFocusedTestAdapter,
+    NO_FOCUSED_TEST_RULE_ID,
+    crate::config::RuleConfig,
+    no_focused_test
 );
 ast_rule_adapter!(
     MaxFileExportsAdapter,
@@ -591,6 +598,9 @@ fn build_file_rules(
         }),
         Box::new(NoExportStarAdapter {
             config: config.no_export_star.clone(),
+        }),
+        Box::new(NoFocusedTestAdapter {
+            config: config.no_focused_test.clone(),
         }),
         Box::new(MaxFileExportsAdapter {
             config: config.max_file_exports.clone(),

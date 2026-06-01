@@ -51,6 +51,9 @@ components-only = false
 [rules.no-export-star]
 severity = "warn"
 
+[rules.no-focused-test]
+severity = "warn"
+
 [rules.no-inline-types]
 severity = "warn"
 

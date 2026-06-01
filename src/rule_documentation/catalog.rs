@@ -51,6 +51,7 @@ define_rule_kinds! {
     NoEnums,
     NoEval,
     NoExportStar,
+    NoFocusedTest,
     NoInlineTypes,
     NoInterface,
     NoLargeFile,
@@ -549,6 +550,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::NoExportStar,
+    },
+    RuleDocumentation {
+        name: "no-focused-test",
+        intent: "Disallow focused test helpers (describe.only, it.only, test.only) that skip the rest of the suite.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "describe.only('auth', () => { it.only('logs in', () => {}); });",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "describe('auth', () => { it('logs in', () => {}); });",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoFocusedTest,
     },
     RuleDocumentation {
         name: "no-inline-types",
