@@ -64,25 +64,13 @@ mod tests {
     }
 
     #[test]
-    fn reports_utils_file() {
-        let files = vec![PathBuf::from("src/utils.ts")];
-        let violations = check_files(&files, &test_config());
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].rule, crate::rules::NO_DUMP_FILES_RULE_ID);
-    }
-
-    #[test]
-    fn reports_helpers_file() {
-        let files = vec![PathBuf::from("src/helpers.tsx")];
-        let violations = check_files(&files, &test_config());
-        assert_eq!(violations.len(), 1);
-    }
-
-    #[test]
-    fn reports_types_file() {
-        let files = vec![PathBuf::from("src/types.ts")];
-        let violations = check_files(&files, &test_config());
-        assert_eq!(violations.len(), 1);
+    fn reports_default_forbidden_files() {
+        for path in ["src/utils.ts", "src/helpers.tsx", "src/types.ts"] {
+            let files = vec![PathBuf::from(path)];
+            let violations = check_files(&files, &test_config());
+            assert_eq!(violations.len(), 1, "expected 1 violation for: {path}");
+            assert_eq!(violations[0].rule, crate::rules::NO_DUMP_FILES_RULE_ID);
+        }
     }
 
     #[test]

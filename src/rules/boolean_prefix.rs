@@ -162,24 +162,15 @@ mod tests {
     }
 
     #[test]
-    fn allows_is_prefixed_boolean_literal() {
-        let source = "const isOpen = true;\n";
-        let violations = run_check(source, &test_config());
-        assert!(violations.is_empty());
-    }
-
-    #[test]
-    fn allows_has_prefixed_boolean_literal() {
-        let source = "const hasPermission = false;\n";
-        let violations = run_check(source, &test_config());
-        assert!(violations.is_empty());
-    }
-
-    #[test]
-    fn allows_can_prefixed_boolean_literal() {
-        let source = "const canEdit = true;\n";
-        let violations = run_check(source, &test_config());
-        assert!(violations.is_empty());
+    fn allows_default_prefixed_boolean_literals() {
+        for source in [
+            "const isOpen = true;\n",
+            "const hasPermission = false;\n",
+            "const canEdit = true;\n",
+        ] {
+            let violations = run_check(source, &test_config());
+            assert!(violations.is_empty(), "expected no violations for: {source:?}");
+        }
     }
 
     #[test]

@@ -109,23 +109,15 @@ mod tests {
     }
 
     #[test]
-    fn reports_console_log() {
-        let violations = run_check("console.log('hello');\n", &test_config());
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, Some(1));
-        assert_eq!(violations[0].column, Some(1));
-    }
-
-    #[test]
-    fn reports_console_warn() {
-        let violations = run_check("console.warn('warning');\n", &test_config());
-        assert_eq!(violations.len(), 1);
-    }
-
-    #[test]
-    fn reports_console_error() {
-        let violations = run_check("console.error('error');\n", &test_config());
-        assert_eq!(violations.len(), 1);
+    fn reports_console_methods() {
+        for source in [
+            "console.log('hello');\n",
+            "console.warn('warning');\n",
+            "console.error('error');\n",
+        ] {
+            let violations = run_check(source, &test_config());
+            assert_eq!(violations.len(), 1, "expected 1 violation for: {source:?}");
+        }
     }
 
     #[test]

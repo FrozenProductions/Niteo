@@ -96,31 +96,27 @@ mod tests {
     }
 
     #[test]
-    fn reports_btn_variable() {
-        let source = "const btn = document.querySelector('button');\n";
-        let violations = run_check(source);
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("btn"));
-        assert!(violations[0]
-            .detail
-            .as_deref()
-            .is_some_and(|detail| detail.contains("btn")));
-    }
-
-    #[test]
-    fn reports_ctx_variable() {
-        let source = "const ctx = getContext();\n";
-        let violations = run_check(source);
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("ctx"));
-    }
-
-    #[test]
-    fn reports_mgr_variable() {
-        let source = "const mgr = new Manager();\n";
-        let violations = run_check(source);
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("mgr"));
+    fn reports_default_abbreviations() {
+        for (source, expected_subject) in [
+            ("const btn = document.querySelector('button');\n", "btn"),
+            ("const ctx = getContext();\n", "ctx"),
+            ("const mgr = new Manager();\n", "mgr"),
+        ] {
+            let violations = run_check(source);
+            assert_eq!(violations.len(), 1, "expected 1 violation for: {source:?}");
+            assert_eq!(
+                violations[0].subject.as_deref(),
+                Some(expected_subject),
+                "wrong subject for: {source:?}",
+            );
+            assert!(
+                violations[0]
+                    .detail
+                    .as_deref()
+                    .is_some_and(|detail| detail.contains(expected_subject)),
+                "detail missing abbreviation for: {source:?}",
+            );
+        }
     }
 
     #[test]

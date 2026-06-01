@@ -107,32 +107,17 @@ mod tests {
     }
 
     #[test]
-    fn reports_object_literal_as_cast() {
-        let violations = run_check("const config = { port: 3000 } as Config;\n");
-
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].line, Some(1));
-    }
-
-    #[test]
-    fn reports_array_literal_as_cast() {
-        let violations = run_check("const items = [1, 2, 3] as number[];\n");
-
-        assert_eq!(violations.len(), 1);
-    }
-
-    #[test]
-    fn reports_string_literal_as_cast() {
-        let violations = run_check("const event = \"click\" as EventName;\n");
-
-        assert_eq!(violations.len(), 1);
-    }
-
-    #[test]
-    fn reports_numeric_literal_as_cast() {
-        let violations = run_check("const code = 404 as StatusCode;\n");
-
-        assert_eq!(violations.len(), 1);
+    fn reports_literal_as_cast() {
+        for source in [
+            "const config = { port: 3000 } as Config;\n",
+            "const items = [1, 2, 3] as number[];\n",
+            "const event = \"click\" as EventName;\n",
+            "const code = 404 as StatusCode;\n",
+        ] {
+            let violations = run_check(source);
+            assert_eq!(violations.len(), 1, "expected 1 violation for: {source:?}");
+            assert_eq!(violations[0].line, Some(1));
+        }
     }
 
     #[test]

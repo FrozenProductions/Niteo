@@ -166,24 +166,12 @@ mod tests {
     }
 
     #[test]
-    fn allows_console_error() {
-        let source = "try { doWork(); } catch (e) { console.error(e); }\n";
-        let violations = run_check(source);
-        assert!(violations.is_empty());
-    }
-
-    #[test]
-    fn allows_console_warn() {
-        let source = "try { doWork(); } catch (e) { console.warn(e); }\n";
-        let violations = run_check(source);
-        assert!(violations.is_empty());
-    }
-
-    #[test]
-    fn allows_console_log() {
-        let source = "try { doWork(); } catch (e) { console.log(e); }\n";
-        let violations = run_check(source);
-        assert!(violations.is_empty());
+    fn allows_console_methods() {
+        for method in ["error", "warn", "log"] {
+            let source = format!("try {{ doWork(); }} catch (e) {{ console.{method}(e); }}\n");
+            let violations = run_check(&source);
+            assert!(violations.is_empty(), "expected no violations for console.{method}");
+        }
     }
 
     #[test]

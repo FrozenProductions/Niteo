@@ -150,38 +150,22 @@ mod tests {
     }
 
     #[test]
-    fn reports_describe_call() {
-        let violations = run_check("describe('suite', () => {});", "src/auth.ts");
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("describe"));
-    }
-
-    #[test]
-    fn reports_it_call() {
-        let violations = run_check("it('works', () => {});", "src/auth.ts");
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("it"));
-    }
-
-    #[test]
-    fn reports_test_call() {
-        let violations = run_check("test('works', () => {});", "src/auth.ts");
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("test"));
-    }
-
-    #[test]
-    fn reports_expect_call() {
-        let violations = run_check("expect(1).toBe(1);", "src/auth.ts");
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("expect"));
-    }
-
-    #[test]
-    fn reports_before_each() {
-        let violations = run_check("beforeEach(() => {});", "src/auth.ts");
-        assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("beforeEach"));
+    fn reports_test_globals() {
+        for (source, expected_subject) in [
+            ("describe('suite', () => {});", "describe"),
+            ("it('works', () => {});", "it"),
+            ("test('works', () => {});", "test"),
+            ("expect(1).toBe(1);", "expect"),
+            ("beforeEach(() => {});", "beforeEach"),
+        ] {
+            let violations = run_check(source, "src/auth.ts");
+            assert_eq!(violations.len(), 1, "expected 1 violation for: {source:?}");
+            assert_eq!(
+                violations[0].subject.as_deref(),
+                Some(expected_subject),
+                "wrong subject for: {source:?}",
+            );
+        }
     }
 
     #[test]
