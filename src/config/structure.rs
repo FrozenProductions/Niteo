@@ -11,13 +11,13 @@ impl DomainConfig {
         let in_folder = file.components().any(|component| {
             matches!(
                 component,
-                Component::Normal(name) if self.folders.iter().any(|f| name.to_str() == Some(f))
+                Component::Normal(name) if self.folders.iter().any(|folder| name.to_str() == Some(folder))
             )
         });
 
         let has_suffix = file
             .file_name()
-            .and_then(|n| n.to_str())
+            .and_then(|os_name| os_name.to_str())
             .is_some_and(|name| {
                 self.file_suffixes
                     .iter()

@@ -331,12 +331,12 @@ fn render_rule_overview(rule_groups: &[RuleGroup<'_>], verbose: bool) -> String 
 
     let max_count_width = visible_groups
         .iter()
-        .map(|g| g.violations.len().to_string().len())
+        .map(|group| group.violations.len().to_string().len())
         .max()
         .unwrap_or(1);
     let max_rule_width = visible_groups
         .iter()
-        .map(|g| g.rule.len())
+        .map(|group| group.rule.len())
         .max()
         .unwrap_or(1);
 
@@ -428,7 +428,7 @@ fn render_rule_group(group: &RuleGroup<'_>, verbose: bool) -> String {
         let has_details = file_group
             .violations
             .iter()
-            .any(|v| v.detail.is_some() || v.subject.is_some());
+            .any(|violation| violation.detail.is_some() || violation.subject.is_some());
 
         if has_details {
             let visible_violations = file_group.violations.iter().take(line_count);
@@ -436,12 +436,12 @@ fn render_rule_group(group: &RuleGroup<'_>, verbose: bool) -> String {
                 let subject = violation
                     .subject
                     .as_ref()
-                    .map(|s| format!("{BOLD}{s}{RESET} "))
+                    .map(|subject| format!("{BOLD}{subject}{RESET} "))
                     .unwrap_or_default();
                 let detail = violation
                     .detail
                     .as_ref()
-                    .map(|d| format!(" {DIM}{d}{RESET}"))
+                    .map(|detail| format!(" {DIM}{detail}{RESET}"))
                     .unwrap_or_default();
                 let location = match (violation.line, violation.column) {
                     (Some(line), Some(column)) => format!("lines {line}:{column}"),
@@ -588,15 +588,16 @@ fn render_line_numbers<'a>(
     let violations: Vec<&'a Violation> = violations.collect();
     let positioned: Vec<&'a Violation> = violations
         .iter()
-        .filter(|v| v.line.is_some())
+        .filter(|violation| violation.line.is_some())
         .copied()
         .collect();
     let ranges = if verbose {
         positioned
             .iter()
-            .filter_map(|v| {
-                v.line
-                    .map(|line| format!("{}:{}", line, v.column.unwrap_or(1)))
+            .filter_map(|violation| {
+                violation
+                    .line
+                    .map(|line| format!("{}:{}", line, violation.column.unwrap_or(1)))
             })
             .collect::<Vec<String>>()
     } else {
@@ -626,8 +627,12 @@ fn group_line_ranges(violations: &[&Violation]) -> Vec<String> {
     }
 
     let mut ranges: Vec<String> = Vec::new();
-    let mut start = violations[0].line.unwrap_or(1);
-    let mut end = violations[0].line.unwrap_or(1);
+    let first = match violations.first() {
+        Some(v) => v,
+        None => return Vec::new(),
+    };
+    let mut start = first.line.unwrap_or(1);
+    let mut end = first.line.unwrap_or(1);
 
     for violation in violations.iter().skip(1) {
         let line = violation.line.unwrap_or(1);
@@ -781,11 +786,11 @@ fn suppression_report_json(report: &SuppressionReport) -> Value {
                     "staleDirectives": file_info
                         .stale_directives
                         .iter()
-                        .map(|d| {
+                        .map(|directive| {
                             json!({
-                                "kind": format!("{}", d.kind),
-                                "line": d.line,
-                                "rules": d.rules,
+                                "kind": format!("{}", directive.kind),
+                                "line": directive.line,
+                                "rules": directive.rules,
                             })
                         })
                         .collect::<Vec<Value>>(),

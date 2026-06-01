@@ -13,14 +13,14 @@ pub fn check_files(
 ) -> Vec<Violation> {
     let mut ignored = DEFAULT_IGNORED_NAMES
         .iter()
-        .map(|s| s.to_string())
+        .map(|default_name| default_name.to_string())
         .collect::<Vec<_>>();
     ignored.extend(config.ignore_names.clone());
 
     let mut name_map: HashMap<String, Vec<std::path::PathBuf>> = HashMap::new();
 
     for file in files {
-        if let Some(name) = file.file_name().and_then(|n| n.to_str()) {
+        if let Some(name) = file.file_name().and_then(|os_name| os_name.to_str()) {
             if ignored.iter().any(|ign| name == *ign) {
                 continue;
             }
@@ -56,15 +56,15 @@ fn find_duplicates_in_different_dirs(
 ) -> Vec<(std::path::PathBuf, std::path::PathBuf)> {
     let mut pairs = Vec::new();
 
-    for i in 0..paths.len() {
-        for j in (i + 1)..paths.len() {
-            let dir_a = paths[i].parent();
-            let dir_b = paths[j].parent();
+    for outer in 0..paths.len() {
+        for inner in (outer + 1)..paths.len() {
+            let dir_a = paths[outer].parent();
+            let dir_b = paths[inner].parent();
 
             if let (Some(dir_a), Some(dir_b)) = (dir_a, dir_b)
                 && dir_a != dir_b
             {
-                pairs.push((paths[i].clone(), paths[j].clone()));
+                pairs.push((paths[outer].clone(), paths[inner].clone()));
             }
         }
     }

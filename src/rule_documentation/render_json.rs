@@ -40,9 +40,9 @@ struct CurrentConfigJson {
 pub fn render_rules_json(rules: &[ConfiguredRule]) -> Result<String> {
     let rules_json: Vec<ConfiguredRuleJson> = rules
         .iter()
-        .map(|r| ConfiguredRuleJson {
-            name: r.name,
-            severity: r.severity.as_str(),
+        .map(|rule| ConfiguredRuleJson {
+            name: rule.name,
+            severity: rule.severity.as_str(),
         })
         .collect();
 
@@ -57,17 +57,17 @@ pub fn render_explanation_json(explanation: &RuleExplanation) -> Result<String> 
         examples: explanation
             .examples
             .iter()
-            .map(|e| RuleExampleJson {
-                label: e.label,
-                code: e.code,
+            .map(|example| RuleExampleJson {
+                label: example.label,
+                code: example.code,
             })
             .collect(),
         options: explanation
             .options
             .iter()
-            .map(|o| RuleOptionJson {
-                name: o.name,
-                description: o.description,
+            .map(|option| RuleOptionJson {
+                name: option.name,
+                description: option.description,
             })
             .collect(),
         current_config: CurrentConfigJson {

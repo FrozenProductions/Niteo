@@ -99,12 +99,18 @@ pub fn run() -> Result<ExitCode> {
 
             if cli.options.watch {
                 let watch_root = resolve_watch_root(&workspace, cli.options.root.as_deref())?;
-                let ws = workspace.clone();
+                let workspace_clone = workspace.clone();
                 let root = cli.options.root.clone();
                 let scope = cli.options.scope.clone();
 
                 watch::run(&watch_root, move || {
-                    lint_workspace(&ws, root.clone(), scope.clone(), opts.clone(), false)
+                    lint_workspace(
+                        &workspace_clone,
+                        root.clone(),
+                        scope.clone(),
+                        opts.clone(),
+                        false,
+                    )
                 })?;
                 ExitCode::SUCCESS
             } else {

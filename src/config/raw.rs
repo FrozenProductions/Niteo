@@ -196,40 +196,43 @@ impl RawConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
             enabled: project
-                .and_then(|p| p.respect_gitignore)
+                .and_then(|project| project.respect_gitignore)
                 .unwrap_or_default(),
         }
     }
 
     pub fn structure(&self) -> ProjectStructureConfig {
-        let raw_structure = self.project.as_ref().and_then(|p| p.structure.as_ref());
+        let raw_structure = self
+            .project
+            .as_ref()
+            .and_then(|project| project.structure.as_ref());
 
         let defaults = ProjectStructureConfig::default();
 
         ProjectStructureConfig {
             hooks: raw_structure
-                .and_then(|s| s.hooks.as_ref())
-                .map(|d| d.to_domain_config(&defaults.hooks))
+                .and_then(|structure| structure.hooks.as_ref())
+                .map(|domain| domain.to_domain_config(&defaults.hooks))
                 .unwrap_or(defaults.hooks),
             components: raw_structure
-                .and_then(|s| s.components.as_ref())
-                .map(|d| d.to_domain_config(&defaults.components))
+                .and_then(|structure| structure.components.as_ref())
+                .map(|domain| domain.to_domain_config(&defaults.components))
                 .unwrap_or(defaults.components),
             types: raw_structure
-                .and_then(|s| s.types.as_ref())
-                .map(|d| d.to_domain_config(&defaults.types))
+                .and_then(|structure| structure.types.as_ref())
+                .map(|domain| domain.to_domain_config(&defaults.types))
                 .unwrap_or(defaults.types),
             constants: raw_structure
-                .and_then(|s| s.constants.as_ref())
-                .map(|d| d.to_domain_config(&defaults.constants))
+                .and_then(|structure| structure.constants.as_ref())
+                .map(|domain| domain.to_domain_config(&defaults.constants))
                 .unwrap_or(defaults.constants),
             tests: raw_structure
-                .and_then(|s| s.tests.as_ref())
-                .map(|d| d.to_domain_config(&defaults.tests))
+                .and_then(|structure| structure.tests.as_ref())
+                .map(|domain| domain.to_domain_config(&defaults.tests))
                 .unwrap_or(defaults.tests),
             generated: raw_structure
-                .and_then(|s| s.generated.as_ref())
-                .map(|d| d.to_domain_config(&defaults.generated))
+                .and_then(|structure| structure.generated.as_ref())
+                .map(|domain| domain.to_domain_config(&defaults.generated))
                 .unwrap_or(defaults.generated),
         }
     }

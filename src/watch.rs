@@ -14,7 +14,9 @@ pub fn run(watch_root: &Path, mut lint_fn: impl FnMut() -> Result<ExitCode>) -> 
         watch_root.display()
     );
 
-    let _ = lint_fn();
+    if let Err(error) = lint_fn() {
+        eprintln!("initial lint failed: {error}");
+    }
 
     let (tx, rx) = mpsc::channel::<DebounceEventResult>();
 
@@ -32,7 +34,9 @@ pub fn run(watch_root: &Path, mut lint_fn: impl FnMut() -> Result<ExitCode>) -> 
                     continue;
                 }
                 println!("\n--- change detected, re-linting ---\n");
-                let _ = lint_fn();
+                if let Err(error) = lint_fn() {
+                    eprintln!("re-lint failed: {error}");
+                }
             }
             Err(errors) => {
                 for error in errors {
@@ -49,7 +53,6 @@ fn has_relevant_change(paths: &[PathBuf]) -> bool {
     paths.iter().any(|path| is_relevant_path(path))
 }
 
-// Only TypeScript and config file changes trigger a re-lint
 fn is_relevant_path(path: &Path) -> bool {
     if is_typescript_file(path) {
         return true;

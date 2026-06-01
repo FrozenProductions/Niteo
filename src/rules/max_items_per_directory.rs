@@ -27,7 +27,7 @@ pub fn check_directories(
 ) -> Vec<Violation> {
     let mut violations = Vec::new();
     let mut ignored = config.ignore_dirs.clone();
-    ignored.extend(IGNORED_DIRECTORIES.iter().map(|s| s.to_string()));
+    ignored.extend(IGNORED_DIRECTORIES.iter().map(|dir| dir.to_string()));
 
     walk_directories(
         root,

@@ -662,19 +662,23 @@ pub fn check_files(
     }
 
     for group_files in grouped.values() {
-        let config = config_set.config_for_file(group_files[0]);
+        let first_file = match group_files.first() {
+            Some(f) => f,
+            None => continue,
+        };
+        let config = config_set.config_for_file(first_file);
         let rules = build_file_rules(&config.rules, &config.structure);
 
-        let any_enabled = rules.iter().any(|r| r.severity().is_enabled());
+        let any_enabled = rules.iter().any(|rule| rule.severity().is_enabled());
         if !any_enabled {
             continue;
         }
 
         let needs_ast = rules
             .iter()
-            .any(|r| r.severity().is_enabled() && r.needs_ast());
+            .any(|rule| rule.severity().is_enabled() && rule.needs_ast());
 
-        let file_refs: Vec<PathBuf> = group_files.iter().map(|f| (*f).clone()).collect();
+        let file_refs: Vec<PathBuf> = group_files.iter().map(|file| (*file).clone()).collect();
         let type_location_style =
             no_inline_types::TypeLocationStyle::detect(&file_refs, &config.structure.types);
 
@@ -720,15 +724,17 @@ pub fn check_files(
 
             let suppressed_count = file_violations
                 .iter()
-                .filter(|v| ignore::should_suppress_violation(&directives, v.line, v.rule))
+                .filter(|violation| {
+                    ignore::should_suppress_violation(&directives, violation.line, violation.rule)
+                })
                 .count();
 
             let stale_directives: Vec<ignore::IgnoreDirective> = directives
                 .iter()
-                .filter(|d| {
+                .filter(|directive| {
                     !file_violations
                         .iter()
-                        .any(|v| d.should_suppress(v.line, v.rule))
+                        .any(|violation| directive.should_suppress(violation.line, violation.rule))
                 })
                 .cloned()
                 .collect();
@@ -741,8 +747,9 @@ pub fn check_files(
                 });
             }
 
-            file_violations
-                .retain(|v| !ignore::should_suppress_violation(&directives, v.line, v.rule));
+            file_violations.retain(|violation| {
+                !ignore::should_suppress_violation(&directives, violation.line, violation.rule)
+            });
 
             violations.extend(file_violations);
         }

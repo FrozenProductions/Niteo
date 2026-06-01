@@ -27,7 +27,7 @@ pub fn check_file(
     let prefixes: Vec<&str> = if config.prefixes.is_empty() {
         DEFAULT_PREFIXES.to_vec()
     } else {
-        config.prefixes.iter().map(|p| p.as_str()).collect()
+        config.prefixes.iter().map(|prefix| prefix.as_str()).collect()
     };
 
     let mut visitor = HookPrefixVisitor {
@@ -143,7 +143,7 @@ fn has_valid_prefix(name: &str, prefixes: &[&str]) -> bool {
             && name
                 .as_bytes()
                 .get(prefix.len())
-                .is_some_and(|c| c.is_ascii_uppercase())
+                .is_some_and(|byte| byte.is_ascii_uppercase())
     })
 }
 

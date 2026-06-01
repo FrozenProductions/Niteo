@@ -82,11 +82,11 @@ fn has_error_handling(stmt: &Statement<'_>) -> bool {
                 || try_stmt
                     .handler
                     .as_ref()
-                    .is_some_and(|h| h.body.body.iter().any(has_error_handling))
+                    .is_some_and(|handler| handler.body.body.iter().any(has_error_handling))
                 || try_stmt
                     .finalizer
                     .as_ref()
-                    .is_some_and(|f| f.body.iter().any(has_error_handling))
+                    .is_some_and(|finalizer| finalizer.body.iter().any(has_error_handling))
         }
         Statement::LabeledStatement(labeled) => has_error_handling(&labeled.body),
         _ => false,

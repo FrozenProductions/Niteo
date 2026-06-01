@@ -263,21 +263,21 @@ fn skip_past_paren_group(bytes: &[u8]) -> &[u8] {
     }
 
     let mut depth = 0;
-    let mut i = 0;
+    let mut index = 0;
     let mut string_quote: Option<u8> = None;
 
-    while i < bytes.len() {
-        let current = bytes[i];
+    while index < bytes.len() {
+        let current = bytes[index];
 
         if let Some(quote) = string_quote {
             if current == b'\\' {
-                i += 2;
+                index += 2;
                 continue;
             }
             if current == quote {
                 string_quote = None;
             }
-            i += 1;
+            index += 1;
             continue;
         }
 
@@ -287,29 +287,29 @@ fn skip_past_paren_group(bytes: &[u8]) -> &[u8] {
             b')' => {
                 depth -= 1;
                 if depth == 0 {
-                    return &bytes[i + 1..];
+                    return &bytes[index + 1..];
                 }
             }
             _ => {}
         }
 
-        i += 1;
+        index += 1;
     }
 
     &bytes[bytes.len()..]
 }
 
 fn skip_past_identifier(bytes: &[u8], start: usize) -> usize {
-    let mut i = start;
-    while i < bytes.len() && matches!(bytes[i], b' ' | b'\t' | b'\r' | b'\n') {
-        i += 1;
+    let mut index = start;
+    while index < bytes.len() && matches!(bytes[index], b' ' | b'\t' | b'\r' | b'\n') {
+        index += 1;
     }
 
-    while i < bytes.len() && is_identifier_byte(Some(bytes[i])) {
-        i += 1;
+    while index < bytes.len() && is_identifier_byte(Some(bytes[index])) {
+        index += 1;
     }
 
-    i
+    index
 }
 
 fn starts_function_declaration(bytes: &[u8], index: usize) -> bool {
@@ -480,11 +480,11 @@ fn starts_class_declaration(bytes: &[u8], index: usize) -> bool {
 }
 
 fn skip_whitespace(bytes: &[u8]) -> &[u8] {
-    let mut i = 0;
-    while i < bytes.len() && matches!(bytes[i], b' ' | b'\t' | b'\r' | b'\n') {
-        i += 1;
+    let mut index = 0;
+    while index < bytes.len() && matches!(bytes[index], b' ' | b'\t' | b'\r' | b'\n') {
+        index += 1;
     }
-    &bytes[i..]
+    &bytes[index..]
 }
 
 fn starts_keyword(bytes: &[u8], index: usize, keyword: &[u8]) -> bool {

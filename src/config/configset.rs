@@ -30,7 +30,11 @@ impl ConfigSet {
 
         let project_root = if let Some(root) = root_override {
             absolutize(workspace, root)
-        } else if let Some(root) = root_raw.project.as_ref().and_then(|p| p.root.as_ref()) {
+        } else if let Some(root) = root_raw
+            .project
+            .as_ref()
+            .and_then(|project| project.root.as_ref())
+        {
             absolutize(workspace, root.clone())
         } else {
             let source_root = workspace.join("src");
@@ -78,7 +82,10 @@ impl ConfigSet {
     }
 
     pub fn root(&self) -> &ProjectConfig {
-        &self.nodes[0].config
+        self.nodes
+            .first()
+            .map(|node| &node.config)
+            .expect("ConfigSet always has a root node")
     }
 
     // Walk the config tree: deepest ancestor directory wins (cascading per-scope config)
@@ -96,7 +103,10 @@ impl ConfigSet {
             }
         }
 
-        best_match.map(|n| &n.config).unwrap_or_else(|| self.root())
+        best_match
+            .map(|node| &node.config)
+            .or_else(|| self.nodes.first().map(|node| &node.config))
+            .expect("ConfigSet has no nodes")
     }
 
     pub fn configs(&self) -> impl Iterator<Item = &ResolvedConfigNode> {
@@ -106,8 +116,8 @@ impl ConfigSet {
     pub fn child_directories(&self, parent_index: usize) -> Vec<PathBuf> {
         self.nodes
             .iter()
-            .filter(|n| n.parent_index == Some(parent_index))
-            .map(|n| n.directory.clone())
+            .filter(|node| node.parent_index == Some(parent_index))
+            .map(|node| node.directory.clone())
             .collect()
     }
 }
@@ -171,7 +181,7 @@ fn discover_child_configs(
             continue;
         }
 
-        if path.file_name().and_then(|n| n.to_str()) != Some(CONFIG_FILE_NAME) {
+        if path.file_name().and_then(|name| name.to_str()) != Some(CONFIG_FILE_NAME) {
             continue;
         }
 
@@ -329,7 +339,10 @@ mod tests {
         let configs = discover_child_configs(&tmp, &tmp, &tmp).unwrap();
         assert_eq!(configs.len(), 2);
 
-        let dirs: Vec<&Path> = configs.iter().map(|(_, d)| d.as_path()).collect();
+        let dirs: Vec<&Path> = configs
+            .iter()
+            .map(|(_, directory)| directory.as_path())
+            .collect();
         assert!(dirs.contains(&tmp.join("packages/admin").as_path()));
         assert!(dirs.contains(&tmp.join("packages/web").as_path()));
 

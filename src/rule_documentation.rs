@@ -37,17 +37,17 @@ pub fn explain_rule(rule_name: &str, config: &ProjectConfig) -> Result<RuleExpla
         examples: documentation
             .examples
             .iter()
-            .map(|e| RuleExplanationExample {
-                label: e.label,
-                code: e.code,
+            .map(|example| RuleExplanationExample {
+                label: example.label,
+                code: example.code,
             })
             .collect(),
         options: documentation
             .options
             .iter()
-            .map(|o| RuleExplanationOption {
-                name: o.name,
-                description: o.description,
+            .map(|option| RuleExplanationOption {
+                name: option.name,
+                description: option.description,
             })
             .collect(),
         current_severity: summary.severity,

@@ -80,7 +80,7 @@ impl ImportGraph {
             }
         }
         let mut sorted: Vec<_> = import_counts.into_iter().collect();
-        sorted.sort_by_key(|b| std::cmp::Reverse(b.1));
+        sorted.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         sorted.truncate(limit);
         sorted
     }
@@ -91,7 +91,7 @@ impl ImportGraph {
             *fanout_counts.entry(edge.source_file.clone()).or_insert(0) += 1;
         }
         let mut sorted: Vec<_> = fanout_counts.into_iter().collect();
-        sorted.sort_by_key(|b| std::cmp::Reverse(b.1));
+        sorted.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         sorted.truncate(limit);
         sorted
     }
@@ -292,7 +292,7 @@ mod serialization {
             for (path, node) in &self.graph.files {
                 let label = path
                     .file_name()
-                    .and_then(|n| n.to_str())
+                    .and_then(|name| name.to_str())
                     .unwrap_or("unknown");
                 let style = if node.is_barrel {
                     ", style=filled, fillcolor=lightblue"

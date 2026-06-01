@@ -19,7 +19,7 @@ pub fn check_file(
 ) -> Vec<Violation> {
     let mut abbreviations: Vec<String> = DEFAULT_ABBREVIATIONS
         .iter()
-        .map(|a| a.to_string())
+        .map(|abbreviation| abbreviation.to_string())
         .collect();
     abbreviations.extend(config.extra_abbreviations.clone());
 
@@ -104,7 +104,7 @@ mod tests {
         assert!(violations[0]
             .detail
             .as_deref()
-            .is_some_and(|d| d.contains("btn")));
+            .is_some_and(|detail| detail.contains("btn")));
     }
 
     #[test]

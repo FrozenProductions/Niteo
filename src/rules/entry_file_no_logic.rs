@@ -32,7 +32,7 @@ pub fn check_file(
 }
 
 fn is_entry_file(file: &Path, config: &EntryFileNoLogicRuleConfig) -> bool {
-    let Some(stem) = file.file_stem().and_then(|s| s.to_str()) else {
+    let Some(stem) = file.file_stem().and_then(|os_str| os_str.to_str()) else {
         return false;
     };
 
@@ -154,7 +154,7 @@ impl<'a, 'f> EntryFileVisitor<'a, 'f> {
         match init {
             oxc_ast::ast::Expression::ArrowFunctionExpression(arrow) => {
                 let pos = self.line_index.position_for(arrow.span);
-                let name = declarator.id.get_identifier_name().map(|n| n.to_string());
+                let name = declarator.id.get_identifier_name().map(|identifier| identifier.to_string());
                 self.violations.push(Violation {
                     file: self.file.to_path_buf(),
                     line: Some(pos.line),
@@ -171,7 +171,7 @@ impl<'a, 'f> EntryFileVisitor<'a, 'f> {
             }
             oxc_ast::ast::Expression::FunctionExpression(func) => {
                 let pos = self.line_index.position_for(func.span);
-                let name = declarator.id.get_identifier_name().map(|n| n.to_string());
+                let name = declarator.id.get_identifier_name().map(|identifier| identifier.to_string());
                 self.violations.push(Violation {
                     file: self.file.to_path_buf(),
                     line: Some(pos.line),

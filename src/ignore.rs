@@ -30,7 +30,7 @@ pub struct IgnoreDirective {
 
 impl IgnoreDirective {
     pub fn should_suppress(&self, violation_line: Option<usize>, rule_name: &str) -> bool {
-        if !self.rules.is_empty() && !self.rules.iter().any(|r| r == rule_name) {
+        if !self.rules.is_empty() && !self.rules.iter().any(|rule| rule == rule_name) {
             return false;
         }
 
@@ -69,24 +69,24 @@ pub fn parse_ignore_directives(source: &str) -> Vec<IgnoreDirective> {
 // Byte-level scanning detects directives only in actual comments, not inside string literals
 fn find_directive(line: &str, line_number: usize) -> Option<IgnoreDirective> {
     let bytes = line.as_bytes();
-    let mut i = 0;
+    let mut index = 0;
 
-    while i < bytes.len() {
-        let current = bytes[i];
-        let next = bytes.get(i + 1).copied();
+    while index < bytes.len() {
+        let current = bytes[index];
+        let next = bytes.get(index + 1).copied();
 
         match (current, next) {
             (b'\'', _) | (b'"', _) | (b'`', _) => {
-                i = skip_string(bytes, i, current);
+                index = skip_string(bytes, index, current);
             }
             (b'/', Some(b'/')) => {
-                let comment_text = &line[i + 2..];
+                let comment_text = &line[index + 2..];
                 return parse_comment_directive(comment_text, line_number);
             }
             (b'/', Some(b'*')) => {
-                i = skip_block_comment_inline(bytes, i);
+                index = skip_block_comment_inline(bytes, index);
             }
-            _ => i += 1,
+            _ => index += 1,
         }
     }
 
@@ -121,8 +121,8 @@ fn parse_rules(after_prefix: &str) -> Vec<String> {
     if let Some(rules_part) = trimmed.strip_prefix(':') {
         rules_part
             .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
+            .map(|segment| segment.trim().to_string())
+            .filter(|segment| !segment.is_empty())
             .collect()
     } else {
         Vec::new()
@@ -130,27 +130,27 @@ fn parse_rules(after_prefix: &str) -> Vec<String> {
 }
 
 fn skip_string(bytes: &[u8], start: usize, quote: u8) -> usize {
-    let mut i = start + 1;
-    while i < bytes.len() {
-        if bytes[i] == b'\\' {
-            i += 2;
+    let mut index = start + 1;
+    while index < bytes.len() {
+        if bytes[index] == b'\\' {
+            index += 2;
             continue;
         }
-        if bytes[i] == quote {
-            return i + 1;
+        if bytes[index] == quote {
+            return index + 1;
         }
-        i += 1;
+        index += 1;
     }
-    i
+    index
 }
 
 fn skip_block_comment_inline(bytes: &[u8], start: usize) -> usize {
-    let mut i = start + 2;
-    while i + 1 < bytes.len() {
-        if bytes[i] == b'*' && bytes[i + 1] == b'/' {
-            return i + 2;
+    let mut index = start + 2;
+    while index + 1 < bytes.len() {
+        if bytes[index] == b'*' && bytes[index + 1] == b'/' {
+            return index + 2;
         }
-        i += 1;
+        index += 1;
     }
     bytes.len()
 }
@@ -162,7 +162,7 @@ pub fn should_suppress_violation(
 ) -> bool {
     directives
         .iter()
-        .any(|d| d.should_suppress(violation_line, rule_name))
+        .any(|directive| directive.should_suppress(violation_line, rule_name))
 }
 
 #[derive(Debug, Clone)]
@@ -179,11 +179,17 @@ pub struct FileSuppressionInfo {
 
 impl SuppressionReport {
     pub fn total_suppressed(&self) -> usize {
-        self.files.iter().map(|f| f.suppressed_count).sum()
+        self.files
+            .iter()
+            .map(|file_info| file_info.suppressed_count)
+            .sum()
     }
 
     pub fn total_stale(&self) -> usize {
-        self.files.iter().map(|f| f.stale_directives.len()).sum()
+        self.files
+            .iter()
+            .map(|file_info| file_info.stale_directives.len())
+            .sum()
     }
 
     pub fn is_empty(&self) -> bool {

@@ -119,7 +119,7 @@ fn is_in_types_directory(file: &Path, types: &DomainConfig) -> bool {
     file.components().any(|component| {
         matches!(
             component,
-            Component::Normal(name) if types.folders.iter().any(|f| name.to_str() == Some(f))
+            Component::Normal(name) if types.folders.iter().any(|folder| name.to_str() == Some(folder))
         )
     })
 }

@@ -68,13 +68,13 @@ impl Baseline {
     pub fn prune(&self, root: &Path, current_violations: &[Violation]) -> PruneResult {
         let current_set: HashSet<BaselineViolation> = current_violations
             .iter()
-            .map(|v| BaselineViolation::from_violation(root, v))
+            .map(|violation| BaselineViolation::from_violation(root, violation))
             .collect();
 
         let remaining: Vec<BaselineViolation> = self
             .violations
             .iter()
-            .filter(|v| current_set.contains(v))
+            .filter(|violation| current_set.contains(violation))
             .cloned()
             .collect();
 

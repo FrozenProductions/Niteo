@@ -28,7 +28,7 @@ pub fn check_directories(
 ) -> Vec<Violation> {
     let mut violations = Vec::new();
     let mut ignored = config.ignore_dirs.clone();
-    ignored.extend(IGNORED_DIRECTORIES.iter().map(|s| s.to_string()));
+    ignored.extend(IGNORED_DIRECTORIES.iter().map(|dir| dir.to_string()));
 
     walk_directories(root, &ignored, exclude_dirs, &mut violations);
 
@@ -219,7 +219,7 @@ fn is_source_file(path: &Path) -> bool {
 }
 
 fn is_barrel_file(path: &Path) -> bool {
-    path.file_name().and_then(|n| n.to_str()) == Some(BARREL_FILE)
+    path.file_name().and_then(|os_name| os_name.to_str()) == Some(BARREL_FILE)
 }
 
 fn directory_violation(dir: &Path, severity: Severity) -> Violation {
@@ -345,11 +345,11 @@ fn starts_with(bytes: &[u8], index: usize, pattern: &[u8]) -> bool {
 }
 
 fn skip_whitespace(bytes: &[u8]) -> &[u8] {
-    let mut i = 0;
-    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
-        i += 1;
+    let mut index = 0;
+    while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+        index += 1;
     }
-    &bytes[i..]
+    &bytes[index..]
 }
 
 #[derive(Debug)]

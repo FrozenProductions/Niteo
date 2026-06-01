@@ -26,7 +26,7 @@ pub fn check_file(
         return Vec::new();
     }
 
-    if file.extension().and_then(|e| e.to_str()) != Some("tsx") {
+    if file.extension().and_then(|ext| ext.to_str()) != Some("tsx") {
         return Vec::new();
     }
 
@@ -52,7 +52,7 @@ struct ComponentFileVisitor<'a, 'f> {
 fn is_pascal_case(name: &str) -> bool {
     name.as_bytes()
         .first()
-        .is_some_and(|c| c.is_ascii_uppercase())
+        .is_some_and(|byte| byte.is_ascii_uppercase())
 }
 
 impl<'a, 'f> Visit<'a> for ComponentFileVisitor<'a, 'f> {
@@ -137,8 +137,8 @@ fn non_component_subjects(decl: &Declaration) -> Vec<(oxc_span::Span, Option<Str
         Declaration::VariableDeclaration(var_decl) => var_decl
             .declarations
             .iter()
-            .filter_map(|d| {
-                let name = match &d.id {
+            .filter_map(|declarator| {
+                let name = match &declarator.id {
                     oxc_ast::ast::BindingPattern::BindingIdentifier(id) => id,
                     _ => return None,
                 };

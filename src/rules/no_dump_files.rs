@@ -9,14 +9,14 @@ const DEFAULT_FORBIDDEN_NAMES: &[&str] = &["utils", "helpers", "types"];
 pub fn check_files(files: &[std::path::PathBuf], config: &NoDumpFilesRuleConfig) -> Vec<Violation> {
     let mut forbidden: Vec<String> = DEFAULT_FORBIDDEN_NAMES
         .iter()
-        .map(|s| s.to_string())
+        .map(|default_name| default_name.to_string())
         .collect();
     forbidden.extend(config.extra_names.clone());
 
     let mut violations = Vec::new();
 
     for file in files {
-        let stem = match file.file_stem().and_then(|s| s.to_str()) {
+        let stem = match file.file_stem().and_then(|os_str| os_str.to_str()) {
             Some(stem) => stem,
             None => continue,
         };
@@ -32,7 +32,7 @@ pub fn check_files(files: &[std::path::PathBuf], config: &NoDumpFilesRuleConfig)
 fn dump_violation(file: &Path, stem: &str, severity: Severity) -> Violation {
     let file_name = file
         .file_name()
-        .map(|n| n.to_string_lossy().to_string())
+        .map(|os_name| os_name.to_string_lossy().to_string())
         .unwrap_or_default();
 
     Violation {
