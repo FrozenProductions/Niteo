@@ -93,6 +93,7 @@ declare_rules! {
     no_namespace => { id: NO_NAMESPACE_RULE_ID, value: "no-namespace", config: crate::config::RuleConfig },
     no_nested_functions => { id: NO_NESTED_FUNCTIONS_RULE_ID, value: "no-nested-functions", config: crate::config::NoNestedFunctionsRuleConfig },
     no_non_null_assertion => { id: NO_NON_NULL_ASSERTION_RULE_ID, value: "no-non-null-assertion", config: crate::config::RuleConfig },
+    no_orphan_files => { id: NO_ORPHAN_FILES_RULE_ID, value: "no-orphan-files", config: crate::config::NoOrphanFilesRuleConfig },
     no_process_env => { id: NO_PROCESS_ENV_RULE_ID, value: "no-process-env", config: crate::config::RuleConfig },
     no_silent_catch => { id: NO_SILENT_CATCH_RULE_ID, value: "no-silent-catch", config: crate::config::RuleConfig },
     no_test_code_in_production => { id: NO_TEST_CODE_IN_PRODUCTION_RULE_ID, value: "no-test-code-in-production", config: crate::config::RuleConfig },
@@ -535,6 +536,21 @@ impl FileRule for NoCircularImportAdapter {
     }
 }
 
+struct NoOrphanFilesAdapter {
+    config: crate::config::NoOrphanFilesRuleConfig,
+}
+impl FileRule for NoOrphanFilesAdapter {
+    fn severity(&self) -> Severity {
+        self.config.severity
+    }
+    fn needs_ast(&self) -> bool {
+        false
+    }
+    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+        no_orphan_files::check_file(ctx.file, ctx.line_index, ctx.import_graph, &self.config)
+    }
+}
+
 struct NoLogicInDomainAdapter {
     config: crate::config::RuleConfig,
     types: DomainConfig,
@@ -675,6 +691,9 @@ fn build_file_rules(
         }),
         Box::new(NoCircularImportAdapter {
             config: config.no_circular_import.clone(),
+        }),
+        Box::new(NoOrphanFilesAdapter {
+            config: config.no_orphan_files.clone(),
         }),
         Box::new(NoLogicInDomainAdapter {
             config: config.no_logic_in_domain.clone(),

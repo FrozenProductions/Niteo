@@ -194,6 +194,13 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
                 config.rules.no_nested_functions.max_depth
             )],
         },
+        RuleKind::NoOrphanFiles => RuleConfigSummary {
+            severity: config.rules.no_orphan_files.severity,
+            options: vec![format!(
+                "entry-files: {:?}",
+                config.rules.no_orphan_files.entry_files
+            )],
+        },
         RuleKind::NoNamespace => simple_summary(config.rules.no_namespace.severity),
         RuleKind::NoRestrictedImports => RuleConfigSummary {
             severity: config.rules.no_restricted_imports.severity,

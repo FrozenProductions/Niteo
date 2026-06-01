@@ -370,3 +370,23 @@ impl Default for NoNestedFunctionsRuleConfig {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct NoOrphanFilesRuleConfig {
+    pub severity: Severity,
+    pub entry_files: Vec<String>,
+}
+
+impl Default for NoOrphanFilesRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            entry_files: vec![
+                "main".to_string(),
+                "app".to_string(),
+                "layout".to_string(),
+                "page".to_string(),
+            ],
+        }
+    }
+}

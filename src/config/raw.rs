@@ -8,8 +8,8 @@ use super::rules::{
     MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NoAbbreviationsRuleConfig,
     NoAnyRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig, NoDumpFilesRuleConfig,
     NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoInterfaceRuleConfig,
-    NoNestedFunctionsRuleConfig, NoRestrictedImportsRuleConfig, RuleConfig, Severity,
-    UpwardImportRuleConfig,
+    NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig,
+    RuleConfig, Severity, UpwardImportRuleConfig,
 };
 use super::structure::{DomainConfig, ProjectStructureConfig};
 use crate::rules::RulesConfig;
@@ -190,6 +190,7 @@ declare_raw_rules! {
         no_interface => ("no-interface", to_no_interface_config, NoInterfaceRuleConfig),
         no_large_file => ("no-large-file", to_file_length_config, FileLengthRuleConfig),
         no_nested_functions => ("no-nested-functions", to_no_nested_functions_config, NoNestedFunctionsRuleConfig),
+        no_orphan_files => ("no-orphan-files", to_no_orphan_files_config, NoOrphanFilesRuleConfig),
         no_restricted_imports => ("no-restricted-imports", to_no_restricted_imports_config, NoRestrictedImportsRuleConfig),
         no_upward_import => ("no-upward-import", to_upward_import_config, UpwardImportRuleConfig),
     }
@@ -439,6 +440,10 @@ impl RawRuleConfig {
         to_no_nested_functions_config => (NoNestedFunctionsRuleConfig) {
             max_depth: default(2)
             ;
+        },
+        to_no_orphan_files_config => (NoOrphanFilesRuleConfig) {
+            ;
+            entry_files: clone_default
         },
         to_no_restricted_imports_config => (NoRestrictedImportsRuleConfig) {
             ;

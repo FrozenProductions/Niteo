@@ -58,6 +58,7 @@ define_rule_kinds! {
     NoLogicInDomain,
     NoMutableExports,
     NoNestedFunctions,
+    NoOrphanFiles,
     NoProcessEnv,
     NoNamespace,
     NoRestrictedImports,
@@ -738,6 +739,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::NoNestedFunctions,
+    },
+    RuleDocumentation {
+        name: "no-orphan-files",
+        intent: "Detect files not imported by any other file in the project, which may indicate dead code.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "// orphan.ts - not imported anywhere",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "Import the file from another module or mark it as an entry file.",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "entry-files",
+                description: "File stems that are expected entry points and not imported by other files. Defaults to main, app, layout, page.",
+            },
+        ],
+        kind: RuleKind::NoOrphanFiles,
     },
     RuleDocumentation {
         name: "no-namespace",

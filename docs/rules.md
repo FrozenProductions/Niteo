@@ -50,6 +50,7 @@ niteo explain no-console --format json
 | `no-logic-in-domain` | `warn` | Keep type and constants domains free of runtime implementation logic. | `project.structure.types`, `project.structure.constants` |
 | `no-mutable-exports` | `warn` | Avoid exported mutable bindings. | `severity` |
 | `no-nested-functions` | `warn` | Disallow functions nested beyond a configured depth. | `max-depth` |
+| `no-orphan-files` | `warn` | Detect files not imported by any other file in the project. | `entry-files` |
 | `no-namespace` | `warn` | Prefer ES modules over TypeScript namespaces. | `severity` |
 | `no-non-null-assertion` | `warn` | Disallow the non-null assertion operator. | `severity` |
 | `no-process-env` | `warn` | Prevent direct access to `process.env`. | `severity` |
@@ -514,4 +515,16 @@ Reports production files importing test files.
 ### `no-test-code-in-production`
 
 Reports test globals such as `describe`, `it`, `test`, and `expect`, plus test library imports outside files identified by `project.structure.tests`.
+
+### `no-orphan-files`
+
+Reports files that are not imported by any other file in the project. Orphan files may indicate dead code or missing imports.
+
+Entry files (such as `main.ts`, `app.tsx`) and test files are exempt by default. Configure additional entry file stems:
+
+```toml
+[rules.no-orphan-files]
+severity = "warn"
+entry-files = ["main", "app", "layout", "page", "index"]
+```
 

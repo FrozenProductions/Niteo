@@ -177,4 +177,8 @@ restricted = []
 [rules.no-nested-functions]
 severity = "warn"
 max-depth = 2
+
+[rules.no-orphan-files]
+severity = "warn"
+entry-files = ["main", "app", "layout", "page"]
 "#;
