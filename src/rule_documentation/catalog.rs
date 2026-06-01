@@ -71,6 +71,7 @@ define_rule_kinds! {
     PreferSatisfies,
     NoTestImport,
     EntryFileNoLogic,
+    ExplicitReturnType,
     NoNonNullAssertion,
     NoAbbreviations,
     NoAny,
@@ -947,6 +948,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::EntryFileNoLogic,
+    },
+    RuleDocumentation {
+        name: "explicit-return-type",
+        intent: "Require explicit return type annotations on exported functions to make public API contracts clear.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "export function add(a: number, b: number) { return a + b; }",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "export function add(a: number, b: number): number { return a + b; }",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::ExplicitReturnType,
     },
     RuleDocumentation {
         name: "no-non-null-assertion",

@@ -242,6 +242,7 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
                 config.rules.entry_file_no_logic.entry_files
             )],
         },
+        RuleKind::ExplicitReturnType => simple_summary(config.rules.explicit_return_type.severity),
         RuleKind::NoNonNullAssertion => simple_summary(config.rules.no_non_null_assertion.severity),
         RuleKind::NoProcessEnv => simple_summary(config.rules.no_process_env.severity),
         RuleKind::NoAbbreviations => RuleConfigSummary {

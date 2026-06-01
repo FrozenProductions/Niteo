@@ -24,6 +24,7 @@ niteo explain no-console --format json
 | `component-file-only-components` | `warn` | Component files should export components only. | `project.structure.components` |
 | `entry-file-no-logic` | `warn` | Entry files should delegate implementation logic to dedicated modules. | `entry-files` |
 | `hook-no-jsx` | `warn` | Hook files should not return or contain JSX. | `project.structure.hooks` |
+| `explicit-return-type` | `warn` | Require explicit return types on exported functions. | `severity` |
 | `hook-prefix` | `warn` | Hook functions in hook files should use an allowed prefix, usually `use`. | `prefixes`, `project.structure.hooks` |
 | `max-directory-depth` | `warn` | Limit nested directories below the configured project root. | `max-depth`, `ignore-dirs` |
 | `max-file-exports` | `warn` | Limit the number of exports from one file. | `max-exports` |
@@ -157,6 +158,28 @@ const config = value satisfies Config;
 ```
 
 ## Source Hygiene Rules
+
+### `explicit-return-type`
+
+Reports exported functions that lack an explicit return type annotation. Applies to named function exports, exported arrow functions, exported function expressions, and default exports.
+
+```ts
+export function add(a: number, b: number) {
+  return a + b;
+}
+
+export const multiply = (a: number, b: number) => a * b;
+```
+
+Prefer:
+
+```ts
+export function add(a: number, b: number): number {
+  return a + b;
+}
+
+export const multiply = (a: number, b: number): number => a * b;
+```
 
 ### `no-console`
 

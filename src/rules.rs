@@ -61,6 +61,7 @@ declare_rules! {
     boolean_prefix => { id: BOOLEAN_PREFIX_RULE_ID, value: "boolean-prefix", config: crate::config::BooleanPrefixRuleConfig },
     component_file_only_components => { id: COMPONENT_FILE_ONLY_COMPONENTS_RULE_ID, value: "component-file-only-components", config: crate::config::RuleConfig },
     entry_file_no_logic => { id: ENTRY_FILE_NO_LOGIC_RULE_ID, value: "entry-file-no-logic", config: crate::config::EntryFileNoLogicRuleConfig },
+    explicit_return_type => { id: EXPLICIT_RETURN_TYPE_RULE_ID, value: "explicit-return-type", config: crate::config::RuleConfig },
     hook_no_jsx => { id: HOOK_NO_JSX_RULE_ID, value: "hook-no-jsx", config: crate::config::RuleConfig },
     hook_prefix => { id: HOOK_PREFIX_RULE_ID, value: "hook-prefix", config: crate::config::HookPrefixRuleConfig },
     max_directory_depth => { id: MAX_DIRECTORY_DEPTH_RULE_ID, value: "max-directory-depth", config: crate::config::MaxDirectoryDepthRuleConfig },
@@ -294,6 +295,12 @@ ast_rule_adapter!(
     ENTRY_FILE_NO_LOGIC_RULE_ID,
     crate::config::EntryFileNoLogicRuleConfig,
     entry_file_no_logic
+);
+ast_rule_adapter!(
+    ExplicitReturnTypeAdapter,
+    EXPLICIT_RETURN_TYPE_RULE_ID,
+    crate::config::RuleConfig,
+    explicit_return_type
 );
 ast_rule_adapter!(
     NoNonNullAssertionAdapter,
@@ -647,6 +654,9 @@ fn build_file_rules(
         }),
         Box::new(EntryFileNoLogicAdapter {
             config: config.entry_file_no_logic.clone(),
+        }),
+        Box::new(ExplicitReturnTypeAdapter {
+            config: config.explicit_return_type.clone(),
         }),
         Box::new(NoNonNullAssertionAdapter {
             config: config.no_non_null_assertion.clone(),

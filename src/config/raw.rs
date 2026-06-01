@@ -153,6 +153,7 @@ declare_raw_rules! {
         no_barrel_files => "no-barrel-files",
         no_debugger => "no-debugger",
         no_enums => "no-enums",
+        explicit_return_type => "explicit-return-type",
         no_eval => "no-eval",
         no_export_star => "no-export-star",
         no_focused_test => "no-focused-test",

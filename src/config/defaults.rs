@@ -162,6 +162,9 @@ severity = "warn"
 severity = "warn"
 entry-files = ["main", "app", "layout", "page"]
 
+[rules.explicit-return-type]
+severity = "warn"
+
 [rules.no-non-null-assertion]
 severity = "warn"
 
