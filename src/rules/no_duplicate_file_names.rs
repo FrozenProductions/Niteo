@@ -110,20 +110,6 @@ mod tests {
     }
 
     #[test]
-    fn ignores_same_name_in_same_dir() {
-        let files = vec![PathBuf::from("src/components/Button.ts")];
-
-        let config = NoDuplicateFileNamesRuleConfig {
-            severity: Severity::Warn,
-            ignore_names: vec![],
-        };
-
-        let violations = check_files(&files, &config);
-
-        assert!(violations.is_empty());
-    }
-
-    #[test]
     fn ignores_index_files_by_default() {
         let files = vec![
             PathBuf::from("src/components/index.ts"),

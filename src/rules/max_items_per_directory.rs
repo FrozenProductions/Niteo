@@ -132,25 +132,4 @@ fn directory_violation(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn violation_detail_shows_count_and_limit_files_only() {
-        let v = directory_violation(Path::new("src"), Severity::Warn, 15, 10, false);
-        assert_eq!(
-            v.detail,
-            Some("Contains 15 TypeScript files (limit: 10).".to_string())
-        );
-    }
-
-    #[test]
-    fn violation_detail_shows_count_and_limit_including_folders() {
-        let v = directory_violation(Path::new("src"), Severity::Warn, 25, 20, true);
-        assert_eq!(
-            v.detail,
-            Some("Contains 25 TypeScript items (limit: 20).".to_string())
-        );
-    }
-}

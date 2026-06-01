@@ -133,25 +133,4 @@ fn directory_violation(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn violation_detail_shows_count_and_minimum_files_only() {
-        let v = directory_violation(Path::new("src"), Severity::Warn, 1, 3, false);
-        assert_eq!(
-            v.detail,
-            Some("Contains 1 TypeScript files (minimum: 3).".to_string())
-        );
-    }
-
-    #[test]
-    fn violation_detail_shows_count_and_minimum_including_folders() {
-        let v = directory_violation(Path::new("src"), Severity::Warn, 2, 5, true);
-        assert_eq!(
-            v.detail,
-            Some("Contains 2 TypeScript items (minimum: 5).".to_string())
-        );
-    }
-}

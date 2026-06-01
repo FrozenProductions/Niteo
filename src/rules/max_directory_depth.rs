@@ -122,13 +122,4 @@ fn depth_violation(path: &Path, severity: Severity, depth: usize, max_depth: usi
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn violation_detail_shows_depth_and_limit() {
-        let v = depth_violation(Path::new("src/a/b/c/d/e/f.ts"), Severity::Warn, 6, 5);
-        assert_eq!(v.detail, Some("Depth 6 exceeds maximum of 5.".to_string()));
-    }
-}

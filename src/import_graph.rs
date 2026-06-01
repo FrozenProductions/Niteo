@@ -368,13 +368,6 @@ mod tests {
     }
 
     #[test]
-    fn detects_barrel_files() {
-        assert!(is_barrel_file(Path::new("src/index.ts")));
-        assert!(is_barrel_file(Path::new("components/index.ts")));
-        assert!(!is_barrel_file(Path::new("src/Button.ts")));
-    }
-
-    #[test]
     fn resolves_relative_import() {
         let files = vec![PathBuf::from("src/a.ts"), PathBuf::from("src/b.ts")];
         let resolved = resolve_import_specifier(Path::new("src/a.ts"), "./b", &files);

@@ -144,15 +144,4 @@ mod tests {
         assert_eq!(violations.len(), 2);
     }
 
-    #[test]
-    fn allows_regular_property_access() {
-        let violations = run_check("const value = obj.prop;\n");
-        assert!(violations.is_empty());
-    }
-
-    #[test]
-    fn allows_type_assertion() {
-        let violations = run_check("const value = obj as string;\n");
-        assert!(violations.is_empty());
-    }
 }

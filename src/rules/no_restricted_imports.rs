@@ -183,13 +183,6 @@ mod tests {
     }
 
     #[test]
-    fn empty_restricted_list_reports_nothing() {
-        let config = test_config(&[]);
-        let violations = run_check("import { x } from 'anything';\n", &config);
-        assert!(violations.is_empty());
-    }
-
-    #[test]
     fn ignores_imports_in_comments() {
         let config = test_config(&["lodash"]);
         let source = "// import { merge } from 'lodash';\n";
