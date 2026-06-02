@@ -235,6 +235,7 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
             )],
         },
         RuleKind::PreferSatisfies => simple_summary(config.rules.prefer_satisfies.severity),
+        RuleKind::PreferReadonly => simple_summary(config.rules.prefer_readonly.severity),
         RuleKind::NoTestImport => RuleConfigSummary {
             severity: config.rules.no_test_import.severity,
             options: vec![

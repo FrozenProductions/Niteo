@@ -67,6 +67,7 @@ niteo explain no-console --format json
 | `no-type-assertion` | `warn` | Disallow `as` casts. Prefer type narrowing or `satisfies`. | `severity` |
 | `no-upward-import` | `warn` | Limit fragile `../` imports. | `max-depth` |
 | `prefer-satisfies` | `info` | Prefer `satisfies` over `as` when validating a value against a type. | `severity` |
+| `prefer-readonly` | `warn` | Prefer `readonly` for array parameters in exported functions. | `severity` |
 
 ## Language And TypeScript Rules
 
@@ -424,6 +425,22 @@ Configure the allowed parameter count:
 [rules.max-function-params]
 severity = "warn"
 max-params = 3
+```
+
+### `prefer-readonly`
+
+Reports array parameters in exported functions that are not marked `readonly`. Exported functions form a public API; marking array parameters `readonly` prevents accidental mutation of caller data.
+
+```ts
+export function process(items: string[]) {}
+export function merge(a: Array<number>) {}
+```
+
+Prefer:
+
+```ts
+export function process(items: readonly string[]) {}
+export function merge(a: ReadonlyArray<number>) {}
 ```
 
 ### `no-export-star`

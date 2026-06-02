@@ -107,6 +107,7 @@ declare_rules! {
     no_then_chain => { id: NO_THEN_CHAIN_RULE_ID, value: "no-then-chain", config: crate::config::RuleConfig },
     no_upward_import => { id: NO_UPWARD_IMPORT_RULE_ID, value: "no-upward-import", config: crate::config::UpwardImportRuleConfig },
     prefer_satisfies => { id: PREFER_SATISFIES_RULE_ID, value: "prefer-satisfies", config: crate::config::RuleConfig, default_severity: Severity::Info },
+    prefer_readonly => { id: PREFER_READONLY_RULE_ID, value: "prefer-readonly", config: crate::config::RuleConfig },
 }
 
 pub trait FileRule {
@@ -385,6 +386,12 @@ ast_rule_adapter!(
     PREFER_SATISFIES_RULE_ID,
     crate::config::RuleConfig,
     prefer_satisfies
+);
+ast_rule_adapter!(
+    PreferReadonlyAdapter,
+    PREFER_READONLY_RULE_ID,
+    crate::config::RuleConfig,
+    prefer_readonly
 );
 
 struct NoInlineTypesAdapter {
@@ -745,6 +752,9 @@ fn build_file_rules(
         }),
         Box::new(PreferSatisfiesAdapter {
             config: config.prefer_satisfies.clone(),
+        }),
+        Box::new(PreferReadonlyAdapter {
+            config: config.prefer_readonly.clone(),
         }),
         Box::new(NoBarrelChainAdapter {
             config: config.no_barrel_chain.clone(),

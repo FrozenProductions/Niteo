@@ -152,6 +152,9 @@ severity = "warn"
 [rules.prefer-satisfies]
 severity = "info"
 
+[rules.prefer-readonly]
+severity = "warn"
+
 [rules.hook-no-jsx]
 severity = "warn"
 

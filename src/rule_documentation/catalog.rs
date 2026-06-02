@@ -70,6 +70,7 @@ define_rule_kinds! {
     NoThenChain,
     NoUpwardImport,
     PreferSatisfies,
+    PreferReadonly,
     NoTestImport,
     EntryFileNoLogic,
     ExplicitReturnType,
@@ -929,6 +930,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::PreferSatisfies,
+    },
+    RuleDocumentation {
+        name: "prefer-readonly",
+        intent: "Prefer readonly for array parameters in exported functions to prevent accidental mutation of caller data.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "export function process(items: string[]) {}",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "export function process(items: readonly string[]) {}",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::PreferReadonly,
     },
     RuleDocumentation {
         name: "no-test-import",
