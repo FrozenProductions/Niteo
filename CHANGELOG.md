@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ## Unreleased
 
+### Added
+
+- `no-process-env` rule to prevent direct `process.env` access.
+- `no-abbreviations` rule to flag abbreviations in identifiers.
+- `no-circular-import` rule to detect circular import chains.
+- `no-restricted-imports` rule to block imports from a configurable deny-list.
+- `no-nested-functions` rule to limit function nesting depth.
+- `no-orphan-files` rule to detect files not imported anywhere.
+- `no-focused-test` rule to block `describe.only` / `it.only` / `test.only`.
+- `no-skipped-test` rule to block `describe.skip` / `it.skip` / `test.skip`.
+- `explicit-return-type` rule for exported function contracts.
+- `max-function-params` rule to limit function parameters.
+- `no-type-assertion` rule to disallow `as` casts.
+- `no-magic-numbers` rule to disallow numeric literals outside constants.
+- `prefer-readonly` rule to enforce `readonly` array parameters in exported functions.
+- `no-empty-domain` rule to detect domain folders containing only barrel files.
+- `no-anemic-domain` rule to flag domain folders with too few files.
+- `no-god-domain` rule to flag domain folders with too many files.
+
+### Changed
+
+- Merge `no-component-default-export` into `no-default-export` with a `components-only` option.
+
+### Removed
+
+- Dead tests and unused `jsx` module.
+
 ## 0.1.3 - 2026-05-31
 
 ### Added
