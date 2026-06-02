@@ -64,20 +64,19 @@ impl<'a, 'f> PreferReadonlyVisitor<'a, 'f> {
         func_name: Option<&str>,
     ) {
         for param in &params.items {
-            if let Some(type_annotation) = &param.type_annotation {
-                if is_mutable_array_type(&type_annotation.type_annotation) {
-                    let param_name = binding_name(&param.pattern);
-                    self.report(param.span, param_name, func_name);
-                }
+            if let Some(type_annotation) = &param.type_annotation
+                && is_mutable_array_type(&type_annotation.type_annotation)
+            {
+                let param_name = binding_name(&param.pattern);
+                self.report(param.span, param_name, func_name);
             }
         }
-        if let Some(rest) = &params.rest {
-            if let Some(type_annotation) = &rest.type_annotation {
-                if is_mutable_array_type(&type_annotation.type_annotation) {
-                    let param_name = binding_name(&rest.rest.argument);
-                    self.report(rest.span, param_name, func_name);
-                }
-            }
+        if let Some(rest) = &params.rest
+            && let Some(type_annotation) = &rest.type_annotation
+            && is_mutable_array_type(&type_annotation.type_annotation)
+        {
+            let param_name = binding_name(&rest.rest.argument);
+            self.report(rest.span, param_name, func_name);
         }
     }
 }
