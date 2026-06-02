@@ -16,7 +16,30 @@
 
 Niteo is a standalone Rust CLI for structural linting in TypeScript projects.
 
-It checks project shape and source structure rather than formatting. Niteo uses [oxc](https://github.com/oxc-project/oxc) for AST parsing.
+It checks project shape, module boundaries, and source structure rather than formatting. Niteo ships 50 opinionated rules, builds a full import graph, and runs as a single binary with no plugins to configure. It uses [oxc](https://github.com/oxc-project/oxc) for AST parsing.
+
+## Why Niteo?
+
+| Tool                   | Focus                                                                                                                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **ESLint**             | Code-level linting: style, correctness, and patterns within individual files.                                                                                                                                |
+| **Knip**               | Unused exports, files, and dependencies. Finds dead code.                                                                                                                                                    |
+| **dependency-cruiser** | Dependency rules between modules. Validates import constraints.                                                                                                                                              |
+| **Niteo**              | Opinionated architecture and structural conventions. Enforces how a project is shaped: file layout, export style, module boundaries, domain boundaries, and import hygiene — all in one fast standalone CLI. |
+
+Niteo complements ESLint and Knip rather than replacing them. Where ESLint checks what your code does and Knip checks what your code uses, Niteo checks how your project is organized.
+
+## Features
+
+- **50 structural rules** covering exports, barrel files, directory shape, imports, hooks, components, and unsafe TypeScript patterns. See the full [rule reference](docs/rules.md).
+- **Baselines** — snapshot existing violations so CI only fails on new issues. Adopt Niteo incrementally without fixing every file first.
+- **Suppressions** — inline `niteo-ignore-file`, `niteo-ignore-next-line`, and `niteo-ignore-line` directives for narrow exceptions. Stale directive detection keeps suppressions honest.
+- **Monorepo configs** — cascading `niteo.toml` files. Set defaults at the workspace root and override per package. Rule options merge field-by-field.
+- **Import graph** — `niteo stats` shows fan-out and most-imported files. `niteo graph` outputs DOT or JSON for visualization and tooling.
+- **SARIF output** — `--format sarif` integrates with GitHub Code Scanning, Azure DevOps, and any SARIF-compatible dashboard.
+- **Watch mode** — `niteo lint --watch` re-lints on every file change during development.
+- **Health score** — every run produces a 0–100 score so you can track structural health over time.
+- **Git-aware scanning** — `--git` limits analysis to changed files, keeping feedback fast on large codebases.
 
 ## Installation
 
@@ -68,6 +91,9 @@ niteo lint --scope src/components
 niteo lint --format json --output report.json
 niteo lint --format sarif --output report.sarif
 niteo lint --watch
+niteo lint --git
+niteo stats
+niteo graph
 ```
 
 ## Monorepos
