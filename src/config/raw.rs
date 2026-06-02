@@ -169,6 +169,7 @@ declare_raw_rules! {
         no_test_code_in_production => "no-test-code-in-production",
         no_test_import => "no-test-import",
         no_then_chain => "no-then-chain",
+        no_type_assertion => "no-type-assertion",
     }
     custom_default {
         no_empty_interface => ("no-empty-interface", Severity::Error),

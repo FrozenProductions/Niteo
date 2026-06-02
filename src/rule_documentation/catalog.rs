@@ -76,6 +76,7 @@ define_rule_kinds! {
     NoNonNullAssertion,
     NoAbbreviations,
     NoAny,
+    NoTypeAssertion,
 }
 
 pub(crate) const SEVERITY_OPTION: RuleOption = RuleOption {
@@ -1045,6 +1046,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::NoAny,
+    },
+    RuleDocumentation {
+        name: "no-type-assertion",
+        intent: "Disallow `as` casts. Prefer type narrowing or `satisfies` for safer type checking.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "const value = something as string;",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "const value = something satisfies string;",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoTypeAssertion,
     },
 ];
 

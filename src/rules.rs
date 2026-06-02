@@ -97,6 +97,7 @@ declare_rules! {
     no_nested_functions => { id: NO_NESTED_FUNCTIONS_RULE_ID, value: "no-nested-functions", config: crate::config::NoNestedFunctionsRuleConfig },
     no_non_null_assertion => { id: NO_NON_NULL_ASSERTION_RULE_ID, value: "no-non-null-assertion", config: crate::config::RuleConfig },
     no_orphan_files => { id: NO_ORPHAN_FILES_RULE_ID, value: "no-orphan-files", config: crate::config::NoOrphanFilesRuleConfig },
+    no_type_assertion => { id: NO_TYPE_ASSERTION_RULE_ID, value: "no-type-assertion", config: crate::config::RuleConfig },
     no_process_env => { id: NO_PROCESS_ENV_RULE_ID, value: "no-process-env", config: crate::config::RuleConfig },
     no_silent_catch => { id: NO_SILENT_CATCH_RULE_ID, value: "no-silent-catch", config: crate::config::RuleConfig },
     no_skipped_test => { id: NO_SKIPPED_TEST_RULE_ID, value: "no-skipped-test", config: crate::config::RuleConfig },
@@ -314,6 +315,12 @@ ast_rule_adapter!(
     NO_NON_NULL_ASSERTION_RULE_ID,
     crate::config::RuleConfig,
     no_non_null_assertion
+);
+ast_rule_adapter!(
+    NoTypeAssertionAdapter,
+    NO_TYPE_ASSERTION_RULE_ID,
+    crate::config::RuleConfig,
+    no_type_assertion
 );
 ast_rule_adapter!(
     NoProcessEnvAdapter,
@@ -670,6 +677,9 @@ fn build_file_rules(
         }),
         Box::new(NoNonNullAssertionAdapter {
             config: config.no_non_null_assertion.clone(),
+        }),
+        Box::new(NoTypeAssertionAdapter {
+            config: config.no_type_assertion.clone(),
         }),
         Box::new(NoProcessEnvAdapter {
             config: config.no_process_env.clone(),

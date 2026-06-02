@@ -273,6 +273,7 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
                 ),
             ],
         },
+        RuleKind::NoTypeAssertion => simple_summary(config.rules.no_type_assertion.severity),
     }
 }
 

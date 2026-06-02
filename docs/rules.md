@@ -63,6 +63,7 @@ niteo explain no-console --format json
 | `no-test-code-in-production` | `warn` | Disallow test globals and test library imports outside test files. | `project.structure.tests` |
 | `no-test-import` | `warn` | Production code may not import test files. | `project.structure.tests` |
 | `no-then-chain` | `warn` | Prefer `async`/`await` over `.then()` chains. | `severity` |
+| `no-type-assertion` | `warn` | Disallow `as` casts. Prefer type narrowing or `satisfies`. | `severity` |
 | `no-upward-import` | `warn` | Limit fragile `../` imports. | `max-depth` |
 | `prefer-satisfies` | `info` | Prefer `satisfies` over `as` when validating a value against a type. | `severity` |
 
@@ -143,6 +144,27 @@ const value = obj!.prop;
 ```
 
 Prefer optional chaining, guards, or explicit narrowing.
+
+### `no-type-assertion`
+
+Reports `as` casts. Type assertions bypass TypeScript's type checking and can hide bugs.
+
+```ts
+const value = something as string;
+const config = { port: 3000 } as Config;
+```
+
+Prefer type narrowing or `satisfies`:
+
+```ts
+const value = something satisfies string;
+const config = { port: 3000 } satisfies Config;
+
+// Or use proper type narrowing
+if (typeof value === 'string') {
+  // value is narrowed to string
+}
+```
 
 ### `prefer-satisfies`
 

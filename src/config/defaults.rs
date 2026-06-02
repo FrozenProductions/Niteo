@@ -172,6 +172,9 @@ severity = "warn"
 [rules.no-non-null-assertion]
 severity = "warn"
 
+[rules.no-type-assertion]
+severity = "warn"
+
 [rules.no-process-env]
 severity = "warn"
 
