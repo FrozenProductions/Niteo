@@ -130,6 +130,10 @@ severity = "error"
 severity = "warn"
 allow-declaration-merging = true
 
+[rules.no-magic-numbers]
+severity = "warn"
+allowed-numbers = []
+
 [rules.no-mutable-exports]
 severity = "warn"
 
