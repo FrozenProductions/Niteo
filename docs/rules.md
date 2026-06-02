@@ -41,6 +41,9 @@ niteo explain no-console --format json
 | `no-duplicate-file-names` | `warn` | Avoid repeated file names that make editor tabs and stack traces ambiguous. | `ignore-names` |
 | `no-dump-files` | `warn` | Disallow generic file names such as `utils.ts`, `helpers.ts`, and `types.ts`. | `extra-names` |
 | `no-empty-directories` | `warn` | Remove directories that no longer contain source files. | `ignore-dirs` |
+| `no-empty-domain` | `warn` | Domain folder must contain real source, not only barrels. | `ignore-dirs` |
+| `no-anemic-domain` | `warn` | Domain with too few files should be flattened. | `max-files`, `ignore-dirs` |
+| `no-god-domain` | `warn` | Domain with too many files should be split. | `max-files`, `ignore-dirs` |
 | `no-empty-interface` | `error` | Avoid empty interfaces. | `severity` |
 | `no-enums` | `warn` | Prefer union types or const objects over TypeScript enums. | `severity` |
 | `no-eval` | `warn` | Block dynamic code execution through `eval()` and `new Function()`. | `severity` |
@@ -528,6 +531,38 @@ Reports files nested deeper than `max-depth` below the project root.
 severity = "warn"
 max-depth = 5
 ignore-dirs = ["generated"]
+```
+
+### `no-empty-domain`
+
+Reports domain folders that contain only barrel files (`index.ts` with re-exports) and no real source files. Such folders add navigation overhead without meaningful content.
+
+```toml
+[rules.no-empty-domain]
+severity = "warn"
+ignore-dirs = []
+```
+
+### `no-anemic-domain`
+
+Reports domain folders with too few source files. A folder with only one or two files often adds navigation cost without a clear structural boundary.
+
+```toml
+[rules.no-anemic-domain]
+severity = "warn"
+max-files = 1
+ignore-dirs = []
+```
+
+### `no-god-domain`
+
+Reports domain folders with too many source files. Oversized domains are hard to navigate and often benefit from sub-grouping.
+
+```toml
+[rules.no-god-domain]
+severity = "warn"
+max-files = 20
+ignore-dirs = []
 ```
 
 ## Domain Rules

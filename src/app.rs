@@ -590,6 +590,27 @@ fn collect_violations(
             &exclude_dirs,
         );
         all_violations.append(&mut depth_violations);
+
+        let mut empty_domain_violations = rules::check_no_empty_domain(
+            node_root,
+            node.config.rules.no_empty_domain.clone(),
+            &exclude_dirs,
+        );
+        all_violations.append(&mut empty_domain_violations);
+
+        let mut anemic_domain_violations = rules::check_no_anemic_domain(
+            node_root,
+            node.config.rules.no_anemic_domain.clone(),
+            &exclude_dirs,
+        );
+        all_violations.append(&mut anemic_domain_violations);
+
+        let mut god_domain_violations = rules::check_no_god_domain(
+            node_root,
+            node.config.rules.no_god_domain.clone(),
+            &exclude_dirs,
+        );
+        all_violations.append(&mut god_domain_violations);
     }
 
     let root_config_ref = config_set.root();

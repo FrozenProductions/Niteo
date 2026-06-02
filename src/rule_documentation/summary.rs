@@ -282,6 +282,30 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
             ],
         },
         RuleKind::NoTypeAssertion => simple_summary(config.rules.no_type_assertion.severity),
+        RuleKind::NoEmptyDomain => RuleConfigSummary {
+            severity: config.rules.no_empty_domain.severity,
+            options: vec![format!(
+                "ignore-dirs: {:?}",
+                config.rules.no_empty_domain.ignore_dirs
+            )],
+        },
+        RuleKind::NoAnemicDomain => RuleConfigSummary {
+            severity: config.rules.no_anemic_domain.severity,
+            options: vec![
+                format!("max-files: {}", config.rules.no_anemic_domain.max_files),
+                format!(
+                    "ignore-dirs: {:?}",
+                    config.rules.no_anemic_domain.ignore_dirs
+                ),
+            ],
+        },
+        RuleKind::NoGodDomain => RuleConfigSummary {
+            severity: config.rules.no_god_domain.severity,
+            options: vec![
+                format!("max-files: {}", config.rules.no_god_domain.max_files),
+                format!("ignore-dirs: {:?}", config.rules.no_god_domain.ignore_dirs),
+            ],
+        },
     }
 }
 

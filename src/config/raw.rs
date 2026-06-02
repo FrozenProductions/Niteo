@@ -6,8 +6,9 @@ use super::rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
     FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
     MaxFunctionParamsRuleConfig, MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig,
-    NoAbbreviationsRuleConfig, NoAnyRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig,
-    NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
+    NoAbbreviationsRuleConfig, NoAnemicDomainRuleConfig, NoAnyRuleConfig, NoConsoleRuleConfig,
+    NoDefaultExportRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
+    NoEmptyDirectoriesRuleConfig, NoEmptyDomainRuleConfig, NoGodDomainRuleConfig,
     NoInterfaceRuleConfig, NoMagicNumbersRuleConfig, NoNestedFunctionsRuleConfig,
     NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig, RuleConfig, Severity,
     UpwardImportRuleConfig,
@@ -201,6 +202,9 @@ declare_raw_rules! {
         no_orphan_files => ("no-orphan-files", to_no_orphan_files_config, NoOrphanFilesRuleConfig),
         no_restricted_imports => ("no-restricted-imports", to_no_restricted_imports_config, NoRestrictedImportsRuleConfig),
         no_upward_import => ("no-upward-import", to_upward_import_config, UpwardImportRuleConfig),
+        no_empty_domain => ("no-empty-domain", to_no_empty_domain_config, NoEmptyDomainRuleConfig),
+        no_anemic_domain => ("no-anemic-domain", to_no_anemic_domain_config, NoAnemicDomainRuleConfig),
+        no_god_domain => ("no-god-domain", to_no_god_domain_config, NoGodDomainRuleConfig),
     }
 }
 
@@ -468,6 +472,20 @@ impl RawRuleConfig {
         to_upward_import_config => (UpwardImportRuleConfig) {
             max_depth: default(0)
             ;
+        },
+        to_no_empty_domain_config => (NoEmptyDomainRuleConfig) {
+            ;
+            ignore_dirs: clone_default
+        },
+        to_no_anemic_domain_config => (NoAnemicDomainRuleConfig) {
+            max_files: default(1)
+            ;
+            ignore_dirs: clone_default
+        },
+        to_no_god_domain_config => (NoGodDomainRuleConfig) {
+            max_files: default(20)
+            ;
+            ignore_dirs: clone_default
         }
     }
 }
@@ -515,6 +533,8 @@ pub struct RawRuleOptions {
     pub restricted: Option<Vec<String>>,
     #[serde(rename = "allowed-numbers")]
     pub allowed_numbers: Option<Vec<String>>,
+    #[serde(rename = "max-files")]
+    pub max_files: Option<usize>,
 }
 
 impl RawRuleOptions {
@@ -571,6 +591,7 @@ impl RawRuleOptions {
                 .allowed_numbers
                 .clone()
                 .or_else(|| parent.allowed_numbers.clone()),
+            max_files: child.max_files.or(parent.max_files),
         }
     }
 }

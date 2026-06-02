@@ -79,6 +79,9 @@ define_rule_kinds! {
     NoAbbreviations,
     NoAny,
     NoTypeAssertion,
+    NoEmptyDomain,
+    NoAnemicDomain,
+    NoGodDomain,
 }
 
 pub(crate) const SEVERITY_OPTION: RuleOption = RuleOption {
@@ -1102,6 +1105,80 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::NoTypeAssertion,
+    },
+    RuleDocumentation {
+        name: "no-empty-domain",
+        intent: "Domain folders must contain real source files, not only barrel files that re-export.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "src/auth/ containing only index.ts with re-exports",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "Add implementation files to the domain or remove the folder.",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "ignore-dirs",
+                description: "Directory names to skip.",
+            },
+        ],
+        kind: RuleKind::NoEmptyDomain,
+    },
+    RuleDocumentation {
+        name: "no-anemic-domain",
+        intent: "Domain folders with too few files add navigation cost without meaningful structure.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "src/features/search/ with only one source file",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "Flatten the file into a parent or sibling directory.",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "max-files",
+                description: "Maximum number of files below the threshold. Default is 1.",
+            },
+            RuleOption {
+                name: "ignore-dirs",
+                description: "Directory names to skip.",
+            },
+        ],
+        kind: RuleKind::NoAnemicDomain,
+    },
+    RuleDocumentation {
+        name: "no-god-domain",
+        intent: "Domain folders with too many files should be split into sub-domains for clarity.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "src/components/ with more files than max-files",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "Group related files into narrower child directories.",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "max-files",
+                description: "Maximum number of files allowed. Default is 20.",
+            },
+            RuleOption {
+                name: "ignore-dirs",
+                description: "Directory names to skip.",
+            },
+        ],
+        kind: RuleKind::NoGodDomain,
     },
 ];
 

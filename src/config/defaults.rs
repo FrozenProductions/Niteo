@@ -204,4 +204,18 @@ max-depth = 2
 [rules.no-orphan-files]
 severity = "warn"
 entry-files = ["main", "app", "layout", "page"]
+
+[rules.no-empty-domain]
+severity = "warn"
+ignore-dirs = []
+
+[rules.no-anemic-domain]
+severity = "warn"
+max-files = 1
+ignore-dirs = []
+
+[rules.no-god-domain]
+severity = "warn"
+max-files = 20
+ignore-dirs = []
 "#;

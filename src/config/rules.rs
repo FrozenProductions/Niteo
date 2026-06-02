@@ -420,3 +420,52 @@ impl Default for NoMagicNumbersRuleConfig {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct NoEmptyDomainRuleConfig {
+    pub severity: Severity,
+    pub ignore_dirs: Vec<String>,
+}
+
+impl Default for NoEmptyDomainRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            ignore_dirs: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NoAnemicDomainRuleConfig {
+    pub severity: Severity,
+    pub max_files: usize,
+    pub ignore_dirs: Vec<String>,
+}
+
+impl Default for NoAnemicDomainRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            max_files: 1,
+            ignore_dirs: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NoGodDomainRuleConfig {
+    pub severity: Severity,
+    pub max_files: usize,
+    pub ignore_dirs: Vec<String>,
+}
+
+impl Default for NoGodDomainRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            max_files: 20,
+            ignore_dirs: vec![],
+        }
+    }
+}

@@ -80,6 +80,9 @@ declare_rules! {
     no_dump_files => { id: NO_DUMP_FILES_RULE_ID, value: "no-dump-files", config: crate::config::NoDumpFilesRuleConfig },
     no_duplicate_file_names => { id: NO_DUPLICATE_FILE_NAMES_RULE_ID, value: "no-duplicate-file-names", config: crate::config::NoDuplicateFileNamesRuleConfig },
     no_empty_directories => { id: NO_EMPTY_DIRECTORIES_RULE_ID, value: "no-empty-directories", config: crate::config::NoEmptyDirectoriesRuleConfig },
+    no_empty_domain => { id: NO_EMPTY_DOMAIN_RULE_ID, value: "no-empty-domain", config: crate::config::NoEmptyDomainRuleConfig },
+    no_anemic_domain => { id: NO_ANEMIC_DOMAIN_RULE_ID, value: "no-anemic-domain", config: crate::config::NoAnemicDomainRuleConfig },
+    no_god_domain => { id: NO_GOD_DOMAIN_RULE_ID, value: "no-god-domain", config: crate::config::NoGodDomainRuleConfig },
     no_empty_interface => { id: NO_EMPTY_INTERFACE_RULE_ID, value: "no-empty-interface", config: crate::config::RuleConfig, default_severity: Severity::Error },
     no_enums => { id: NO_ENUMS_RULE_ID, value: "no-enums", config: crate::config::RuleConfig },
     no_eval => { id: NO_EVAL_RULE_ID, value: "no-eval", config: crate::config::RuleConfig },
@@ -949,6 +952,42 @@ pub fn check_max_directory_depth(
     }
 
     max_directory_depth::check_directories(root, &config, exclude_dirs)
+}
+
+pub fn check_no_empty_domain(
+    root: &Path,
+    config: crate::config::NoEmptyDomainRuleConfig,
+    exclude_dirs: &[PathBuf],
+) -> Vec<Violation> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    no_empty_domain::check_directories(root, &config, exclude_dirs)
+}
+
+pub fn check_no_anemic_domain(
+    root: &Path,
+    config: crate::config::NoAnemicDomainRuleConfig,
+    exclude_dirs: &[PathBuf],
+) -> Vec<Violation> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    no_anemic_domain::check_directories(root, &config, exclude_dirs)
+}
+
+pub fn check_no_god_domain(
+    root: &Path,
+    config: crate::config::NoGodDomainRuleConfig,
+    exclude_dirs: &[PathBuf],
+) -> Vec<Violation> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    no_god_domain::check_directories(root, &config, exclude_dirs)
 }
 
 pub fn check_dump_files(
