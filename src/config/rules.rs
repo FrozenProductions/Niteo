@@ -405,3 +405,18 @@ impl Default for NoOrphanFilesRuleConfig {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct NoMagicNumbersRuleConfig {
+    pub severity: Severity,
+    pub allowed_numbers: Vec<String>,
+}
+
+impl Default for NoMagicNumbersRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            allowed_numbers: vec![],
+        }
+    }
+}

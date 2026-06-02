@@ -56,6 +56,7 @@ niteo explain no-console --format json
 | `no-orphan-files` | `warn` | Detect files not imported by any other file in the project. | `entry-files` |
 | `no-namespace` | `warn` | Prefer ES modules over TypeScript namespaces. | `severity` |
 | `no-non-null-assertion` | `warn` | Disallow the non-null assertion operator. | `severity` |
+| `no-magic-numbers` | `warn` | Disallow numeric literals outside constants. | `allowed-numbers` |
 | `no-process-env` | `warn` | Prevent direct access to `process.env`. | `severity` |
 | `no-restricted-imports` | `warn` | Block imports from a configurable deny-list of packages or paths. | `restricted` |
 | `no-silent-catch` | `warn` | Require catch blocks to log, rethrow, or return a fallback. | `severity` |

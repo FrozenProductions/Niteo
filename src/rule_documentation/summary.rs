@@ -251,6 +251,13 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
         },
         RuleKind::ExplicitReturnType => simple_summary(config.rules.explicit_return_type.severity),
         RuleKind::NoNonNullAssertion => simple_summary(config.rules.no_non_null_assertion.severity),
+        RuleKind::NoMagicNumbers => RuleConfigSummary {
+            severity: config.rules.no_magic_numbers.severity,
+            options: vec![format!(
+                "allowed-numbers: {:?}",
+                config.rules.no_magic_numbers.allowed_numbers
+            )],
+        },
         RuleKind::NoProcessEnv => simple_summary(config.rules.no_process_env.severity),
         RuleKind::NoAbbreviations => RuleConfigSummary {
             severity: config.rules.no_abbreviations.severity,

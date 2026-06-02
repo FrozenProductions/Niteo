@@ -74,6 +74,7 @@ define_rule_kinds! {
     EntryFileNoLogic,
     ExplicitReturnType,
     NoNonNullAssertion,
+    NoMagicNumbers,
     NoAbbreviations,
     NoAny,
     NoTypeAssertion,
@@ -1004,6 +1005,28 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         options: NO_OPTIONS,
         kind: RuleKind::NoNonNullAssertion,
+    },
+    RuleDocumentation {
+        name: "no-magic-numbers",
+        intent: "Disallow numeric literals outside constants. Extract numeric literals to named constants for clarity and maintainability.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "setTimeout(callback, 3000);",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "const TIMEOUT_MS = 3000;\nsetTimeout(callback, TIMEOUT_MS);",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "allowed-numbers",
+                description: "List of numeric literals to allow (e.g., [\"0\", \"1\", \"-1\"]).",
+            },
+        ],
+        kind: RuleKind::NoMagicNumbers,
     },
     RuleDocumentation {
         name: "no-process-env",

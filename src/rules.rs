@@ -96,6 +96,7 @@ declare_rules! {
     no_namespace => { id: NO_NAMESPACE_RULE_ID, value: "no-namespace", config: crate::config::RuleConfig },
     no_nested_functions => { id: NO_NESTED_FUNCTIONS_RULE_ID, value: "no-nested-functions", config: crate::config::NoNestedFunctionsRuleConfig },
     no_non_null_assertion => { id: NO_NON_NULL_ASSERTION_RULE_ID, value: "no-non-null-assertion", config: crate::config::RuleConfig },
+    no_magic_numbers => { id: NO_MAGIC_NUMBERS_RULE_ID, value: "no-magic-numbers", config: crate::config::NoMagicNumbersRuleConfig },
     no_orphan_files => { id: NO_ORPHAN_FILES_RULE_ID, value: "no-orphan-files", config: crate::config::NoOrphanFilesRuleConfig },
     no_type_assertion => { id: NO_TYPE_ASSERTION_RULE_ID, value: "no-type-assertion", config: crate::config::RuleConfig },
     no_process_env => { id: NO_PROCESS_ENV_RULE_ID, value: "no-process-env", config: crate::config::RuleConfig },
@@ -315,6 +316,12 @@ ast_rule_adapter!(
     NO_NON_NULL_ASSERTION_RULE_ID,
     crate::config::RuleConfig,
     no_non_null_assertion
+);
+ast_rule_adapter!(
+    NoMagicNumbersAdapter,
+    NO_MAGIC_NUMBERS_RULE_ID,
+    crate::config::NoMagicNumbersRuleConfig,
+    no_magic_numbers
 );
 ast_rule_adapter!(
     NoTypeAssertionAdapter,
@@ -677,6 +684,9 @@ fn build_file_rules(
         }),
         Box::new(NoNonNullAssertionAdapter {
             config: config.no_non_null_assertion.clone(),
+        }),
+        Box::new(NoMagicNumbersAdapter {
+            config: config.no_magic_numbers.clone(),
         }),
         Box::new(NoTypeAssertionAdapter {
             config: config.no_type_assertion.clone(),

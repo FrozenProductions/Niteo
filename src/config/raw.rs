@@ -8,8 +8,9 @@ use super::rules::{
     MaxFunctionParamsRuleConfig, MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig,
     NoAbbreviationsRuleConfig, NoAnyRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig,
     NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
-    NoInterfaceRuleConfig, NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig,
-    NoRestrictedImportsRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
+    NoInterfaceRuleConfig, NoMagicNumbersRuleConfig, NoNestedFunctionsRuleConfig,
+    NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig, RuleConfig, Severity,
+    UpwardImportRuleConfig,
 };
 use super::structure::{DomainConfig, ProjectStructureConfig};
 use crate::rules::RulesConfig;
@@ -194,6 +195,7 @@ declare_raw_rules! {
         no_empty_directories => ("no-empty-directories", to_no_empty_directories_config, NoEmptyDirectoriesRuleConfig),
         no_interface => ("no-interface", to_no_interface_config, NoInterfaceRuleConfig),
         no_large_file => ("no-large-file", to_file_length_config, FileLengthRuleConfig),
+        no_magic_numbers => ("no-magic-numbers", to_no_magic_numbers_config, NoMagicNumbersRuleConfig),
         no_nested_functions => ("no-nested-functions", to_no_nested_functions_config, NoNestedFunctionsRuleConfig),
         no_orphan_files => ("no-orphan-files", to_no_orphan_files_config, NoOrphanFilesRuleConfig),
         no_restricted_imports => ("no-restricted-imports", to_no_restricted_imports_config, NoRestrictedImportsRuleConfig),
@@ -458,6 +460,10 @@ impl RawRuleConfig {
             ;
             restricted: clone_default
         },
+        to_no_magic_numbers_config => (NoMagicNumbersRuleConfig) {
+            ;
+            allowed_numbers: clone_default
+        },
         to_upward_import_config => (UpwardImportRuleConfig) {
             max_depth: default(0)
             ;
@@ -506,6 +512,8 @@ pub struct RawRuleOptions {
     #[serde(rename = "extra-abbreviations")]
     pub extra_abbreviations: Option<Vec<String>>,
     pub restricted: Option<Vec<String>>,
+    #[serde(rename = "allowed-numbers")]
+    pub allowed_numbers: Option<Vec<String>>,
 }
 
 impl RawRuleOptions {
@@ -558,6 +566,10 @@ impl RawRuleOptions {
                 .restricted
                 .clone()
                 .or_else(|| parent.restricted.clone()),
+            allowed_numbers: child
+                .allowed_numbers
+                .clone()
+                .or_else(|| parent.allowed_numbers.clone()),
         }
     }
 }
