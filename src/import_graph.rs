@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 
@@ -97,7 +98,10 @@ impl ImportGraph {
     }
 }
 
-pub fn build_import_graph(files: &[PathBuf], is_test_file: impl Fn(&Path) -> bool) -> ImportGraph {
+pub fn build_import_graph(
+    files: &[PathBuf],
+    is_test_file: impl Fn(&Path) -> bool,
+) -> Result<ImportGraph> {
     let mut graph = ImportGraph::new();
 
     for file in files {
@@ -107,13 +111,13 @@ pub fn build_import_graph(files: &[PathBuf], is_test_file: impl Fn(&Path) -> boo
     }
 
     for file in files {
-        if let Ok(source) = std::fs::read_to_string(file) {
-            let edges = extract_imports(file, &source, files);
-            graph.edges.extend(edges);
-        }
+        let source = std::fs::read_to_string(file)
+            .with_context(|| format!("failed to read {}", file.display()))?;
+        let edges = extract_imports(file, &source, files);
+        graph.edges.extend(edges);
     }
 
-    graph
+    Ok(graph)
 }
 
 #[cfg(test)]

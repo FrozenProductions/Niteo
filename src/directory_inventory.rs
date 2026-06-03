@@ -414,7 +414,11 @@ mod tests {
     }
 
     fn cleanup_temp_dir(dir: &Path) {
-        let _ = fs::remove_dir_all(dir);
+        match fs::remove_dir_all(dir) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => panic!("failed to remove {}: {error}", dir.display()),
+        }
     }
 
     #[test]

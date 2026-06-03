@@ -8,7 +8,8 @@ use super::resolve::ProjectConfig;
 
 #[derive(Debug)]
 pub struct ConfigSet {
-    nodes: Vec<ResolvedConfigNode>,
+    root: ResolvedConfigNode,
+    children: Vec<ResolvedConfigNode>,
 }
 
 #[derive(Debug)]
@@ -51,14 +52,14 @@ impl ConfigSet {
 
         let child_configs = discover_child_configs(scan_root, &project_root, workspace)?;
 
-        let mut nodes = Vec::new();
-        nodes.push(ResolvedConfigNode {
+        let root_node = ResolvedConfigNode {
             config_path: workspace_config_path(workspace),
             directory: project_root.clone(),
             config: root_config,
             parent_index: None,
-        });
+        };
 
+        let mut children = Vec::new();
         for (config_path, config_dir) in child_configs {
             let source = fs::read_to_string(&config_path)
                 .with_context(|| format!("failed to read {}", config_path.display()))?;
@@ -68,9 +69,9 @@ impl ConfigSet {
             let merged_raw = RawConfig::merge(&root_raw, &child_raw);
             let merged_config = raw_to_project_config(&merged_raw, project_root.clone());
 
-            let parent_index = find_parent_node(&nodes, &config_dir);
+            let parent_index = find_parent_node(&root_node, &children, &config_dir);
 
-            nodes.push(ResolvedConfigNode {
+            children.push(ResolvedConfigNode {
                 config_path: Some(config_path),
                 directory: config_dir,
                 config: merged_config,
@@ -78,43 +79,43 @@ impl ConfigSet {
             });
         }
 
-        Ok(ConfigSet { nodes })
+        Ok(ConfigSet {
+            root: root_node,
+            children,
+        })
     }
 
     pub fn root(&self) -> &ProjectConfig {
-        self.nodes
-            .first()
-            .map(|node| &node.config)
-            .expect("ConfigSet always has a root node")
+        &self.root.config
     }
 
-    // Walk the config tree: deepest ancestor directory wins (cascading per-scope config)
     pub fn config_for_file(&self, file: &Path) -> &ProjectConfig {
-        let mut best_match: Option<&ResolvedConfigNode> = None;
-        let mut best_depth = 0;
+        let mut best_match = &self.root;
+        let mut best_depth = if file.starts_with(&self.root.directory) {
+            self.root.directory.components().count()
+        } else {
+            0
+        };
 
-        for node in &self.nodes {
+        for node in &self.children {
             if file.starts_with(&node.directory) {
                 let depth = node.directory.components().count();
                 if depth > best_depth {
                     best_depth = depth;
-                    best_match = Some(node);
+                    best_match = node;
                 }
             }
         }
 
-        best_match
-            .map(|node| &node.config)
-            .or_else(|| self.nodes.first().map(|node| &node.config))
-            .expect("ConfigSet has no nodes")
+        &best_match.config
     }
 
     pub fn configs(&self) -> impl Iterator<Item = &ResolvedConfigNode> {
-        self.nodes.iter()
+        std::iter::once(&self.root).chain(self.children.iter())
     }
 
     pub fn child_directories(&self, parent_index: usize) -> Vec<PathBuf> {
-        self.nodes
+        self.children
             .iter()
             .filter(|node| node.parent_index == Some(parent_index))
             .map(|node| node.directory.clone())
@@ -198,16 +199,26 @@ fn discover_child_configs(
     Ok(configs)
 }
 
-fn find_parent_node(nodes: &[ResolvedConfigNode], dir: &Path) -> Option<usize> {
+fn find_parent_node(
+    root: &ResolvedConfigNode,
+    children: &[ResolvedConfigNode],
+    dir: &Path,
+) -> Option<usize> {
     let mut best_index = None;
     let mut best_depth = 0;
 
-    for (i, node) in nodes.iter().enumerate() {
+    if dir.starts_with(&root.directory) {
+        best_depth = root.directory.components().count();
+        best_index = Some(0);
+    }
+
+    for (i, node) in children.iter().enumerate() {
+        let child_index = i + 1;
         if dir.starts_with(&node.directory) {
             let depth = node.directory.components().count();
             if depth > best_depth {
                 best_depth = depth;
-                best_index = Some(i);
+                best_index = Some(child_index);
             }
         }
     }
@@ -222,6 +233,14 @@ mod tests {
     use crate::config::structure::ProjectStructureConfig;
     use crate::rules::RulesConfig;
     use std::fs;
+
+    fn remove_dir_if_exists(path: &Path) {
+        match fs::remove_dir_all(path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => panic!("failed to remove {}: {error}", path.display()),
+        }
+    }
 
     #[test]
     fn config_for_file_selects_deepest_match() {
@@ -239,22 +258,21 @@ mod tests {
             rules: RulesConfig::default(),
         };
 
-        let nodes = vec![
-            ResolvedConfigNode {
-                config_path: None,
-                directory: PathBuf::from("/project/src"),
-                config: root_config,
-                parent_index: None,
-            },
-            ResolvedConfigNode {
-                config_path: Some(PathBuf::from("/project/src/admin/niteo.toml")),
-                directory: PathBuf::from("/project/src/admin"),
-                config: child_config,
-                parent_index: Some(0),
-            },
-        ];
+        let root = ResolvedConfigNode {
+            config_path: None,
+            directory: PathBuf::from("/project/src"),
+            config: root_config,
+            parent_index: None,
+        };
 
-        let config_set = ConfigSet { nodes };
+        let children = vec![ResolvedConfigNode {
+            config_path: Some(PathBuf::from("/project/src/admin/niteo.toml")),
+            directory: PathBuf::from("/project/src/admin"),
+            config: child_config,
+            parent_index: Some(0),
+        }];
+
+        let config_set = ConfigSet { root, children };
 
         let file_in_admin = Path::new("/project/src/admin/page.ts");
         let file_in_src = Path::new("/project/src/utils/format.ts");
@@ -278,13 +296,14 @@ mod tests {
             rules: RulesConfig::default(),
         };
 
-        let nodes = vec![
-            ResolvedConfigNode {
-                config_path: None,
-                directory: PathBuf::from("/project"),
-                config: make_config(),
-                parent_index: None,
-            },
+        let root = ResolvedConfigNode {
+            config_path: None,
+            directory: PathBuf::from("/project"),
+            config: make_config(),
+            parent_index: None,
+        };
+
+        let children = vec![
             ResolvedConfigNode {
                 config_path: Some(PathBuf::from("/project/a/niteo.toml")),
                 directory: PathBuf::from("/project/a"),
@@ -305,7 +324,7 @@ mod tests {
             },
         ];
 
-        let config_set = ConfigSet { nodes };
+        let config_set = ConfigSet { root, children };
 
         let children_of_root = config_set.child_directories(0);
         assert_eq!(children_of_root.len(), 2);
@@ -320,7 +339,7 @@ mod tests {
     #[test]
     fn discover_child_configs_finds_nested_toml() {
         let tmp = std::env::temp_dir().join("niteo_test_discover");
-        let _ = fs::remove_dir_all(&tmp);
+        remove_dir_if_exists(&tmp);
         fs::create_dir_all(tmp.join("packages/admin")).unwrap();
         fs::create_dir_all(tmp.join("packages/web")).unwrap();
 
@@ -346,13 +365,13 @@ mod tests {
         assert!(dirs.contains(&tmp.join("packages/admin").as_path()));
         assert!(dirs.contains(&tmp.join("packages/web").as_path()));
 
-        let _ = fs::remove_dir_all(&tmp);
+        remove_dir_if_exists(&tmp);
     }
 
     #[test]
     fn discover_child_configs_excludes_root_config() {
         let tmp = std::env::temp_dir().join("niteo_test_discover_root");
-        let _ = fs::remove_dir_all(&tmp);
+        remove_dir_if_exists(&tmp);
         fs::create_dir_all(&tmp).unwrap();
 
         fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
@@ -360,7 +379,7 @@ mod tests {
         let configs = discover_child_configs(&tmp, &tmp, &tmp).unwrap();
         assert_eq!(configs.len(), 0);
 
-        let _ = fs::remove_dir_all(&tmp);
+        remove_dir_if_exists(&tmp);
     }
 
     #[test]
@@ -372,14 +391,17 @@ mod tests {
             rules: RulesConfig::default(),
         };
 
-        let nodes = vec![ResolvedConfigNode {
+        let root = ResolvedConfigNode {
             config_path: None,
             directory: PathBuf::from("/project"),
             config: root_config,
             parent_index: None,
-        }];
+        };
 
-        let config_set = ConfigSet { nodes };
+        let config_set = ConfigSet {
+            root,
+            children: vec![],
+        };
 
         let file_outside = Path::new("/other/file.ts");
         assert_eq!(

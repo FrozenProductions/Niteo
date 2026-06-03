@@ -267,7 +267,7 @@ fn show_stats(
     let scan_scope = scope_override.map(|scope| resolve_path(&project_config.root, scope));
 
     let files = if git_flag {
-        resolve_changed_files(workspace)
+        resolve_changed_files(workspace)?
     } else {
         discovery::discover_files(
             &project_config.root,
@@ -277,7 +277,7 @@ fn show_stats(
     };
 
     let tests_config = project_config.structure.tests.clone();
-    let graph = import_graph::build_import_graph(&files, |file| tests_config.matches_file(file));
+    let graph = import_graph::build_import_graph(&files, |file| tests_config.matches_file(file))?;
 
     let rendered = match output_format {
         OutputFormat::Text => render_stats_text(&graph),
@@ -377,7 +377,7 @@ fn show_graph(
     let scan_scope = scope_override.map(|scope| resolve_path(&project_config.root, scope));
 
     let files = if git_flag {
-        resolve_changed_files(workspace)
+        resolve_changed_files(workspace)?
     } else {
         discovery::discover_files(
             &project_config.root,
@@ -387,7 +387,7 @@ fn show_graph(
     };
 
     let tests_config = project_config.structure.tests.clone();
-    let graph = import_graph::build_import_graph(&files, |file| tests_config.matches_file(file));
+    let graph = import_graph::build_import_graph(&files, |file| tests_config.matches_file(file))?;
 
     let rendered = match output_format {
         OutputFormat::Text => graph.format_dot(),
@@ -532,14 +532,14 @@ fn collect_violations(
     let scan_root = scan_scope.as_deref().unwrap_or(&project_root);
 
     let files = if git_flag {
-        resolve_changed_files(workspace)
+        resolve_changed_files(workspace)?
     } else {
-        let changed_files = git::get_changed_typescript_files();
+        let changed_files = git::get_changed_typescript_files()?;
         if prompt_for_changed_files
             && !changed_files.is_empty()
-            && git::prompt_scan_changed_files(&changed_files)
+            && git::prompt_scan_changed_files(&changed_files)?
         {
-            resolve_changed_files(workspace)
+            resolve_changed_files(workspace)?
         } else {
             discovery::discover_files(
                 &project_root,
@@ -555,7 +555,7 @@ fn collect_violations(
             .structure
             .tests
             .matches_file(file)
-    });
+    })?;
 
     let (file_violations, suppression_report) = rules::check_files(&files, &config_set, &graph)?;
 
@@ -615,18 +615,20 @@ fn write_report(
     Ok(())
 }
 
-fn resolve_changed_files(workspace: &Path) -> Vec<PathBuf> {
-    git::get_changed_typescript_files()
-        .into_iter()
-        .map(|f: PathBuf| {
-            if f.is_absolute() {
-                f
-            } else {
-                workspace.join(f)
-            }
-        })
-        .filter(|f: &PathBuf| f.exists())
-        .collect()
+fn resolve_changed_files(workspace: &Path) -> Result<Vec<PathBuf>> {
+    git::get_changed_typescript_files().map(|files| {
+        files
+            .into_iter()
+            .map(|f: PathBuf| {
+                if f.is_absolute() {
+                    f
+                } else {
+                    workspace.join(f)
+                }
+            })
+            .filter(|f: &PathBuf| f.exists())
+            .collect()
+    })
 }
 
 fn resolve_path(workspace: &Path, path: PathBuf) -> PathBuf {

@@ -20,13 +20,16 @@ impl CircularImportContext {
         let mut cycles_by_file = HashMap::new();
 
         for scc in sccs {
+            let Some(first) = scc.first() else {
+                continue;
+            };
+
             let is_cyclic = if scc.len() > 1 {
                 true
             } else {
-                let node = &scc[0];
                 adjacency
-                    .get(node)
-                    .is_some_and(|neighbors| neighbors.contains(node))
+                    .get(first)
+                    .is_some_and(|neighbors| neighbors.contains(first))
             };
 
             if !is_cyclic {
@@ -35,7 +38,9 @@ impl CircularImportContext {
 
             let mut sorted_scc = scc;
             sorted_scc.sort();
-            let canonical = sorted_scc[0].clone();
+            let Some(canonical) = sorted_scc.first().cloned() else {
+                continue;
+            };
 
             let cycle = reconstruct_cycle(&canonical, &sorted_scc, &adjacency);
             cycles_by_file.insert(canonical, cycle);
@@ -57,7 +62,9 @@ pub fn check_file(
     };
 
     let cycle_display = format_cycle(cycle);
-    let target = &cycle[1];
+    let Some(target) = cycle.get(1) else {
+        return Vec::new();
+    };
 
     let mut violations = Vec::new();
     for edge in import_graph.edges_from(file) {
