@@ -148,8 +148,7 @@ jobs:
       - name: Assemble npm packages
         run: node scripts/build-npm-packages.js
 
-      - name: Check npm versions
-        id: npm-check
+      - name: Publish platform packages
         shell: bash
         run: |
           set -euo pipefail
@@ -157,38 +156,29 @@ jobs:
           
           for pkg in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
             if npm view "@niteo/cli-$pkg@$VERSION" version >/dev/null 2>&1; then
-              echo "Platform package @niteo/cli-$pkg@$VERSION already exists"
+              echo "Skipping @niteo/cli-$pkg@$VERSION (already published)"
             else
-              echo "publish-$pkg=true" >> "$GITHUB_OUTPUT"
-            fi
-          done
-          
-          if npm view "${{ needs.detect-version.outputs.package-name }}@$VERSION" version >/dev/null 2>&1; then
-            echo "publish-root=false" >> "$GITHUB_OUTPUT"
-            echo "Root package ${{ needs.detect-version.outputs.package-name }}@$VERSION already exists"
-          else
-            echo "publish-root=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish platform packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          for pkg in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
-            if [ "${{ steps.npm-check.outputs.publish-$pkg }}" = "true" ]; then
-              echo "Publishing @niteo/cli-$pkg..."
+              echo "Publishing @niteo/cli-$pkg@$VERSION..."
               cd npm/@niteo/cli-$pkg
               npm publish --provenance --access public
               cd ../..
-            else
-              echo "Skipping @niteo/cli-$pkg (already published)"
             fi
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish root package
-        if: steps.npm-check.outputs.publish-root == 'true'
-        run: npm publish --provenance --access public
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.detect-version.outputs.version }}"
+          PACKAGE_NAME="${{ needs.detect-version.outputs.package-name }}"
+          
+          if npm view "$PACKAGE_NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "Skipping $PACKAGE_NAME@$VERSION (already published)"
+          else
+            echo "Publishing $PACKAGE_NAME@$VERSION..."
+            npm publish --provenance --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
