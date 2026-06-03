@@ -15,7 +15,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/FrozenProductions/Niteo"
+    "url": "git+https://github.com/FrozenProductions/Niteo.git"
   },
   "private": false,
   "bin": {

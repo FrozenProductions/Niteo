@@ -124,7 +124,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
 
       - name: Download all binary artifacts
@@ -165,7 +165,5 @@ jobs:
             echo "Skipping $PACKAGE_NAME@$VERSION (already published)"
           else
             echo "Publishing $PACKAGE_NAME@$VERSION..."
-            npm publish --provenance --access public
+            npm publish --access public
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
