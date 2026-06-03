@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ## Unreleased
 
+## 0.2.1 - 2026-06-03
+
+### Added
+
+- Prebuilt platform-specific npm packages for macOS, Linux, and Windows.
+
 ## 0.1.4 - 2026-06-03
 
 ### Added

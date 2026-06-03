@@ -1,6 +1,6 @@
 {
   "name": "niteo-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Standalone Rust CLI for TypeScript structural linting.",
   "keywords": [
     "typescript",
@@ -35,11 +35,11 @@
     "test": "cargo test"
   },
   "optionalDependencies": {
-    "@niteo/cli-darwin-arm64": "0.2.0",
-    "@niteo/cli-darwin-x64": "0.2.0",
-    "@niteo/cli-linux-x64": "0.2.0",
-    "@niteo/cli-linux-arm64": "0.2.0",
-    "@niteo/cli-win32-x64": "0.2.0"
+    "@niteo/cli-darwin-arm64": "0.2.1",
+    "@niteo/cli-darwin-x64": "0.2.1",
+    "@niteo/cli-linux-x64": "0.2.1",
+    "@niteo/cli-linux-arm64": "0.2.1",
+    "@niteo/cli-win32-x64": "0.2.1"
   },
   "engines": {
     "node": ">=18"
