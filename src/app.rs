@@ -95,6 +95,7 @@ pub fn run() -> Result<ExitCode> {
                 output_path: cli.options.output,
                 baseline_path: cli.options.baseline,
                 report_suppressions: cli.options.report_suppressions,
+                fail_on: cli.options.fail_on,
             };
 
             if cli.options.watch {
@@ -459,6 +460,7 @@ struct LintOptions {
     output_path: Option<PathBuf>,
     baseline_path: PathBuf,
     report_suppressions: bool,
+    fail_on: crate::cli::FailOn,
 }
 
 fn lint_workspace(
@@ -487,7 +489,12 @@ fn lint_workspace(
     if opts.report_suppressions {
         report = report.with_suppression_report(collected.suppression_report);
     }
-    let has_violations = report.has_violations();
+    let threshold = match opts.fail_on {
+        crate::cli::FailOn::Error => report::FailureThreshold::Error,
+        crate::cli::FailOn::Warn => report::FailureThreshold::Warn,
+        crate::cli::FailOn::Any => report::FailureThreshold::Any,
+    };
+    let has_violations = report.has_findings_at_or_above(threshold);
     let rendered_report = match opts.output_format {
         OutputFormat::Text => report.render_text(opts.verbose),
         OutputFormat::Json => report.render_json()?,

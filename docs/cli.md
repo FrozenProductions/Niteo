@@ -23,6 +23,7 @@ These options are accepted by every command.
 | `--baseline <path>` | | Baseline file path. Defaults to `niteo-baseline.json`. |
 | `--report-suppressions` | | Include suppression counts and stale ignore directives. |
 | `--watch` | | Re-run lint on file changes. |
+| `--fail-on <threshold>` | | Minimum severity that causes lint to fail. Supported values: `error`, `warn`, `any`. Defaults to `any`. |
 
 Not every command supports every output format. `rules`, `explain`, `stats`, and `graph` support `text` and `json`; they reject `sarif`. `lint` supports `text`, `json`, and `sarif`.
 
@@ -39,7 +40,9 @@ niteo lint --format json --output niteo-report.json
 niteo lint --format sarif --output niteo.sarif
 ```
 
-`lint` reads `niteo.toml`, discovers `.ts` and `.tsx` files, applies enabled rules, applies ignore directives, filters known baseline violations, renders a report, and exits with a non-zero status if new violations remain.
+`lint` reads `niteo.toml`, discovers `.ts` and `.tsx` files, applies enabled rules, applies ignore directives, filters known baseline violations, renders a report, and exits with a non-zero status if new violations meet the failure threshold.
+
+Use `--fail-on error` to surface warnings without blocking CI. Use `--fail-on any` for strict mode.
 
 When `--git` is not passed and changed TypeScript files are detected, Niteo prompts:
 

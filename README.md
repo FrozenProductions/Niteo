@@ -92,6 +92,7 @@ niteo lint --format json --output report.json
 niteo lint --format sarif --output report.sarif
 niteo lint --watch
 niteo lint --git
+niteo lint --fail-on error
 niteo stats
 niteo graph
 ```

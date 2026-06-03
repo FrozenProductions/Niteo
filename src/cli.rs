@@ -52,6 +52,10 @@ pub struct CliOptions {
     /// Re-run lint on file changes.
     #[arg(long, global = true)]
     pub watch: bool,
+
+    /// Minimum severity that causes lint to fail.
+    #[arg(long, global = true, value_enum, default_value_t = FailOn::Any)]
+    pub fail_on: FailOn,
 }
 
 #[derive(Debug, Subcommand)]
@@ -81,6 +85,13 @@ pub enum BaselineCommand {
     Create,
     /// Remove stale entries from the baseline file.
     Prune,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum FailOn {
+    Error,
+    Warn,
+    Any,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

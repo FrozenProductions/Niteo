@@ -8,7 +8,23 @@ Use Niteo in CI to prevent new structural issues from being introduced.
 npx niteo-cli lint
 ```
 
-`niteo lint` exits with a non-zero status when it reports unsuppressed, non-baselined violations.
+`niteo lint` exits with a non-zero status when it reports unsuppressed, non-baselined violations that meet the configured failure threshold.
+
+## Exit Thresholds
+
+By default, `niteo lint` fails on any unsuppressed, non-baselined violation (`info`, `warn`, or `error`).
+
+Use `--fail-on` to adjust the exit threshold:
+
+```sh
+npx niteo-cli lint --fail-on error
+```
+
+- `--fail-on error`: Fails only on `error` findings. Useful for surfacing warnings without blocking merges.
+- `--fail-on warn`: Fails on `warn` and `error` findings.
+- `--fail-on any`: Fails on `info`, `warn`, and `error` findings (default, strict mode).
+
+The report will still display all findings regardless of the threshold.
 
 ## Existing Projects
 

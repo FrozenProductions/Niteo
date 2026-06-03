@@ -6,6 +6,12 @@ use crate::config::Severity;
 use crate::ignore::SuppressionReport;
 use crate::rules::Violation;
 
+pub enum FailureThreshold {
+    Error,
+    Warn,
+    Any,
+}
+
 const RED: &str = "\x1b[31m";
 const YELLOW: &str = "\x1b[33m";
 const GREEN: &str = "\x1b[32m";
@@ -39,8 +45,14 @@ impl Report {
         self
     }
 
-    pub fn has_violations(&self) -> bool {
-        !self.violations.is_empty()
+    pub fn has_findings_at_or_above(&self, threshold: FailureThreshold) -> bool {
+        self.violations.iter().any(|violation| match threshold {
+            FailureThreshold::Error => violation.severity == Severity::Error,
+            FailureThreshold::Warn => {
+                matches!(violation.severity, Severity::Warn | Severity::Error)
+            }
+            FailureThreshold::Any => violation.severity.is_enabled(),
+        })
     }
 
     pub fn render_text(&self, verbose: bool) -> String {
@@ -798,4 +810,62 @@ fn suppression_report_json(report: &SuppressionReport) -> Value {
             })
             .collect::<Vec<Value>>(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn make_violation(severity: Severity) -> Violation {
+        Violation {
+            file: PathBuf::from("test.ts"),
+            line: Some(1),
+            column: Some(1),
+            rule: "test-rule",
+            message: "test message",
+            severity,
+            detail: None,
+            subject: None,
+        }
+    }
+
+    #[test]
+    fn test_failure_threshold_error() {
+        let report = Report::new(vec![], vec![make_violation(Severity::Error)]);
+        assert!(report.has_findings_at_or_above(FailureThreshold::Error));
+
+        let report_warn = Report::new(vec![], vec![make_violation(Severity::Warn)]);
+        assert!(!report_warn.has_findings_at_or_above(FailureThreshold::Error));
+
+        let report_info = Report::new(vec![], vec![make_violation(Severity::Info)]);
+        assert!(!report_info.has_findings_at_or_above(FailureThreshold::Error));
+    }
+
+    #[test]
+    fn test_failure_threshold_warn() {
+        let report_error = Report::new(vec![], vec![make_violation(Severity::Error)]);
+        assert!(report_error.has_findings_at_or_above(FailureThreshold::Warn));
+
+        let report_warn = Report::new(vec![], vec![make_violation(Severity::Warn)]);
+        assert!(report_warn.has_findings_at_or_above(FailureThreshold::Warn));
+
+        let report_info = Report::new(vec![], vec![make_violation(Severity::Info)]);
+        assert!(!report_info.has_findings_at_or_above(FailureThreshold::Warn));
+    }
+
+    #[test]
+    fn test_failure_threshold_any() {
+        let report_error = Report::new(vec![], vec![make_violation(Severity::Error)]);
+        assert!(report_error.has_findings_at_or_above(FailureThreshold::Any));
+
+        let report_warn = Report::new(vec![], vec![make_violation(Severity::Warn)]);
+        assert!(report_warn.has_findings_at_or_above(FailureThreshold::Any));
+
+        let report_info = Report::new(vec![], vec![make_violation(Severity::Info)]);
+        assert!(report_info.has_findings_at_or_above(FailureThreshold::Any));
+
+        let report_off = Report::new(vec![], vec![make_violation(Severity::Off)]);
+        assert!(!report_off.has_findings_at_or_above(FailureThreshold::Any));
+    }
 }
