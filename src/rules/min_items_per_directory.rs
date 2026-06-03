@@ -1,113 +1,53 @@
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::config::{MinItemsPerDirectoryRuleConfig, Severity};
+use crate::directory_inventory::{DirectoryInventory, DEFAULT_IGNORED_DIRECTORIES};
 use crate::rules::{MIN_ITEMS_PER_DIRECTORY_RULE_ID, Violation};
 const MESSAGE: &str =
     "Directory has too few source items. Consider merging with a sibling or removing.";
 
-const IGNORED_DIRECTORIES: &[&str] = &[
-    "node_modules",
-    ".git",
-    ".vscode",
-    ".idea",
-    "dist",
-    "build",
-    "out",
-    ".next",
-    ".svelte-kit",
-    "target",
-];
-
-const SOURCE_EXTENSIONS: &[&str] = &["ts", "tsx"];
-
-pub fn check_directories(
-    root: &Path,
+pub fn check_inventory(
+    inventory: &DirectoryInventory,
     config: &MinItemsPerDirectoryRuleConfig,
-    exclude_dirs: &[PathBuf],
 ) -> Vec<Violation> {
     let mut violations = Vec::new();
-    let mut ignored = config.ignore_dirs.clone();
-    ignored.extend(IGNORED_DIRECTORIES.iter().map(|dir| dir.to_string()));
+    let ignored: Vec<&str> = config
+        .ignore_dirs
+        .iter()
+        .map(|s| s.as_str())
+        .chain(DEFAULT_IGNORED_DIRECTORIES.iter().copied())
+        .collect();
 
-    walk_directories(
-        root,
-        &ignored,
-        exclude_dirs,
-        config.min_items,
-        config.count_folders,
-        &mut violations,
-    );
+    for facts in &inventory.directories {
+        let dir_name = facts
+            .path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+        if ignored.contains(&dir_name) {
+            continue;
+        }
 
-    violations
-}
-
-fn walk_directories(
-    current: &Path,
-    ignored: &[String],
-    exclude_dirs: &[PathBuf],
-    min_items: usize,
-    count_folders: bool,
-    violations: &mut Vec<Violation>,
-) {
-    if exclude_dirs.iter().any(|excl| current == excl.as_path()) {
-        return;
-    }
-
-    let entries = match fs::read_dir(current) {
-        Ok(entries) => entries,
-        Err(_) => return,
-    };
-
-    let mut subdirs = Vec::new();
-    let mut item_count = 0;
-
-    for entry in entries {
-        let entry = match entry {
-            Ok(e) => e,
-            Err(_) => continue,
+        let file_count = facts.source_files.len();
+        let folder_count = facts.subdirectories.len();
+        let item_count = if config.count_folders {
+            file_count + folder_count
+        } else {
+            file_count
         };
 
-        let path = entry.path();
-        let name = entry.file_name();
-        let name_str = name.to_string_lossy();
-
-        if path.is_dir() {
-            if ignored.iter().any(|ign| name_str == *ign) {
-                continue;
-            }
-            if exclude_dirs.contains(&path) {
-                continue;
-            }
-            if count_folders {
-                item_count += 1;
-            }
-            subdirs.push(path);
-        } else if is_source_file(&path) {
-            item_count += 1;
+        if item_count > 0 && item_count < config.min_items {
+            violations.push(directory_violation(
+                &facts.path,
+                Severity::Warn,
+                item_count,
+                config.min_items,
+                config.count_folders,
+            ));
         }
     }
 
-    if item_count > 0 && item_count < min_items {
-        violations.push(directory_violation(
-            current,
-            Severity::Warn,
-            item_count,
-            min_items,
-            count_folders,
-        ));
-    }
-
-    for subdir in subdirs {
-        walk_directories(&subdir, ignored, exclude_dirs, min_items, count_folders, violations);
-    }
-}
-
-fn is_source_file(path: &Path) -> bool {
-    matches!(
-        path.extension().and_then(|ext| ext.to_str()),
-        Some(ext) if SOURCE_EXTENSIONS.contains(&ext)
-    )
+    violations
 }
 
 fn directory_violation(
@@ -132,5 +72,3 @@ fn directory_violation(
         subject: None,
     }
 }
-
-

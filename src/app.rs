@@ -570,54 +570,9 @@ fn collect_violations(
         };
         let exclude_dirs = config_set.child_directories(i);
 
-        let mut dir_violations = rules::check_directories(
-            node_root,
-            node.config.rules.no_empty_directories.clone(),
-            &exclude_dirs,
-        );
+        let mut dir_violations =
+            rules::check_directory_rules(node_root, &node.config.rules, &exclude_dirs);
         all_violations.append(&mut dir_violations);
-
-        let mut max_items_violations = rules::check_max_items_per_directory(
-            node_root,
-            node.config.rules.max_items_per_directory.clone(),
-            &exclude_dirs,
-        );
-        all_violations.append(&mut max_items_violations);
-
-        let mut min_items_violations = rules::check_min_items_per_directory(
-            node_root,
-            node.config.rules.min_items_per_directory.clone(),
-            &exclude_dirs,
-        );
-        all_violations.append(&mut min_items_violations);
-
-        let mut depth_violations = rules::check_max_directory_depth(
-            node_root,
-            node.config.rules.max_directory_depth.clone(),
-            &exclude_dirs,
-        );
-        all_violations.append(&mut depth_violations);
-
-        let mut empty_domain_violations = rules::check_no_empty_domain(
-            node_root,
-            node.config.rules.no_empty_domain.clone(),
-            &exclude_dirs,
-        );
-        all_violations.append(&mut empty_domain_violations);
-
-        let mut anemic_domain_violations = rules::check_no_anemic_domain(
-            node_root,
-            node.config.rules.no_anemic_domain.clone(),
-            &exclude_dirs,
-        );
-        all_violations.append(&mut anemic_domain_violations);
-
-        let mut god_domain_violations = rules::check_no_god_domain(
-            node_root,
-            node.config.rules.no_god_domain.clone(),
-            &exclude_dirs,
-        );
-        all_violations.append(&mut god_domain_violations);
     }
 
     let root_config_ref = config_set.root();

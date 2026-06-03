@@ -904,18 +904,6 @@ pub fn check_files(
     ))
 }
 
-pub fn check_directories(
-    root: &Path,
-    no_empty_directories: crate::config::NoEmptyDirectoriesRuleConfig,
-    exclude_dirs: &[PathBuf],
-) -> Vec<Violation> {
-    if !no_empty_directories.severity.is_enabled() {
-        return Vec::new();
-    }
-
-    no_empty_directories::check_directories(root, &no_empty_directories, exclude_dirs)
-}
-
 pub fn check_duplicate_file_names(
     files: &[PathBuf],
     no_duplicate_file_names: crate::config::NoDuplicateFileNamesRuleConfig,
@@ -927,78 +915,6 @@ pub fn check_duplicate_file_names(
     no_duplicate_file_names::check_files(files, &no_duplicate_file_names)
 }
 
-pub fn check_max_items_per_directory(
-    root: &Path,
-    config: crate::config::MaxItemsPerDirectoryRuleConfig,
-    exclude_dirs: &[PathBuf],
-) -> Vec<Violation> {
-    if !config.severity.is_enabled() {
-        return Vec::new();
-    }
-
-    max_items_per_directory::check_directories(root, &config, exclude_dirs)
-}
-
-pub fn check_min_items_per_directory(
-    root: &Path,
-    config: crate::config::MinItemsPerDirectoryRuleConfig,
-    exclude_dirs: &[PathBuf],
-) -> Vec<Violation> {
-    if !config.severity.is_enabled() {
-        return Vec::new();
-    }
-
-    min_items_per_directory::check_directories(root, &config, exclude_dirs)
-}
-
-pub fn check_max_directory_depth(
-    root: &Path,
-    config: crate::config::MaxDirectoryDepthRuleConfig,
-    exclude_dirs: &[PathBuf],
-) -> Vec<Violation> {
-    if !config.severity.is_enabled() {
-        return Vec::new();
-    }
-
-    max_directory_depth::check_directories(root, &config, exclude_dirs)
-}
-
-pub fn check_no_empty_domain(
-    root: &Path,
-    config: crate::config::NoEmptyDomainRuleConfig,
-    exclude_dirs: &[PathBuf],
-) -> Vec<Violation> {
-    if !config.severity.is_enabled() {
-        return Vec::new();
-    }
-
-    no_empty_domain::check_directories(root, &config, exclude_dirs)
-}
-
-pub fn check_no_anemic_domain(
-    root: &Path,
-    config: crate::config::NoAnemicDomainRuleConfig,
-    exclude_dirs: &[PathBuf],
-) -> Vec<Violation> {
-    if !config.severity.is_enabled() {
-        return Vec::new();
-    }
-
-    no_anemic_domain::check_directories(root, &config, exclude_dirs)
-}
-
-pub fn check_no_god_domain(
-    root: &Path,
-    config: crate::config::NoGodDomainRuleConfig,
-    exclude_dirs: &[PathBuf],
-) -> Vec<Violation> {
-    if !config.severity.is_enabled() {
-        return Vec::new();
-    }
-
-    no_god_domain::check_directories(root, &config, exclude_dirs)
-}
-
 pub fn check_dump_files(
     files: &[PathBuf],
     config: crate::config::NoDumpFilesRuleConfig,
@@ -1008,4 +924,64 @@ pub fn check_dump_files(
     }
 
     no_dump_files::check_files(files, &config)
+}
+
+pub fn check_directory_rules(
+    root: &Path,
+    rules: &RulesConfig,
+    exclude_dirs: &[PathBuf],
+) -> Vec<Violation> {
+    let inventory = crate::directory_inventory::collect_directory_inventory(root, exclude_dirs);
+    let mut violations = Vec::new();
+
+    if rules.no_empty_directories.severity.is_enabled() {
+        violations.extend(no_empty_directories::check_inventory(
+            &inventory,
+            &rules.no_empty_directories,
+        ));
+    }
+
+    if rules.max_items_per_directory.severity.is_enabled() {
+        violations.extend(max_items_per_directory::check_inventory(
+            &inventory,
+            &rules.max_items_per_directory,
+        ));
+    }
+
+    if rules.min_items_per_directory.severity.is_enabled() {
+        violations.extend(min_items_per_directory::check_inventory(
+            &inventory,
+            &rules.min_items_per_directory,
+        ));
+    }
+
+    if rules.max_directory_depth.severity.is_enabled() {
+        violations.extend(max_directory_depth::check_inventory(
+            &inventory,
+            &rules.max_directory_depth,
+        ));
+    }
+
+    if rules.no_empty_domain.severity.is_enabled() {
+        violations.extend(no_empty_domain::check_inventory(
+            &inventory,
+            &rules.no_empty_domain,
+        ));
+    }
+
+    if rules.no_anemic_domain.severity.is_enabled() {
+        violations.extend(no_anemic_domain::check_inventory(
+            &inventory,
+            &rules.no_anemic_domain,
+        ));
+    }
+
+    if rules.no_god_domain.severity.is_enabled() {
+        violations.extend(no_god_domain::check_inventory(
+            &inventory,
+            &rules.no_god_domain,
+        ));
+    }
+
+    violations
 }

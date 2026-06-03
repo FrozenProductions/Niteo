@@ -2,6 +2,7 @@ mod app;
 mod baseline;
 mod cli;
 mod config;
+mod directory_inventory;
 mod discovery;
 mod git;
 mod ignore;
