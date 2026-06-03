@@ -575,6 +575,7 @@ impl FileRule for NoBarrelChainAdapter {
 
 struct NoCircularImportAdapter {
     config: crate::config::RuleConfig,
+    context: no_circular_import::CircularImportContext,
 }
 impl FileRule for NoCircularImportAdapter {
     fn severity(&self) -> Severity {
@@ -584,7 +585,13 @@ impl FileRule for NoCircularImportAdapter {
         false
     }
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        no_circular_import::check_file(ctx.file, ctx.line_index, ctx.import_graph, &self.config)
+        no_circular_import::check_file(
+            ctx.file,
+            ctx.line_index,
+            ctx.import_graph,
+            &self.context,
+            &self.config,
+        )
     }
 }
 
@@ -629,6 +636,7 @@ impl FileRule for NoLogicInDomainAdapter {
 fn build_file_rules(
     config: &RulesConfig,
     structure: &ProjectStructureConfig,
+    import_graph: &ImportGraph,
 ) -> Vec<Box<dyn FileRule>> {
     vec![
         Box::new(BooleanPrefixAdapter {
@@ -764,6 +772,7 @@ fn build_file_rules(
         }),
         Box::new(NoCircularImportAdapter {
             config: config.no_circular_import.clone(),
+            context: no_circular_import::CircularImportContext::new(import_graph),
         }),
         Box::new(NoOrphanFilesAdapter {
             config: config.no_orphan_files.clone(),
@@ -799,7 +808,7 @@ pub fn check_files(
             None => continue,
         };
         let config = config_set.config_for_file(first_file);
-        let rules = build_file_rules(&config.rules, &config.structure);
+        let rules = build_file_rules(&config.rules, &config.structure, import_graph);
 
         let any_enabled = rules.iter().any(|rule| rule.severity().is_enabled());
         if !any_enabled {
