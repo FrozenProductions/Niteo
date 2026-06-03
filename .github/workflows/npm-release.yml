@@ -64,7 +64,7 @@ jobs:
             target: aarch64-apple-darwin
           - os: darwin
             arch: x64
-            runner: macos-13
+            runner: macos-15-intel
             target: x86_64-apple-darwin
           - os: linux
             arch: x64
@@ -109,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}-${{ matrix.arch }}
-          path: npm/binaries/${{ matrix.os }}-${{ matrix.arch }}
+          path: npm/binaries
           retention-days: 1
 
   assemble-and-publish:
@@ -138,6 +138,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          chmod +x \
+            npm/binaries/darwin-arm64/niteo \
+            npm/binaries/darwin-x64/niteo \
+            npm/binaries/linux-x64/niteo \
+            npm/binaries/linux-arm64/niteo
+
           ls -laR npm/binaries/
           test -x npm/binaries/darwin-arm64/niteo
           test -x npm/binaries/darwin-x64/niteo
@@ -147,25 +153,6 @@ jobs:
 
       - name: Assemble npm packages
         run: node scripts/build-npm-packages.js
-
-      - name: Publish platform packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION="${{ needs.detect-version.outputs.version }}"
-          
-          for pkg in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
-            if npm view "@niteo/cli-$pkg@$VERSION" version >/dev/null 2>&1; then
-              echo "Skipping @niteo/cli-$pkg@$VERSION (already published)"
-            else
-              echo "Publishing @niteo/cli-$pkg@$VERSION..."
-              cd npm/@niteo/cli-$pkg
-              npm publish --provenance --access public
-              cd ../..
-            fi
-          done
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish root package
         shell: bash

@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 
 const { existsSync } = require("node:fs");
-const { dirname, join, resolve } = require("node:path");
+const { join, resolve } = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const packageRoot = resolve(__dirname, "..");
 const binaryName = process.platform === "win32" ? "niteo.exe" : "niteo";
 
-function getPlatformPackageName() {
+function getPlatformKey() {
   const platform = process.platform;
   const arch = process.arch;
-  
+
   const validPlatforms = {
     darwin: ["arm64", "x64"],
     linux: ["arm64", "x64"],
@@ -18,24 +18,19 @@ function getPlatformPackageName() {
   };
 
   if (validPlatforms[platform] && validPlatforms[platform].includes(arch)) {
-    return `@niteo/cli-${platform}-${arch}`;
+    return `${platform}-${arch}`;
   }
-  
+
   return null;
 }
 
 function getPrebuiltBinaryPath() {
-  const packageName = getPlatformPackageName();
-  if (!packageName) {
+  const platformKey = getPlatformKey();
+  if (!platformKey) {
     return null;
   }
 
-  try {
-    const packageDir = dirname(require.resolve(`${packageName}/package.json`));
-    return join(packageDir, "bin", binaryName);
-  } catch (e) {
-    return null;
-  }
+  return join(packageRoot, "bin", platformKey, binaryName);
 }
 
 function run(command, args) {
@@ -86,13 +81,13 @@ if (prebuiltPath && existsSync(prebuiltPath)) {
   const sourcePath = buildFromSource();
   run(sourcePath, process.argv.slice(2));
 } else {
-  const packageName = getPlatformPackageName();
-  if (!packageName) {
+  const platformKey = getPlatformKey();
+  if (!platformKey) {
     console.error(`No prebuilt Niteo binary is available for ${process.platform}-${process.arch}.`);
     console.error("Install Rust and run with NITEO_BUILD_FROM_SOURCE=1 to build from source.");
   } else {
-    console.error(`Prebuilt Niteo binary not found for ${packageName}.`);
-    console.error("Ensure the optional dependency is installed, or run with NITEO_BUILD_FROM_SOURCE=1 to build from source.");
+    console.error(`Prebuilt Niteo binary not found for ${platformKey}.`);
+    console.error("Reinstall niteo-cli, or run with NITEO_BUILD_FROM_SOURCE=1 to build from source.");
   }
   process.exit(1);
 }

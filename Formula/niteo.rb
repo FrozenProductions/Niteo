@@ -1,16 +1,19 @@
 class Niteo < Formula
   desc "Standalone Rust CLI for TypeScript structural linting"
   homepage "https://github.com/FrozenProductions/Niteo"
-  url "https://github.com/FrozenProductions/Niteo/archive/refs/tags/v0.2.0.tar.gz"
-  sha256 "b390995840bb9dc7a0393d6d48566cf12bb9d0604aea1e364f4f9c5a5af4b0c6"
+  url "https://github.com/FrozenProductions/Niteo/archive/refs/tags/v0.2.1.tar.gz"
+  sha256 "bc3d2de4fbede9f7349da03bd4c4f24053394ba01d330ee0a027dec10b26a9e7"
   license "MIT"
 
   bottle do
-    root_url "https://github.com/FrozenProductions/Niteo/releases/download/v0.2.0"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "4a557c41d365ba7517b054c5b85b72c879fd232986d198cd6ba46f252c3a731a"
-    sha256 cellar: :any_skip_relocation, sequoia:       "d80fe4105afecaf699eb2b0b4a1229a7547a11beb6e3f2ef94f2286d3cd5ef83"
-    sha256 cellar: :any_skip_relocation, x86_64_linux:  "d6904abb4424012ca60f9e8f2a781699a7c69e4751c7ed4a6468f60fdbbef02d"
+    root_url "https://github.com/FrozenProductions/Niteo/releases/download/v0.2.1"
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "a87af7648cac0375b80f05bd6c670c5d110a25acf1f78d5974ae5d9f0915c1f6"
+    sha256 cellar: :any_skip_relocation, sequoia:       "63bfd07a0f5725cc8fbf0fd4f386a05b6e9b7b190a8b77eaf1ced84c40cf82b6"
+    sha256 cellar: :any,                 x86_64_linux:  "b5983aafb23fe823989a755b994d53bc25891f7e6ca841ac1975a98701062e11"
   end
+
+
+
 
 
   depends_on "rust" => :build
