@@ -71,7 +71,7 @@ npm i -g niteo-cli
 niteo lint
 ```
 
-The npm package builds the Rust binary during installation, so Rust and Cargo must be installed on the machine running `npx` or `npm i -g`.
+The npm package ships prebuilt binaries for common platforms. Rust is only required when building from source or using an unsupported platform.
 
 ## Usage
 
