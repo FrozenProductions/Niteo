@@ -6,13 +6,43 @@ const { spawnSync } = require("node:child_process");
 
 const packageRoot = resolve(__dirname, "..");
 const binaryName = process.platform === "win32" ? "niteo.exe" : "niteo";
-const binaryPath = join(packageRoot, "target", "release", binaryName);
 
-function run(command, args, options) {
+function getPlatformPackageName() {
+  const platform = process.platform;
+  const arch = process.arch;
+  
+  const validPlatforms = {
+    darwin: ["arm64", "x64"],
+    linux: ["arm64", "x64"],
+    win32: ["x64"],
+  };
+
+  if (validPlatforms[platform] && validPlatforms[platform].includes(arch)) {
+    return `@niteo/cli-${platform}-${arch}`;
+  }
+  
+  return null;
+}
+
+function getPrebuiltBinaryPath() {
+  const packageName = getPlatformPackageName();
+  if (!packageName) {
+    return null;
+  }
+
+  try {
+    const packageDir = dirname(require.resolve(`${packageName}/package.json`));
+    return join(packageDir, "bin", binaryName);
+  } catch (e) {
+    return null;
+  }
+}
+
+function run(command, args) {
   const result = spawnSync(command, args, {
-    cwd: packageRoot,
+    cwd: process.cwd(),
     stdio: "inherit",
-    ...options,
+    env: process.env,
   });
 
   if (result.error) {
@@ -28,14 +58,15 @@ function run(command, args, options) {
   process.exit(result.status ?? 1);
 }
 
-if (!existsSync(binaryPath)) {
+function buildFromSource() {
+  console.error("Building Niteo from source...");
   const buildResult = spawnSync("cargo", ["build", "--release"], {
     cwd: packageRoot,
     stdio: "inherit",
   });
 
   if (buildResult.error) {
-    console.error("failed to build niteo; install Rust and Cargo, then try again");
+    console.error("Failed to build niteo; install Rust and Cargo, then try again.");
     console.error(buildResult.error.message);
     process.exit(1);
   }
@@ -43,9 +74,25 @@ if (!existsSync(binaryPath)) {
   if (buildResult.status !== 0) {
     process.exit(buildResult.status ?? 1);
   }
+  
+  return join(packageRoot, "target", "release", binaryName);
 }
 
-run(binaryPath, process.argv.slice(2), {
-  cwd: process.cwd(),
-  env: process.env,
-});
+const prebuiltPath = getPrebuiltBinaryPath();
+
+if (prebuiltPath && existsSync(prebuiltPath)) {
+  run(prebuiltPath, process.argv.slice(2));
+} else if (process.env.NITEO_BUILD_FROM_SOURCE === "1") {
+  const sourcePath = buildFromSource();
+  run(sourcePath, process.argv.slice(2));
+} else {
+  const packageName = getPlatformPackageName();
+  if (!packageName) {
+    console.error(`No prebuilt Niteo binary is available for ${process.platform}-${process.arch}.`);
+    console.error("Install Rust and run with NITEO_BUILD_FROM_SOURCE=1 to build from source.");
+  } else {
+    console.error(`Prebuilt Niteo binary not found for ${packageName}.`);
+    console.error("Ensure the optional dependency is installed, or run with NITEO_BUILD_FROM_SOURCE=1 to build from source.");
+  }
+  process.exit(1);
+}

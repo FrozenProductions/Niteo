@@ -65,12 +65,10 @@ jobs:
         with:
           node-version: 20
 
-      - uses: dtolnay/rust-toolchain@stable
-
       - run: npx niteo-cli lint
 ```
 
-The npm package builds the Rust binary during installation, so the workflow must install Rust before running `npx niteo-cli`.
+The npm package ships prebuilt binaries, so no Rust installation is required for standard usage.
 
 ## JSON Artifacts
 
