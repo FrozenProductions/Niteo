@@ -6,8 +6,11 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ## Unreleased
 
+## 0.1.4 - 2026-06-03
+
 ### Added
 
+- `--fail-on` flag to control the exit code threshold by severity level.
 - `no-process-env` rule to prevent direct `process.env` access.
 - `no-abbreviations` rule to flag abbreviations in identifiers.
 - `no-circular-import` rule to detect circular import chains.
