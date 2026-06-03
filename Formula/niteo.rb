@@ -7,10 +7,11 @@ class Niteo < Formula
 
   bottle do
     root_url "https://github.com/FrozenProductions/Niteo/releases/download/v0.2.1"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "a87af7648cac0375b80f05bd6c670c5d110a25acf1f78d5974ae5d9f0915c1f6"
-    sha256 cellar: :any_skip_relocation, sequoia:       "63bfd07a0f5725cc8fbf0fd4f386a05b6e9b7b190a8b77eaf1ced84c40cf82b6"
-    sha256 cellar: :any,                 x86_64_linux:  "b5983aafb23fe823989a755b994d53bc25891f7e6ca841ac1975a98701062e11"
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "7d7ff77453bd394d652a646603a0cc332a1733c5d2a5470363166d6e9040a992"
+    sha256 cellar: :any_skip_relocation, sequoia:       "341f7119f137f822a01e2cf3329e3d0292a627adf6b6c5ca8aba45ec7f9a796d"
+    sha256 cellar: :any,                 x86_64_linux:  "10ea04f0d6b03bc4100226639205c0390dcb3f3905ec3306ef7bbde20031d3f9"
   end
+
 
 
 
