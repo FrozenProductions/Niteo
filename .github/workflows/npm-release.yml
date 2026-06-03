@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - package.json
+      - .github/workflows/npm-release.yml
 
 permissions:
   contents: read
@@ -41,8 +42,16 @@ jobs:
           package_name="$(node -p "require('./package.json').name")"
 
           if [ "$current_version" = "$previous_version" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "package.json changed, but version stayed at $current_version"
+            if npm view "$package_name@$current_version" version >/dev/null 2>&1; then
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              echo "package.json changed, but version stayed at $current_version and it is already published"
+              exit 0
+            fi
+
+            echo "$package_name@$current_version is not published yet"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "version=$current_version" >> "$GITHUB_OUTPUT"
+            echo "package-name=$package_name" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
