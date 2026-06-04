@@ -60,7 +60,7 @@ niteo graph             # Output the import graph
 | `--root <path>` | Project root to scan. |
 | `--scope <path>` | Limit scanning to one path. |
 | `--verbose` | Show every violation in text output. |
-| `--git` | Scan changed TypeScript files only. |
+| `--git` | Scan changed TypeScript files only. Fails if git is unavailable. |
 | `--format <format>` | Output format: `text`, `json`, or `sarif`. |
 | `--output <path>` | Write output to a file. |
 | `--baseline <path>` | Baseline file path. |

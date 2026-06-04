@@ -17,7 +17,7 @@ These options are accepted by every command.
 | `--root <path>` | | Project root to scan. Overrides `[project].root`. |
 | `--scope <path>` | | Limit scanning to a path inside the project root. |
 | `--verbose` | `-v` | Show every violation in text reports. |
-| `--git` | | Scan changed TypeScript files only. |
+| `--git` | | Scan changed TypeScript files only. Fails if git is unavailable. |
 | `--format <format>` | | Output format. Supported values: `text`, `json`, `sarif`. |
 | `--output <path>` | `-o` | Write output to a file instead of stdout. |
 | `--baseline <path>` | | Baseline file path. Defaults to `niteo-baseline.json`. |
@@ -45,13 +45,15 @@ niteo lint --format sarif --output niteo.sarif
 
 Use `--fail-on error` to surface warnings without blocking CI. Use `--fail-on any` for strict mode.
 
-When `--git` is not passed and changed TypeScript files are detected, Niteo prompts:
+When `--git` is not passed, Niteo attempts to detect changed TypeScript files via git. If detection succeeds and files are found, it prompts:
 
 ```text
 Scan only changed files? [Y/n]
 ```
 
-Use `--git` in scripts and CI when you want changed-file scanning without an interactive prompt.
+If git is unavailable or the detection fails, Niteo prints a warning and falls back to a full project scan. This makes interactive use resilient outside git repositories.
+
+Use `--git` in scripts and CI when you want changed-file scanning without an interactive prompt. The `--git` flag is strict: it fails immediately if git is unavailable or returns an error.
 
 ### Watch Mode
 

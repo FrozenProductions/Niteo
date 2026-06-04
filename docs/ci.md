@@ -107,6 +107,8 @@ git diff --name-only --cached
 
 Only `.ts` and `.tsx` files are included.
 
+The `--git` flag is strict: it fails immediately if git is unavailable or returns an error. This ensures CI pipelines fail visibly when git context is missing rather than silently scanning the wrong files.
+
 For full protection on main branches, prefer scanning the whole configured root. Changed-file scanning is best for local development or fast pull request feedback.
 
 ## Monorepos
