@@ -102,6 +102,9 @@ severity = "warn"
 severity = "warn"
 ignore-dirs = []
 
+[rules.directory-must-have-barrel]
+severity = "warn"
+
 [rules.no-duplicate-file-names]
 severity = "warn"
 ignore-names = []

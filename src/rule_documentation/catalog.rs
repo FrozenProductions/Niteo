@@ -31,6 +31,7 @@ macro_rules! define_rule_kinds {
 define_rule_kinds! {
     BooleanPrefix,
     ComponentFileOnlyComponents,
+    DirectoryMustHaveBarrel,
     HookNoJsx,
     HookPrefix,
     MaxDirectoryDepth,
@@ -517,6 +518,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::NoEmptyDirectories,
+    },
+    RuleDocumentation {
+        name: "directory-must-have-barrel",
+        intent: "Non-leaf directories should provide a single import surface via an index.ts barrel.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "src/features/billing/components/Card.tsx with no src/features/billing/index.ts",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "src/features/billing/index.ts",
+            },
+        ],
+        options: &[SEVERITY_OPTION],
+        kind: RuleKind::DirectoryMustHaveBarrel,
     },
     RuleDocumentation {
         name: "no-empty-interface",

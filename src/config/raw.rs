@@ -149,6 +149,7 @@ macro_rules! declare_raw_rules {
 declare_raw_rules! {
     simple {
         component_file_only_components => "component-file-only-components",
+        directory_must_have_barrel => "directory-must-have-barrel",
         hook_no_jsx => "hook-no-jsx",
         no_barrel_chain => "no-barrel-chain",
         no_circular_import => "no-circular-import",

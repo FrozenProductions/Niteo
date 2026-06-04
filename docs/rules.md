@@ -22,6 +22,7 @@ niteo explain no-console --format json
 | --- | --- | --- | --- |
 | `boolean-prefix` | `warn` | Boolean variables should be prefixed with names such as `is`, `has`, or `can`. | `prefixes`, `ignore-constants` |
 | `component-file-only-components` | `warn` | Component files should export components only. | `project.structure.components` |
+| `directory-must-have-barrel` | `warn` | Non-leaf directories must expose an `index.ts` barrel file. | `severity` |
 | `entry-file-no-logic` | `warn` | Entry files should delegate implementation logic to dedicated modules. | `entry-files` |
 | `hook-no-jsx` | `warn` | Hook files should not return or contain JSX. | `project.structure.hooks` |
 | `explicit-return-type` | `warn` | Require explicit return types on exported functions. | `severity` |
@@ -505,6 +506,15 @@ ignore-names = ["index.ts"]
 ### `no-empty-directories`
 
 Reports directories that do not contain source files.
+
+### `directory-must-have-barrel`
+
+Reports non-leaf directories (those containing child folders) that do not have a direct `index.ts` barrel file. Barrel files provide a single import surface for the directory's public API.
+
+```toml
+[rules.directory-must-have-barrel]
+severity = "warn"
+```
 
 ### `max-items-per-directory`
 

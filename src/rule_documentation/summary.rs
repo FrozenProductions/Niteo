@@ -30,6 +30,9 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
                 ),
             ],
         },
+        RuleKind::DirectoryMustHaveBarrel => {
+            simple_summary(config.rules.directory_must_have_barrel.severity)
+        }
         RuleKind::HookNoJsx => RuleConfigSummary {
             severity: config.rules.hook_no_jsx.severity,
             options: vec![

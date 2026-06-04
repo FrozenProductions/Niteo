@@ -60,6 +60,7 @@ macro_rules! declare_rules {
 declare_rules! {
     boolean_prefix => { id: BOOLEAN_PREFIX_RULE_ID, value: "boolean-prefix", config: crate::config::BooleanPrefixRuleConfig },
     component_file_only_components => { id: COMPONENT_FILE_ONLY_COMPONENTS_RULE_ID, value: "component-file-only-components", config: crate::config::RuleConfig },
+    directory_must_have_barrel => { id: DIRECTORY_MUST_HAVE_BARREL_RULE_ID, value: "directory-must-have-barrel", config: crate::config::RuleConfig },
     entry_file_no_logic => { id: ENTRY_FILE_NO_LOGIC_RULE_ID, value: "entry-file-no-logic", config: crate::config::EntryFileNoLogicRuleConfig },
     explicit_return_type => { id: EXPLICIT_RETURN_TYPE_RULE_ID, value: "explicit-return-type", config: crate::config::RuleConfig },
     hook_no_jsx => { id: HOOK_NO_JSX_RULE_ID, value: "hook-no-jsx", config: crate::config::RuleConfig },
@@ -938,6 +939,13 @@ pub fn check_directory_rules(
         violations.extend(no_empty_directories::check_inventory(
             &inventory,
             &rules.no_empty_directories,
+        ));
+    }
+
+    if rules.directory_must_have_barrel.severity.is_enabled() {
+        violations.extend(directory_must_have_barrel::check_inventory(
+            &inventory,
+            &rules.directory_must_have_barrel,
         ));
     }
 

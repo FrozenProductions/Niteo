@@ -16,7 +16,7 @@
 
 Niteo is a standalone Rust CLI for structural linting in TypeScript projects.
 
-It checks project shape, module boundaries, and source structure rather than formatting. Niteo ships 50 opinionated rules, builds a full import graph, and runs as a single binary with no plugins to configure. It uses [oxc](https://github.com/oxc-project/oxc) for AST parsing.
+It checks project shape, module boundaries, and source structure rather than formatting. Niteo ships 54 opinionated rules, builds a full import graph, and runs as a single binary with no plugins to configure. It uses [oxc](https://github.com/oxc-project/oxc) for AST parsing.
 
 ## Why Niteo?
 
@@ -31,7 +31,7 @@ Niteo complements ESLint and Knip rather than replacing them. Where ESLint check
 
 ## Features
 
-- **50 structural rules** covering exports, barrel files, directory shape, imports, hooks, components, and unsafe TypeScript patterns. See the full [rule reference](docs/rules.md).
+- **54 structural rules** covering exports, barrel files, directory shape, imports, hooks, components, and unsafe TypeScript patterns. See the full [rule reference](docs/rules.md).
 - **Baselines** — snapshot existing violations so CI only fails on new issues. Adopt Niteo incrementally without fixing every file first.
 - **Suppressions** — inline `niteo-ignore-file`, `niteo-ignore-next-line`, and `niteo-ignore-line` directives for narrow exceptions. Stale directive detection keeps suppressions honest.
 - **Monorepo configs** — cascading `niteo.toml` files. Set defaults at the workspace root and override per package. Rule options merge field-by-field.
