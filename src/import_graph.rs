@@ -98,6 +98,45 @@ impl ImportGraph {
     }
 }
 
+struct ImportResolverIndex {
+    entries: HashMap<PathBuf, PathBuf>,
+}
+
+impl ImportResolverIndex {
+    fn new(files: &[PathBuf]) -> Self {
+        let mut entries = HashMap::new();
+        for file in files {
+            let normalized = normalize_path(file);
+            entries
+                .entry(normalized.clone())
+                .or_insert_with(|| file.clone());
+
+            let without_ext = extensionless(&normalized);
+            if without_ext != normalized {
+                entries.entry(without_ext).or_insert_with(|| file.clone());
+            }
+
+            if is_barrel_file(file)
+                && let Some(parent) = normalized.parent()
+            {
+                entries
+                    .entry(parent.to_path_buf())
+                    .or_insert_with(|| file.clone());
+            }
+        }
+        Self { entries }
+    }
+
+    fn resolve(&self, source_file: &Path, specifier: &str) -> Option<PathBuf> {
+        if !is_relative_specifier(specifier) {
+            return None;
+        }
+        let parent = source_file.parent()?;
+        let target = normalize_path(&parent.join(specifier));
+        self.entries.get(&target).cloned()
+    }
+}
+
 pub fn build_import_graph(
     files: &[PathBuf],
     is_test_file: impl Fn(&Path) -> bool,
@@ -110,10 +149,12 @@ pub fn build_import_graph(
         graph.add_file(file.clone(), is_barrel, is_test);
     }
 
+    let resolver = ImportResolverIndex::new(files);
+
     for file in files {
         let source = std::fs::read_to_string(file)
             .with_context(|| format!("failed to read {}", file.display()))?;
-        let edges = extract_imports(file, &source, files);
+        let edges = extract_imports(file, &source, &resolver);
         graph.edges.extend(edges);
     }
 
@@ -137,16 +178,22 @@ pub fn build_import_graph_from_sources(
         graph.add_file(file.clone(), is_barrel, is_test);
     }
 
+    let resolver = ImportResolverIndex::new(&files);
+
     for (path, source) in files_with_sources {
         let file = PathBuf::from(path);
-        let edges = extract_imports(&file, source, &files);
+        let edges = extract_imports(&file, source, &resolver);
         graph.edges.extend(edges);
     }
 
     graph
 }
 
-fn extract_imports(source_file: &Path, source: &str, all_files: &[PathBuf]) -> Vec<ImportEdge> {
+fn extract_imports(
+    source_file: &Path,
+    source: &str,
+    resolver: &ImportResolverIndex,
+) -> Vec<ImportEdge> {
     let allocator = oxc_allocator::Allocator::default();
     let source_type = crate::syntax::source_type_from_path(source_file);
     let Some(source_type) = source_type else {
@@ -154,14 +201,13 @@ fn extract_imports(source_file: &Path, source: &str, all_files: &[PathBuf]) -> V
     };
 
     let parser_return = oxc_parser::Parser::new(&allocator, source, source_type).parse();
-    // Silently skip parse failures so one broken file doesn't block the entire lint run
     if parser_return.panicked {
         return Vec::new();
     }
 
     let mut visitor = ImportVisitor {
         source_file: source_file.to_path_buf(),
-        all_files,
+        resolver,
         edges: Vec::new(),
         _phantom: std::marker::PhantomData,
     };
@@ -171,7 +217,7 @@ fn extract_imports(source_file: &Path, source: &str, all_files: &[PathBuf]) -> V
 
 struct ImportVisitor<'a> {
     source_file: PathBuf,
-    all_files: &'a [PathBuf],
+    resolver: &'a ImportResolverIndex,
     edges: Vec<ImportEdge>,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
@@ -204,8 +250,7 @@ impl<'a> Visit<'a> for ImportVisitor<'a> {
 
 impl ImportVisitor<'_> {
     fn add_edge(&mut self, specifier: &str, kind: ImportKind, span: Span) {
-        let resolved_target =
-            resolve_import_specifier(&self.source_file, specifier, self.all_files);
+        let resolved_target = self.resolver.resolve(&self.source_file, specifier);
 
         self.edges.push(ImportEdge {
             source_file: self.source_file.clone(),
@@ -221,30 +266,13 @@ pub fn is_relative_specifier(specifier: &str) -> bool {
     specifier.starts_with('.') || specifier.starts_with('/')
 }
 
+#[cfg(test)]
 fn resolve_import_specifier(
     source_file: &Path,
     specifier: &str,
     all_files: &[PathBuf],
 ) -> Option<PathBuf> {
-    if !is_relative_specifier(specifier) {
-        return None;
-    }
-
-    let parent = source_file.parent()?;
-    let target = normalize_path(&parent.join(specifier));
-
-    // Match TypeScript resolution: exact path, extensionless, or directory-to-barrel
-    for candidate in all_files {
-        let normalized_candidate = normalize_path(candidate);
-        if normalized_candidate == target
-            || extensionless(&normalized_candidate) == target
-            || normalized_candidate.parent() == Some(target.as_path())
-        {
-            return Some(candidate.clone());
-        }
-    }
-
-    None
+    ImportResolverIndex::new(all_files).resolve(source_file, specifier)
 }
 
 fn normalize_path(path: &Path) -> PathBuf {
@@ -407,5 +435,48 @@ mod tests {
         let files = vec![PathBuf::from("src/a.ts")];
         let resolved = resolve_import_specifier(Path::new("src/a.ts"), "./nonexistent", &files);
         assert_eq!(resolved, None);
+    }
+
+    #[test]
+    fn resolves_extensionless_duplicate_deterministically() {
+        let files = vec![
+            PathBuf::from("src/a.ts"),
+            PathBuf::from("src/b.ts"),
+            PathBuf::from("src/b.tsx"),
+        ];
+        let resolved = resolve_import_specifier(Path::new("src/a.ts"), "./b", &files);
+        assert_eq!(resolved, Some(PathBuf::from("src/b.ts")));
+
+        let files_reversed = vec![
+            PathBuf::from("src/a.ts"),
+            PathBuf::from("src/b.tsx"),
+            PathBuf::from("src/b.ts"),
+        ];
+        let resolved_reversed =
+            resolve_import_specifier(Path::new("src/a.ts"), "./b", &files_reversed);
+        assert_eq!(resolved_reversed, Some(PathBuf::from("src/b.tsx")));
+    }
+
+    #[test]
+    fn resolves_directory_barrel_duplicate_deterministically() {
+        let files = vec![
+            PathBuf::from("src/a.ts"),
+            PathBuf::from("src/components.ts"),
+            PathBuf::from("src/components/index.ts"),
+        ];
+        let resolved = resolve_import_specifier(Path::new("src/a.ts"), "./components", &files);
+        assert_eq!(resolved, Some(PathBuf::from("src/components.ts")));
+
+        let files_reversed = vec![
+            PathBuf::from("src/a.ts"),
+            PathBuf::from("src/components/index.ts"),
+            PathBuf::from("src/components.ts"),
+        ];
+        let resolved_reversed =
+            resolve_import_specifier(Path::new("src/a.ts"), "./components", &files_reversed);
+        assert_eq!(
+            resolved_reversed,
+            Some(PathBuf::from("src/components/index.ts"))
+        );
     }
 }
