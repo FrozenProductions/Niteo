@@ -72,3 +72,43 @@ pub fn prompt_scan_changed_files(changed_files: &[PathBuf]) -> Result<bool> {
 fn is_typescript_file(path: &str) -> bool {
     path.ends_with(".ts") || path.ends_with(".tsx")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recognizes_ts_files() {
+        assert!(is_typescript_file("src/index.ts"));
+        assert!(is_typescript_file("foo.ts"));
+    }
+
+    #[test]
+    fn recognizes_tsx_files() {
+        assert!(is_typescript_file("src/Component.tsx"));
+        assert!(is_typescript_file("App.tsx"));
+    }
+
+    #[test]
+    fn rejects_non_typescript_files() {
+        assert!(!is_typescript_file("src/index.js"));
+        assert!(!is_typescript_file("src/index.jsx"));
+        assert!(!is_typescript_file("src/style.css"));
+        assert!(!is_typescript_file("README.md"));
+        assert!(!is_typescript_file("Cargo.toml"));
+    }
+
+    #[test]
+    fn rejects_partial_extensions() {
+        assert!(!is_typescript_file("src/file.ats"));
+        assert!(!is_typescript_file("src/file.atsx"));
+        assert!(!is_typescript_file("src/file.d.ts.map"));
+    }
+
+    #[test]
+    fn handles_paths_with_directories() {
+        assert!(is_typescript_file("a/b/c/deep.ts"));
+        assert!(is_typescript_file("a/b/c/deep.tsx"));
+        assert!(!is_typescript_file("a/b/c/deep.js"));
+    }
+}

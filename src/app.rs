@@ -534,7 +534,10 @@ fn collect_violations(
     let files = if git_flag {
         resolve_changed_files(workspace)?
     } else {
-        let changed_files = git::get_changed_typescript_files()?;
+        let changed_files = git::get_changed_typescript_files().unwrap_or_else(|err| {
+            eprintln!("warning: could not detect changed files via git: {err}");
+            Vec::new()
+        });
         if prompt_for_changed_files
             && !changed_files.is_empty()
             && git::prompt_scan_changed_files(&changed_files)?
