@@ -5,7 +5,7 @@ mod resolve;
 pub mod rules;
 pub mod structure;
 
-pub use configset::ConfigSet;
+pub use configset::{ConfigSet, ConfigSetOptions};
 pub use resolve::{ProjectConfig, write_default_config};
 pub use rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,

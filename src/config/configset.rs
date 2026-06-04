@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -21,12 +21,17 @@ pub struct ResolvedConfigNode {
     pub parent_index: Option<usize>,
 }
 
+pub struct ConfigSetOptions<'a> {
+    pub root_override: Option<PathBuf>,
+    pub scan_scope: Option<&'a Path>,
+    pub deny_child_configs: bool,
+}
+
 impl ConfigSet {
-    pub fn resolve(
-        workspace: &Path,
-        root_override: Option<PathBuf>,
-        scan_scope: Option<&Path>,
-    ) -> Result<Self> {
+    pub fn resolve(workspace: &Path, options: ConfigSetOptions) -> Result<Self> {
+        let root_override = options.root_override;
+        let scan_scope = options.scan_scope;
+        let deny_child_configs = options.deny_child_configs;
         let root_raw = read_root_config(workspace)?;
 
         let project_root = if let Some(root) = root_override {
@@ -51,6 +56,13 @@ impl ConfigSet {
         let scan_root = scan_scope.unwrap_or(&project_root);
 
         let child_configs = discover_child_configs(scan_root, &project_root, workspace)?;
+
+        if deny_child_configs && !child_configs.is_empty() {
+            bail!(
+                "nested niteo.toml files are not allowed with --deny-child-configs: {}",
+                format_child_config_paths(&child_configs)
+            );
+        }
 
         let root_node = ResolvedConfigNode {
             config_path: workspace_config_path(workspace),
@@ -197,6 +209,16 @@ fn discover_child_configs(
     configs.sort_by_key(|(_, dir)| dir.components().count());
 
     Ok(configs)
+}
+
+fn format_child_config_paths(configs: &[(PathBuf, PathBuf)]) -> String {
+    let mut paths: Vec<&Path> = configs.iter().map(|(path, _)| path.as_path()).collect();
+    paths.sort();
+    paths
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn find_parent_node(
@@ -408,5 +430,118 @@ mod tests {
             config_set.config_for_file(file_outside).root,
             PathBuf::from("/project")
         );
+    }
+
+    #[test]
+    fn resolve_default_loads_nested_config() {
+        let tmp = std::env::temp_dir().join("niteo_test_resolve_default");
+        remove_dir_if_exists(&tmp);
+        fs::create_dir_all(tmp.join("src/admin")).unwrap();
+
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
+        fs::write(
+            tmp.join("src/admin/niteo.toml"),
+            "[rules.no-console]\nseverity = \"error\"\n",
+        )
+        .unwrap();
+
+        let result = ConfigSet::resolve(
+            &tmp,
+            ConfigSetOptions {
+                root_override: None,
+                scan_scope: None,
+                deny_child_configs: false,
+            },
+        );
+
+        assert!(result.is_ok());
+        let config_set = result.unwrap();
+        assert_eq!(config_set.children.len(), 1);
+
+        remove_dir_if_exists(&tmp);
+    }
+
+    #[test]
+    fn resolve_strict_fails_with_nested_config() {
+        let tmp = std::env::temp_dir().join("niteo_test_resolve_strict");
+        remove_dir_if_exists(&tmp);
+        fs::create_dir_all(tmp.join("src/admin")).unwrap();
+
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
+        fs::write(
+            tmp.join("src/admin/niteo.toml"),
+            "[rules.no-console]\nseverity = \"error\"\n",
+        )
+        .unwrap();
+
+        let result = ConfigSet::resolve(
+            &tmp,
+            ConfigSetOptions {
+                root_override: None,
+                scan_scope: None,
+                deny_child_configs: true,
+            },
+        );
+
+        assert!(result.is_err());
+        let error_message = result.unwrap_err().to_string();
+        assert!(error_message.contains("--deny-child-configs"));
+        assert!(error_message.contains("niteo.toml"));
+
+        remove_dir_if_exists(&tmp);
+    }
+
+    #[test]
+    fn resolve_strict_succeeds_with_only_root_config() {
+        let tmp = std::env::temp_dir().join("niteo_test_resolve_strict_root_only");
+        remove_dir_if_exists(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
+
+        let result = ConfigSet::resolve(
+            &tmp,
+            ConfigSetOptions {
+                root_override: None,
+                scan_scope: None,
+                deny_child_configs: true,
+            },
+        );
+
+        assert!(result.is_ok());
+        let config_set = result.unwrap();
+        assert_eq!(config_set.children.len(), 0);
+
+        remove_dir_if_exists(&tmp);
+    }
+
+    #[test]
+    fn resolve_strict_respects_scope() {
+        let tmp = std::env::temp_dir().join("niteo_test_resolve_strict_scope");
+        remove_dir_if_exists(&tmp);
+        fs::create_dir_all(tmp.join("src/admin")).unwrap();
+        fs::create_dir_all(tmp.join("packages/other")).unwrap();
+
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
+        fs::write(
+            tmp.join("packages/other/niteo.toml"),
+            "[rules.no-console]\nseverity = \"error\"\n",
+        )
+        .unwrap();
+
+        let result = ConfigSet::resolve(
+            &tmp,
+            ConfigSetOptions {
+                root_override: None,
+                scan_scope: Some(tmp.join("src").as_path()),
+                deny_child_configs: true,
+            },
+        );
+
+        assert!(result.is_ok());
+        let config_set = result.unwrap();
+        assert_eq!(config_set.children.len(), 0);
+
+        remove_dir_if_exists(&tmp);
     }
 }

@@ -56,6 +56,10 @@ pub struct CliOptions {
     /// Minimum severity that causes lint to fail.
     #[arg(long, global = true, value_enum, default_value_t = FailOn::Any)]
     pub fail_on: FailOn,
+
+    /// Fail when nested niteo.toml files are found inside the scan scope.
+    #[arg(long, global = true)]
+    pub deny_child_configs: bool,
 }
 
 #[derive(Debug, Subcommand)]

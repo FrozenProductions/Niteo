@@ -32,6 +32,7 @@ pub fn run() -> Result<ExitCode> {
                     cli.options.git,
                     cli.options.baseline,
                     cli.options.report_suppressions,
+                    cli.options.deny_child_configs,
                 )?;
                 ExitCode::SUCCESS
             }
@@ -42,6 +43,7 @@ pub fn run() -> Result<ExitCode> {
                     cli.options.scope,
                     cli.options.git,
                     cli.options.baseline,
+                    cli.options.deny_child_configs,
                 )?;
                 ExitCode::SUCCESS
             }
@@ -96,6 +98,7 @@ pub fn run() -> Result<ExitCode> {
                 baseline_path: cli.options.baseline,
                 report_suppressions: cli.options.report_suppressions,
                 fail_on: cli.options.fail_on,
+                deny_child_configs: cli.options.deny_child_configs,
             };
 
             if cli.options.watch {
@@ -137,8 +140,16 @@ fn create_baseline(
     git_flag: bool,
     baseline_path: PathBuf,
     report_suppressions: bool,
+    deny_child_configs: bool,
 ) -> Result<()> {
-    let collected = collect_violations(workspace, root_override, scope_override, git_flag, false)?;
+    let collected = collect_violations(
+        workspace,
+        root_override,
+        scope_override,
+        git_flag,
+        false,
+        deny_child_configs,
+    )?;
 
     if report_suppressions {
         let rendered = report::render_suppression_report_text(&collected.suppression_report);
@@ -168,13 +179,21 @@ fn prune_baseline(
     scope_override: Option<PathBuf>,
     git_flag: bool,
     baseline_path: PathBuf,
+    deny_child_configs: bool,
 ) -> Result<()> {
     let resolved_baseline_path = resolve_path(workspace, baseline_path.clone());
     let Some(existing_baseline) = baseline::read_baseline(&resolved_baseline_path)? else {
         bail!("No baseline file found at {}", baseline_path.display());
     };
 
-    let collected = collect_violations(workspace, root_override, scope_override, git_flag, false)?;
+    let collected = collect_violations(
+        workspace,
+        root_override,
+        scope_override,
+        git_flag,
+        false,
+        deny_child_configs,
+    )?;
     let result = existing_baseline.prune(&collected.project_root, &collected.violations);
 
     baseline::write_baseline(&resolved_baseline_path, &result.baseline)?;
@@ -461,6 +480,7 @@ struct LintOptions {
     baseline_path: PathBuf,
     report_suppressions: bool,
     fail_on: crate::cli::FailOn,
+    deny_child_configs: bool,
 }
 
 fn lint_workspace(
@@ -476,6 +496,7 @@ fn lint_workspace(
         scope_override,
         opts.git_flag,
         prompt_for_changed_files,
+        opts.deny_child_configs,
     )?;
     let resolved_baseline_path = resolve_path(workspace, opts.baseline_path);
     let filtered_violations = match baseline::read_baseline(&resolved_baseline_path)? {
@@ -523,11 +544,19 @@ fn collect_violations(
     scope_override: Option<PathBuf>,
     git_flag: bool,
     prompt_for_changed_files: bool,
+    deny_child_configs: bool,
 ) -> Result<CollectedViolations> {
     let root_config = config::ProjectConfig::resolve(workspace, root_override.clone())?;
     let scan_scope = scope_override.map(|scope| resolve_path(&root_config.root, scope));
 
-    let config_set = ConfigSet::resolve(workspace, root_override, scan_scope.as_deref())?;
+    let config_set = ConfigSet::resolve(
+        workspace,
+        config::ConfigSetOptions {
+            root_override,
+            scan_scope: scan_scope.as_deref(),
+            deny_child_configs,
+        },
+    )?;
     let project_root = config_set.root().root.clone();
     let scan_root = scan_scope.as_deref().unwrap_or(&project_root);
 
