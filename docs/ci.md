@@ -125,3 +125,21 @@ For packages with independent migration paths, use separate baselines:
 npx niteo-cli lint --root packages --baseline niteo-baseline.json
 ```
 
+## Enforcing Config Policy
+
+Use `--deny-child-configs` to prevent nested `niteo.toml` files from weakening or overriding root rules:
+
+```sh
+npx niteo-cli lint --deny-child-configs
+```
+
+When this flag is set, Niteo fails immediately if any `niteo.toml` is discovered under the scan scope. This is useful in CI to enforce that all packages share the same root policy without silent severity downgrades.
+
+Combine with `--scope` to allow child configs outside the scanned area:
+
+```sh
+npx niteo-cli lint --deny-child-configs --scope src
+```
+
+This only rejects child configs found under `src/`.
+

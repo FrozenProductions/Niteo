@@ -24,6 +24,7 @@ These options are accepted by every command.
 | `--report-suppressions` | | Include suppression counts and stale ignore directives. |
 | `--watch` | | Re-run lint on file changes. |
 | `--fail-on <threshold>` | | Minimum severity that causes lint to fail. Supported values: `error`, `warn`, `any`. Defaults to `any`. |
+| `--deny-child-configs` | | Fail when nested `niteo.toml` files are found inside the scan scope. |
 
 Not every command supports every output format. `rules`, `explain`, `stats`, and `graph` support `text` and `json`; they reject `sarif`. `lint` supports `text`, `json`, and `sarif`.
 

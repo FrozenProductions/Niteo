@@ -176,6 +176,8 @@ Every rule also supports `severity`.
 
 Niteo supports nested `niteo.toml` files for monorepos and multi-package projects. When Niteo discovers a `niteo.toml` inside a subdirectory, it merges that config on top of the root config.
 
+To enforce a single root policy and reject all nested overrides, use `--deny-child-configs`. See [CI Usage](./ci.md#enforcing-config-policy) for details.
+
 ### Discovery
 
 Niteo walks the scan root and finds every `niteo.toml` file. Each config applies to files under its directory. The root `niteo.toml` (at the workspace level) provides defaults for everything.
