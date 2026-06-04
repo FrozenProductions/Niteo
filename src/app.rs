@@ -4,6 +4,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::Instant;
 
 use crate::cli::{BaselineCommand, Cli, Command, OutputFormat};
 use crate::config::ConfigSet;
@@ -490,6 +491,7 @@ fn lint_workspace(
     opts: LintOptions,
     prompt_for_changed_files: bool,
 ) -> Result<ExitCode> {
+    let start = Instant::now();
     let collected = collect_violations(
         workspace,
         root_override,
@@ -523,6 +525,11 @@ fn lint_workspace(
     };
 
     write_report(workspace, opts.output_path, &rendered_report)?;
+
+    if opts.verbose && matches!(opts.output_format, OutputFormat::Text) {
+        let elapsed = start.elapsed();
+        println!("\nDone in {:.2?}", elapsed);
+    }
 
     if has_violations {
         return Ok(ExitCode::FAILURE);
