@@ -28,5 +28,5 @@ insta = { version = "1", features = ["json"] }
 criterion = "0.5"
 
 [[bench]]
-name = "large_project"
+name = "cli_benchmarks"
 harness = false
