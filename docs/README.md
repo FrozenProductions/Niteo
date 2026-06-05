@@ -8,6 +8,7 @@ Niteo is a standalone Rust CLI for structural linting in TypeScript projects. It
 - [Configuration](./configuration.md)
 - [Rules](./rules.md)
 - [Reports and output formats](./reports.md)
+- [Benchmarks](./benchmarks.md)
 - [Baselines](./baselines.md)
 - [Suppressions](./suppressions.md)
 - [CI usage](./ci.md)
