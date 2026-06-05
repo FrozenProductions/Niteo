@@ -1,0 +1,164 @@
+[project]
+root = "packages"
+
+[rules.no-console]
+severity = "warn"
+
+[rules.no-debugger]
+severity = "off"
+
+[rules.no-any]
+severity = "off"
+
+[rules.no-enums]
+severity = "off"
+
+[rules.no-eval]
+severity = "off"
+
+[rules.no-empty-interface]
+severity = "off"
+
+[rules.boolean-prefix]
+severity = "off"
+
+[rules.component-file-only-components]
+severity = "off"
+
+[rules.directory-must-have-barrel]
+severity = "off"
+
+[rules.entry-file-no-logic]
+severity = "off"
+
+[rules.explicit-return-type]
+severity = "off"
+
+[rules.hook-no-jsx]
+severity = "off"
+
+[rules.hook-prefix]
+severity = "off"
+
+[rules.max-directory-depth]
+severity = "off"
+
+[rules.max-file-exports]
+severity = "off"
+
+[rules.max-function-params]
+severity = "off"
+
+[rules.max-items-per-directory]
+severity = "off"
+
+[rules.min-items-per-directory]
+severity = "off"
+
+[rules.no-abbreviations]
+severity = "off"
+
+[rules.no-anemic-domain]
+severity = "off"
+
+[rules.no-barrel-chain]
+severity = "off"
+
+[rules.no-barrel-files]
+severity = "off"
+
+[rules.no-circular-import]
+severity = "off"
+
+[rules.no-comments]
+severity = "off"
+
+[rules.no-default-export]
+severity = "off"
+
+[rules.no-dump-files]
+severity = "off"
+
+[rules.no-duplicate-file-names]
+severity = "off"
+
+[rules.no-empty-directories]
+severity = "off"
+
+[rules.no-empty-domain]
+severity = "off"
+
+[rules.no-export-star]
+severity = "off"
+
+[rules.no-focused-test]
+severity = "off"
+
+[rules.no-god-domain]
+severity = "off"
+
+[rules.no-inline-types]
+severity = "off"
+
+[rules.no-interface]
+severity = "off"
+
+[rules.no-large-file]
+severity = "off"
+
+[rules.no-logic-in-barrel]
+severity = "off"
+
+[rules.no-logic-in-domain]
+severity = "off"
+
+[rules.no-magic-numbers]
+severity = "off"
+
+[rules.no-mutable-exports]
+severity = "off"
+
+[rules.no-namespace]
+severity = "off"
+
+[rules.no-nested-functions]
+severity = "off"
+
+[rules.no-non-null-assertion]
+severity = "off"
+
+[rules.no-orphan-files]
+severity = "off"
+
+[rules.no-process-env]
+severity = "off"
+
+[rules.no-restricted-imports]
+severity = "off"
+
+[rules.no-silent-catch]
+severity = "off"
+
+[rules.no-skipped-test]
+severity = "off"
+
+[rules.no-test-code-in-production]
+severity = "off"
+
+[rules.no-test-import]
+severity = "off"
+
+[rules.no-then-chain]
+severity = "off"
+
+[rules.no-type-assertion]
+severity = "off"
+
+[rules.no-upward-import]
+severity = "off"
+
+[rules.prefer-readonly]
+severity = "off"
+
+[rules.prefer-satisfies]
+severity = "off"
