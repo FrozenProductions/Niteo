@@ -198,3 +198,53 @@ fn violation_counts_match() {
     assert_eq!(violation_count as usize, violations_array.len());
     assert!(violation_count > 0);
 }
+
+#[test]
+fn format_ndjson_produces_valid_ndjson() {
+    let project = harness::copy_fixture("reports/basic").unwrap();
+
+    let output = harness::niteo_in_project(project.path())
+        .args(["lint", "--format", "ndjson"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+
+    assert!(!lines.is_empty());
+
+    for line in &lines {
+        let parsed: serde_json::Value = serde_json::from_str(line).unwrap();
+        assert!(
+            parsed["type"].is_string(),
+            "missing 'type' field in line: {line}"
+        );
+    }
+}
+
+#[test]
+fn output_flag_writes_ndjson_to_file() {
+    let project = harness::copy_fixture("reports/basic").unwrap();
+    let output_path = project.path().join("report.ndjson");
+
+    harness::niteo_in_project(project.path())
+        .args([
+            "lint",
+            "--format",
+            "ndjson",
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .assert()
+        .failure();
+
+    assert!(output_path.exists());
+    let contents = std::fs::read_to_string(&output_path).unwrap();
+    let lines: Vec<&str> = contents.lines().collect();
+    assert!(!lines.is_empty());
+
+    for line in &lines {
+        let parsed: serde_json::Value = serde_json::from_str(line).unwrap();
+        assert!(parsed["type"].is_string());
+    }
+}

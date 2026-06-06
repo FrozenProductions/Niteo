@@ -1,15 +1,16 @@
 # Reports And Output Formats
 
-Niteo can write text, JSON, and SARIF reports.
+Niteo can write text, JSON, SARIF, and NDJSON reports.
 
 ```sh
 niteo lint --format text
 niteo lint --format json
 niteo lint --format sarif
+niteo lint --format ndjson
 niteo lint --format json --output niteo-report.json
 ```
 
-`lint` supports all three formats. `rules`, `explain`, `stats`, and `graph` support `text` and `json`.
+`lint` supports all four formats. `rules`, `explain`, `stats`, and `graph` support `text` and `json`. They reject `sarif` and `ndjson`.
 
 ## Text Reports
 
@@ -50,12 +51,12 @@ Info findings do not lower the score.
 
 Status labels are:
 
-| Condition | Status |
-| --- | --- |
-| one or more errors | `Needs attention` |
-| no errors, one or more warnings | `Review recommended` |
+| Condition                                        | Status                  |
+| ------------------------------------------------ | ----------------------- |
+| one or more errors                               | `Needs attention`       |
+| no errors, one or more warnings                  | `Review recommended`    |
 | no errors or warnings, one or more info findings | `Suggestions available` |
-| no findings | `Healthy` |
+| no findings                                      | `Healthy`               |
 
 ## JSON Reports
 
@@ -105,11 +106,48 @@ SARIF output uses version `2.1.0`. Use it for code scanning systems that underst
 Severity mapping:
 
 | Niteo severity | SARIF level |
-| --- | --- |
-| `error` | `error` |
-| `warn` | `warning` |
-| `info` | `note` |
-| `off` | `none` |
+| -------------- | ----------- |
+| `error`        | `error`     |
+| `warn`         | `warning`   |
+| `info`         | `note`      |
+| `off`          | `none`      |
+
+## NDJSON Reports
+
+```sh
+niteo lint --format ndjson
+niteo lint --format ndjson --output report.ndjson
+```
+
+NDJSON (newline-delimited JSON) outputs one valid JSON object per line.
+Each line is independently parseable by streaming consumers.
+
+Every record has a `type` field:
+
+| `type`         | Description                                             |
+| -------------- | ------------------------------------------------------- |
+| `summary`      | Overall run statistics (always first).                  |
+| `file`         | One record per scanned file.                            |
+| `violation`    | One record per lint violation.                          |
+| `suppressions` | Suppression report (only with `--report-suppressions`). |
+
+Example output:
+
+```json
+{"type":"summary","filesScanned":2,"violations":2,"errors":1,"warnings":1,"info":0,"score":50,"status":"Needs attention"}
+{"type":"file","file":"src/console.ts"}
+{"type":"file","file":"src/any.ts"}
+{"type":"violation","file":"src/console.ts","line":4,"column":1,"rule":"no-console","message":"Unexpected console statement.","severity":"warning","detail":null,"subject":null}
+{"type":"violation","file":"src/any.ts","line":1,"column":12,"rule":"no-any","message":"Avoid explicit any.","severity":"warning","detail":null,"subject":"value"}
+```
+
+Clean projects still produce useful output:
+
+```json
+{"type":"summary","filesScanned":2,"violations":0,"errors":0,"warnings":0,"info":0,"score":100,"status":"Healthy"}
+{"type":"file","file":"src/app.ts"}
+{"type":"file","file":"src/utils.ts"}
+```
 
 ## Stats Output
 
@@ -160,4 +198,3 @@ JSON graph output contains:
   ]
 }
 ```
-

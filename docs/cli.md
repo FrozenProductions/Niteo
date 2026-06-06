@@ -12,21 +12,21 @@ If the command is omitted, Niteo runs `lint`.
 
 These options are accepted by every command.
 
-| Option | Short | Description |
-| --- | --- | --- |
-| `--root <path>` | | Project root to scan. Overrides `[project].root`. |
-| `--scope <path>` | | Limit scanning to a path inside the project root. |
-| `--verbose` | `-v` | Show every violation in text reports. |
-| `--git` | | Scan changed TypeScript files only. Fails if git is unavailable. |
-| `--format <format>` | | Output format. Supported values: `text`, `json`, `sarif`. |
-| `--output <path>` | `-o` | Write output to a file instead of stdout. |
-| `--baseline <path>` | | Baseline file path. Defaults to `niteo-baseline.json`. |
-| `--report-suppressions` | | Include suppression counts and stale ignore directives. |
-| `--watch` | | Re-run lint on file changes. |
-| `--fail-on <threshold>` | | Minimum severity that causes lint to fail. Supported values: `error`, `warn`, `any`. Defaults to `any`. |
-| `--deny-child-configs` | | Fail when nested `niteo.toml` files are found inside the scan scope. |
+| Option                  | Short | Description                                                                                             |
+| ----------------------- | ----- | ------------------------------------------------------------------------------------------------------- |
+| `--root <path>`         |       | Project root to scan. Overrides `[project].root`.                                                       |
+| `--scope <path>`        |       | Limit scanning to a path inside the project root.                                                       |
+| `--verbose`             | `-v`  | Show every violation in text reports.                                                                   |
+| `--git`                 |       | Scan changed TypeScript files only. Fails if git is unavailable.                                        |
+| `--format <format>`     |       | Output format. Supported values: `text`, `json`, `sarif`, `ndjson`.                                     |
+| `--output <path>`       | `-o`  | Write output to a file instead of stdout.                                                               |
+| `--baseline <path>`     |       | Baseline file path. Defaults to `niteo-baseline.json`.                                                  |
+| `--report-suppressions` |       | Include suppression counts and stale ignore directives.                                                 |
+| `--watch`               |       | Re-run lint on file changes.                                                                            |
+| `--fail-on <threshold>` |       | Minimum severity that causes lint to fail. Supported values: `error`, `warn`, `any`. Defaults to `any`. |
+| `--deny-child-configs`  |       | Fail when nested `niteo.toml` files are found inside the scan scope.                                    |
 
-Not every command supports every output format. `rules`, `explain`, `stats`, and `graph` support `text` and `json`; they reject `sarif`. `lint` supports `text`, `json`, and `sarif`.
+Not every command supports every output format. `rules`, `explain`, `stats`, and `graph` support `text` and `json`; they reject `sarif` and `ndjson`. `lint` supports `text`, `json`, `sarif`, and `ndjson`.
 
 ## `lint`
 
@@ -176,4 +176,3 @@ niteo lint --root packages/app/src --scope components
 This scans `packages/app/src/components`.
 
 `--output` and `--baseline` are resolved relative to the workspace unless they are absolute.
-

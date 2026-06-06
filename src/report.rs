@@ -174,6 +174,34 @@ impl Report {
         Ok(serde_json::to_string_pretty(&report)?)
     }
 
+    pub fn render_ndjson(&self) -> Result<String> {
+        let mut lines = Vec::new();
+
+        let summary = with_record_type(self.summary_json(), "summary");
+        lines.push(serde_json::to_string(&summary)?);
+
+        for file in &self.files {
+            let record = json!({
+                "type": "file",
+                "file": path_to_string(file),
+            });
+            lines.push(serde_json::to_string(&record)?);
+        }
+
+        for violation in &self.violations {
+            let record = with_record_type(violation_json(violation), "violation");
+            lines.push(serde_json::to_string(&record)?);
+        }
+
+        if let Some(ref suppression_report) = self.suppression_report {
+            let suppression =
+                with_record_type(suppression_report_json(suppression_report), "suppressions");
+            lines.push(serde_json::to_string(&suppression)?);
+        }
+
+        Ok(lines.join("\n"))
+    }
+
     fn count_by_severity(&self, severity: Severity) -> usize {
         self.violations
             .iter()
@@ -276,6 +304,13 @@ fn sarif_level(severity: Severity) -> &'static str {
         Severity::Info => "note",
         Severity::Off => "none",
     }
+}
+
+fn with_record_type(mut value: Value, record_type: &str) -> Value {
+    if let Value::Object(ref mut object) = value {
+        object.insert("type".to_string(), json!(record_type));
+    }
+    value
 }
 
 #[derive(Debug)]

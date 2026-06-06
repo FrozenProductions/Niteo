@@ -103,4 +103,5 @@ pub enum OutputFormat {
     Text,
     Json,
     Sarif,
+    Ndjson,
 }

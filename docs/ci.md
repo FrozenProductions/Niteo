@@ -88,7 +88,7 @@ Write SARIF for code scanning systems:
 npx niteo-cli lint --format sarif --output niteo.sarif
 ```
 
-Only `lint` supports SARIF output.
+Only `lint` supports SARIF and NDJSON output.
 
 ## Changed Files
 

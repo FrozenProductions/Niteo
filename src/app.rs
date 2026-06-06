@@ -247,6 +247,7 @@ fn list_rules(
         }
         OutputFormat::Json => rule_documentation::render_rules_json(&rows)?,
         OutputFormat::Sarif => bail!("SARIF format is not supported for the 'rules' command"),
+        OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'rules' command"),
     };
 
     write_report(workspace, output_path, &rendered)?;
@@ -268,6 +269,7 @@ fn explain_rule(
         OutputFormat::Text => rule_documentation::render_explanation_text(&explanation),
         OutputFormat::Json => rule_documentation::render_explanation_json(&explanation)?,
         OutputFormat::Sarif => bail!("SARIF format is not supported for the 'explain' command"),
+        OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'explain' command"),
     };
 
     write_report(workspace, output_path, &rendered)?;
@@ -308,6 +310,7 @@ fn show_stats(
         OutputFormat::Text => render_stats_text(&graph),
         OutputFormat::Json => render_stats_json(&graph)?,
         OutputFormat::Sarif => bail!("SARIF format is not supported for the 'stats' command"),
+        OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'stats' command"),
     };
 
     write_report(workspace, output_path, &rendered)?;
@@ -423,6 +426,7 @@ fn show_graph(
         OutputFormat::Text => graph.format_dot(),
         OutputFormat::Json => render_graph_json(&graph)?,
         OutputFormat::Sarif => bail!("SARIF format is not supported for the 'graph' command"),
+        OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'graph' command"),
     };
 
     write_report(workspace, output_path, &rendered)?;
@@ -532,6 +536,7 @@ fn lint_workspace(
         OutputFormat::Text => report.render_text(opts.verbose),
         OutputFormat::Json => report.render_json()?,
         OutputFormat::Sarif => report.render_sarif()?,
+        OutputFormat::Ndjson => report.render_ndjson()?,
     };
 
     write_report(workspace, opts.output_path, &rendered_report)?;

@@ -56,17 +56,17 @@ niteo graph             # Output the import graph
 
 ## Common Options
 
-| Option | Description |
-| --- | --- |
-| `--root <path>` | Project root to scan. |
-| `--scope <path>` | Limit scanning to one path. |
-| `--verbose` | Show every violation in text output. |
-| `--git` | Scan changed TypeScript files only. Fails if git is unavailable. |
-| `--format <format>` | Output format: `text`, `json`, or `sarif`. |
-| `--output <path>` | Write output to a file. |
-| `--baseline <path>` | Baseline file path. |
-| `--report-suppressions` | Report suppressed violations and stale ignore directives. |
-| `--watch` | Re-run lint on file changes. |
+| Option                  | Description                                                      |
+| ----------------------- | ---------------------------------------------------------------- |
+| `--root <path>`         | Project root to scan.                                            |
+| `--scope <path>`        | Limit scanning to one path.                                      |
+| `--verbose`             | Show every violation in text output.                             |
+| `--git`                 | Scan changed TypeScript files only. Fails if git is unavailable. |
+| `--format <format>`     | Output format: `text`, `json`, `sarif`, or `ndjson`.             |
+| `--output <path>`       | Write output to a file.                                          |
+| `--baseline <path>`     | Baseline file path.                                              |
+| `--report-suppressions` | Report suppressed violations and stale ignore directives.        |
+| `--watch`               | Re-run lint on file changes.                                     |
 
 ## What Niteo Checks
 
@@ -86,4 +86,3 @@ See [Rules](./rules.md) for the full rule catalog.
 ## Monorepos
 
 Niteo supports cascading configs. Place a root `niteo.toml` at the workspace level and additional `niteo.toml` files inside packages. Child configs merge on top of the root, overriding only declared fields. See [Cascading Configs](./configuration.md#cascading-configs) for details.
-

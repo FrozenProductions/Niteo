@@ -222,3 +222,120 @@ fn clean_project_json_has_zero_violations() {
     assert_eq!(parsed["summary"]["warnings"].as_u64().unwrap(), 0);
     assert_eq!(parsed["summary"]["score"].as_u64().unwrap(), 100);
 }
+
+#[test]
+fn ndjson_first_record_is_summary() {
+    let project = harness::copy_fixture("reports/basic").unwrap();
+
+    let output = harness::niteo_in_project(project.path())
+        .args(["lint", "--format", "ndjson"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let first_line = stdout.lines().next().unwrap();
+    let parsed: Value = serde_json::from_str(first_line).unwrap();
+
+    assert_eq!(parsed["type"], "summary");
+    assert!(parsed["filesScanned"].is_number());
+    assert!(parsed["violations"].is_number());
+    assert!(parsed["errors"].is_number());
+    assert!(parsed["warnings"].is_number());
+    assert!(parsed["info"].is_number());
+    assert!(parsed["score"].is_number());
+    assert!(parsed["status"].is_string());
+}
+
+#[test]
+fn ndjson_violation_records_have_required_fields() {
+    let project = harness::copy_fixture("reports/basic").unwrap();
+
+    let output = harness::niteo_in_project(project.path())
+        .args(["lint", "--format", "ndjson"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let violations: Vec<Value> = stdout
+        .lines()
+        .filter_map(|line| {
+            let parsed: Value = serde_json::from_str(line).ok()?;
+            if parsed["type"] == "violation" {
+                Some(parsed)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    assert!(!violations.is_empty());
+
+    for violation in &violations {
+        assert!(violation["file"].is_string());
+        assert!(violation["rule"].is_string());
+        assert!(violation["message"].is_string());
+        assert!(violation["severity"].is_string());
+    }
+
+    let valid_severities = ["error", "warning", "info", "off"];
+    for violation in &violations {
+        let severity = violation["severity"].as_str().unwrap();
+        assert!(
+            valid_severities.contains(&severity),
+            "unexpected severity: {severity}"
+        );
+    }
+}
+
+#[test]
+fn ndjson_file_records_match_files_scanned() {
+    let project = harness::copy_fixture("reports/basic").unwrap();
+
+    let output = harness::niteo_in_project(project.path())
+        .args(["lint", "--format", "ndjson"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+
+    let file_lines: Vec<&str> = stdout
+        .lines()
+        .filter(|line| {
+            let parsed: Value = serde_json::from_str(line).unwrap();
+            parsed["type"] == "file"
+        })
+        .collect();
+
+    let summary_line = stdout.lines().next().unwrap();
+    let summary: Value = serde_json::from_str(summary_line).unwrap();
+    let files_scanned = summary["filesScanned"].as_u64().unwrap();
+
+    assert_eq!(file_lines.len() as u64, files_scanned);
+}
+
+#[test]
+fn clean_project_ndjson_has_summary_and_no_violations() {
+    let project = harness::copy_fixture("reports/clean").unwrap();
+
+    let output = harness::niteo_in_project(project.path())
+        .args(["lint", "--format", "ndjson"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert!(!lines.is_empty());
+
+    let summary: Value = serde_json::from_str(lines[0]).unwrap();
+    assert_eq!(summary["type"], "summary");
+    assert_eq!(summary["violations"].as_u64().unwrap(), 0);
+
+    let violation_lines = lines
+        .iter()
+        .filter(|line| {
+            let parsed: Value = serde_json::from_str(line).unwrap();
+            parsed["type"] == "violation"
+        })
+        .count();
+    assert_eq!(violation_lines, 0);
+}
