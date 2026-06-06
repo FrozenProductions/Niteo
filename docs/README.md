@@ -77,6 +77,9 @@ niteo graph             # Output the import graph
 - hook and component file boundaries
 - `any`, enums, namespaces, non-null assertions, `eval`, `debugger`, and console usage
 - test code or test imports in production files
+- circular imports and import graph structure
+
+Import graph rules (circular imports, orphan files, test imports, barrel chains) use your project's `tsconfig.json` path aliases when present. See [Configuration](./configuration.md#typescript-path-aliases) for details.
 
 See [Rules](./rules.md) for the full rule catalog.
 

@@ -86,7 +86,7 @@ mod tests {
             ("src/helper.tests.ts", ""),
             ("src/b.test.ts", ""),
         ];
-        let graph = build_import_graph_from_sources(&files_with_sources, &test_domain());
+        let graph = build_import_graph_from_sources(&files_with_sources, &test_domain(), None);
         let line_index = LineIndex::new(source);
         check_file(
             std::path::Path::new(file_path),

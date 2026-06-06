@@ -72,7 +72,7 @@ mod tests {
 
     fn run_check(source: &str, config: &UpwardImportRuleConfig) -> Vec<Violation> {
         let files_with_sources = vec![("Button.ts", source)];
-        let graph = build_import_graph_from_sources(&files_with_sources, &test_domain());
+        let graph = build_import_graph_from_sources(&files_with_sources, &test_domain(), None);
         let line_index = LineIndex::new(source);
         check_file(std::path::Path::new("Button.ts"), &line_index, &graph, config)
     }

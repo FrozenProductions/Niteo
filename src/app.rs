@@ -297,7 +297,12 @@ fn show_stats(
     };
 
     let tests_config = project_config.structure.tests.clone();
-    let graph = import_graph::build_import_graph(&files, |file| tests_config.matches_file(file))?;
+    let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
+    let graph = import_graph::build_import_graph(
+        &files,
+        |file| tests_config.matches_file(file),
+        tsconfig.as_ref(),
+    )?;
 
     let rendered = match output_format {
         OutputFormat::Text => render_stats_text(&graph),
@@ -407,7 +412,12 @@ fn show_graph(
     };
 
     let tests_config = project_config.structure.tests.clone();
-    let graph = import_graph::build_import_graph(&files, |file| tests_config.matches_file(file))?;
+    let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
+    let graph = import_graph::build_import_graph(
+        &files,
+        |file| tests_config.matches_file(file),
+        tsconfig.as_ref(),
+    )?;
 
     let rendered = match output_format {
         OutputFormat::Text => graph.format_dot(),
@@ -588,13 +598,18 @@ fn collect_violations(
         }
     };
 
-    let graph = import_graph::build_import_graph(&files, |file| {
-        config_set
-            .config_for_file(file)
-            .structure
-            .tests
-            .matches_file(file)
-    })?;
+    let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
+    let graph = import_graph::build_import_graph(
+        &files,
+        |file| {
+            config_set
+                .config_for_file(file)
+                .structure
+                .tests
+                .matches_file(file)
+        },
+        tsconfig.as_ref(),
+    )?;
 
     let (file_violations, suppression_report) = rules::check_files(&files, &config_set, &graph)?;
 

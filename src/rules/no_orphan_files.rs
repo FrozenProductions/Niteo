@@ -80,7 +80,7 @@ mod tests {
     }
 
     fn run_check(file_path: &str, files_with_sources: &[(&str, &str)]) -> Vec<Violation> {
-        let graph = build_import_graph_from_sources(files_with_sources, &test_domain());
+        let graph = build_import_graph_from_sources(files_with_sources, &test_domain(), None);
         let source = files_with_sources
             .iter()
             .find(|(path, _)| *path == file_path)

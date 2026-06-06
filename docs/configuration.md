@@ -10,6 +10,33 @@ niteo init
 
 If no config file exists, Niteo uses its built-in defaults.
 
+## TypeScript Path Aliases
+
+Niteo reads `tsconfig.json` from the workspace root to resolve TypeScript path aliases for import graph rules.
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@features/*": ["src/features/*"]
+    }
+  }
+}
+```
+
+Niteo uses `compilerOptions.baseUrl` and `compilerOptions.paths` when building the import graph. When a `tsconfig.json` is present, aliased imports such as `import { formatDate } from "@/shared/date"` are resolved to real files. This allows graph-based rules (circular import detection, orphan files, test imports, and barrel chains) to work with projects that use path aliases.
+
+Supported path features:
+
+- `baseUrl` — relative to the tsconfig location
+- `paths` — one `*` wildcard per pattern
+- Extensionless resolution (`.ts`, `.tsx`)
+- Directory barrel resolution (`index.ts`, `index.tsx`)
+
+If `tsconfig.json` is not present or has no `paths` configuration, Niteo falls back to its default resolution (relative imports only).
+
 ## Project Settings
 
 ```toml

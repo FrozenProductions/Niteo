@@ -12,6 +12,7 @@ mod report;
 mod rule_documentation;
 mod rules;
 mod syntax;
+mod tsconfig;
 mod watch;
 
 use anyhow::Result;

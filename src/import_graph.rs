@@ -8,6 +8,8 @@ use oxc_ast::ast::{
 use oxc_ast_visit::Visit;
 use oxc_span::Span;
 
+use crate::tsconfig::{ResolvedPathAlias, TsConfig, match_alias};
+
 #[cfg(test)]
 use crate::config::structure::DomainConfig;
 
@@ -100,10 +102,12 @@ impl ImportGraph {
 
 struct ImportResolverIndex {
     entries: HashMap<PathBuf, PathBuf>,
+    aliases: Vec<ResolvedPathAlias>,
+    base_url: PathBuf,
 }
 
 impl ImportResolverIndex {
-    fn new(files: &[PathBuf]) -> Self {
+    fn new(files: &[PathBuf], tsconfig: Option<&TsConfig>) -> Self {
         let mut entries = HashMap::new();
         for file in files {
             let normalized = normalize_path(file);
@@ -124,22 +128,61 @@ impl ImportResolverIndex {
                     .or_insert_with(|| file.clone());
             }
         }
-        Self { entries }
+
+        let (aliases, base_url) = match tsconfig {
+            Some(config) => (config.aliases.clone(), config.base_url.clone()),
+            None => (Vec::new(), PathBuf::from(".")),
+        };
+
+        Self {
+            entries,
+            aliases,
+            base_url,
+        }
     }
 
     fn resolve(&self, source_file: &Path, specifier: &str) -> Option<PathBuf> {
-        if !is_relative_specifier(specifier) {
-            return None;
+        if is_relative_specifier(specifier) {
+            let parent = source_file.parent()?;
+            let target = normalize_path(&parent.join(specifier));
+            return self.entries.get(&target).cloned();
         }
-        let parent = source_file.parent()?;
-        let target = normalize_path(&parent.join(specifier));
-        self.entries.get(&target).cloned()
+
+        self.resolve_alias(specifier)
+    }
+
+    fn resolve_alias(&self, specifier: &str) -> Option<PathBuf> {
+        for alias in &self.aliases {
+            let Some(captured) = match_alias(alias, specifier) else {
+                continue;
+            };
+            for target in &alias.targets {
+                let candidate = format!("{}{}{}", target.prefix, captured, target.suffix);
+                let resolved = normalize_path(&self.base_url.join(&candidate));
+                if let Some(found) = self.entries.get(&resolved) {
+                    return Some(found.clone());
+                }
+                let without_ext = extensionless(&resolved);
+                if without_ext != resolved
+                    && let Some(found) = self.entries.get(&without_ext)
+                {
+                    return Some(found.clone());
+                }
+                if let Some(parent) = resolved.parent()
+                    && let Some(found) = self.entries.get(parent)
+                {
+                    return Some(found.clone());
+                }
+            }
+        }
+        None
     }
 }
 
 pub fn build_import_graph(
     files: &[PathBuf],
     is_test_file: impl Fn(&Path) -> bool,
+    tsconfig: Option<&TsConfig>,
 ) -> Result<ImportGraph> {
     let mut graph = ImportGraph::new();
 
@@ -149,7 +192,7 @@ pub fn build_import_graph(
         graph.add_file(file.clone(), is_barrel, is_test);
     }
 
-    let resolver = ImportResolverIndex::new(files);
+    let resolver = ImportResolverIndex::new(files, tsconfig);
 
     for file in files {
         let source = std::fs::read_to_string(file)
@@ -165,6 +208,7 @@ pub fn build_import_graph(
 pub fn build_import_graph_from_sources(
     files_with_sources: &[(&str, &str)],
     tests_config: &DomainConfig,
+    tsconfig: Option<&TsConfig>,
 ) -> ImportGraph {
     let mut graph = ImportGraph::new();
     let files: Vec<PathBuf> = files_with_sources
@@ -178,7 +222,7 @@ pub fn build_import_graph_from_sources(
         graph.add_file(file.clone(), is_barrel, is_test);
     }
 
-    let resolver = ImportResolverIndex::new(&files);
+    let resolver = ImportResolverIndex::new(&files, tsconfig);
 
     for (path, source) in files_with_sources {
         let file = PathBuf::from(path);
@@ -272,7 +316,7 @@ fn resolve_import_specifier(
     specifier: &str,
     all_files: &[PathBuf],
 ) -> Option<PathBuf> {
-    ImportResolverIndex::new(all_files).resolve(source_file, specifier)
+    ImportResolverIndex::new(all_files, None).resolve(source_file, specifier)
 }
 
 fn normalize_path(path: &Path) -> PathBuf {
@@ -381,6 +425,7 @@ impl ImportGraph {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tsconfig::PathTargetPattern;
     use std::path::PathBuf;
 
     #[test]
@@ -477,6 +522,97 @@ mod tests {
         assert_eq!(
             resolved_reversed,
             Some(PathBuf::from("src/components/index.ts"))
+        );
+    }
+
+    #[test]
+    fn resolves_aliased_import_through_graph() {
+        let tsconfig = TsConfig {
+            base_url: PathBuf::from("/repo"),
+            aliases: vec![ResolvedPathAlias {
+                pattern: "@/*".into(),
+                prefix: "@/".into(),
+                suffix: "".into(),
+                targets: vec![PathTargetPattern {
+                    prefix: "src/".into(),
+                    suffix: "".into(),
+                }],
+            }],
+        };
+
+        let files_with_sources = vec![
+            (
+                "/repo/src/app.ts",
+                r#"import { helper } from "@/shared/helper";"#,
+            ),
+            ("/repo/src/shared/helper.ts", r#"export const helper = 42;"#),
+        ];
+
+        let domain = crate::config::structure::DomainConfig {
+            folders: Vec::new(),
+            file_suffixes: Vec::new(),
+        };
+        let graph = build_import_graph_from_sources(&files_with_sources, &domain, Some(&tsconfig));
+
+        let edge = graph
+            .edges_from(Path::new("/repo/src/app.ts"))
+            .next()
+            .unwrap();
+        assert_eq!(edge.specifier, "@/shared/helper");
+        assert_eq!(
+            edge.resolved_target,
+            Some(PathBuf::from("/repo/src/shared/helper.ts"))
+        );
+    }
+
+    #[test]
+    fn resolves_aliased_import_when_first_alias_does_not_match() {
+        let tsconfig = TsConfig {
+            base_url: PathBuf::from("/repo"),
+            aliases: vec![
+                ResolvedPathAlias {
+                    pattern: "@components/*".into(),
+                    prefix: "@components/".into(),
+                    suffix: "".into(),
+                    targets: vec![PathTargetPattern {
+                        prefix: "src/components/".into(),
+                        suffix: "".into(),
+                    }],
+                },
+                ResolvedPathAlias {
+                    pattern: "@/*".into(),
+                    prefix: "@/".into(),
+                    suffix: "".into(),
+                    targets: vec![PathTargetPattern {
+                        prefix: "src/".into(),
+                        suffix: "".into(),
+                    }],
+                },
+            ],
+        };
+
+        let files_with_sources = vec![
+            (
+                "/repo/src/app.ts",
+                r#"import { helper } from "@/shared/helper";"#,
+            ),
+            ("/repo/src/shared/helper.ts", r#"export const helper = 42;"#),
+        ];
+
+        let domain = crate::config::structure::DomainConfig {
+            folders: Vec::new(),
+            file_suffixes: Vec::new(),
+        };
+        let graph = build_import_graph_from_sources(&files_with_sources, &domain, Some(&tsconfig));
+
+        let edge = graph
+            .edges_from(Path::new("/repo/src/app.ts"))
+            .next()
+            .unwrap();
+        assert_eq!(edge.specifier, "@/shared/helper");
+        assert_eq!(
+            edge.resolved_target,
+            Some(PathBuf::from("/repo/src/shared/helper.ts"))
         );
     }
 }
