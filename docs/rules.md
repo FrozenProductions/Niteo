@@ -27,6 +27,7 @@ niteo explain no-console --format json
 | `hook-no-jsx` | `warn` | Hook files should not return or contain JSX. | `project.structure.hooks` |
 | `explicit-return-type` | `warn` | Require explicit return types on exported functions. | `severity` |
 | `hook-prefix` | `warn` | Hook functions in hook files should use an allowed prefix, usually `use`. | `prefixes`, `project.structure.hooks` |
+| `layer-boundaries` | `off` | Enforce that imports respect ordered architectural layers. | `[architecture.layers]` |
 | `max-directory-depth` | `warn` | Limit nested directories below the configured project root. | `max-depth`, `ignore-dirs` |
 | `max-file-exports` | `warn` | Limit the number of exports from one file. | `max-exports` |
 | `max-function-params` | `warn` | Limit function parameter count; prefer an object parameter. | `max-params` |
@@ -657,6 +658,39 @@ Reports imports with more upward `../` segments than `max-depth`.
 severity = "warn"
 max-depth = 0
 ```
+
+### `layer-boundaries`
+
+Enforces that imports respect an ordered set of architectural layers. Each layer may only import from layers at or below its position. Layers are defined in the `[architecture.layers]` section of `niteo.toml`.
+
+```ts
+// src/shared/date.ts — layer "shared" (lowest position)
+import { getSession } from "@/features/auth/session";  // ❌ shared cannot import features
+```
+
+This rule is disabled by default. To use it, configure your layers and enable the rule:
+
+```toml
+[architecture.layers]
+order = ["app", "features", "entities", "shared"]
+
+[architecture.layers.app]
+folders = ["app"]
+
+[architecture.layers.features]
+folders = ["features"]
+
+[architecture.layers.entities]
+folders = ["entities"]
+
+[architecture.layers.shared]
+folders = ["shared"]
+
+[rules.layer-boundaries]
+severity = "warn"
+```
+
+With this configuration, `app` can import from `features`, `entities`, and `shared`, while `shared` may not import from any higher layer.
 
 ### `no-restricted-imports`
 

@@ -1,0 +1,168 @@
+use std::collections::HashMap;
+use std::path::Path;
+
+use super::structure::DomainConfig;
+
+#[derive(Debug, Clone, Default)]
+pub struct ArchitectureConfig {
+    pub layers: LayerBoundaryConfig,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct LayerBoundaryConfig {
+    pub order: Vec<String>,
+    pub definitions: HashMap<String, DomainConfig>,
+}
+
+impl LayerBoundaryConfig {
+    pub fn is_configured(&self) -> bool {
+        !self.order.is_empty()
+    }
+
+    pub fn layer_for_file(&self, path: &Path) -> Option<&str> {
+        let path_str = path.to_string_lossy();
+        let mut best: Option<(&str, usize)> = None;
+
+        for name in &self.order {
+            if let Some(domain) = self.definitions.get(name) {
+                if !domain.folders.is_empty() {
+                    for folder in &domain.folders {
+                        if path_str.contains(folder.as_str()) {
+                            let specificity = folder.len();
+                            match best {
+                                Some((_, existing)) if specificity > existing => {
+                                    best = Some((name.as_str(), specificity));
+                                }
+                                None => {
+                                    best = Some((name.as_str(), specificity));
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                } else if domain.matches_file(path) && best.is_none() {
+                    best = Some((name.as_str(), 0));
+                }
+            }
+        }
+
+        best.map(|(name, _)| name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_config_is_unconfigured() {
+        let config = LayerBoundaryConfig::default();
+        assert!(!config.is_configured());
+    }
+
+    #[test]
+    fn configured_when_order_exists() {
+        let mut config = LayerBoundaryConfig::default();
+        config.order = vec!["app".to_string()];
+        assert!(config.is_configured());
+    }
+
+    #[test]
+    fn layer_for_file_matches_folder() {
+        let config = make_test_layers();
+        let path = Path::new("src/shared/date.ts");
+        assert_eq!(config.layer_for_file(path), Some("shared"));
+    }
+
+    #[test]
+    fn layer_for_file_matches_nested() {
+        let config = make_test_layers();
+        let path = Path::new("src/app/auth/login.ts");
+        assert_eq!(config.layer_for_file(path), Some("app"));
+    }
+
+    #[test]
+    fn layer_for_file_unknown_returns_none() {
+        let config = make_test_layers();
+        let path = Path::new("src/lib/something.ts");
+        assert_eq!(config.layer_for_file(path), None);
+    }
+
+    #[test]
+    fn layer_for_file_prefers_most_specific() {
+        let mut config = LayerBoundaryConfig::default();
+        config.order = vec!["app".to_string(), "app-sub".to_string()];
+        config.definitions.insert(
+            "app".to_string(),
+            DomainConfig {
+                folders: vec!["app".to_string()],
+                file_suffixes: vec![],
+            },
+        );
+        config.definitions.insert(
+            "app-sub".to_string(),
+            DomainConfig {
+                folders: vec!["app/admin".to_string()],
+                file_suffixes: vec![],
+            },
+        );
+
+        let path = Path::new("src/app/admin/page.ts");
+        assert_eq!(config.layer_for_file(path), Some("app-sub"));
+    }
+
+    #[test]
+    fn layer_for_file_suffix_match() {
+        let mut config = LayerBoundaryConfig::default();
+        config.order = vec!["shared".to_string()];
+        config.definitions.insert(
+            "shared".to_string(),
+            DomainConfig {
+                folders: vec![],
+                file_suffixes: vec![".shared.ts".to_string()],
+            },
+        );
+
+        let path = Path::new("src/utils/helper.shared.ts");
+        assert_eq!(config.layer_for_file(path), Some("shared"));
+    }
+
+    fn make_test_layers() -> LayerBoundaryConfig {
+        let mut config = LayerBoundaryConfig::default();
+        config.order = vec![
+            "app".to_string(),
+            "features".to_string(),
+            "entities".to_string(),
+            "shared".to_string(),
+        ];
+        config.definitions.insert(
+            "app".to_string(),
+            DomainConfig {
+                folders: vec!["app".to_string()],
+                file_suffixes: vec![],
+            },
+        );
+        config.definitions.insert(
+            "features".to_string(),
+            DomainConfig {
+                folders: vec!["features".to_string()],
+                file_suffixes: vec![],
+            },
+        );
+        config.definitions.insert(
+            "entities".to_string(),
+            DomainConfig {
+                folders: vec!["entities".to_string()],
+                file_suffixes: vec![],
+            },
+        );
+        config.definitions.insert(
+            "shared".to_string(),
+            DomainConfig {
+                folders: vec!["shared".to_string()],
+                file_suffixes: vec![],
+            },
+        );
+        config
+    }
+}

@@ -65,6 +65,7 @@ declare_rules! {
     explicit_return_type => { id: EXPLICIT_RETURN_TYPE_RULE_ID, value: "explicit-return-type", config: crate::config::RuleConfig },
     hook_no_jsx => { id: HOOK_NO_JSX_RULE_ID, value: "hook-no-jsx", config: crate::config::RuleConfig },
     hook_prefix => { id: HOOK_PREFIX_RULE_ID, value: "hook-prefix", config: crate::config::HookPrefixRuleConfig },
+    layer_boundaries => { id: LAYER_BOUNDARIES_RULE_ID, value: "layer-boundaries", config: crate::config::RuleConfig, default_severity: Severity::Off },
     max_directory_depth => { id: MAX_DIRECTORY_DEPTH_RULE_ID, value: "max-directory-depth", config: crate::config::MaxDirectoryDepthRuleConfig },
     max_file_exports => { id: MAX_FILE_EXPORTS_RULE_ID, value: "max-file-exports", config: crate::config::FileExportsRuleConfig },
     max_function_params => { id: MAX_FUNCTION_PARAMS_RULE_ID, value: "max-function-params", config: crate::config::MaxFunctionParamsRuleConfig },
@@ -242,6 +243,28 @@ impl FileRule for NoUpwardImportAdapter {
     }
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
         no_upward_import::check_file(ctx.file, ctx.line_index, ctx.import_graph, &self.config)
+    }
+}
+
+struct LayerBoundariesAdapter {
+    config: crate::config::RuleConfig,
+    layers: crate::config::architecture::LayerBoundaryConfig,
+}
+impl FileRule for LayerBoundariesAdapter {
+    fn severity(&self) -> Severity {
+        self.config.severity
+    }
+    fn needs_ast(&self) -> bool {
+        false
+    }
+    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+        layer_boundaries::check_file(
+            ctx.file,
+            ctx.line_index,
+            ctx.import_graph,
+            &self.config,
+            &self.layers,
+        )
     }
 }
 ast_rule_adapter!(
@@ -637,6 +660,7 @@ impl FileRule for NoLogicInDomainAdapter {
 fn build_file_rules(
     config: &RulesConfig,
     structure: &ProjectStructureConfig,
+    architecture: &crate::config::architecture::ArchitectureConfig,
     import_graph: &ImportGraph,
 ) -> Vec<Box<dyn FileRule>> {
     vec![
@@ -783,6 +807,10 @@ fn build_file_rules(
             types: structure.types.clone(),
             constants: structure.constants.clone(),
         }),
+        Box::new(LayerBoundariesAdapter {
+            config: config.layer_boundaries.clone(),
+            layers: architecture.layers.clone(),
+        }),
     ]
 }
 
@@ -809,7 +837,12 @@ pub fn check_files(
             None => continue,
         };
         let config = config_set.config_for_file(first_file);
-        let rules = build_file_rules(&config.rules, &config.structure, import_graph);
+        let rules = build_file_rules(
+            &config.rules,
+            &config.structure,
+            &config.architecture,
+            import_graph,
+        );
 
         let any_enabled = rules.iter().any(|rule| rule.severity().is_enabled());
         if !any_enabled {

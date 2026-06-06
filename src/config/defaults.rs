@@ -221,4 +221,7 @@ ignore-dirs = []
 severity = "warn"
 max-files = 20
 ignore-dirs = []
+
+[rules.layer-boundaries]
+severity = "off"
 "#;

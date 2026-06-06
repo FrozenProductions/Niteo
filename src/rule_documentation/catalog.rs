@@ -34,6 +34,7 @@ define_rule_kinds! {
     DirectoryMustHaveBarrel,
     HookNoJsx,
     HookPrefix,
+    LayerBoundaries,
     MaxDirectoryDepth,
     MaxFileExports,
     MaxFunctionParams,
@@ -188,6 +189,36 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::HookPrefix,
+    },
+    RuleDocumentation {
+        name: "layer-boundaries",
+        intent: "Enforce that imports respect an ordered set of architectural layers. Each layer may only import layers at or below its own position in the defined order.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "// src/shared/date.ts\nimport { getSession } from '@/features/auth/session';",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "// Define layers in niteo.toml\n[architecture.layers]\norder = [\"app\", \"features\", \"entities\", \"shared\"]\n// shared cannot import features, entities, or app",
+            },
+        ],
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "architecture.layers.order",
+                description: "Ordered list of layer names from highest (app) to lowest (shared). Layers can only import from their own level or lower.",
+            },
+            RuleOption {
+                name: "architecture.layers.<name>.folders",
+                description: "Folder paths that identify files belonging to this layer.",
+            },
+            RuleOption {
+                name: "architecture.layers.<name>.file-suffixes",
+                description: "File name suffixes that identify files belonging to this layer.",
+            },
+        ],
+        kind: RuleKind::LayerBoundaries,
     },
     RuleDocumentation {
         name: "max-directory-depth",

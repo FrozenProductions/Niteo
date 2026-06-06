@@ -1,3 +1,4 @@
+pub mod architecture;
 mod configset;
 mod defaults;
 pub(crate) mod raw;

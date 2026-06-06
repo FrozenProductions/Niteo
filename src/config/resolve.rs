@@ -2,6 +2,7 @@ use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::architecture::ArchitectureConfig;
 use super::defaults::{CONFIG_FILE_NAME, DEFAULT_CONFIG_SOURCE};
 use super::raw::RawConfig;
 use super::rules::GitignoreConfig;
@@ -13,6 +14,7 @@ pub struct ProjectConfig {
     pub root: PathBuf,
     pub gitignore: GitignoreConfig,
     pub structure: ProjectStructureConfig,
+    pub architecture: ArchitectureConfig,
     pub rules: RulesConfig,
 }
 
@@ -22,6 +24,7 @@ impl Default for ProjectConfig {
             root: PathBuf::from("."),
             gitignore: GitignoreConfig::default(),
             structure: ProjectStructureConfig::default(),
+            architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
         }
     }
@@ -93,6 +96,7 @@ impl RawConfig {
             root,
             gitignore: self.gitignore(),
             structure: self.structure(),
+            architecture: self.architecture(),
             rules: self.rules_config(),
         }
     }

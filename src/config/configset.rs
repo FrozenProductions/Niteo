@@ -153,6 +153,7 @@ fn raw_to_project_config(raw: &RawConfig, root: PathBuf) -> ProjectConfig {
         root,
         gitignore: raw.gitignore(),
         structure: raw.structure(),
+        architecture: raw.architecture(),
         rules: raw.rules_config(),
     }
 }
@@ -251,6 +252,7 @@ fn find_parent_node(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::architecture::ArchitectureConfig;
     use crate::config::rules::GitignoreConfig;
     use crate::config::structure::ProjectStructureConfig;
     use crate::rules::RulesConfig;
@@ -270,6 +272,7 @@ mod tests {
             root: PathBuf::from("/project/src"),
             gitignore: GitignoreConfig::default(),
             structure: ProjectStructureConfig::default(),
+            architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
         };
 
@@ -277,6 +280,7 @@ mod tests {
             root: PathBuf::from("/project/src"),
             gitignore: GitignoreConfig::default(),
             structure: ProjectStructureConfig::default(),
+            architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
         };
 
@@ -315,6 +319,7 @@ mod tests {
             root: PathBuf::from("/project"),
             gitignore: GitignoreConfig::default(),
             structure: ProjectStructureConfig::default(),
+            architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
         };
 
@@ -410,6 +415,7 @@ mod tests {
             root: PathBuf::from("/project"),
             gitignore: GitignoreConfig::default(),
             structure: ProjectStructureConfig::default(),
+            architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
         };
 

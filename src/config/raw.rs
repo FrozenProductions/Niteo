@@ -2,6 +2,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use super::architecture::{ArchitectureConfig, LayerBoundaryConfig};
 use super::rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
     FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
@@ -19,6 +20,7 @@ use crate::rules::RulesConfig;
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct RawConfig {
     pub project: Option<RawProjectConfig>,
+    pub architecture: Option<RawArchitectureConfig>,
     pub rules: Option<HashMap<String, RawRuleConfig>>,
 }
 
@@ -26,6 +28,10 @@ impl RawConfig {
     pub fn merge(parent: &RawConfig, child: &RawConfig) -> RawConfig {
         RawConfig {
             project: Self::merge_project(parent.project.as_ref(), child.project.as_ref()),
+            architecture: Self::merge_architecture(
+                parent.architecture.as_ref(),
+                child.architecture.as_ref(),
+            ),
             rules: Self::merge_rules(parent.rules.as_ref(), child.rules.as_ref()),
         }
     }
@@ -42,6 +48,20 @@ impl RawConfig {
                 root: p.root.clone(),
                 respect_gitignore: c.respect_gitignore.or(p.respect_gitignore),
                 structure: Self::merge_structure(p.structure.as_ref(), c.structure.as_ref()),
+            }),
+        }
+    }
+
+    fn merge_architecture(
+        parent: Option<&RawArchitectureConfig>,
+        child: Option<&RawArchitectureConfig>,
+    ) -> Option<RawArchitectureConfig> {
+        match (parent, child) {
+            (None, None) => None,
+            (Some(p), None) => Some(p.clone()),
+            (None, Some(c)) => Some(c.clone()),
+            (Some(p), Some(c)) => Some(RawArchitectureConfig {
+                layers: RawLayerBoundaryConfig::merge(p.layers.as_ref(), c.layers.as_ref()),
             }),
         }
     }
@@ -176,6 +196,7 @@ declare_raw_rules! {
         prefer_readonly => "prefer-readonly",
     }
     custom_default {
+        layer_boundaries => ("layer-boundaries", Severity::Off),
         no_empty_interface => ("no-empty-interface", Severity::Error),
         prefer_satisfies => ("prefer-satisfies", Severity::Info),
     }
@@ -210,6 +231,16 @@ declare_raw_rules! {
 }
 
 impl RawConfig {
+    pub fn architecture(&self) -> ArchitectureConfig {
+        let raw_arch = self.architecture.as_ref();
+        let layers = raw_arch
+            .and_then(|arch| arch.layers.as_ref())
+            .map(|raw| raw.to_layer_boundary_config())
+            .unwrap_or_default();
+
+        ArchitectureConfig { layers }
+    }
+
     pub fn gitignore(&self) -> GitignoreConfig {
         let project = self.project.as_ref();
         GitignoreConfig {
@@ -597,9 +628,130 @@ impl RawRuleOptions {
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct RawArchitectureConfig {
+    pub layers: Option<RawLayerBoundaryConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RawLayerBoundaryConfig {
+    pub order: Option<Vec<String>>,
+    #[serde(flatten)]
+    pub definitions: HashMap<String, RawDomainConfig>,
+}
+
+impl RawLayerBoundaryConfig {
+    fn merge(
+        parent: Option<&RawLayerBoundaryConfig>,
+        child: Option<&RawLayerBoundaryConfig>,
+    ) -> Option<RawLayerBoundaryConfig> {
+        match (parent, child) {
+            (None, None) => None,
+            (Some(p), None) => Some(p.clone()),
+            (None, Some(c)) => Some(c.clone()),
+            (Some(p), Some(c)) => {
+                let order = c.order.clone().or_else(|| p.order.clone());
+                let mut definitions = p.definitions.clone();
+                for (name, child_def) in &c.definitions {
+                    definitions.insert(name.clone(), child_def.clone());
+                }
+                Some(RawLayerBoundaryConfig { order, definitions })
+            }
+        }
+    }
+
+    fn to_layer_boundary_config(&self) -> LayerBoundaryConfig {
+        let order = self.order.clone().unwrap_or_default();
+        let mut definitions: HashMap<String, DomainConfig> = HashMap::new();
+
+        for name in &order {
+            if let Some(raw_domain) = self.definitions.get(name) {
+                let domain = raw_domain.to_domain_config(&DomainConfig {
+                    folders: vec![],
+                    file_suffixes: vec![],
+                });
+                definitions.insert(name.clone(), domain);
+            }
+        }
+
+        LayerBoundaryConfig { order, definitions }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_config_parses_architecture() {
+        let source = r#"
+[architecture.layers]
+order = ["app", "features", "entities", "shared"]
+
+[architecture.layers.app]
+folders = ["app"]
+
+[architecture.layers.features]
+folders = ["features"]
+
+[architecture.layers.entities]
+folders = ["entities"]
+
+[architecture.layers.shared]
+folders = ["shared"]
+"#;
+        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let arch = raw.architecture();
+        assert_eq!(
+            arch.layers.order,
+            vec!["app", "features", "entities", "shared"]
+        );
+        assert_eq!(arch.layers.definitions.len(), 4);
+        assert_eq!(
+            arch.layers.definitions.get("shared").unwrap().folders,
+            vec!["shared"]
+        );
+    }
+
+    #[test]
+    fn missing_architecture_uses_defaults() {
+        let source = r#"
+[project]
+root = "src"
+"#;
+        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let arch = raw.architecture();
+        assert!(arch.layers.order.is_empty());
+    }
+
+    #[test]
+    fn architecture_layer_order_only_defines_layers() {
+        let source = r#"
+[architecture.layers]
+order = ["shared", "core"]
+"#;
+        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let arch = raw.architecture();
+        assert_eq!(arch.layers.order, vec!["shared", "core"]);
+        assert!(arch.layers.definitions.is_empty());
+    }
+
+    #[test]
+    fn architecture_layer_with_suffixes() {
+        let source = r#"
+[architecture.layers]
+order = ["features"]
+
+[architecture.layers.features]
+folders = ["features"]
+file-suffixes = [".feature.ts"]
+"#;
+        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let arch = raw.architecture();
+        let def = arch.layers.definitions.get("features").unwrap();
+        assert_eq!(def.folders, vec!["features"]);
+        assert_eq!(def.file_suffixes, vec![".feature.ts"]);
+    }
 
     #[test]
     fn default_config_parses_structure() {

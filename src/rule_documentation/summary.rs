@@ -40,6 +40,10 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
                 format!("file-suffixes: {:?}", config.structure.hooks.file_suffixes),
             ],
         },
+        RuleKind::LayerBoundaries => RuleConfigSummary {
+            severity: config.rules.layer_boundaries.severity,
+            options: vec![format!("layers: {:?}", config.architecture.layers.order)],
+        },
         RuleKind::HookPrefix => RuleConfigSummary {
             severity: config.rules.hook_prefix.severity,
             options: vec![
