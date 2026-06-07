@@ -91,7 +91,7 @@ fn read_config_file(workspace: &Path) -> Result<RawConfig> {
 }
 
 impl RawConfig {
-    fn into_project_config(self, root: PathBuf) -> ProjectConfig {
+    pub(crate) fn into_project_config(self, root: PathBuf) -> ProjectConfig {
         ProjectConfig {
             root,
             gitignore: self.gitignore(),

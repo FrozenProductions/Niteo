@@ -1,10 +1,12 @@
 pub mod architecture;
 mod configset;
-mod defaults;
+pub mod defaults;
+pub mod presets;
 pub(crate) mod raw;
 mod resolve;
 pub mod rules;
 pub mod structure;
+pub mod validation;
 
 pub use configset::{ConfigSet, ConfigSetOptions};
 pub use resolve::{ProjectConfig, write_default_config};

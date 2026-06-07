@@ -77,7 +77,11 @@ pub struct CliOptions {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Create niteo.toml.
-    Init,
+    Init {
+        /// Use a named preset instead of the full default config.
+        #[arg(long, value_enum)]
+        preset: Option<PresetName>,
+    },
     /// Manage the current violation baseline.
     Baseline {
         #[command(subcommand)]
@@ -86,13 +90,23 @@ pub enum Command {
     /// Scan for structural issues.
     Lint,
     /// List rules and severities.
-    Rules,
+    Rules {
+        /// Use a named preset to show what would be configured.
+        #[arg(long, value_enum)]
+        preset: Option<PresetName>,
+    },
     /// Explain a rule.
     Explain { rule: String },
     /// Show project statistics.
     Stats,
     /// Visualize import graph.
     Graph,
+    /// Validate and inspect configuration.
+    #[command(name = "config")]
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -101,6 +115,30 @@ pub enum BaselineCommand {
     Create,
     /// Remove stale entries from the baseline file.
     Prune,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ConfigCommand {
+    /// Validate the config file and report diagnostics.
+    Check,
+    /// Print the resolved config.
+    Print,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum PresetName {
+    #[value(name = "balanced")]
+    Balanced,
+    #[value(name = "strict")]
+    Strict,
+    #[value(name = "migration")]
+    Migration,
+    #[value(name = "react")]
+    React,
+    #[value(name = "library")]
+    Library,
+    #[value(name = "no-barrels")]
+    NoBarrels,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

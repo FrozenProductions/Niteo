@@ -4,7 +4,7 @@ use std::process::ExitCode;
 use anyhow::Result;
 use clap::Parser;
 
-use crate::cli::{BaselineCommand, Cli, Command};
+use crate::cli::{BaselineCommand, Cli, Command, ConfigCommand};
 use crate::commands;
 use crate::watch;
 
@@ -13,10 +13,43 @@ pub fn run() -> Result<ExitCode> {
     let workspace = std::env::current_dir()?;
 
     let exit_code = match cli.command.unwrap_or(Command::Lint) {
-        Command::Init => {
-            create_config(&workspace)?;
+        Command::Init { preset } => {
+            create_config(&workspace, preset)?;
             ExitCode::SUCCESS
         }
+        Command::Config { command } => match command {
+            ConfigCommand::Check => {
+                let source = read_config_source(&workspace);
+                let report = crate::config::validation::validate_config_source(&source);
+
+                let mut has_errors = false;
+                for diagnostic in &report.diagnostics {
+                    let prefix = match diagnostic.severity {
+                        crate::config::validation::ConfigDiagnosticSeverity::Error => {
+                            has_errors = true;
+                            "error"
+                        }
+                        crate::config::validation::ConfigDiagnosticSeverity::Warn => "warn",
+                    };
+                    let rule = diagnostic
+                        .rule
+                        .as_deref()
+                        .map(|r| format!("rules.{r}"))
+                        .unwrap_or_default();
+                    println!("{prefix:<6} {rule:<32} {}", diagnostic.message);
+                }
+
+                if has_errors {
+                    return Ok(ExitCode::FAILURE);
+                }
+                ExitCode::SUCCESS
+            }
+            ConfigCommand::Print => {
+                let source = read_config_source(&workspace);
+                println!("{source}");
+                ExitCode::SUCCESS
+            }
+        },
         Command::Baseline { command } => match command {
             BaselineCommand::Create => {
                 commands::baseline::create(
@@ -42,13 +75,22 @@ pub fn run() -> Result<ExitCode> {
                 ExitCode::SUCCESS
             }
         },
-        Command::Rules => {
-            commands::rules::list(
-                &workspace,
-                cli.options.root,
-                cli.options.format,
-                cli.options.output,
-            )?;
+        Command::Rules { preset } => {
+            if let Some(preset_name) = preset {
+                commands::rules::list_with_preset(
+                    &workspace,
+                    preset_name,
+                    cli.options.format,
+                    cli.options.output,
+                )?;
+            } else {
+                commands::rules::list(
+                    &workspace,
+                    cli.options.root,
+                    cli.options.format,
+                    cli.options.output,
+                )?;
+            }
             ExitCode::SUCCESS
         }
         Command::Explain { rule } => {
@@ -131,8 +173,40 @@ pub fn run() -> Result<ExitCode> {
     Ok(exit_code)
 }
 
-fn create_config(workspace: &Path) -> Result<()> {
-    let config_path = crate::config::write_default_config(workspace)?;
-    println!("Created {}", config_path.display());
+fn read_config_source(workspace: &Path) -> String {
+    let config_path = workspace.join(crate::config::defaults::CONFIG_FILE_NAME);
+    if config_path.exists() {
+        std::fs::read_to_string(&config_path).unwrap_or_else(|_| String::new())
+    } else {
+        crate::config::defaults::DEFAULT_CONFIG_SOURCE.to_owned()
+    }
+}
+
+fn create_config(workspace: &Path, preset: Option<crate::cli::PresetName>) -> Result<()> {
+    let preset_name = preset.map(|name| match name {
+        crate::cli::PresetName::Balanced => "balanced",
+        crate::cli::PresetName::Strict => "strict",
+        crate::cli::PresetName::Migration => "migration",
+        crate::cli::PresetName::React => "react",
+        crate::cli::PresetName::Library => "library",
+        crate::cli::PresetName::NoBarrels => "no-barrels",
+    });
+
+    match preset_name {
+        Some(name) => {
+            let preset = crate::config::presets::PresetName::from_str(name).unwrap();
+            let source = crate::config::presets::default_config_for_preset(preset);
+            let config_path = workspace.join(crate::config::defaults::CONFIG_FILE_NAME);
+            if config_path.exists() {
+                anyhow::bail!("{} already exists", config_path.display());
+            }
+            std::fs::write(&config_path, source)?;
+            println!("Created {}", config_path.display());
+        }
+        None => {
+            let config_path = crate::config::write_default_config(workspace)?;
+            println!("Created {}", config_path.display());
+        }
+    }
     Ok(())
 }

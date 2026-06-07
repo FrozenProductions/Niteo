@@ -14,6 +14,10 @@ macro_rules! declare_rules {
 
         $( pub const $rule_id: RuleId = $rule_value; )*
 
+        pub fn known_rule_ids() -> &'static [RuleId] {
+            &[$( $rule_value ),*]
+        }
+
         #[derive(Debug, Clone)]
         pub struct Violation {
             pub file: PathBuf,
