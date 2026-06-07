@@ -46,9 +46,13 @@ niteo baseline create
 niteo lint              # Scan for structural issues
 niteo lint --watch      # Re-lint on every file change
 niteo init              # Create niteo.toml
+niteo init --preset     # Create config from a named preset
+niteo config check      # Validate config file for errors
+niteo config print      # Print resolved config source
 niteo baseline create   # Snapshot current violations
 niteo baseline prune    # Remove fixed violations from the baseline
 niteo rules             # List rules and configured severities
+niteo rules --preset    # Show what a preset would configure
 niteo explain <rule>    # Explain a rule
 niteo stats             # Show import graph statistics
 niteo graph             # Output the import graph

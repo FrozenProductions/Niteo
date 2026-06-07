@@ -29,7 +29,7 @@ These options are accepted by every command.
 | `--fail-on <threshold>` |       | Minimum severity that causes lint to fail. Supported values: `error`, `warn`, `any`. Defaults to `any`. |
 | `--deny-child-configs`  |       | Fail when nested `niteo.toml` files are found inside the scan scope.                                    |
 
-Not every command supports every output format. `rules`, `explain`, `stats`, and `graph` support `text` and `json`; they reject `sarif` and `ndjson`. `lint` supports `text`, `json`, `sarif`, and `ndjson`.
+Not every command supports every output format. `rules`, `explain`, `stats`, `graph`, and `config` support `text` and `json`; they reject `sarif` and `ndjson`. `lint` supports `text`, `json`, `sarif`, and `ndjson`.
 
 ## `lint`
 
@@ -106,11 +106,16 @@ Use `--no-cache` to ensure caching is disabled even when it would otherwise be a
 
 ## `init`
 
-Create a default `niteo.toml` in the current workspace.
+Create a `niteo.toml` in the current workspace.
 
 ```sh
-niteo init
+niteo init                 # Full default config (all rules)
+niteo init --preset strict # Use a predefined rule profile
 ```
+
+Supported presets: `balanced`, `strict`, `migration`, `react`, `library`, `no-barrels`.
+
+Without `--preset`, `init` writes the full default config with all rules enabled. With `--preset`, it writes a focused rule set based on the named profile. See [Presets](./configuration.md#presets) for details.
 
 The command fails if `niteo.toml` already exists.
 
@@ -142,12 +147,13 @@ The command fails if the baseline file does not exist.
 List all rules with their configured severities.
 
 ```sh
-niteo rules
+niteo rules                   # Uses current config or defaults
+niteo rules --preset strict   # Show what a preset would configure
 niteo rules --format json
 niteo rules --output rules.txt
 ```
 
-The command uses the current configuration, so severity overrides in `niteo.toml` are reflected in the output.
+Without `--preset`, the command uses the current configuration, so severity overrides in `niteo.toml` are reflected in the output. With `--preset`, it shows the effective rule set for a named preset without reading any config file.
 
 ## `explain`
 
@@ -197,6 +203,40 @@ niteo graph | dot -Tsvg > imports.svg
 ```
 
 JSON output contains `nodes` and `edges`. Nodes include `path`, `is_barrel`, and `is_test`. Edges include `source`, `target`, `specifier`, and `kind`.
+
+## `config check`
+
+Validate the config file and report diagnostics.
+
+```sh
+niteo config check
+```
+
+Reads `niteo.toml` from the workspace and checks for:
+
+- **Unknown rule names** — typos in rule identifiers, with "did you mean?" suggestions.
+- **Unknown rule options** — misspelled or unsupported option keys.
+- **Invalid severities** — severity strings that are not `off`, `info`, `warn`, or `error`.
+- **Conflicting rule combinations** — rules whose policies contradict each other (e.g., `directory-must-have-barrel` and `no-barrel-files` both enabled).
+
+Output format:
+
+```text
+error  no-console.severity          unknown severity "warning"; use "warn"
+warn   directory-must-have-barrel   conflicts with "no-barrel-files": one requires barrels while the other rejects them
+```
+
+The command exits with a non-zero status when any error-level diagnostic is reported. Warnings do not cause a failure exit code.
+
+## `config print`
+
+Print the resolved config source to stdout.
+
+```sh
+niteo config print
+```
+
+If `niteo.toml` exists, prints its contents. Otherwise, prints the built-in default config. This is useful for inspecting what Niteo would use in CI or for checking the default config before running `init`.
 
 ## Path Resolution
 
