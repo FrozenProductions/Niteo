@@ -1,0 +1,134 @@
+use anyhow::Result;
+use std::path::{Path, PathBuf};
+
+use crate::config::{self, ConfigSet};
+use crate::discovery;
+use crate::git;
+use crate::ignore::SuppressionReport;
+use crate::import_graph;
+use crate::rules;
+
+pub struct AnalysisResult {
+    pub project_root: PathBuf,
+    pub files: Vec<PathBuf>,
+    pub violations: Vec<rules::Violation>,
+    pub suppression_report: SuppressionReport,
+}
+
+pub struct AnalysisOptions {
+    pub root_override: Option<PathBuf>,
+    pub scope_override: Option<PathBuf>,
+    pub git_flag: bool,
+    pub prompt_for_changed_files: bool,
+    pub deny_child_configs: bool,
+}
+
+pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisResult> {
+    let root_config = config::ProjectConfig::resolve(workspace, options.root_override.clone())?;
+    let scan_scope = options
+        .scope_override
+        .map(|scope| resolve_path(&root_config.root, scope));
+
+    let config_set = ConfigSet::resolve(
+        workspace,
+        config::ConfigSetOptions {
+            root_override: options.root_override,
+            scan_scope: scan_scope.as_deref(),
+            deny_child_configs: options.deny_child_configs,
+        },
+    )?;
+    let project_root = config_set.root().root.clone();
+    let scan_root = scan_scope.as_deref().unwrap_or(&project_root);
+
+    let files = if options.git_flag {
+        resolve_changed_files(workspace)?
+    } else {
+        let changed_files = git::get_changed_typescript_files().unwrap_or_else(|err| {
+            eprintln!("warning: could not detect changed files via git: {err}");
+            Vec::new()
+        });
+        if options.prompt_for_changed_files
+            && !changed_files.is_empty()
+            && git::prompt_scan_changed_files(&changed_files)?
+        {
+            resolve_changed_files(workspace)?
+        } else {
+            discovery::discover_files(
+                &project_root,
+                scan_scope.as_deref(),
+                &config_set.root().gitignore,
+            )?
+        }
+    };
+
+    let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
+    let graph = import_graph::build_import_graph(
+        &files,
+        |file| {
+            config_set
+                .config_for_file(file)
+                .structure
+                .tests
+                .matches_file(file)
+        },
+        tsconfig.as_ref(),
+    )?;
+
+    let (file_violations, suppression_report) = rules::check_files(&files, &config_set, &graph)?;
+
+    let mut all_violations = file_violations;
+
+    for (i, node) in config_set.configs().enumerate() {
+        let node_root = if node.directory.starts_with(scan_root) {
+            &node.directory
+        } else {
+            scan_root
+        };
+        let exclude_dirs = config_set.child_directories(i);
+
+        let mut dir_violations =
+            rules::check_directory_rules(node_root, &node.config.rules, &exclude_dirs);
+        all_violations.append(&mut dir_violations);
+    }
+
+    let root_config_ref = config_set.root();
+    let mut name_violations = rules::check_duplicate_file_names(
+        &files,
+        root_config_ref.rules.no_duplicate_file_names.clone(),
+    );
+    all_violations.append(&mut name_violations);
+
+    let mut dump_violations =
+        rules::check_dump_files(&files, root_config_ref.rules.no_dump_files.clone());
+    all_violations.append(&mut dump_violations);
+
+    Ok(AnalysisResult {
+        project_root,
+        files,
+        violations: all_violations,
+        suppression_report,
+    })
+}
+
+pub fn resolve_changed_files(workspace: &Path) -> Result<Vec<PathBuf>> {
+    git::get_changed_typescript_files().map(|files| {
+        files
+            .into_iter()
+            .map(|f: PathBuf| {
+                if f.is_absolute() {
+                    f
+                } else {
+                    workspace.join(f)
+                }
+            })
+            .filter(|f: &PathBuf| f.exists())
+            .collect()
+    })
+}
+
+pub fn resolve_path(base: &Path, path: PathBuf) -> PathBuf {
+    if path.is_absolute() {
+        return path;
+    }
+    base.join(path)
+}
