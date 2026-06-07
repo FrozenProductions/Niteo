@@ -22,24 +22,9 @@ pub fn run() -> Result<ExitCode> {
                 let source = read_config_source(&workspace);
                 let report = crate::config::validation::validate_config_source(&source);
 
-                let mut has_errors = false;
-                for diagnostic in &report.diagnostics {
-                    let prefix = match diagnostic.severity {
-                        crate::config::validation::ConfigDiagnosticSeverity::Error => {
-                            has_errors = true;
-                            "error"
-                        }
-                        crate::config::validation::ConfigDiagnosticSeverity::Warn => "warn",
-                    };
-                    let rule = diagnostic
-                        .rule
-                        .as_deref()
-                        .map(|r| format!("rules.{r}"))
-                        .unwrap_or_default();
-                    println!("{prefix:<6} {rule:<32} {}", diagnostic.message);
-                }
+                println!("{}", report.render_text());
 
-                if has_errors {
+                if report.has_errors() {
                     return Ok(ExitCode::FAILURE);
                 }
                 ExitCode::SUCCESS

@@ -12,14 +12,14 @@ pub enum FailureThreshold {
     Any,
 }
 
-const RED: &str = "\x1b[31m";
-const YELLOW: &str = "\x1b[33m";
-const GREEN: &str = "\x1b[32m";
-const CYAN: &str = "\x1b[36m";
-const BLUE: &str = "\x1b[34m";
-const BOLD: &str = "\x1b[1m";
-const DIM: &str = "\x1b[2m";
-const RESET: &str = "\x1b[0m";
+pub const RED: &str = "\x1b[31m";
+pub const YELLOW: &str = "\x1b[33m";
+pub const GREEN: &str = "\x1b[32m";
+pub const CYAN: &str = "\x1b[36m";
+pub const BLUE: &str = "\x1b[34m";
+pub const BOLD: &str = "\x1b[1m";
+pub const DIM: &str = "\x1b[2m";
+pub const RESET: &str = "\x1b[0m";
 const DEFAULT_MAX_RULE_GROUPS: usize = 6;
 const DEFAULT_MAX_FILES_PER_RULE: usize = 6;
 const DEFAULT_MAX_LINES_PER_FILE: usize = 8;

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::report::{BOLD, DIM, GREEN, RED, RESET, YELLOW};
 use crate::rules::known_rule_ids;
 
 pub struct ConfigValidationReport {
@@ -12,6 +13,57 @@ impl ConfigValidationReport {
         self.diagnostics
             .iter()
             .any(|d| d.severity == ConfigDiagnosticSeverity::Error)
+    }
+
+    pub fn render_text(&self) -> String {
+        let mut output = String::new();
+
+        if self.diagnostics.is_empty() {
+            output.push_str(&format!(
+                "{GREEN}{BOLD}No configuration issues found.{RESET}\n"
+            ));
+        } else {
+            let error_count = self
+                .diagnostics
+                .iter()
+                .filter(|d| d.severity == ConfigDiagnosticSeverity::Error)
+                .count();
+            let warn_count = self
+                .diagnostics
+                .iter()
+                .filter(|d| d.severity == ConfigDiagnosticSeverity::Warn)
+                .count();
+
+            for diagnostic in &self.diagnostics {
+                let (color, prefix) = match diagnostic.severity {
+                    ConfigDiagnosticSeverity::Error => (RED, "error"),
+                    ConfigDiagnosticSeverity::Warn => (YELLOW, "warn"),
+                };
+                let rule = diagnostic
+                    .rule
+                    .as_deref()
+                    .map(|r| format!("rules.{r}"))
+                    .unwrap_or_default();
+                output.push_str(&format!(
+                    "  {color}{prefix}{RESET}   {rule:<36} {}\n",
+                    diagnostic.message,
+                ));
+            }
+
+            let error_label = if error_count == 1 { "error" } else { "errors" };
+            let warn_label = if warn_count == 1 {
+                "warning"
+            } else {
+                "warnings"
+            };
+            let color = if error_count > 0 { RED } else { DIM };
+            output.push('\n');
+            output.push_str(&format!(
+                "  {BOLD}{color}{error_count} {error_label}{RESET}{BOLD} · {warn_count} {warn_label}{RESET}\n",
+            ));
+        }
+
+        output
     }
 }
 
