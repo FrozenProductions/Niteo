@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ## Unreleased
 
+### Added
+
+- `--deny-child-configs` flag to reject nested `niteo.toml` files.
+- NDJSON output format for streaming consumption.
+- `layer-boundaries` rule to enforce architecture layer dependency rules.
+- `directory-must-have-barrel` rule to require `index.ts` in non-leaf directories.
+- Import graph analysis cache with invalidation on file changes.
+- Tsconfig `paths` alias resolution in the import graph.
+- Lint duration printed in verbose text output.
+
+### Changed
+
+- Errors from git and file I/O are now propagated instead of silently discarded.
+- Git errors during changed-file detection fall back to an empty file list instead of failing.
+- Import graph cycle detection uses strongly connected component (SCC) decomposition.
+
 ## 0.2.1 - 2026-06-03
 
 ### Added
