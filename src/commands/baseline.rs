@@ -22,6 +22,8 @@ pub fn create(
             git_flag,
             prompt_for_changed_files: false,
             deny_child_configs,
+            cache_enabled: false,
+            clear_cache: false,
         },
     )?;
 
@@ -68,6 +70,8 @@ pub fn prune(
             git_flag,
             prompt_for_changed_files: false,
             deny_child_configs,
+            cache_enabled: false,
+            clear_cache: false,
         },
     )?;
     let result = existing_baseline.prune(&collected.project_root, &collected.violations);

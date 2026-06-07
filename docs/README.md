@@ -66,7 +66,10 @@ niteo graph             # Output the import graph
 | `--output <path>`       | Write output to a file.                                          |
 | `--baseline <path>`     | Baseline file path.                                              |
 | `--report-suppressions` | Report suppressed violations and stale ignore directives.        |
-| `--watch`               | Re-run lint on file changes.                                     |
+| `--watch`               | Re-run lint on file changes.                                                                     |
+| `--cache`               | Enable caching of analysis results.                                                              |
+| `--no-cache`            | Disable caching.                                                                               |
+| `--clear-cache`         | Clear the cache before running.                                                                  |
 
 ## What Niteo Checks
 

@@ -184,6 +184,20 @@ pub fn build_import_graph(
     is_test_file: impl Fn(&Path) -> bool,
     tsconfig: Option<&TsConfig>,
 ) -> Result<ImportGraph> {
+    build_import_graph_with_cache(
+        files,
+        is_test_file,
+        tsconfig,
+        &std::collections::HashMap::new(),
+    )
+}
+
+pub fn build_import_graph_with_cache(
+    files: &[PathBuf],
+    is_test_file: impl Fn(&Path) -> bool,
+    tsconfig: Option<&TsConfig>,
+    cached_edges: &std::collections::HashMap<PathBuf, Vec<ImportEdge>>,
+) -> Result<ImportGraph> {
     let mut graph = ImportGraph::new();
 
     for file in files {
@@ -195,10 +209,14 @@ pub fn build_import_graph(
     let resolver = ImportResolverIndex::new(files, tsconfig);
 
     for file in files {
-        let source = std::fs::read_to_string(file)
-            .with_context(|| format!("failed to read {}", file.display()))?;
-        let edges = extract_imports(file, &source, &resolver);
-        graph.edges.extend(edges);
+        if let Some(edges) = cached_edges.get(file) {
+            graph.edges.extend(edges.clone());
+        } else {
+            let source = std::fs::read_to_string(file)
+                .with_context(|| format!("failed to read {}", file.display()))?;
+            let edges = extract_imports(file, &source, &resolver);
+            graph.edges.extend(edges);
+        }
     }
 
     Ok(graph)

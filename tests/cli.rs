@@ -4,6 +4,8 @@ mod harness;
 
 #[path = "cli/baseline.rs"]
 mod baseline;
+#[path = "cli/cache.rs"]
+mod cache;
 #[path = "cli/config_resolution.rs"]
 mod config_resolution;
 #[path = "cli/git.rs"]

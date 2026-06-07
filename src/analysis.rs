@@ -21,6 +21,8 @@ pub struct AnalysisOptions {
     pub git_flag: bool,
     pub prompt_for_changed_files: bool,
     pub deny_child_configs: bool,
+    pub cache_enabled: bool,
+    pub clear_cache: bool,
 }
 
 pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisResult> {
@@ -39,6 +41,12 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
     )?;
     let project_root = config_set.root().root.clone();
     let scan_root = scan_scope.as_deref().unwrap_or(&project_root);
+
+    if options.clear_cache
+        && let Err(error) = crate::cache::clear_cache(workspace)
+    {
+        eprintln!("warning: failed to clear cache: {error}");
+    }
 
     let files = if options.git_flag {
         resolve_changed_files(workspace)?
@@ -62,7 +70,41 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
     };
 
     let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
-    let graph = import_graph::build_import_graph(
+
+    let config_paths: Vec<PathBuf> = config_set
+        .configs()
+        .filter_map(|node| node.config_path.clone())
+        .collect();
+    let tsconfig_path = workspace.join("tsconfig.json");
+    let tsconfig_path = if tsconfig_path.exists() {
+        Some(tsconfig_path)
+    } else {
+        None
+    };
+
+    let cache_state = if options.cache_enabled {
+        match crate::cache::prepare_cache(
+            workspace,
+            &files,
+            &config_paths,
+            tsconfig_path.as_deref(),
+        ) {
+            Ok(state) => state,
+            Err(error) => {
+                eprintln!("warning: failed to prepare cache: {error}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let cached_edges_map = cache_state
+        .as_ref()
+        .map(|state| state.cached_edges.clone())
+        .unwrap_or_default();
+
+    let graph = import_graph::build_import_graph_with_cache(
         &files,
         |file| {
             config_set
@@ -72,7 +114,21 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
                 .matches_file(file)
         },
         tsconfig.as_ref(),
+        &cached_edges_map,
     )?;
+
+    if let Some(ref cache_state) = cache_state
+        && let Err(error) = crate::cache::finalize_cache(
+            workspace,
+            &files,
+            &config_paths,
+            tsconfig_path.as_deref(),
+            cache_state,
+            &graph,
+        )
+    {
+        eprintln!("warning: failed to write cache: {error}");
+    }
 
     let (file_violations, suppression_report) = rules::check_files(&files, &config_set, &graph)?;
 

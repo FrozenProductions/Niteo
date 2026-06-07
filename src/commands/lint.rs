@@ -16,6 +16,8 @@ pub struct LintOptions {
     pub report_suppressions: bool,
     pub fail_on: FailOn,
     pub deny_child_configs: bool,
+    pub cache_enabled: bool,
+    pub clear_cache: bool,
 }
 
 pub fn lint_workspace(
@@ -34,6 +36,8 @@ pub fn lint_workspace(
             git_flag: opts.git_flag,
             prompt_for_changed_files,
             deny_child_configs: opts.deny_child_configs,
+            cache_enabled: opts.cache_enabled,
+            clear_cache: opts.clear_cache,
         },
     )?;
     let resolved_baseline_path = crate::analysis::resolve_path(workspace, opts.baseline_path);

@@ -53,6 +53,18 @@ pub struct CliOptions {
     #[arg(long, global = true)]
     pub watch: bool,
 
+    /// Enable caching of analysis results.
+    #[arg(long, global = true)]
+    pub cache: bool,
+
+    /// Disable caching.
+    #[arg(long, global = true)]
+    pub no_cache: bool,
+
+    /// Clear the cache before running.
+    #[arg(long, global = true)]
+    pub clear_cache: bool,
+
     /// Minimum severity that causes lint to fail.
     #[arg(long, global = true, value_enum, default_value_t = FailOn::Any)]
     pub fail_on: FailOn,

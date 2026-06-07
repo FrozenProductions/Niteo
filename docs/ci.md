@@ -90,6 +90,26 @@ npx niteo-cli lint --format sarif --output niteo.sarif
 
 Only `lint` supports SARIF and NDJSON output.
 
+## Cache
+
+Caching is opt-in. Use `--cache` to speed up repeated runs by storing import graph analysis at `.niteo/cache.json`:
+
+```sh
+npx niteo-cli lint --cache
+```
+
+The cache is invalidated automatically when file contents, Niteo version, config, `tsconfig.json`, or the scanned file list changes. For CI, add `.niteo/` to `.gitignore` rather than committing it:
+
+```gitignore
+.niteo/
+```
+
+Use `--clear-cache` to remove the cache before a run:
+
+```sh
+npx niteo-cli lint --clear-cache
+```
+
 ## Changed Files
 
 Use `--git` to scan changed TypeScript files only:

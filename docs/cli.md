@@ -23,6 +23,9 @@ These options are accepted by every command.
 | `--baseline <path>`     |       | Baseline file path. Defaults to `niteo-baseline.json`.                                                  |
 | `--report-suppressions` |       | Include suppression counts and stale ignore directives.                                                 |
 | `--watch`               |       | Re-run lint on file changes.                                                                            |
+| `--cache`               |       | Enable caching of analysis results.                                                                     |
+| `--no-cache`            |       | Disable caching even when it would otherwise be enabled.                                                |
+| `--clear-cache`         |       | Clear the cache file before running.                                                                    |
 | `--fail-on <threshold>` |       | Minimum severity that causes lint to fail. Supported values: `error`, `warn`, `any`. Defaults to `any`. |
 | `--deny-child-configs`  |       | Fail when nested `niteo.toml` files are found inside the scan scope.                                    |
 
@@ -68,6 +71,38 @@ niteo lint --watch --scope src/components
 Niteo runs a full lint pass on startup, then watches for changes to `.ts`, `.tsx`, and `niteo.toml` files. Each detected change triggers a re-lint after a short debounce. Press Ctrl+C to stop.
 
 Watch mode disables the interactive changed-files prompt and always performs a full scan.
+
+### Cache
+
+`lint` can cache import graph analysis to speed up repeated runs. Use `--cache` to opt in:
+
+```sh
+niteo lint --cache
+niteo lint --cache --watch
+```
+
+Cached data is stored at `.niteo/cache.json` relative to the workspace root. The cache is invalidated conservatively when any of the following change:
+
+- file content (hash-based)
+- Niteo version
+- `niteo.toml` config (or any nested child config)
+- `tsconfig.json`
+- the list of files being scanned
+- cache schema version
+
+The `.niteo/` directory should normally be added to `.gitignore`:
+
+```gitignore
+.niteo/
+```
+
+Use `--clear-cache` to remove the cache file before a run:
+
+```sh
+niteo lint --clear-cache
+```
+
+Use `--no-cache` to ensure caching is disabled even when it would otherwise be active.
 
 ## `init`
 

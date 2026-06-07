@@ -84,6 +84,8 @@ pub fn run() -> Result<ExitCode> {
             ExitCode::SUCCESS
         }
         Command::Lint => {
+            let cache_enabled = cli.options.cache && !cli.options.no_cache;
+
             let opts = commands::lint::LintOptions {
                 verbose: cli.options.verbose,
                 git_flag: cli.options.git,
@@ -93,6 +95,8 @@ pub fn run() -> Result<ExitCode> {
                 report_suppressions: cli.options.report_suppressions,
                 fail_on: cli.options.fail_on,
                 deny_child_configs: cli.options.deny_child_configs,
+                cache_enabled,
+                clear_cache: cli.options.clear_cache,
             };
 
             if cli.options.watch {
