@@ -48,17 +48,17 @@ Niteo complements ESLint and Knip rather than replacing them. Where ESLint check
 With Homebrew:
 
 ```sh
-brew install FrozenProductions/Niteo/niteo
+brew install FrozenProductions/niteo/niteo
 ```
 
-Or tap the repository first:
+Or tap first:
 
 ```sh
-brew tap FrozenProductions/Niteo https://github.com/FrozenProductions/Niteo
+brew tap FrozenProductions/niteo
 brew install niteo
 ```
 
-Homebrew bottles are published from GitHub Actions when `Cargo.toml` version changes on `main`.
+The Homebrew tap is published at <https://github.com/FrozenProductions/homebrew-niteo>.
 
 Run directly with `npx`:
 

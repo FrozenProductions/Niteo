@@ -18,6 +18,7 @@ env:
   HOMEBREW_NO_ANALYTICS: "1"
   HOMEBREW_NO_ENV_HINTS: "1"
   HOMEBREW_NO_INSTALL_CLEANUP: "1"
+  HOMEBREW_TAP_REPOSITORY: "FrozenProductions/homebrew-niteo"
 
 jobs:
   prepare:
@@ -127,8 +128,13 @@ jobs:
 
           tap_dir="$(brew --repo)/Library/Taps/frozenproductions/homebrew-niteo"
           rm -rf "$tap_dir"
-          mkdir -p "$(dirname "$tap_dir")"
-          rsync -a --delete "$GITHUB_WORKSPACE/" "$tap_dir/"
+          mkdir -p "$tap_dir/Formula"
+          cp Formula/niteo.rb "$tap_dir/Formula/niteo.rb"
+          git -C "$tap_dir" init
+          git -C "$tap_dir" config user.name "github-actions[bot]"
+          git -C "$tap_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$tap_dir" add Formula/niteo.rb
+          git -C "$tap_dir" commit -m "Prepare Niteo formula"
 
       - name: Build bottle
         working-directory: ${{ github.workspace }}
@@ -168,6 +174,13 @@ jobs:
         with:
           ref: main
 
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.HOMEBREW_TAP_REPOSITORY }}
+          path: homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@main
 
@@ -199,15 +212,20 @@ jobs:
 
           tap_dir="$(brew --repo)/Library/Taps/frozenproductions/homebrew-niteo"
           rm -rf "$tap_dir"
-          mkdir -p "$(dirname "$tap_dir")"
-          rsync -a --delete "$GITHUB_WORKSPACE/" "$tap_dir/"
+          mkdir -p "$tap_dir/Formula"
+          cp Formula/niteo.rb "$tap_dir/Formula/niteo.rb"
+          git -C "$tap_dir" init
+          git -C "$tap_dir" config user.name "github-actions[bot]"
+          git -C "$tap_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$tap_dir" add Formula/niteo.rb
+          git -C "$tap_dir" commit -m "Prepare Niteo formula"
 
           (
             cd "$tap_dir"
             brew bottle --merge --write --no-commit --root-url="${{ needs.prepare.outputs.bottle-root-url }}" "$GITHUB_WORKSPACE"/bottle-artifacts/*.json
           )
 
-          cp "$tap_dir/Formula/niteo.rb" Formula/niteo.rb
+          cp "$tap_dir/Formula/niteo.rb" homebrew-tap/Formula/niteo.rb
 
           # Ensure root_url is present in bottle block
           ruby -i -pe 'BEGIN { $in_bottle = false }
@@ -218,9 +236,10 @@ jobs:
               next
             elsif $in_bottle && /^  end$/
               $in_bottle = false
-            end' Formula/niteo.rb
+            end' homebrew-tap/Formula/niteo.rb
 
       - name: Commit formula update
+        working-directory: homebrew-tap
         shell: bash
         run: |
           set -euo pipefail
