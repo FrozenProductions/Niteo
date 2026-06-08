@@ -153,6 +153,10 @@ jobs:
 
           mkdir -p bottle-artifacts
           find . -maxdepth 1 \( -name "niteo*.bottle*.tar.gz" -o -name "niteo*.json" \) -print -exec mv {} bottle-artifacts/ \;
+          for bottle in bottle-artifacts/niteo--*.bottle.tar.gz; do
+            [ -e "$bottle" ] || continue
+            mv "$bottle" "${bottle/niteo--/niteo-}"
+          done
 
       - name: Upload bottle artifacts
         uses: actions/upload-artifact@v4
