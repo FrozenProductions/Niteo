@@ -28,7 +28,6 @@ fn rule_ids_from_catalog_source() -> HashSet<String> {
     ids
 }
 
-/// Parse rule IDs referenced in preset TOML strings.
 fn rule_ids_from_preset_source() -> Vec<String> {
     let raw = include_str!("../src/config/presets.rs");
     let mut ids = Vec::new();

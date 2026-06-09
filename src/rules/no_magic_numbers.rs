@@ -137,14 +137,12 @@ mod tests {
     #[test]
     fn reports_magic_number_in_expression() {
         let violations = run_check("const result = price * 1.15;\n");
-        // The 1.15 is magic, but price is an identifier
         assert_eq!(violations.len(), 1);
     }
 
     #[test]
     fn reports_magic_number_in_array() {
         let violations = run_check("const array = [1, 2, 3, 42, 5];\n");
-        // All numbers except those in const are magic
         assert_eq!(violations.len(), 5);
     }
 

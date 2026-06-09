@@ -97,8 +97,6 @@ mod tests {
         )
     }
 
-    // --- General mode tests (components_only = false) ---
-
     #[test]
     fn reports_default_function_export() {
         let violations = run_check(
@@ -173,8 +171,6 @@ const value = "before export default after";
         );
         assert_eq!(violations.len(), 1);
     }
-
-    // --- Components-only mode tests ---
 
     #[test]
     fn components_only_reports_in_component_file() {
