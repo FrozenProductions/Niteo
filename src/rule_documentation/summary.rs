@@ -216,6 +216,10 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
                 config.rules.no_orphan_files.entry_files
             )],
         },
+        RuleKind::NoPackageCycle => simple_summary(config.rules.no_package_cycle.severity),
+        RuleKind::NoPrivatePackageImport => {
+            simple_summary(config.rules.no_private_package_import.severity)
+        }
         RuleKind::NoNamespace => simple_summary(config.rules.no_namespace.severity),
         RuleKind::NoRestrictedImports => RuleConfigSummary {
             severity: config.rules.no_restricted_imports.severity,

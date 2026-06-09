@@ -63,6 +63,8 @@ define_rule_kinds! {
     NoMutableExports,
     NoNestedFunctions,
     NoOrphanFiles,
+    NoPackageCycle,
+    NoPrivatePackageImport,
     NoProcessEnv,
     NoNamespace,
     NoRestrictedImports,
@@ -857,6 +859,38 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::NoOrphanFiles,
+    },
+    RuleDocumentation {
+        name: "no-package-cycle",
+        intent: "Detect circular dependencies between workspace packages that can cause initialization deadlocks.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "// packages/a imports packages/b imports packages/c imports packages/a",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "Break the cycle by extracting shared logic to a new package or merging the packages.",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoPackageCycle,
+    },
+    RuleDocumentation {
+        name: "no-private-package-import",
+        intent: "Prevent importing internal files from other packages. Only public exports should be consumed across packages.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "import { helper } from '@scope/admin/src/internal/utils';",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "import { helper } from '@scope/admin'; // use public exports only",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoPrivatePackageImport,
     },
     RuleDocumentation {
         name: "no-namespace",

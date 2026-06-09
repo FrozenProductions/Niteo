@@ -692,6 +692,37 @@ severity = "warn"
 
 With this configuration, `app` can import from `features`, `entities`, and `shared`, while `shared` may not import from any higher layer.
 
+### `no-package-cycle`
+
+Reports circular dependencies between workspace packages. Requires a workspace configuration (`package.json` workspaces or `pnpm-workspace.yaml`). Disabled when no workspace is detected.
+
+```toml
+[rules.no-package-cycle]
+severity = "warn"
+```
+
+A cycle exists when package A depends on package B and package B depends (directly or transitively) on package A. These cycles can cause initialization deadlocks and make dependency relationships unclear.
+
+```
+packages/a → packages/b → packages/c → packages/a  ❌
+```
+
+### `no-private-package-import`
+
+Reports imports from another package's internal files rather than its public API. Requires a workspace configuration. Disabled when no workspace is detected.
+
+```ts
+import { helper } from "@scope/admin/src/internal/utils";  // ❌
+import { helper } from "@scope/admin";                      // ✅ public exports only
+```
+
+Each package's public API is determined by its `exports`, `main`, or `module` fields in `package.json`, falling back to `src/index.ts` or `index.ts`.
+
+```toml
+[rules.no-private-package-import]
+severity = "warn"
+```
+
 ### `no-restricted-imports`
 
 Reports imports from packages or paths listed in the `restricted` deny-list. Matches exact names and sub-paths (e.g. `lodash` also blocks `lodash/fp`).
