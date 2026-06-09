@@ -20,7 +20,7 @@ pub struct RuleMetadata {
 }
 
 pub fn all_rule_metadata() -> &'static [RuleMetadata] {
-    &RULE_METADATA
+    RULE_METADATA
 }
 
 pub fn known_option_names_for_rule(rule_id: &str) -> Option<&'static [&'static str]> {

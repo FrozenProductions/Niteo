@@ -137,18 +137,18 @@ impl Workspace {
                 let base = workspace_root.join(glob_parts[0]);
                 let prefix = format!("{}/", glob_parts[0]);
                 let glob_suffix = &glob_pattern[prefix.len()..];
-                if glob_suffix == "*" {
-                    if let Ok(entries) = std::fs::read_dir(&base) {
-                        for entry in entries.flatten() {
-                            let path = entry.path();
-                            if path.is_dir()
-                                && !seen_dirs.contains(&path)
-                                && Self::is_valid_package_dir(&path)
-                            {
-                                seen_dirs.insert(path.clone());
-                                if let Some(package) = Self::load_package(&path) {
-                                    packages.push(package);
-                                }
+                if glob_suffix == "*"
+                    && let Ok(entries) = std::fs::read_dir(&base)
+                {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_dir()
+                            && !seen_dirs.contains(&path)
+                            && Self::is_valid_package_dir(&path)
+                        {
+                            seen_dirs.insert(path.clone());
+                            if let Some(package) = Self::load_package(&path) {
+                                packages.push(package);
                             }
                         }
                     }
@@ -249,12 +249,9 @@ impl Workspace {
     }
 
     pub fn package_for(&self, path: &Path) -> Option<&Package> {
-        for package in &self.packages {
-            if path.starts_with(&package.directory) {
-                return Some(package);
-            }
-        }
-        None
+        self.packages
+            .iter()
+            .find(|package| path.starts_with(&package.directory))
     }
 }
 

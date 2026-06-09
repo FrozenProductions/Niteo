@@ -92,7 +92,7 @@ pub fn check_file(
 }
 
 fn format_cycle(cycle: &[String]) -> String {
-    let parts: Vec<String> = cycle.iter().cloned().collect();
+    let parts: Vec<String> = cycle.to_vec();
     if parts.is_empty() {
         return String::new();
     }
