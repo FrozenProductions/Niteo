@@ -130,7 +130,10 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
         eprintln!("warning: failed to write cache: {error}");
     }
 
-    let (file_violations, suppression_report) = rules::check_files(&files, &config_set, &graph)?;
+    let workspace = crate::workspace::Workspace::discover(workspace).ok();
+
+    let (file_violations, suppression_report) =
+        rules::check_files(&files, &config_set, &graph, workspace.as_ref())?;
 
     let mut all_violations = file_violations;
 

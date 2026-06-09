@@ -15,6 +15,7 @@ pub fn check_files(
     files: &[PathBuf],
     config_set: &config::ConfigSet,
     import_graph: &ImportGraph,
+    workspace: Option<&crate::workspace::Workspace>,
 ) -> Result<(Vec<Violation>, ignore::SuppressionReport)> {
     let mut violations = Vec::new();
     let mut suppression_files = Vec::new();
@@ -39,6 +40,7 @@ pub fn check_files(
             &config.structure,
             &config.architecture,
             import_graph,
+            workspace,
         );
 
         let any_enabled = rules.iter().any(|rule| rule.severity().is_enabled());
@@ -87,6 +89,7 @@ pub fn check_files(
                 line_index: &line_index,
                 type_location_style,
                 import_graph,
+                workspace,
             };
 
             let mut file_violations = Vec::new();
@@ -142,6 +145,7 @@ fn build_file_rules(
     structure: &config::structure::ProjectStructureConfig,
     architecture: &config::architecture::ArchitectureConfig,
     import_graph: &ImportGraph,
+    workspace: Option<&crate::workspace::Workspace>,
 ) -> Vec<Box<dyn FileRule>> {
     vec![
         Box::new(BooleanPrefixAdapter {
@@ -281,6 +285,19 @@ fn build_file_rules(
         }),
         Box::new(NoOrphanFilesAdapter {
             config: config.no_orphan_files.clone(),
+        }),
+        Box::new(NoPrivatePackageImportAdapter {
+            config: config.no_private_package_import.clone(),
+        }),
+        Box::new(NoPackageCycleAdapter {
+            config: config.no_package_cycle.clone(),
+            context: crate::rules::no_package_cycle::PackageCycleContext::new(
+                workspace.unwrap_or(&crate::workspace::Workspace {
+                    root: std::path::PathBuf::new(),
+                    packages: vec![],
+                }),
+                import_graph,
+            ),
         }),
         Box::new(NoLogicInDomainAdapter {
             config: config.no_logic_in_domain.clone(),

@@ -19,6 +19,7 @@ mod rules_runner;
 mod syntax;
 mod tsconfig;
 mod watch;
+mod workspace;
 
 use anyhow::Result;
 use std::process::ExitCode;

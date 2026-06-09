@@ -100,6 +100,8 @@ declare_rules! {
     no_non_null_assertion => { id: NO_NON_NULL_ASSERTION_RULE_ID, value: "no-non-null-assertion", config: crate::config::RuleConfig },
     no_magic_numbers => { id: NO_MAGIC_NUMBERS_RULE_ID, value: "no-magic-numbers", config: crate::config::NoMagicNumbersRuleConfig },
     no_orphan_files => { id: NO_ORPHAN_FILES_RULE_ID, value: "no-orphan-files", config: crate::config::NoOrphanFilesRuleConfig },
+    no_package_cycle => { id: NO_PACKAGE_CYCLE_RULE_ID, value: "no-package-cycle", config: crate::config::RuleConfig },
+    no_private_package_import => { id: NO_PRIVATE_PACKAGE_IMPORT_RULE_ID, value: "no-private-package-import", config: crate::config::RuleConfig },
     no_type_assertion => { id: NO_TYPE_ASSERTION_RULE_ID, value: "no-type-assertion", config: crate::config::RuleConfig },
     no_process_env => { id: NO_PROCESS_ENV_RULE_ID, value: "no-process-env", config: crate::config::RuleConfig },
     no_silent_catch => { id: NO_SILENT_CATCH_RULE_ID, value: "no-silent-catch", config: crate::config::RuleConfig },
@@ -125,6 +127,7 @@ pub struct FileContext<'a> {
     pub line_index: &'a LineIndex,
     pub type_location_style: no_inline_types::TypeLocationStyle,
     pub import_graph: &'a ImportGraph,
+    pub workspace: Option<&'a crate::workspace::Workspace>,
 }
 
 pub use crate::rules_runner::{
