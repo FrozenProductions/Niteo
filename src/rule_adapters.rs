@@ -528,3 +528,47 @@ impl FileRule for NoLogicInDomainAdapter {
         )
     }
 }
+
+pub struct NoPrivatePackageImportAdapter {
+    pub config: crate::config::RuleConfig,
+}
+impl FileRule for NoPrivatePackageImportAdapter {
+    fn severity(&self) -> Severity {
+        self.config.severity
+    }
+    fn needs_ast(&self) -> bool {
+        false
+    }
+    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+        no_private_package_import::check_file(
+            ctx.file,
+            ctx.line_index,
+            ctx.import_graph,
+            ctx.workspace,
+            &self.config,
+        )
+    }
+}
+
+pub struct NoPackageCycleAdapter {
+    pub config: crate::config::RuleConfig,
+    pub context: no_package_cycle::PackageCycleContext,
+}
+impl FileRule for NoPackageCycleAdapter {
+    fn severity(&self) -> Severity {
+        self.config.severity
+    }
+    fn needs_ast(&self) -> bool {
+        false
+    }
+    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+        no_package_cycle::check_file(
+            ctx.file,
+            ctx.line_index,
+            ctx.import_graph,
+            ctx.workspace,
+            &self.context,
+            &self.config,
+        )
+    }
+}

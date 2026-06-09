@@ -190,6 +190,8 @@ declare_raw_rules! {
         no_silent_catch => "no-silent-catch",
         no_skipped_test => "no-skipped-test",
         no_test_code_in_production => "no-test-code-in-production",
+        no_package_cycle => "no-package-cycle",
+        no_private_package_import => "no-private-package-import",
         no_test_import => "no-test-import",
         no_then_chain => "no-then-chain",
         no_type_assertion => "no-type-assertion",

@@ -208,6 +208,12 @@ max-depth = 2
 severity = "warn"
 entry-files = ["main", "app", "layout", "page"]
 
+[rules.no-package-cycle]
+severity = "warn"
+
+[rules.no-private-package-import]
+severity = "warn"
+
 [rules.no-empty-domain]
 severity = "warn"
 ignore-dirs = []
