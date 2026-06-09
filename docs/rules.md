@@ -16,6 +16,15 @@ niteo explain no-console
 niteo explain no-console --format json
 ```
 
+## Table of Contents
+
+- [Language And TypeScript Rules](#language-and-typescript-rules)
+- [Source Hygiene Rules](#source-hygiene-rules)
+- [Export And Module Shape Rules](#export-and-module-shape-rules)
+- [File And Directory Rules](#file-and-directory-rules)
+- [Domain Rules](#domain-rules)
+- [Import Rules](#import-rules)
+
 ## Rule Reference
 
 | Rule | Default severity | Purpose | Options |

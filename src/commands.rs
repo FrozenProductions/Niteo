@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
 pub mod baseline;
+pub mod config;
 pub mod graph;
 pub mod lint;
 pub mod rules;

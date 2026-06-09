@@ -44,6 +44,8 @@ npx niteo-cli lint
 
 CI will fail only for violations not present in the baseline.
 
+See [Baselines](./baselines.md) for the full workflow and [Suppressions](./suppressions.md) for inline ignore directives (an alternative for per-line exceptions).
+
 ## GitHub Actions Example
 
 ```yaml
@@ -110,15 +112,23 @@ Use `--clear-cache` to remove the cache before a run:
 npx niteo-cli lint --clear-cache
 ```
 
-## Changed Files
+## Full Scan Vs. Changed Files
 
-Use `--git` to scan changed TypeScript files only:
+### Full scan
+
+```sh
+npx niteo-cli lint
+```
+
+Scans every TypeScript file under the configured root. Best for main branch CI where complete coverage matters. Detects issues in any file, including ones not modified in the current PR.
+
+### Changed files
 
 ```sh
 npx niteo-cli lint --git
 ```
 
-`--git` uses:
+Scans TypeScript files changed on this branch. `--git` uses:
 
 ```sh
 git diff --name-only HEAD
@@ -127,9 +137,15 @@ git diff --name-only --cached
 
 Only `.ts` and `.tsx` files are included.
 
+**When to use full scan:** main branch CI, release pipelines, scheduled audits.
+
+**When to use `--git`:** pull request CI for fast feedback, local development runs.
+
 The `--git` flag is strict: it fails immediately if git is unavailable or returns an error. This ensures CI pipelines fail visibly when git context is missing rather than silently scanning the wrong files.
 
-For full protection on main branches, prefer scanning the whole configured root. Changed-file scanning is best for local development or fast pull request feedback.
+### Changed file detection without `--git`
+
+When `--git` is not passed, Niteo attempts to detect changed TypeScript files via git. If detection succeeds and files are found, it prompts the user interactively. If git is unavailable, Niteo prints a warning and falls back to a full scan. This makes interactive use resilient outside git repositories but is not suitable for CI, where `--git` or a full scan should be chosen explicitly.
 
 ## Monorepos
 
@@ -164,4 +180,6 @@ npx niteo-cli lint --deny-child-configs --scope src
 ```
 
 This only rejects child configs found under `src/`.
+
+See [Configuration](./configuration.md#cascading-configs) for cascading config semantics and [Configuration](./configuration.md#presets) for preset profiles.
 

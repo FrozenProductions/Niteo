@@ -21,7 +21,7 @@ pub fn show(
         scope_override.map(|scope| crate::analysis::resolve_path(&project_config.root, scope));
 
     let files = if git_flag {
-        resolve_changed_files(workspace)?
+        crate::analysis::resolve_changed_files(workspace)?
     } else {
         discovery::discover_files(
             &project_config.root,
@@ -48,22 +48,6 @@ pub fn show(
     write_report(workspace, output_path, &rendered)?;
 
     Ok(())
-}
-
-fn resolve_changed_files(workspace: &Path) -> Result<Vec<PathBuf>> {
-    crate::git::get_changed_typescript_files().map(|files| {
-        files
-            .into_iter()
-            .map(|f: PathBuf| {
-                if f.is_absolute() {
-                    f
-                } else {
-                    workspace.join(f)
-                }
-            })
-            .filter(|f: &PathBuf| f.exists())
-            .collect()
-    })
 }
 
 fn render_text(graph: &import_graph::ImportGraph) -> String {

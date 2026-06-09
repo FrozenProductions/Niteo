@@ -82,68 +82,7 @@ pub enum ConfigDiagnosticSeverity {
 }
 
 fn known_option_names_for_rule(rule_name: &str) -> Option<&'static [&'static str]> {
-    match rule_name {
-        "boolean-prefix" => Some(&["severity", "prefixes", "ignore-constants"]),
-        "component-file-only-components" => Some(&["severity"]),
-        "directory-must-have-barrel" => Some(&["severity"]),
-        "entry-file-no-logic" => Some(&["severity", "entry-files"]),
-        "explicit-return-type" => Some(&["severity"]),
-        "hook-no-jsx" => Some(&["severity"]),
-        "hook-prefix" => Some(&["severity", "prefixes"]),
-        "layer-boundaries" => Some(&["severity"]),
-        "max-directory-depth" => Some(&["severity", "max-depth", "ignore-dirs"]),
-        "max-file-exports" => Some(&["severity", "max-exports"]),
-        "max-function-params" => Some(&["severity", "max-params"]),
-        "max-items-per-directory" => {
-            Some(&["severity", "max-items", "ignore-dirs", "count-folders"])
-        }
-        "min-items-per-directory" => {
-            Some(&["severity", "min-items", "ignore-dirs", "count-folders"])
-        }
-        "no-abbreviations" => Some(&["severity", "extra-abbreviations"]),
-        "no-anemic-domain" => Some(&["severity", "max-files", "ignore-dirs"]),
-        "no-any" => Some(&["severity", "allowed-folders"]),
-        "no-barrel-chain" => Some(&["severity"]),
-        "no-barrel-files" => Some(&["severity"]),
-        "no-circular-import" => Some(&["severity"]),
-        "no-comments" => Some(&["severity", "allow-doc-comments"]),
-        "no-console" => Some(&["severity", "allow-patterns"]),
-        "no-debugger" => Some(&["severity"]),
-        "no-default-export" => Some(&["severity", "components-only"]),
-        "no-dump-files" => Some(&["severity", "extra-names"]),
-        "no-duplicate-file-names" => Some(&["severity", "ignore-names"]),
-        "no-empty-directories" => Some(&["severity", "ignore-dirs"]),
-        "no-empty-domain" => Some(&["severity", "ignore-dirs"]),
-        "no-empty-interface" => Some(&["severity"]),
-        "no-enums" => Some(&["severity"]),
-        "no-eval" => Some(&["severity"]),
-        "no-export-star" => Some(&["severity"]),
-        "no-focused-test" => Some(&["severity"]),
-        "no-god-domain" => Some(&["severity", "max-files", "ignore-dirs"]),
-        "no-inline-types" => Some(&["severity"]),
-        "no-interface" => Some(&["severity", "allow-declaration-merging"]),
-        "no-large-file" => Some(&["severity", "max-lines"]),
-        "no-logic-in-barrel" => Some(&["severity"]),
-        "no-logic-in-domain" => Some(&["severity"]),
-        "no-magic-numbers" => Some(&["severity", "allowed-numbers"]),
-        "no-mutable-exports" => Some(&["severity"]),
-        "no-namespace" => Some(&["severity"]),
-        "no-nested-functions" => Some(&["severity", "max-depth"]),
-        "no-non-null-assertion" => Some(&["severity"]),
-        "no-orphan-files" => Some(&["severity", "entry-files"]),
-        "no-process-env" => Some(&["severity"]),
-        "no-restricted-imports" => Some(&["severity", "restricted"]),
-        "no-silent-catch" => Some(&["severity"]),
-        "no-skipped-test" => Some(&["severity"]),
-        "no-test-code-in-production" => Some(&["severity"]),
-        "no-test-import" => Some(&["severity"]),
-        "no-then-chain" => Some(&["severity"]),
-        "no-type-assertion" => Some(&["severity"]),
-        "no-upward-import" => Some(&["severity", "max-depth"]),
-        "prefer-readonly" => Some(&["severity"]),
-        "prefer-satisfies" => Some(&["severity"]),
-        _ => None,
-    }
+    crate::config::rule_metadata::known_option_names_for_rule(rule_name)
 }
 
 pub fn validate_config_source(source: &str) -> ConfigValidationReport {
@@ -244,23 +183,19 @@ fn validate_rule_severities(rules: &toml::Table, diagnostics: &mut Vec<ConfigDia
 }
 
 fn validate_contradictions(rules: &toml::Table, diagnostics: &mut Vec<ConfigDiagnostic>) {
-    let conflicts: &[(&str, &str, &str)] = &[(
-        "directory-must-have-barrel",
-        "no-barrel-files",
-        "one requires barrels while the other rejects them",
-    )];
-
-    for (rule_a, rule_b, reason) in conflicts {
-        let a_enabled = is_rule_enabled(rules, rule_a);
-        let b_enabled = is_rule_enabled(rules, rule_b);
-
-        if a_enabled && b_enabled {
-            diagnostics.push(ConfigDiagnostic {
-                severity: ConfigDiagnosticSeverity::Warn,
-                message: format!("\"{rule_a}\" conflicts with \"{rule_b}\": {reason}"),
-                path: None,
-                rule: Some(rule_a.to_string()),
-            });
+    let metadata = crate::config::rule_metadata::all_rule_metadata();
+    for meta in metadata {
+        for conflict_id in meta.conflicts {
+            let a_enabled = is_rule_enabled(rules, meta.id);
+            let b_enabled = is_rule_enabled(rules, conflict_id);
+            if a_enabled && b_enabled {
+                diagnostics.push(ConfigDiagnostic {
+                    severity: ConfigDiagnosticSeverity::Warn,
+                    message: format!("\"{id}\" conflicts with \"{conflict_id}\"", id = meta.id),
+                    path: None,
+                    rule: Some(meta.id.to_string()),
+                });
+            }
         }
     }
 }

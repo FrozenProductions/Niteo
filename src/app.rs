@@ -18,22 +18,8 @@ pub fn run() -> Result<ExitCode> {
             ExitCode::SUCCESS
         }
         Command::Config { command } => match command {
-            ConfigCommand::Check => {
-                let source = read_config_source(&workspace);
-                let report = crate::config::validation::validate_config_source(&source);
-
-                println!("{}", report.render_text());
-
-                if report.has_errors() {
-                    return Ok(ExitCode::FAILURE);
-                }
-                ExitCode::SUCCESS
-            }
-            ConfigCommand::Print => {
-                let source = read_config_source(&workspace);
-                println!("{source}");
-                ExitCode::SUCCESS
-            }
+            ConfigCommand::Check => commands::config::check(&workspace)?,
+            ConfigCommand::Print => commands::config::print(&workspace)?,
         },
         Command::Baseline { command } => match command {
             BaselineCommand::Create => {
@@ -158,28 +144,18 @@ pub fn run() -> Result<ExitCode> {
     Ok(exit_code)
 }
 
-fn read_config_source(workspace: &Path) -> String {
-    let config_path = workspace.join(crate::config::defaults::CONFIG_FILE_NAME);
-    if config_path.exists() {
-        std::fs::read_to_string(&config_path).unwrap_or_else(|_| String::new())
-    } else {
-        crate::config::defaults::DEFAULT_CONFIG_SOURCE.to_owned()
-    }
-}
-
 fn create_config(workspace: &Path, preset: Option<crate::cli::PresetName>) -> Result<()> {
     let preset_name = preset.map(|name| match name {
-        crate::cli::PresetName::Balanced => "balanced",
-        crate::cli::PresetName::Strict => "strict",
-        crate::cli::PresetName::Migration => "migration",
-        crate::cli::PresetName::React => "react",
-        crate::cli::PresetName::Library => "library",
-        crate::cli::PresetName::NoBarrels => "no-barrels",
+        crate::cli::PresetName::Balanced => crate::config::presets::PresetName::Balanced,
+        crate::cli::PresetName::Strict => crate::config::presets::PresetName::Strict,
+        crate::cli::PresetName::Migration => crate::config::presets::PresetName::Migration,
+        crate::cli::PresetName::React => crate::config::presets::PresetName::React,
+        crate::cli::PresetName::Library => crate::config::presets::PresetName::Library,
+        crate::cli::PresetName::NoBarrels => crate::config::presets::PresetName::NoBarrels,
     });
 
     match preset_name {
-        Some(name) => {
-            let preset = crate::config::presets::PresetName::from_str(name).unwrap();
+        Some(preset) => {
             let source = crate::config::presets::default_config_for_preset(preset);
             let config_path = workspace.join(crate::config::defaults::CONFIG_FILE_NAME);
             if config_path.exists() {

@@ -4,6 +4,12 @@ Use inline ignore directives when a rule should not apply to a specific file or 
 
 Prefer configuration for broad project policy. Prefer suppressions for narrow exceptions.
 
+**When to use configuration instead:** if the same rule applies (or does not apply) to many files across the project, disable or tune the rule in `niteo.toml`. File-level suppressions for broad policy disagreements make the codebase harder to audit. See [Configuration](./configuration.md#rule-severity) for severity settings and rule options.
+
+**When to use suppressions:** single-line or single-file exceptions where the rule is correct policy but a specific case justifies an override. Use rule-specific directives instead of bare `niteo-ignore` to preserve intent.
+
+**Relationship with baselines:** suppressions live in source code as inline directives. Baselines live in a separate file and record known violations during migration. See [Baselines](./baselines.md) for the migration workflow and see [CI Usage](./ci.md) for combining both in CI.
+
 ## Ignore A File
 
 ```ts
@@ -101,8 +107,8 @@ JSON output includes:
 
 ## Best Practices
 
-- Prefer rule-specific directives.
+- Prefer rule-specific directives to bare `niteo-ignore`.
 - Keep suppressions close to the code they suppress.
 - Run `niteo lint --report-suppressions` before removing legacy suppressions.
-- Do not use file-level suppressions for broad policy disagreement. Disable or tune the rule in `niteo.toml` instead.
+- Do not use file-level suppressions for broad policy disagreement. Disable or tune the rule in `niteo.toml` instead. See [Configuration](./configuration.md#rule-severity) for how to tune rules at the project level.
 

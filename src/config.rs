@@ -4,6 +4,7 @@ pub mod defaults;
 pub mod presets;
 pub(crate) mod raw;
 mod resolve;
+pub mod rule_metadata;
 pub mod rules;
 pub mod structure;
 pub mod validation;

@@ -8,20 +8,18 @@ Niteo is a standalone Rust CLI for structural linting in TypeScript projects. It
 - [Configuration](./configuration.md)
 - [Rules](./rules.md)
 - [Reports and output formats](./reports.md)
-- [Benchmarks](./benchmarks.md)
 - [Baselines](./baselines.md)
 - [Suppressions](./suppressions.md)
 - [CI usage](./ci.md)
+- [Benchmarks](./benchmarks.md)
 
 ## Quick Start
-
-Run Niteo directly:
 
 ```sh
 npx niteo-cli lint
 ```
 
-Or install it globally:
+Or install globally:
 
 ```sh
 npm i -g niteo-cli
@@ -34,46 +32,65 @@ Create a config file:
 niteo init
 ```
 
-For an existing codebase, create a baseline before enabling CI:
+## Pathways
+
+Choose the path that matches what you are doing:
+
+### First run
 
 ```sh
-niteo baseline create
-```
-
-## Core Commands
-
-```sh
-niteo lint              # Scan for structural issues
-niteo lint --watch      # Re-lint on every file change
 niteo init              # Create niteo.toml
-niteo init --preset     # Create config from a named preset
-niteo config check      # Validate config file for errors
-niteo config print      # Print resolved config source
-niteo baseline create   # Snapshot current violations
-niteo baseline prune    # Remove fixed violations from the baseline
-niteo rules             # List rules and configured severities
-niteo rules --preset    # Show what a preset would configure
-niteo explain <rule>    # Explain a rule
-niteo stats             # Show import graph statistics
-niteo graph             # Output the import graph
+niteo lint              # Scan for structural issues
 ```
 
-## Common Options
+See [CLI reference](./cli.md#lint) for options.
 
-| Option                  | Description                                                      |
-| ----------------------- | ---------------------------------------------------------------- |
-| `--root <path>`         | Project root to scan.                                            |
-| `--scope <path>`        | Limit scanning to one path.                                      |
-| `--verbose`             | Show every violation in text output.                             |
-| `--git`                 | Scan changed TypeScript files only. Fails if git is unavailable. |
-| `--format <format>`     | Output format: `text`, `json`, `sarif`, or `ndjson`.             |
-| `--output <path>`       | Write output to a file.                                          |
-| `--baseline <path>`     | Baseline file path.                                              |
-| `--report-suppressions` | Report suppressed violations and stale ignore directives.        |
-| `--watch`               | Re-run lint on file changes.                                                                     |
-| `--cache`               | Enable caching of analysis results.                                                              |
-| `--no-cache`            | Disable caching.                                                                               |
-| `--clear-cache`         | Clear the cache before running.                                                                  |
+### Existing project with violations
+
+```sh
+niteo baseline create   # Snapshot current violations
+git add niteo-baseline.json
+niteo lint              # Reports only new violations
+```
+
+See [Baselines](./baselines.md) for the full workflow.
+
+### CI setup
+
+```sh
+npx niteo-cli lint --fail-on error
+```
+
+See [CI usage](./ci.md) for exit thresholds, caching, monorepos, and GitHub Actions.
+
+### Monorepo setup
+
+Place a root `niteo.toml` at the workspace level and additional `niteo.toml` files inside packages. Child configs merge on top of the root. See [Cascading Configs](./configuration.md#cascading-configs).
+
+### Understanding rule output
+
+```sh
+niteo rules             # List all rules with configured severity
+niteo explain no-console # Explain a specific rule
+niteo lint --verbose    # Show every finding
+```
+
+See [Rules](./rules.md) and [Reports](./reports.md).
+
+### Tuning rules
+
+Edit `niteo.toml` to set severities and rule options. Validate changes:
+
+```sh
+niteo config check
+```
+
+See [Configuration](./configuration.md#rule-severity) for severity syntax and [Rules](./rules.md) for rule-specific options.
+
+### Using baselines and suppressions
+
+- **Baselines** record current violations so CI only catches new ones. See [Baselines](./baselines.md).
+- **Suppressions** use inline `niteo-ignore` directives for per-line exceptions. See [Suppressions](./suppressions.md).
 
 ## What Niteo Checks
 
@@ -89,7 +106,3 @@ niteo graph             # Output the import graph
 Import graph rules (circular imports, orphan files, test imports, barrel chains) use your project's `tsconfig.json` path aliases when present. See [Configuration](./configuration.md#typescript-path-aliases) for details.
 
 See [Rules](./rules.md) for the full rule catalog.
-
-## Monorepos
-
-Niteo supports cascading configs. Place a root `niteo.toml` at the workspace level and additional `niteo.toml` files inside packages. Child configs merge on top of the root, overriding only declared fields. See [Cascading Configs](./configuration.md#cascading-configs) for details.

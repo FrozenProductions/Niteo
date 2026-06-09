@@ -67,6 +67,25 @@ The violation detail text is not part of the identity. This lets some count-base
 
 If a violation moves to another line, changes rule, or changes subject, it is treated as new.
 
+## When To Create Vs. Prune Vs. Refresh
+
+- **Create** when introducing Niteo to a project with existing violations.
+- **Prune** after cleanup work, to remove entries that no longer match current violations.
+- **Avoid refreshing** automatically in CI. A baseline update should be intentional and reviewed. If a violation is genuinely fixed, prune it. If a violation changes location or content, it will be reported as new — do not silently refresh the baseline to hide it.
+
+## Baselines And Suppressions
+
+Baselines and suppressions serve different purposes:
+
+- **Baselines** ignore known violations project-wide for migration purposes.
+- **Suppressions** use inline directives for per-line or per-file exceptions.
+
+See [Suppressions](./suppressions.md) for when to use each approach.
+
+## Baselines In CI
+
+When using baselines in CI, see [CI Usage](./ci.md#existing-projects) for the recommended pipeline.
+
 ## Recommended Workflow
 
 1. Run `niteo lint --verbose` to inspect the current state.
@@ -74,6 +93,4 @@ If a violation moves to another line, changes rule, or changes subject, it is tr
 3. Commit `niteo-baseline.json`.
 4. Run `niteo lint` in CI.
 5. Periodically run `niteo baseline prune` after cleanup work.
-
-Avoid refreshing the baseline automatically in CI. A baseline update should be intentional and reviewed.
 

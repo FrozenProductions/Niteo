@@ -14,7 +14,7 @@ niteo lint --format json --output niteo-report.json
 
 ## Text Reports
 
-Text is the default output format.
+Text is the default output format. It is intended for human reading and is **not stable for programmatic parsing**. Use JSON, SARIF, or NDJSON for machine consumption.
 
 ```sh
 niteo lint
@@ -49,6 +49,8 @@ Warnings count as 1 point of weight. Errors count as 2 points of weight. The wei
 
 Info findings do not lower the score.
 
+The health score is informational. It is not a substitute for a structured quality model and may change in future versions.
+
 Status labels are:
 
 | Condition                                        | Status                  |
@@ -59,6 +61,8 @@ Status labels are:
 | no findings                                      | `Healthy`               |
 
 ## JSON Reports
+
+JSON output is machine-readable and stable across Niteo versions. Use it for CI artifacts, dashboards, and programmatic processing.
 
 ```sh
 niteo lint --format json
@@ -97,6 +101,8 @@ When `--report-suppressions` is used, JSON output also includes `suppressions`.
 
 ## SARIF Reports
 
+SARIF output is machine-readable and designed for code scanning systems (e.g., GitHub code scanning, SARIF-compatible CI platforms).
+
 ```sh
 niteo lint --format sarif --output niteo.sarif
 ```
@@ -114,6 +120,8 @@ Severity mapping:
 
 ## NDJSON Reports
 
+NDJSON output is machine-readable and designed for streaming consumers. Each line is independently parseable.
+
 ```sh
 niteo lint --format ndjson
 niteo lint --format ndjson --output report.ndjson
@@ -121,6 +129,8 @@ niteo lint --format ndjson --output report.ndjson
 
 NDJSON (newline-delimited JSON) outputs one valid JSON object per line.
 Each line is independently parseable by streaming consumers.
+
+NDJSON record order is: `summary` first, then `file` records, then `violation` records, then optionally a `suppressions` record. Consumers should not rely on any other ordering.
 
 Every record has a `type` field:
 

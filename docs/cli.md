@@ -58,6 +58,8 @@ If git is unavailable or the detection fails, Niteo prints a warning and falls b
 
 Use `--git` in scripts and CI when you want changed-file scanning without an interactive prompt. The `--git` flag is strict: it fails immediately if git is unavailable or returns an error.
 
+For full protection on main branches, prefer scanning the whole configured root. See [CI Usage](./ci.md#changed-files) for a comparison of full scan vs. `--git`.
+
 ### Watch Mode
 
 Run lint continuously during development:
@@ -228,6 +230,8 @@ warn   directory-must-have-barrel   conflicts with "no-barrel-files": one requir
 
 The command exits with a non-zero status when any error-level diagnostic is reported. Warnings do not cause a failure exit code.
 
+See [Configuration](./configuration.md#rule-severity) for severity syntax and [Rules](./rules.md) for rule-specific options.
+
 ## `config print`
 
 Print the resolved config source to stdout.
@@ -237,6 +241,8 @@ niteo config print
 ```
 
 If `niteo.toml` exists, prints its contents. Otherwise, prints the built-in default config. This is useful for inspecting what Niteo would use in CI or for checking the default config before running `init`.
+
+See [Configuration](./configuration.md#cascading-configs) for how configs combine in monorepos.
 
 ## Path Resolution
 
