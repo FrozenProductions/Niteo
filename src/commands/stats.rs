@@ -60,6 +60,9 @@ fn render_text(graph: &import_graph::ImportGraph) -> String {
         "Unresolved local imports: {}\n",
         graph.unresolved_count()
     ));
+    let breakdown = graph.unresolved_by_kind();
+    output.push_str(&format!("  relative: {}\n", breakdown.relative));
+    output.push_str(&format!("  alias: {}\n", breakdown.alias));
     output.push('\n');
 
     let most_imported = graph.most_imported_files(5);
@@ -88,8 +91,15 @@ fn render_json(graph: &import_graph::ImportGraph) -> Result<String> {
         files: usize,
         import_edges: usize,
         unresolved_local_imports: usize,
+        unresolved_imports_by_kind: UnresolvedByKind,
         most_imported: Vec<FileCount>,
         highest_fanout: Vec<FileCount>,
+    }
+
+    #[derive(Serialize)]
+    struct UnresolvedByKind {
+        relative: usize,
+        alias: usize,
     }
 
     #[derive(Serialize)]
@@ -98,10 +108,15 @@ fn render_json(graph: &import_graph::ImportGraph) -> Result<String> {
         count: usize,
     }
 
+    let breakdown = graph.unresolved_by_kind();
     let stats = Stats {
         files: graph.file_count(),
         import_edges: graph.edge_count(),
         unresolved_local_imports: graph.unresolved_count(),
+        unresolved_imports_by_kind: UnresolvedByKind {
+            relative: breakdown.relative,
+            alias: breakdown.alias,
+        },
         most_imported: graph
             .most_imported_files(5)
             .into_iter()

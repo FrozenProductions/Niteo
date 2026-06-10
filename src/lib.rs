@@ -10,6 +10,7 @@ mod discovery;
 mod git;
 mod ignore;
 mod import_graph;
+mod import_resolver;
 mod jsx;
 mod report;
 mod rule_adapters;

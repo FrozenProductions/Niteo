@@ -25,6 +25,7 @@ mod tests {
 
     use crate::cache::edges::import_edge_to_cached;
     use crate::import_graph::{ImportEdge, ImportGraph, ImportKind};
+    use crate::import_resolver::SpecifierKind;
 
     use super::*;
 
@@ -114,6 +115,7 @@ mod tests {
                 import_edges: vec![CachedImportEdge {
                     specifier: "./b".to_string(),
                     resolved_target: Some("src/b.ts".to_string()),
+                    specifier_kind: "relative".to_string(),
                     kind: "import".to_string(),
                     span_start: 10,
                     span_end: 20,
@@ -222,6 +224,7 @@ mod tests {
                 import_edges: vec![CachedImportEdge {
                     specifier: "./b".to_string(),
                     resolved_target: Some("b.ts".to_string()),
+                    specifier_kind: "relative".to_string(),
                     kind: "import".to_string(),
                     span_start: 0,
                     span_end: 5,
@@ -402,6 +405,7 @@ mod tests {
         graph.edges.push(ImportEdge {
             source_file: file_a.clone(),
             specifier: "./b".to_string(),
+            specifier_kind: SpecifierKind::Relative,
             resolved_target: Some(file_b.clone()),
             kind: ImportKind::Import,
             span: Span::new(0, 10),
@@ -464,6 +468,7 @@ mod tests {
         let edge = ImportEdge {
             source_file: PathBuf::from("/project/src/a.ts"),
             specifier: "./b".to_string(),
+            specifier_kind: SpecifierKind::Relative,
             resolved_target: Some(PathBuf::from("/project/src/b.ts")),
             kind: ImportKind::Import,
             span: Span::new(10, 20),
@@ -482,6 +487,7 @@ mod tests {
         let cached = CachedImportEdge {
             specifier: "./b".to_string(),
             resolved_target: Some("src/b.ts".to_string()),
+            specifier_kind: "relative".to_string(),
             kind: "re_export".to_string(),
             span_start: 5,
             span_end: 15,

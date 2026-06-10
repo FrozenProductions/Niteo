@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use crate::import_graph::extract::extract_imports;
 use crate::import_graph::helpers::is_barrel_file;
 use crate::import_graph::model::{ImportEdge, ImportGraph};
-use crate::import_graph::resolver::ImportResolverIndex;
+use crate::import_resolver::ImportResolverIndex;
 use crate::tsconfig::TsConfig;
 
 #[cfg(test)]

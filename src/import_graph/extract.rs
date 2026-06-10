@@ -8,7 +8,7 @@ use oxc_ast_visit::Visit;
 use oxc_span::Span;
 
 use crate::import_graph::model::{ImportEdge, ImportKind};
-use crate::import_graph::resolver::ImportResolverIndex;
+use crate::import_resolver::ImportResolverIndex;
 
 pub(crate) fn extract_imports(
     source_file: &Path,
@@ -71,11 +71,13 @@ impl<'a> Visit<'a> for ImportVisitor<'a> {
 
 impl ImportVisitor<'_> {
     fn add_edge(&mut self, specifier: &str, kind: ImportKind, span: Span) {
+        let specifier_kind = self.resolver.classify_specifier(specifier);
         let resolved_target = self.resolver.resolve(&self.source_file, specifier);
 
         self.edges.push(ImportEdge {
             source_file: self.source_file.clone(),
             specifier: specifier.to_string(),
+            specifier_kind,
             resolved_target,
             kind,
             span,

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use oxc_span::Span;
 
-use crate::import_graph::helpers::is_relative_specifier;
+use crate::import_resolver::SpecifierKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImportKind {
@@ -16,6 +16,7 @@ pub enum ImportKind {
 pub struct ImportEdge {
     pub source_file: PathBuf,
     pub specifier: String,
+    pub specifier_kind: SpecifierKind,
     pub resolved_target: Option<PathBuf>,
     pub kind: ImportKind,
     pub span: Span,
@@ -63,8 +64,30 @@ impl ImportGraph {
     pub fn unresolved_count(&self) -> usize {
         self.edges
             .iter()
-            .filter(|edge| edge.resolved_target.is_none() && is_relative_specifier(&edge.specifier))
+            .filter(|edge| {
+                edge.resolved_target.is_none()
+                    && matches!(
+                        edge.specifier_kind,
+                        SpecifierKind::Relative | SpecifierKind::Alias
+                    )
+            })
             .count()
+    }
+
+    pub fn unresolved_by_kind(&self) -> UnresolvedBreakdown {
+        let mut relative = 0;
+        let mut alias = 0;
+        for edge in &self.edges {
+            if edge.resolved_target.is_some() {
+                continue;
+            }
+            match edge.specifier_kind {
+                SpecifierKind::Relative => relative += 1,
+                SpecifierKind::Alias => alias += 1,
+                SpecifierKind::External => {}
+            }
+        }
+        UnresolvedBreakdown { relative, alias }
     }
 
     pub fn most_imported_files(&self, limit: usize) -> Vec<(PathBuf, usize)> {
@@ -90,4 +113,10 @@ impl ImportGraph {
         sorted.truncate(limit);
         sorted
     }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct UnresolvedBreakdown {
+    pub relative: usize,
+    pub alias: usize,
 }
