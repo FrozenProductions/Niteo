@@ -15,12 +15,23 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 - Import graph analysis cache with invalidation on file changes.
 - Tsconfig `paths` alias resolution in the import graph.
 - Lint duration printed in verbose text output.
+- Six config presets (balanced, strict, migration, react, library, no-barrels) with `--preset` flag on `init` and `rules` commands.
+- Config validation CLI (`niteo config check`, `niteo config print`).
+- Workspace discovery and package model from `package.json` workspaces and `pnpm-workspace.yaml`.
+- `no-private-package-import` rule to prevent cross-package internal file imports.
+- `no-package-cycle` rule to detect package-level dependency cycles.
 
 ### Changed
 
 - Errors from git and file I/O are now propagated instead of silently discarded.
 - Git errors during changed-file detection fall back to an empty file list instead of failing.
 - Import graph cycle detection uses strongly connected component (SCC) decomposition.
+- Homebrew CI publishing moved from this repository to the dedicated tap repository.
+
+### Fixed
+
+- Homebrew bottle asset names for correct CI publishing.
+- Homebrew tap workflow environment variable collision.
 
 ## 0.2.1 - 2026-06-03
 
