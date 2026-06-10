@@ -8,6 +8,7 @@ Niteo is a standalone Rust CLI for structural linting in TypeScript projects. It
 - [Configuration](./configuration.md)
 - [Rules](./rules.md)
 - [Reports and output formats](./reports.md)
+- [Autofix](./fix.md)
 - [Baselines](./baselines.md)
 - [Suppressions](./suppressions.md)
 - [CI usage](./ci.md)
@@ -91,6 +92,16 @@ See [Configuration](./configuration.md#rule-severity) for severity syntax and [R
 
 - **Baselines** record current violations so CI only catches new ones. See [Baselines](./baselines.md).
 - **Suppressions** use inline `niteo-ignore` directives for per-line exceptions. See [Suppressions](./suppressions.md).
+
+### Applying autofixes
+
+```sh
+niteo fix                 # Apply safe fixes
+niteo fix --dry-run       # Preview without writing
+niteo lint --fix          # Lint then fix
+```
+
+See [Autofix](./fix.md) for supported rules and safety guards.
 
 ## What Niteo Checks
 

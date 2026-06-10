@@ -4,7 +4,7 @@ use oxc_ast::ast::DebuggerStatement;
 use oxc_ast_visit::Visit;
 
 use crate::config::RuleConfig;
-use crate::rules::{NO_DEBUGGER_RULE_ID, Violation};
+use crate::rules::{Fix, NO_DEBUGGER_RULE_ID, TextEdit, Violation};
 use crate::syntax::LineIndex;
 const MESSAGE: &str = "Remove debugger statements before committing code.";
 
@@ -23,6 +23,59 @@ pub fn check_file(
     };
     visitor.visit_program(program);
     visitor.violations
+}
+
+pub fn fix_file(
+    file: &Path,
+    program: &oxc_ast::ast::Program,
+    source: &str,
+    config: &RuleConfig,
+) -> Vec<Fix> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    let mut collector = DebuggerSpanCollector {
+        spans: Vec::new(),
+        _phantom: std::marker::PhantomData,
+    };
+    collector.visit_program(program);
+
+    let mut edits = Vec::new();
+    for span in &collector.spans {
+        let start = span.start as usize;
+        let mut end = span.end as usize;
+
+        let after = &source[end..];
+        let after_trimmed = after.trim_start();
+        if after_trimmed.starts_with(';') {
+            let semicolon_offset = after.len() - after_trimmed.len();
+            end += semicolon_offset + 1;
+        }
+
+        let remaining = &source[end..];
+        let whitespace = remaining
+            .chars()
+            .take_while(|char| char.is_whitespace())
+            .count();
+        end += whitespace;
+
+        edits.push(TextEdit {
+            start,
+            end,
+            replacement: String::new(),
+        });
+    }
+
+    if edits.is_empty() {
+        Vec::new()
+    } else {
+        vec![Fix {
+            file: file.to_path_buf(),
+            rule: NO_DEBUGGER_RULE_ID,
+            edits,
+        }]
+    }
 }
 
 struct DebuggerVisitor<'a, 'f> {
@@ -46,6 +99,18 @@ impl<'a, 'f> Visit<'a> for DebuggerVisitor<'a, 'f> {
             detail: None,
             subject: None,
         });
+        oxc_ast_visit::walk::walk_debugger_statement(self, stmt);
+    }
+}
+
+struct DebuggerSpanCollector<'a> {
+    spans: Vec<oxc_span::Span>,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a> Visit<'a> for DebuggerSpanCollector<'a> {
+    fn visit_debugger_statement(&mut self, stmt: &DebuggerStatement) {
+        self.spans.push(stmt.span);
         oxc_ast_visit::walk::walk_debugger_statement(self, stmt);
     }
 }
@@ -106,6 +171,74 @@ mod tests {
         let source = "const debuggerHelper = true;\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn fix_removes_debugger_with_semicolon() {
+        let edits = run_fix("debugger;\n");
+        assert_eq!(edits.len(), 1);
+        assert_eq!(edits[0].edits.len(), 1);
+    }
+
+    #[test]
+    fn fix_removes_debugger_without_semicolon() {
+        let edits = run_fix("debugger\n");
+        assert_eq!(edits.len(), 1);
+        assert_eq!(edits[0].edits.len(), 1);
+    }
+
+    #[test]
+    fn fix_leaves_after_trivial() {
+        let source = "debugger;\n";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        assert_eq!(fixed.trim(), "");
+    }
+
+    #[test]
+    fn fix_removes_trailing_semicolon() {
+        let source = "debugger;\n";
+        let edits = run_fix(source);
+        assert_eq!(edits.len(), 1);
+        assert_eq!(edits[0].edits.len(), 1);
+        let edit = &edits[0].edits[0];
+        let before = &source[..edit.start];
+        let before_semicolon = &source[..edit.start + 1];
+        assert!(before.is_empty() || before_semicolon.ends_with(';') || !before_semicolon.contains(';'));
+    }
+
+    #[test]
+    fn fix_preserves_surrounding_code() {
+        let source = "const x = 1;\ndebugger;\nconst y = 2;\n";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        assert!(fixed.contains("const x = 1;"));
+        assert!(fixed.contains("const y = 2;"));
+        assert!(!fixed.contains("debugger"));
+    }
+
+    #[test]
+    fn fix_no_debugger_returns_empty() {
+        let source = "const x = 1;\n";
+        let edits = run_fix(source);
+        assert!(edits.is_empty());
+    }
+
+    fn run_fix(source: &str) -> Vec<Fix> {
+        let allocator = Allocator::default();
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        fix_file(
+            Path::new("Component.tsx"),
+            &program,
+            source,
+            &test_config(),
+        )
+    }
+
+    fn apply_fix_edits(source: &str, fixes: &[Fix]) -> String {
+        let edits: Vec<TextEdit> = fixes.iter().flat_map(|fix| fix.edits.clone()).collect();
+        crate::fix::apply_edits(source, &edits)
     }
 
     fn test_config() -> RuleConfig {

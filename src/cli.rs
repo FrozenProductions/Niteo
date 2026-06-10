@@ -88,7 +88,17 @@ pub enum Command {
         command: BaselineCommand,
     },
     /// Scan for structural issues.
-    Lint,
+    Lint {
+        /// Apply fixes after linting.
+        #[arg(long)]
+        fix: bool,
+    },
+    /// Apply autofixes for rules that support them.
+    Fix {
+        /// Preview fixes without writing files.
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// List rules and severities.
     Rules {
         /// Use a named preset to show what would be configured.

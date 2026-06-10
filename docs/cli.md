@@ -60,6 +60,16 @@ Use `--git` in scripts and CI when you want changed-file scanning without an int
 
 For full protection on main branches, prefer scanning the whole configured root. See [CI Usage](./ci.md#changed-files) for a comparison of full scan vs. `--git`.
 
+### Fix Mode
+
+Apply autofixes after linting by passing `--fix`:
+
+```sh
+niteo lint --fix
+```
+
+The lint report prints first, then fixes are applied to files. The command exits with the same status code as lint would without `--fix`.
+
 ### Watch Mode
 
 Run lint continuously during development:
@@ -105,6 +115,33 @@ niteo lint --clear-cache
 ```
 
 Use `--no-cache` to ensure caching is disabled even when it would otherwise be active.
+
+## `fix`
+
+Apply autofixes for rules that support them.
+
+```sh
+niteo fix
+niteo fix --dry-run           # Preview without writing
+niteo fix --root src           # Fix only src/
+niteo fix --scope src/components
+niteo fix --git                # Fix only changed files
+niteo fix --baseline niteo-baseline.json
+```
+
+`fix` runs a full analysis pass, collects violations from rules that support autofix, applies the edits to source files, and prunes stale entries from the baseline.
+
+Use `--dry-run` to preview fixes without writing files.
+
+`fix` only addresses rules with `supports_fix: true` in their metadata. Currently only `no-debugger` supports autofix. Violations from other rules are left untouched.
+
+Edits that overlap with other edits in the same file are rejected. Edits computed against source that has changed on disk since analysis are also rejected. These guards prevent corrupt output.
+
+After applying fixes, `fix` prunes the baseline to remove entries that no longer match. If no baseline file exists, the baseline step is skipped.
+
+Exit code is always `0` — the fix command does not fail on violations. Use `lint --fix` instead if you need lint's exit code behavior.
+
+See [Autofix](./fix.md) for details on the edit model, safety guards, and how to add fix support to new rules.
 
 ## `init`
 

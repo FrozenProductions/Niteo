@@ -114,10 +114,32 @@ declare_rules! {
     prefer_readonly => { id: PREFER_READONLY_RULE_ID, value: "prefer-readonly", config: crate::config::RuleConfig },
 }
 
+#[derive(Debug, Clone)]
+pub struct Fix {
+    pub file: PathBuf,
+    pub rule: RuleId,
+    pub edits: Vec<TextEdit>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TextEdit {
+    pub start: usize,
+    pub end: usize,
+    pub replacement: String,
+}
+
 pub trait FileRule {
     fn severity(&self) -> Severity;
     fn needs_ast(&self) -> bool;
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation>;
+
+    fn supports_fix(&self) -> bool {
+        false
+    }
+
+    fn fix(&self, _ctx: &FileContext<'_>) -> Vec<Fix> {
+        Vec::new()
+    }
 }
 
 pub struct FileContext<'a> {

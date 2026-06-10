@@ -12,7 +12,7 @@ pub fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
     let workspace = std::env::current_dir()?;
 
-    let exit_code = match cli.command.unwrap_or(Command::Lint) {
+    let exit_code = match cli.command.unwrap_or(Command::Lint { fix: false }) {
         Command::Init { preset } => {
             create_config(&workspace, preset)?;
             ExitCode::SUCCESS
@@ -96,7 +96,7 @@ pub fn run() -> Result<ExitCode> {
             )?;
             ExitCode::SUCCESS
         }
-        Command::Lint => {
+        Command::Lint { fix } => {
             let cache_enabled = cli.options.cache && !cli.options.no_cache;
 
             let opts = commands::lint::LintOptions {
@@ -104,7 +104,7 @@ pub fn run() -> Result<ExitCode> {
                 git_flag: cli.options.git,
                 output_format: cli.options.format,
                 output_path: cli.options.output,
-                baseline_path: cli.options.baseline,
+                baseline_path: cli.options.baseline.clone(),
                 report_suppressions: cli.options.report_suppressions,
                 fail_on: cli.options.fail_on,
                 deny_child_configs: cli.options.deny_child_configs,
@@ -112,7 +112,7 @@ pub fn run() -> Result<ExitCode> {
                 clear_cache: cli.options.clear_cache,
             };
 
-            if cli.options.watch {
+            let exit_code = if cli.options.watch {
                 let watch_root =
                     commands::lint::resolve_watch_root(&workspace, cli.options.root.as_deref())?;
                 let workspace_clone = workspace.clone();
@@ -132,12 +132,42 @@ pub fn run() -> Result<ExitCode> {
             } else {
                 commands::lint::lint_workspace(
                     &workspace,
-                    cli.options.root,
-                    cli.options.scope,
+                    cli.options.root.clone(),
+                    cli.options.scope.clone(),
                     opts,
                     true,
                 )?
+            };
+
+            if fix {
+                commands::fix::fix_workspace(
+                    &workspace,
+                    cli.options.root,
+                    cli.options.scope,
+                    commands::fix::FixOptions {
+                        dry_run: false,
+                        git_flag: cli.options.git,
+                        baseline_path: cli.options.baseline,
+                        deny_child_configs: cli.options.deny_child_configs,
+                    },
+                )?;
             }
+
+            exit_code
+        }
+        Command::Fix { dry_run } => {
+            commands::fix::fix_workspace(
+                &workspace,
+                cli.options.root,
+                cli.options.scope,
+                commands::fix::FixOptions {
+                    dry_run,
+                    git_flag: cli.options.git,
+                    baseline_path: cli.options.baseline,
+                    deny_child_configs: cli.options.deny_child_configs,
+                },
+            )?;
+            ExitCode::SUCCESS
         }
     };
 

@@ -140,7 +140,7 @@ pub fn check_files(
     ))
 }
 
-fn build_file_rules(
+pub fn build_file_rules(
     config: &RulesConfig,
     structure: &config::structure::ProjectStructureConfig,
     architecture: &config::architecture::ArchitectureConfig,

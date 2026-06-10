@@ -23,6 +23,39 @@ macro_rules! ast_rule_adapter {
     };
 }
 
+macro_rules! fixable_ast_rule_adapter {
+    ($name:ident, $id:expr, $config_ty:ty, $module:ident) => {
+        pub struct $name {
+            pub config: $config_ty,
+        }
+        impl FileRule for $name {
+            fn severity(&self) -> Severity {
+                self.config.severity
+            }
+            fn needs_ast(&self) -> bool {
+                true
+            }
+            fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+                let Some(program) = ctx.program else {
+                    return vec![];
+                };
+                $module::check_file(ctx.file, program, ctx.line_index, &self.config)
+            }
+
+            fn supports_fix(&self) -> bool {
+                true
+            }
+
+            fn fix(&self, ctx: &FileContext<'_>) -> Vec<Fix> {
+                let Some(program) = ctx.program else {
+                    return vec![];
+                };
+                $module::fix_file(ctx.file, program, ctx.source, &self.config)
+            }
+        }
+    };
+}
+
 macro_rules! text_rule_adapter {
     ($name:ident, $id:expr, $config_ty:ty, $module:ident) => {
         pub struct $name {
@@ -148,7 +181,7 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_enums
 );
-ast_rule_adapter!(
+fixable_ast_rule_adapter!(
     NoDebuggerAdapter,
     NO_DEBUGGER_RULE_ID,
     crate::config::RuleConfig,

@@ -363,7 +363,6 @@ enum VisitState {
 mod tests {
     use super::*;
     use std::fs;
-    use tempfile::TempDir;
 
     fn create_package(dir: &Path, name: &str) {
         let package_json = serde_json::json!({
