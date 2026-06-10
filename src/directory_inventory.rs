@@ -320,7 +320,7 @@ fn starts_with(bytes: &[u8], index: usize, pattern: &[u8]) -> bool {
 
 fn skip_whitespace(bytes: &[u8]) -> &[u8] {
     let mut index = 0;
-    while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+    while bytes.get(index).is_some_and(|&b| b.is_ascii_whitespace()) {
         index += 1;
     }
     &bytes[index..]

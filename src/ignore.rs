@@ -132,14 +132,14 @@ fn parse_rules(after_prefix: &str) -> Vec<String> {
 fn skip_string(bytes: &[u8], start: usize, quote: u8) -> usize {
     let mut index = start + 1;
     while index < bytes.len() {
-        if bytes[index] == b'\\' {
-            index += 2;
-            continue;
+        match bytes.get(index).copied() {
+            Some(b'\\') => {
+                index += 2;
+                continue;
+            }
+            Some(q) if q == quote => return index + 1,
+            _ => index += 1,
         }
-        if bytes[index] == quote {
-            return index + 1;
-        }
-        index += 1;
     }
     index
 }

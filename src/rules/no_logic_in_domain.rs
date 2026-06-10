@@ -481,7 +481,7 @@ fn starts_class_declaration(bytes: &[u8], index: usize) -> bool {
 
 fn skip_whitespace(bytes: &[u8]) -> &[u8] {
     let mut index = 0;
-    while index < bytes.len() && matches!(bytes[index], b' ' | b'\t' | b'\r' | b'\n') {
+    while bytes.get(index).is_some_and(|&b| matches!(b, b' ' | b'\t' | b'\r' | b'\n')) {
         index += 1;
     }
     &bytes[index..]
@@ -942,3 +942,4 @@ mod tests {
         assert_eq!(violations.len(), 1);
     }
 }
+

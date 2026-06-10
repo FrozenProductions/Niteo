@@ -273,15 +273,13 @@ impl WorkspaceGraph {
             let Some(ref resolved_target) = edge.resolved_target else {
                 continue;
             };
-            let source_package = workspace.package_for(&edge.source_file);
-            let target_package = workspace.package_for(resolved_target);
-
-            if source_package.is_none() || target_package.is_none() {
-                continue;
-            }
-
-            let source = source_package.unwrap();
-            let target = target_package.unwrap();
+            let (source, target) = match (
+                workspace.package_for(&edge.source_file),
+                workspace.package_for(resolved_target),
+            ) {
+                (Some(source), Some(target)) => (source, target),
+                _ => continue,
+            };
 
             if source.directory == target.directory {
                 continue;
