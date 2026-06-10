@@ -15,9 +15,15 @@ use crate::config::ProjectConfig;
 pub fn configured_rules(config: &ProjectConfig) -> Vec<ConfiguredRule> {
     catalog::all_rules()
         .iter()
-        .map(|documentation| ConfiguredRule {
-            name: documentation.name,
-            severity: summary::summarize_rule(config, documentation.kind).severity,
+        .map(|documentation| {
+            let category = crate::config::rule_metadata::rule_by_id(documentation.name)
+                .map(|m| m.category.as_str())
+                .unwrap_or("");
+            ConfiguredRule {
+                name: documentation.name,
+                severity: summary::summarize_rule(config, documentation.kind).severity,
+                category,
+            }
         })
         .collect()
 }

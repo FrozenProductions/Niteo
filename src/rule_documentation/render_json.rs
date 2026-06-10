@@ -7,6 +7,7 @@ use super::model::{ConfiguredRule, RuleExplanation};
 struct ConfiguredRuleJson {
     name: &'static str,
     severity: &'static str,
+    category: &'static str,
 }
 
 #[derive(Serialize)]
@@ -43,6 +44,7 @@ pub fn render_rules_json(rules: &[ConfiguredRule]) -> Result<String> {
         .map(|rule| ConfiguredRuleJson {
             name: rule.name,
             severity: rule.severity.as_str(),
+            category: rule.category,
         })
         .collect();
 

@@ -3,6 +3,7 @@ use crate::config::Severity;
 pub struct ConfiguredRule {
     pub name: &'static str,
     pub severity: Severity,
+    pub category: &'static str,
 }
 
 pub struct RuleExplanation {

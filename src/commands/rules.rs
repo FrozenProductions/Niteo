@@ -22,14 +22,26 @@ pub fn list(
                 .map(|row| row.name.len())
                 .max()
                 .unwrap_or("rule".len());
+            let cat_width = rows
+                .iter()
+                .map(|row| row.category.len())
+                .max()
+                .unwrap_or("category".len());
 
             let mut output = String::new();
-            output.push_str(&format!("{:<name_width$}  severity\n", "rule"));
-            output.push_str(&format!("{:-<name_width$}  --------\n", ""));
+            output.push_str(&format!(
+                "{:<name_width$}  {:<cat_width$}  severity\n",
+                "rule", "category"
+            ));
+            output.push_str(&format!(
+                "{:-<name_width$}  {:-<cat_width$}  --------\n",
+                "", ""
+            ));
             for row in &rows {
                 output.push_str(&format!(
-                    "{:<name_width$}  {}\n",
+                    "{:<name_width$}  {:<cat_width$}  {}\n",
                     row.name,
+                    row.category,
                     row.severity.as_str()
                 ));
             }
@@ -74,14 +86,26 @@ pub fn list_with_preset(
                 .map(|row| row.name.len())
                 .max()
                 .unwrap_or("rule".len());
+            let cat_width = rows
+                .iter()
+                .map(|row| row.category.len())
+                .max()
+                .unwrap_or("category".len());
 
             let mut output = String::new();
-            output.push_str(&format!("{:<name_width$}  severity\n", "rule"));
-            output.push_str(&format!("{:-<name_width$}  --------\n", ""));
+            output.push_str(&format!(
+                "{:<name_width$}  {:<cat_width$}  severity\n",
+                "rule", "category"
+            ));
+            output.push_str(&format!(
+                "{:-<name_width$}  {:-<cat_width$}  --------\n",
+                "", ""
+            ));
             for row in &rows {
                 output.push_str(&format!(
-                    "{:<name_width$}  {}\n",
+                    "{:<name_width$}  {:<cat_width$}  {}\n",
                     row.name,
+                    row.category,
                     row.severity.as_str()
                 ));
             }

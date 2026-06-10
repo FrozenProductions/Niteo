@@ -112,3 +112,27 @@ fn every_configurable_rule_has_metadata_entry() {
         );
     }
 }
+
+#[test]
+fn every_metadata_entry_has_catalog_entry() {
+    let catalog_ids = rule_ids_from_catalog_source();
+    let raw = include_str!("../src/config/rule_metadata.rs");
+
+    // Collect rule IDs from metadata source
+    let mut metadata_ids = std::collections::HashSet::new();
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if let Some(id_val) = trimmed.strip_prefix("id: \"") {
+            if let Some(end) = id_val.find('"') {
+                metadata_ids.insert(id_val[..end].to_string());
+            }
+        }
+    }
+
+    for id in &metadata_ids {
+        assert!(
+            catalog_ids.contains(id),
+            "rule '{id}' is in rule_metadata.rs but missing from catalog.rs"
+        );
+    }
+}
