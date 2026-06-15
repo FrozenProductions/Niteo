@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Parse rule IDs from the catalog source as a fallback for external tests.
 /// Only matches `name:` lines that belong to a `RuleDocumentation` block,
@@ -133,6 +133,143 @@ fn every_metadata_entry_has_catalog_entry() {
         assert!(
             catalog_ids.contains(id),
             "rule '{id}' is in rule_metadata.rs but missing from catalog.rs"
+        );
+    }
+}
+
+fn fixable_rule_ids_from_metadata() -> HashSet<String> {
+    let raw = include_str!("../src/config/rule_metadata.rs");
+    let mut ids = HashSet::new();
+    let mut current_id: Option<String> = None;
+    let mut current_supports_fix = false;
+
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if let Some(id_val) = trimmed.strip_prefix("id: \"") {
+            if let Some(end) = id_val.find('"') {
+                current_id = Some(id_val[..end].to_string());
+            }
+        }
+        if trimmed == "supports_fix: true," {
+            current_supports_fix = true;
+        }
+        if trimmed == "}," || trimmed == "}" {
+            if current_supports_fix {
+                if let Some(id) = current_id.take() {
+                    ids.insert(id);
+                }
+            }
+            current_id = None;
+            current_supports_fix = false;
+        }
+    }
+    ids
+}
+
+fn rule_id_constants() -> HashMap<String, String> {
+    let raw = include_str!("../src/rules.rs");
+    let mut map = HashMap::new();
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if let Some(id_start) = trimmed.find("id: ") {
+            if let Some(id_end) = trimmed[id_start..].find(',') {
+                let id_const = trimmed[id_start + 4..id_start + id_end].trim().to_string();
+                if let Some(value_start) = trimmed.find("value: ") {
+                    let value_offset = value_start + 7;
+                    if value_offset < trimmed.len() && trimmed.as_bytes()[value_offset] == b'"' {
+                        let value_body = &trimmed[value_offset + 1..];
+                        if let Some(value_end) = value_body.find('"') {
+                            let value = value_body[..value_end].to_string();
+                            map.insert(id_const, value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    map
+}
+
+fn fixable_rule_ids_from_adapters() -> HashSet<String> {
+    let raw = include_str!("../src/rule_adapters.rs");
+    let constants = rule_id_constants();
+    let mut ids = HashSet::new();
+    let mut lines = raw.lines().peekable();
+
+    while let Some(line) = lines.next() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("fixable_ast_rule_adapter!(")
+            && !trimmed.starts_with("fixable_text_rule_adapter!(")
+        {
+            continue;
+        }
+        let mut macro_lines = vec![trimmed.to_string()];
+        while let Some(next) = lines.next() {
+            let next_trimmed = next.trim();
+            macro_lines.push(next_trimmed.to_string());
+            if next_trimmed.ends_with(");") {
+                break;
+            }
+        }
+        let full = macro_lines.join(" ");
+        if let Some(args) = full.strip_prefix("fixable_ast_rule_adapter!(") {
+            if let Some(end) = args.rfind(");") {
+                let parts: Vec<&str> = args[..end].split(',').collect();
+                if parts.len() >= 2 {
+                    let id = parts[1].trim();
+                    if let Some(value) = constants.get(id) {
+                        ids.insert(value.clone());
+                    }
+                }
+            }
+        }
+        if let Some(args) = full.strip_prefix("fixable_text_rule_adapter!(") {
+            if let Some(end) = args.rfind(");") {
+                let parts: Vec<&str> = args[..end].split(',').collect();
+                if parts.len() >= 2 {
+                    let id = parts[1].trim();
+                    if let Some(value) = constants.get(id) {
+                        ids.insert(value.clone());
+                    }
+                }
+            }
+        }
+    }
+    ids
+}
+
+#[test]
+fn every_fixable_metadata_rule_has_fixable_adapter() {
+    let metadata_ids = fixable_rule_ids_from_metadata();
+    let adapter_ids = fixable_rule_ids_from_adapters();
+    for id in &metadata_ids {
+        assert!(
+            adapter_ids.contains(id),
+            "rule '{id}' has supports_fix: true in metadata but no fixable adapter"
+        );
+    }
+}
+
+#[test]
+fn every_fixable_adapter_rule_has_fixable_metadata() {
+    let metadata_ids = fixable_rule_ids_from_metadata();
+    let adapter_ids = fixable_rule_ids_from_adapters();
+    for id in &adapter_ids {
+        assert!(
+            metadata_ids.contains(id),
+            "rule '{id}' has a fixable adapter but supports_fix: false in metadata"
+        );
+    }
+}
+
+#[test]
+fn fix_docs_mentions_every_fixable_rule() {
+    let fixable_ids = fixable_rule_ids_from_metadata();
+    let docs = include_str!("../docs/fix.md");
+    for id in &fixable_ids {
+        assert!(
+            docs.contains(&format!("`{id}`")),
+            "rule '{id}' supports fix but is not documented in docs/fix.md"
         );
     }
 }

@@ -16,3 +16,6 @@ mod report_contracts;
 mod report_output;
 #[path = "cli/suppressions.rs"]
 mod suppressions;
+
+#[path = "cli/fix.rs"]
+mod fix;

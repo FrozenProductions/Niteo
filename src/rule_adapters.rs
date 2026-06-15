@@ -119,7 +119,7 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_export_star
 );
-ast_rule_adapter!(
+fixable_ast_rule_adapter!(
     NoFocusedTestAdapter,
     NO_FOCUSED_TEST_RULE_ID,
     crate::config::RuleConfig,
@@ -193,7 +193,7 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_eval
 );
-ast_rule_adapter!(
+fixable_ast_rule_adapter!(
     NoEmptyInterfaceAdapter,
     NO_EMPTY_INTERFACE_RULE_ID,
     crate::config::RuleConfig,
@@ -223,7 +223,7 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_silent_catch
 );
-ast_rule_adapter!(
+fixable_ast_rule_adapter!(
     NoSkippedTestAdapter,
     NO_SKIPPED_TEST_RULE_ID,
     crate::config::RuleConfig,

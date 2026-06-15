@@ -114,6 +114,8 @@ declare_rules! {
     prefer_readonly => { id: PREFER_READONLY_RULE_ID, value: "prefer-readonly", config: crate::config::RuleConfig },
 }
 
+pub mod test_call_utils;
+
 #[derive(Debug, Clone)]
 pub struct Fix {
     pub file: PathBuf,

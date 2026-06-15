@@ -140,7 +140,13 @@ pub fn fix_workspace(
         return Ok(());
     }
 
-    let outcome = fix::apply_fixes(all_fixes, false)?;
+    let outcome = fix::apply_fixes(
+        all_fixes,
+        fix::ApplyFixOptions {
+            dry_run: false,
+            validate_parse: true,
+        },
+    )?;
 
     for file in &outcome.fixed_files {
         println!("Fixed {}", file.display());
@@ -156,6 +162,18 @@ pub fn fix_workspace(
         eprintln!(
             "warning: rejected {} edits due to stale source",
             outcome.rejected_stale
+        );
+    }
+    if outcome.rejected_invalid > 0 {
+        eprintln!(
+            "warning: rejected {} invalid edits",
+            outcome.rejected_invalid
+        );
+    }
+    if outcome.rejected_parse > 0 {
+        eprintln!(
+            "warning: rejected {} edits because fixed source would not parse",
+            outcome.rejected_parse
         );
     }
 

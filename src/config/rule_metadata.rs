@@ -337,7 +337,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Error,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        supports_fix: true,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -377,7 +377,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        supports_fix: true,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -557,7 +557,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        supports_fix: true,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {

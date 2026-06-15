@@ -1,15 +1,12 @@
 use std::path::Path;
 
-use oxc_ast::ast::{CallExpression, Expression};
-use oxc_ast_visit::Visit;
-
 use crate::config::RuleConfig;
-use crate::rules::{NO_SKIPPED_TEST_RULE_ID, Violation};
+use crate::rules::{
+    Fix, NO_SKIPPED_TEST_RULE_ID, TextEdit, Violation, test_call_utils,
+};
 use crate::syntax::LineIndex;
 
 const MESSAGE: &str = "Disallow skipped tests (describe.skip, it.skip, test.skip).";
-
-const SKIPPED_TEST_NAMES: &[&str] = &["describe", "it", "test"];
 
 pub fn check_file(
     file: &Path,
@@ -17,46 +14,55 @@ pub fn check_file(
     line_index: &LineIndex,
     config: &RuleConfig,
 ) -> Vec<Violation> {
-    let mut visitor = SkippedTestVisitor {
-        violations: Vec::new(),
-        file,
-        line_index,
-        severity: config.severity,
-        _phantom: std::marker::PhantomData,
-    };
-    visitor.visit_program(program);
-    visitor.violations
-}
-
-struct SkippedTestVisitor<'a, 'f> {
-    violations: Vec<Violation>,
-    file: &'f Path,
-    line_index: &'f LineIndex,
-    severity: crate::config::Severity,
-    _phantom: std::marker::PhantomData<&'a ()>,
-}
-
-impl<'a, 'f> Visit<'a> for SkippedTestVisitor<'a, 'f> {
-    fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
-        if let Expression::StaticMemberExpression(member) = &call.callee
-            && let Expression::Identifier(object) = &member.object
-            && SKIPPED_TEST_NAMES.contains(&object.name.as_str())
-            && member.property.name == "skip"
-        {
-            let pos = self.line_index.position_for(member.span);
-            let subject = format!("{}.skip", object.name);
-            self.violations.push(Violation {
-                file: self.file.to_path_buf(),
+    let calls = test_call_utils::collect_test_property_calls(program, "skip");
+    calls
+        .into_iter()
+        .map(|call| {
+            let pos = line_index.position_for(call.member_span);
+            let subject = format!("{}.skip", call.function_name);
+            Violation {
+                file: file.to_path_buf(),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: NO_SKIPPED_TEST_RULE_ID,
                 message: MESSAGE,
-                severity: self.severity,
+                severity: config.severity,
                 detail: None,
                 subject: Some(subject),
-            });
-        }
-        oxc_ast_visit::walk::walk_call_expression(self, call);
+            }
+        })
+        .collect()
+}
+
+pub fn fix_file(
+    file: &Path,
+    program: &oxc_ast::ast::Program,
+    _source: &str,
+    config: &RuleConfig,
+) -> Vec<Fix> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    let calls = test_call_utils::collect_test_property_calls(program, "skip");
+    let edits: Vec<TextEdit> = calls
+        .iter()
+        .map(|call| {
+            crate::fix::remove_span(
+                call.object_span.end as usize,
+                call.property_span.end as usize,
+            )
+        })
+        .collect();
+
+    if edits.is_empty() {
+        Vec::new()
+    } else {
+        vec![Fix {
+            file: file.to_path_buf(),
+            rule: NO_SKIPPED_TEST_RULE_ID,
+            edits,
+        }]
     }
 }
 
@@ -81,6 +87,18 @@ mod tests {
             &line_index,
             &test_config(),
         )
+    }
+
+    fn run_fix(source: &str) -> Vec<Fix> {
+        let allocator = Allocator::default();
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        fix_file(Path::new("auth.test.ts"), &program, source, &test_config())
+    }
+
+    fn apply_fix_edits(source: &str, fixes: &[Fix]) -> String {
+        let edits: Vec<TextEdit> = fixes.iter().flat_map(|fix| fix.edits.clone()).collect();
+        crate::fix::apply_edits(source, &edits)
     }
 
     fn test_config() -> RuleConfig {
@@ -173,5 +191,64 @@ mod tests {
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
+    }
+
+    #[test]
+    fn fix_removes_describe_skip() {
+        let source = "describe.skip('suite', () => {});";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        assert_eq!(fixed, "describe('suite', () => {});");
+    }
+
+    #[test]
+    fn fix_removes_it_skip() {
+        let source = "it.skip('works', () => {});";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        assert_eq!(fixed, "it('works', () => {});");
+    }
+
+    #[test]
+    fn fix_removes_test_skip() {
+        let source = "test.skip('works', () => {});";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        assert_eq!(fixed, "test('works', () => {});");
+    }
+
+    #[test]
+    fn fix_removes_multiple_skipped_tests() {
+        let source = "describe.skip('suite', () => { it.skip('works', () => {}); });";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        assert_eq!(fixed, "describe('suite', () => { it('works', () => {}); });");
+    }
+
+    #[test]
+    fn fix_leaves_non_test_skip() {
+        let source = "foo.skip('something');";
+        let edits = run_fix(source);
+        assert!(edits.is_empty());
+    }
+
+    #[test]
+    fn fix_no_skipped_test_returns_empty() {
+        let source = "describe('suite', () => {});";
+        let edits = run_fix(source);
+        assert!(edits.is_empty());
+    }
+
+    #[test]
+    fn fix_disabled_returns_empty() {
+        let source = "it.skip('works', () => {});";
+        let allocator = Allocator::default();
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        let config = RuleConfig {
+            severity: Severity::Off,
+        };
+        let edits = fix_file(Path::new("auth.test.ts"), &program, source, &config);
+        assert!(edits.is_empty());
     }
 }

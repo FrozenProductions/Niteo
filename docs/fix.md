@@ -62,7 +62,7 @@ The core edit engine in `src/fix.rs` provides:
 | `apply_edits(source, edits)` | Pure function that applies `TextEdit` values in reverse order to a source string. |
 | `collect_fixes(ctx, rules)` | Iterates rules, calling `rule.fix()` only on enabled fixable rules. |
 | `has_overlap(edits)` | Checks if any adjacent edits in sorted-by-start order overlap. |
-| `report_dry_run(fixes)` | Prints each edit as `file: would replace bytes N-M with "replacement"`. |
+| `report_dry_run(fixes)` | Prints each edit as `file: rule\n  would replace bytes N-M with "replacement"`. |
 
 ### Data Types
 
@@ -94,11 +94,13 @@ Edits use byte offsets because oxc's AST spans use byte positions. This handles 
 
 **Stale source detection.** Before writing, Niteo re-reads the file from disk. If the on-disk content differs from the source string that was analyzed, all edits for that file are rejected. This prevents applying edits computed against a stale version of the source (e.g. the file was modified externally between analysis and write).
 
-**Dry run.** Pass `--dry-run` to see what fixes would be applied without writing any files. Each edit is printed as:
+**Dry run.** Pass `--dry-run` to see what fixes would be applied without writing any files. Each edit is printed with the rule that produced it:
 
 ```
-src/foo.ts: would replace bytes 12-20 with ""
-src/bar.ts: would replace bytes 5-11 with ""
+src/foo.ts: no-debugger
+  would replace bytes 12-20 with ""
+src/bar.ts: no-focused-test
+  would replace bytes 5-11 with ""
 ```
 
 ### Output
@@ -111,10 +113,12 @@ Fixed src/bar.ts
 Fixed 2 file(s).
 ```
 
-If overlaps or stale source are rejected, warnings go to stderr:
+If overlaps, stale source, invalid edits, or parse validation failures are rejected, warnings go to stderr:
 
 ```
 warning: rejected 3 overlapping edits
+warning: rejected 2 invalid edits
+warning: rejected 1 edit because fixed source would not parse
 ```
 
 After fixing, if baseline entries were pruned:
@@ -137,15 +141,16 @@ No fixes to apply.
 
 ## Fixable Rules
 
-Currently only one rule supports autofix:
+The following rules support autofix:
 
 | Rule | Fix behavior |
 | --- | --- |
 | `no-debugger` | Removes the `debugger` statement, plus its trailing semicolon if present and any trailing whitespace up to the next line. Surrounding code stays parseable. |
+| `no-focused-test` | Removes `.only` from `describe.only`, `it.only`, and `test.only` calls. Aliases and non-test calls are not modified. |
+| `no-skipped-test` | Removes `.skip` from `describe.skip`, `it.skip`, and `test.skip` calls. The test body is preserved; aliases and non-test calls are not modified. |
+| `no-empty-interface` | Converts a simple empty interface into a `type` alias using `Record<string, never>`. Exported interfaces keep their `export` keyword. Does not fix interfaces with `extends`, `.d.ts` files, ambient declarations, merged declarations, or bodies that contain comments. |
 
-More rules will gain fix support over time. Candidates include `no-focused-test`, `no-skipped-test`, `no-empty-interface`, and stale `niteo-ignore` suppression directives.
-
-Rules that **do not** support autofix today include structural changes like import path rewrites, default export conversion, interface-to-type conversion, `as` assertion replacement, and file moves. These are harder to implement safely and may never have autofix support.
+Rules that **do not** support autofix today include structural changes like import path rewrites, default export conversion, broad interface-to-type conversion, `as` assertion replacement, and file moves. These are harder to implement safely and may never have autofix support.
 
 ## Baselines
 
