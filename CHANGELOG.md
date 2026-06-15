@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ## Unreleased
 
+## 0.3.0 - 2026-06-15
+
 ### Added
 
 - `--deny-child-configs` flag to reject nested `niteo.toml` files.
