@@ -32,6 +32,13 @@ pub enum RuleAnalysisKind {
     SourceText,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FixCapability {
+    None,
+    Safe,
+    Conditional,
+}
+
 #[allow(dead_code)]
 pub struct RuleMetadata {
     pub id: &'static str,
@@ -40,7 +47,7 @@ pub struct RuleMetadata {
     pub default_severity: Severity,
     pub known_options: &'static [&'static str],
     pub conflicts: &'static [&'static str],
-    pub supports_fix: bool,
+    pub fix_capability: FixCapability,
     pub analysis_kind: RuleAnalysisKind,
 }
 
@@ -67,7 +74,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "prefixes", "ignore-constants"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -77,7 +84,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -87,7 +94,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &["no-barrel-files"],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::DirectoryInventory,
     },
     RuleMetadata {
@@ -97,7 +104,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "entry-files"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -107,7 +114,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -117,7 +124,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -127,7 +134,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "prefixes"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -137,7 +144,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Off,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::ImportGraph,
     },
     RuleMetadata {
@@ -147,7 +154,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "max-depth", "ignore-dirs"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::DirectoryInventory,
     },
     RuleMetadata {
@@ -157,7 +164,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "max-exports"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -167,7 +174,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "max-params"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -177,7 +184,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "max-items", "ignore-dirs", "count-folders"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::DirectoryInventory,
     },
     RuleMetadata {
@@ -187,7 +194,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "min-items", "ignore-dirs", "count-folders"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::DirectoryInventory,
     },
     RuleMetadata {
@@ -197,7 +204,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "extra-abbreviations"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -207,7 +214,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "max-files", "ignore-dirs"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::DirectoryInventory,
     },
     RuleMetadata {
@@ -217,7 +224,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "allowed-folders"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -227,7 +234,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::ImportGraph,
     },
     RuleMetadata {
@@ -237,7 +244,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &["directory-must-have-barrel"],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -247,7 +254,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::ImportGraph,
     },
     RuleMetadata {
@@ -257,7 +264,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "allow-doc-comments"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -267,7 +274,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "allow-patterns"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -277,7 +284,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: true,
+        fix_capability: FixCapability::Safe,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -287,7 +294,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "components-only"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -297,7 +304,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "extra-names"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::SourceText,
     },
     RuleMetadata {
@@ -307,7 +314,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "ignore-names"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::SourceText,
     },
     RuleMetadata {
@@ -317,7 +324,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "ignore-dirs"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::DirectoryInventory,
     },
     RuleMetadata {
@@ -327,7 +334,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "ignore-dirs"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::DirectoryInventory,
     },
     RuleMetadata {
@@ -337,7 +344,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Error,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: true,
+        fix_capability: FixCapability::Conditional,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -347,7 +354,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -357,7 +364,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -367,7 +374,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -377,7 +384,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: true,
+        fix_capability: FixCapability::Safe,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -387,7 +394,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "max-files", "ignore-dirs"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::DirectoryInventory,
     },
     RuleMetadata {
@@ -397,7 +404,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -407,7 +414,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "allow-declaration-merging"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -417,7 +424,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "max-lines"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::SourceText,
     },
     RuleMetadata {
@@ -427,7 +434,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -437,7 +444,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::SourceText,
     },
     RuleMetadata {
@@ -447,7 +454,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "allowed-numbers"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -457,7 +464,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -467,7 +474,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -477,7 +484,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "max-depth"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -487,7 +494,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -497,7 +504,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "entry-files"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::ImportGraph,
     },
     RuleMetadata {
@@ -507,7 +514,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::ImportGraph,
     },
     RuleMetadata {
@@ -517,7 +524,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::ImportGraph,
     },
     RuleMetadata {
@@ -527,7 +534,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -537,7 +544,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "restricted"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -547,7 +554,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -557,7 +564,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: true,
+        fix_capability: FixCapability::Safe,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -567,7 +574,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -577,7 +584,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::ImportGraph,
     },
     RuleMetadata {
@@ -587,7 +594,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -597,7 +604,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -607,7 +614,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity", "max-depth"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::ImportGraph,
     },
     RuleMetadata {
@@ -617,7 +624,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Warn,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
@@ -627,7 +634,7 @@ const RULE_METADATA: &[RuleMetadata] = &[
         default_severity: Severity::Info,
         known_options: &["severity"],
         conflicts: &[],
-        supports_fix: false,
+        fix_capability: FixCapability::None,
         analysis_kind: RuleAnalysisKind::Ast,
     },
 ];

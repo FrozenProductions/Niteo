@@ -133,7 +133,7 @@ niteo fix --baseline niteo-baseline.json
 
 Use `--dry-run` to preview fixes without writing files.
 
-`fix` only addresses rules with `supports_fix: true` in their metadata. Currently only `no-debugger` supports autofix. Violations from other rules are left untouched.
+`fix` only addresses rules with a non-`None` `fix_capability` in their metadata (`Safe` or `Conditional`). Rules that support autofix today are `no-debugger`, `no-focused-test`, `no-skipped-test`, and `no-empty-interface`. Violations from other rules are left untouched.
 
 Edits that overlap with other edits in the same file are rejected. Edits computed against source that has changed on disk since analysis are also rejected. These guards prevent corrupt output.
 

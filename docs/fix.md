@@ -15,7 +15,7 @@ niteo lint --fix           # Lint, then apply fixes
 `niteo fix` runs the following pipeline:
 
 1. **Analyze.** Calls `analysis::collect()` — the same full analysis pass used by `niteo lint` — to gather violations across the project. Discovery, config resolution, baseline loading, and suppression handling are all shared.
-2. **Filter fixable files.** Collects the set of files that have violations from rules whose metadata has `supports_fix: true`. Files without fixable violations are skipped entirely.
+2. **Filter fixable files.** Collects the set of files that have violations from rules whose metadata has a non-`None` `fix_capability` (`Safe` or `Conditional`). Files without fixable violations are skipped entirely.
 3. **Build rules per file.** For each fixable file, resolves the effective config and builds rule adapters. Only rules that are both enabled (severity not `off`) and support fix are invoked.
 4. **Parse AST if needed.** If any fixable rule for the file requires an AST, the file is parsed once with oxc. The parsed program is shared across all rules for that file.
 5. **Collect fixes.** Calls `fix::collect_fixes()`, which iterates the enabled fixable rules and calls `rule.fix(&ctx)`. Each rule returns `Vec<Fix>`; these are collected into one flat list.
@@ -116,10 +116,12 @@ Fixed 2 file(s).
 If overlaps, stale source, invalid edits, or parse validation failures are rejected, warnings go to stderr:
 
 ```
-warning: rejected 3 overlapping edits
+warning: rejected overlapping edits in src/foo.ts from no-empty-interface and prefer-satisfies
 warning: rejected 2 invalid edits
 warning: rejected 1 edit because fixed source would not parse
 ```
+
+After all fixes are processed, a summary with the total number of rejected edits is also printed.
 
 After fixing, if baseline entries were pruned:
 
@@ -141,14 +143,17 @@ No fixes to apply.
 
 ## Fixable Rules
 
-The following rules support autofix:
+The following rules support autofix. Each rule is classified by a capability level:
 
-| Rule | Fix behavior |
-| --- | --- |
-| `no-debugger` | Removes the `debugger` statement, plus its trailing semicolon if present and any trailing whitespace up to the next line. Surrounding code stays parseable. |
-| `no-focused-test` | Removes `.only` from `describe.only`, `it.only`, and `test.only` calls. Aliases and non-test calls are not modified. |
-| `no-skipped-test` | Removes `.skip` from `describe.skip`, `it.skip`, and `test.skip` calls. The test body is preserved; aliases and non-test calls are not modified. |
-| `no-empty-interface` | Converts a simple empty interface into a `type` alias using `Record<string, never>`. Exported interfaces keep their `export` keyword. Does not fix interfaces with `extends`, `.d.ts` files, ambient declarations, merged declarations, or bodies that contain comments. |
+- **Safe.** The fix is a local, mechanical removal that is unlikely to change semantics. These fixes are applied automatically.
+- **Conditional.** The fix may change semantics in edge cases, so it is only applied when the rule can prove the narrow safe subset applies. The user should still review the result.
+
+| Rule | Capability | Fix behavior |
+| --- | --- | --- |
+| `no-debugger` | Safe | Removes the `debugger` statement, plus its trailing semicolon if present and any trailing whitespace up to the next line. Surrounding code stays parseable. |
+| `no-focused-test` | Safe | Removes `.only` from `describe.only`, `it.only`, and `test.only` calls. Aliases and non-test calls are not modified. |
+| `no-skipped-test` | Safe | Removes `.skip` from `describe.skip`, `it.skip`, and `test.skip` calls. The test body is preserved; aliases and non-test calls are not modified. |
+| `no-empty-interface` | Conditional | Converts a simple empty interface into a `type` alias using `Record<string, never>`. Exported interfaces keep their `export` keyword. Does not fix interfaces with `extends`, `.d.ts` files, ambient declarations, merged declarations, or bodies that contain comments. |
 
 Rules that **do not** support autofix today include structural changes like import path rewrites, default export conversion, broad interface-to-type conversion, `as` assertion replacement, and file moves. These are harder to implement safely and may never have autofix support.
 
@@ -226,22 +231,28 @@ In `src/rule_adapters.rs`, replace `ast_rule_adapter!` with `fixable_ast_rule_ad
 ast_rule_adapter!(MyRuleAdapter, MY_RULE_ID, crate::config::RuleConfig, my_rule);
 
 // After — check + fix
-fixable_ast_rule_adapter!(MyRuleAdapter, MY_RULE_ID, crate::config::RuleConfig, my_rule);
+fixable_ast_rule_adapter!(
+    MyRuleAdapter,
+    MY_RULE_ID,
+    crate::config::RuleConfig,
+    my_rule,
+    FixCapability::Safe
+);
 ```
 
-The fixable adapter automatically generates `supports_fix() -> true` and `fix()` that calls your rule's `fix_file()`.
+The fixable adapter automatically generates `fix_capability()` and `fix()` that calls your rule's `fix_file()`. Use `FixCapability::Safe` for mechanical local removals and `FixCapability::Conditional` for fixes that may change semantics in edge cases.
 
 For text-only rules (no AST), a future `fixable_text_rule_adapter!` would follow the same pattern.
 
 ### 3. Set metadata
 
-In `src/config/rule_metadata.rs`, set `supports_fix: true`:
+In `src/config/rule_metadata.rs`, set the rule's `fix_capability`:
 
 ```rust
 RuleMetadata {
     id: "my-rule",
     // ...
-    supports_fix: true,
+    fix_capability: FixCapability::Safe,
 }
 ```
 

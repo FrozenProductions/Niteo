@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::analysis::{self, AnalysisOptions};
 use crate::baseline;
+use crate::config::rule_metadata::FixCapability;
 use crate::fix;
 
 pub struct FixOptions {
@@ -44,7 +45,7 @@ pub fn fix_workspace(
         .iter()
         .filter(|violation| {
             crate::config::rule_metadata::rule_by_id(violation.rule)
-                .is_some_and(|metadata| metadata.supports_fix)
+                .is_some_and(|metadata| metadata.fix_capability != FixCapability::None)
         })
         .map(|violation| violation.file.clone())
         .collect();

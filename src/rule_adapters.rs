@@ -1,4 +1,5 @@
 use crate::config::Severity;
+use crate::config::rule_metadata::FixCapability;
 use crate::rules::*;
 
 macro_rules! ast_rule_adapter {
@@ -24,7 +25,7 @@ macro_rules! ast_rule_adapter {
 }
 
 macro_rules! fixable_ast_rule_adapter {
-    ($name:ident, $id:expr, $config_ty:ty, $module:ident) => {
+    ($name:ident, $id:expr, $config_ty:ty, $module:ident, $capability:expr) => {
         pub struct $name {
             pub config: $config_ty,
         }
@@ -42,8 +43,8 @@ macro_rules! fixable_ast_rule_adapter {
                 $module::check_file(ctx.file, program, ctx.line_index, &self.config)
             }
 
-            fn supports_fix(&self) -> bool {
-                true
+            fn fix_capability(&self) -> FixCapability {
+                $capability
             }
 
             fn fix(&self, ctx: &FileContext<'_>) -> Vec<Fix> {
@@ -123,7 +124,8 @@ fixable_ast_rule_adapter!(
     NoFocusedTestAdapter,
     NO_FOCUSED_TEST_RULE_ID,
     crate::config::RuleConfig,
-    no_focused_test
+    no_focused_test,
+    FixCapability::Safe
 );
 ast_rule_adapter!(
     MaxFileExportsAdapter,
@@ -185,7 +187,8 @@ fixable_ast_rule_adapter!(
     NoDebuggerAdapter,
     NO_DEBUGGER_RULE_ID,
     crate::config::RuleConfig,
-    no_debugger
+    no_debugger,
+    FixCapability::Safe
 );
 ast_rule_adapter!(
     NoEvalAdapter,
@@ -197,7 +200,8 @@ fixable_ast_rule_adapter!(
     NoEmptyInterfaceAdapter,
     NO_EMPTY_INTERFACE_RULE_ID,
     crate::config::RuleConfig,
-    no_empty_interface
+    no_empty_interface,
+    FixCapability::Conditional
 );
 ast_rule_adapter!(
     NoInterfaceAdapter,
@@ -227,7 +231,8 @@ fixable_ast_rule_adapter!(
     NoSkippedTestAdapter,
     NO_SKIPPED_TEST_RULE_ID,
     crate::config::RuleConfig,
-    no_skipped_test
+    no_skipped_test,
+    FixCapability::Safe
 );
 ast_rule_adapter!(
     NoThenChainAdapter,

@@ -6,6 +6,7 @@ macro_rules! declare_rules {
 
         use std::path::{Path, PathBuf};
 
+        use crate::config::rule_metadata::FixCapability;
         use crate::config::Severity;
         use crate::import_graph::ImportGraph;
         use crate::syntax::LineIndex;
@@ -135,8 +136,12 @@ pub trait FileRule {
     fn needs_ast(&self) -> bool;
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation>;
 
+    fn fix_capability(&self) -> FixCapability {
+        FixCapability::None
+    }
+
     fn supports_fix(&self) -> bool {
-        false
+        self.fix_capability() != FixCapability::None
     }
 
     fn fix(&self, _ctx: &FileContext<'_>) -> Vec<Fix> {

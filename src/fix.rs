@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::rules::{FileContext, FileRule, Fix, TextEdit};
@@ -26,9 +26,9 @@ pub enum EditValidationResult {
 }
 
 pub fn apply_fixes(fixes: Vec<Fix>, options: ApplyFixOptions) -> Result<FixOutcome> {
-    let mut by_file: HashMap<PathBuf, Vec<TextEdit>> = HashMap::new();
+    let mut by_file: HashMap<PathBuf, Vec<Fix>> = HashMap::new();
     for fix in fixes {
-        by_file.entry(fix.file).or_default().extend(fix.edits);
+        by_file.entry(fix.file.clone()).or_default().push(fix);
     }
 
     let mut fixed_files = Vec::new();
@@ -37,16 +37,50 @@ pub fn apply_fixes(fixes: Vec<Fix>, options: ApplyFixOptions) -> Result<FixOutco
     let mut rejected_invalid = 0;
     let mut rejected_parse = 0;
 
-    for (file_path, mut edits) in by_file {
-        edits.sort_by_key(|edit| edit.start);
+    let mut file_entries: Vec<(PathBuf, Vec<Fix>)> = by_file.into_iter().collect();
+    file_entries.sort_by(|a, b| a.0.cmp(&b.0));
 
+    for (file_path, fixes) in file_entries {
         let source = std::fs::read_to_string(&file_path)
             .with_context(|| format!("failed to read {}", file_path.display()))?;
 
-        match validate_edits(&source, &edits) {
+        let rejected_indices = overlapping_fix_indices(&fixes);
+
+        if !rejected_indices.is_empty() {
+            let conflicting_rules: BTreeSet<_> = rejected_indices
+                .iter()
+                .map(|idx| fixes[*idx].rule)
+                .collect();
+            eprintln!(
+                "warning: rejected overlapping edits in {} from {}",
+                file_path.display(),
+                conflicting_rules.into_iter().collect::<Vec<_>>().join(", ")
+            );
+        }
+
+        let mut kept_edits = Vec::new();
+        for (idx, fix) in fixes.iter().enumerate() {
+            if rejected_indices.contains(&idx) {
+                rejected_overlapping += fix.edits.len();
+                continue;
+            }
+            kept_edits.extend(fix.edits.iter().cloned());
+        }
+
+        if kept_edits.is_empty() {
+            continue;
+        }
+
+        kept_edits.sort_by_key(|edit| edit.start);
+
+        match validate_edits(&source, &kept_edits) {
             EditValidationResult::Valid => {}
             EditValidationResult::Overlapping => {
-                rejected_overlapping += edits.len();
+                eprintln!(
+                    "warning: rejected edits in {}: overlapping edits detected after conflict filtering",
+                    file_path.display()
+                );
+                rejected_overlapping += kept_edits.len();
                 continue;
             }
             EditValidationResult::Invalid { reason } => {
@@ -55,12 +89,12 @@ pub fn apply_fixes(fixes: Vec<Fix>, options: ApplyFixOptions) -> Result<FixOutco
                     file_path.display(),
                     reason
                 );
-                rejected_invalid += edits.len();
+                rejected_invalid += kept_edits.len();
                 continue;
             }
         }
 
-        let modified = apply_edits(&source, &edits);
+        let modified = apply_edits(&source, &kept_edits);
 
         if options.validate_parse
             && let Some(source_type) = source_type_from_path(&file_path)
@@ -72,7 +106,7 @@ pub fn apply_fixes(fixes: Vec<Fix>, options: ApplyFixOptions) -> Result<FixOutco
                     "warning: rejected edits in {}: fixed source is not parseable",
                     file_path.display()
                 );
-                rejected_parse += edits.len();
+                rejected_parse += kept_edits.len();
                 continue;
             }
         }
@@ -82,7 +116,7 @@ pub fn apply_fixes(fixes: Vec<Fix>, options: ApplyFixOptions) -> Result<FixOutco
                 .with_context(|| format!("failed to read {}", file_path.display()))?;
 
             if current_source != source {
-                rejected_stale += edits.len();
+                rejected_stale += kept_edits.len();
                 continue;
             }
 
@@ -104,6 +138,45 @@ pub fn apply_fixes(fixes: Vec<Fix>, options: ApplyFixOptions) -> Result<FixOutco
         rejected_invalid,
         rejected_parse,
     })
+}
+
+fn overlapping_fix_indices(fixes: &[Fix]) -> HashSet<usize> {
+    struct AnnotatedEdit<'a> {
+        fix_index: usize,
+        edit_index: usize,
+        edit: &'a TextEdit,
+    }
+
+    let mut annotated = Vec::new();
+    for (fix_index, fix) in fixes.iter().enumerate() {
+        for (edit_index, edit) in fix.edits.iter().enumerate() {
+            annotated.push(AnnotatedEdit {
+                fix_index,
+                edit_index,
+                edit,
+            });
+        }
+    }
+
+    annotated.sort_by(|a, b| {
+        a.edit
+            .start
+            .cmp(&b.edit.start)
+            .then_with(|| a.edit.end.cmp(&b.edit.end))
+            .then_with(|| a.fix_index.cmp(&b.fix_index))
+            .then_with(|| a.edit_index.cmp(&b.edit_index))
+    });
+
+    let mut rejected = HashSet::new();
+    for window in annotated.windows(2) {
+        let first = &window[0];
+        let second = &window[1];
+        if first.edit.end > second.edit.start {
+            rejected.insert(first.fix_index);
+            rejected.insert(second.fix_index);
+        }
+    }
+    rejected
 }
 
 pub fn validate_edits(source: &str, edits: &[TextEdit]) -> EditValidationResult {
@@ -412,5 +485,203 @@ mod tests {
         let source = "abc   more";
         let end = 3;
         assert_eq!(extend_end_through_line_trivia(source, end), 6);
+    }
+
+    fn test_file_path(name: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!("niteo_fix_test_{}_{}", std::process::id(), name));
+        path
+    }
+
+    fn build_fix(rule: &'static str, file: PathBuf, edits: Vec<TextEdit>) -> Fix {
+        Fix { file, rule, edits }
+    }
+
+    #[test]
+    fn non_overlapping_fixes_from_different_rules_apply() {
+        let path = test_file_path("non_overlap");
+        std::fs::write(&path, "aaabbbccc").unwrap();
+
+        let fixes = vec![
+            build_fix(
+                "rule-a",
+                path.clone(),
+                vec![TextEdit {
+                    start: 0,
+                    end: 3,
+                    replacement: "A".to_string(),
+                }],
+            ),
+            build_fix(
+                "rule-b",
+                path.clone(),
+                vec![TextEdit {
+                    start: 3,
+                    end: 6,
+                    replacement: "B".to_string(),
+                }],
+            ),
+        ];
+
+        let outcome = apply_fixes(
+            fixes,
+            ApplyFixOptions {
+                dry_run: false,
+                validate_parse: false,
+            },
+        )
+        .unwrap();
+
+        let result = std::fs::read_to_string(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+
+        assert_eq!(result, "ABccc");
+        assert_eq!(outcome.rejected_overlapping, 0);
+        assert!(outcome.fixed_files.contains(&path));
+    }
+
+    #[test]
+    fn overlapping_fixes_reject_only_conflicting_fixes() {
+        let path = test_file_path("partial_overlap");
+        std::fs::write(&path, "aaabbbccc").unwrap();
+
+        let fixes = vec![
+            build_fix(
+                "rule-a",
+                path.clone(),
+                vec![TextEdit {
+                    start: 0,
+                    end: 5,
+                    replacement: "A".to_string(),
+                }],
+            ),
+            build_fix(
+                "rule-b",
+                path.clone(),
+                vec![TextEdit {
+                    start: 3,
+                    end: 6,
+                    replacement: "B".to_string(),
+                }],
+            ),
+            build_fix(
+                "rule-c",
+                path.clone(),
+                vec![TextEdit {
+                    start: 6,
+                    end: 9,
+                    replacement: "C".to_string(),
+                }],
+            ),
+        ];
+
+        let outcome = apply_fixes(
+            fixes,
+            ApplyFixOptions {
+                dry_run: false,
+                validate_parse: false,
+            },
+        )
+        .unwrap();
+
+        let result = std::fs::read_to_string(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+
+        assert_eq!(result, "aaabbbC");
+        assert_eq!(outcome.rejected_overlapping, 2);
+        assert!(outcome.fixed_files.contains(&path));
+    }
+
+    #[test]
+    fn internally_overlapping_fix_is_rejected() {
+        let path = test_file_path("internal_overlap");
+        std::fs::write(&path, "aaabbbcccddd").unwrap();
+
+        let fixes = vec![
+            build_fix(
+                "rule-a",
+                path.clone(),
+                vec![
+                    TextEdit {
+                        start: 0,
+                        end: 5,
+                        replacement: "A".to_string(),
+                    },
+                    TextEdit {
+                        start: 3,
+                        end: 8,
+                        replacement: "B".to_string(),
+                    },
+                ],
+            ),
+            build_fix(
+                "rule-b",
+                path.clone(),
+                vec![TextEdit {
+                    start: 9,
+                    end: 12,
+                    replacement: "C".to_string(),
+                }],
+            ),
+        ];
+
+        let outcome = apply_fixes(
+            fixes,
+            ApplyFixOptions {
+                dry_run: false,
+                validate_parse: false,
+            },
+        )
+        .unwrap();
+
+        let result = std::fs::read_to_string(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+
+        assert_eq!(result, "aaabbbcccC");
+        assert_eq!(outcome.rejected_overlapping, 2);
+        assert!(outcome.fixed_files.contains(&path));
+    }
+
+    #[test]
+    fn all_overlapping_fixes_reject_file_write() {
+        let path = test_file_path("all_overlap");
+        std::fs::write(&path, "aaabbbccc").unwrap();
+
+        let fixes = vec![
+            build_fix(
+                "rule-a",
+                path.clone(),
+                vec![TextEdit {
+                    start: 0,
+                    end: 5,
+                    replacement: "A".to_string(),
+                }],
+            ),
+            build_fix(
+                "rule-b",
+                path.clone(),
+                vec![TextEdit {
+                    start: 3,
+                    end: 8,
+                    replacement: "B".to_string(),
+                }],
+            ),
+        ];
+
+        let outcome = apply_fixes(
+            fixes,
+            ApplyFixOptions {
+                dry_run: false,
+                validate_parse: false,
+            },
+        )
+        .unwrap();
+
+        let result = std::fs::read_to_string(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+
+        assert_eq!(result, "aaabbbccc");
+        assert_eq!(outcome.rejected_overlapping, 2);
+        assert!(!outcome.fixed_files.contains(&path));
     }
 }

@@ -141,7 +141,7 @@ fn fixable_rule_ids_from_metadata() -> HashSet<String> {
     let raw = include_str!("../src/config/rule_metadata.rs");
     let mut ids = HashSet::new();
     let mut current_id: Option<String> = None;
-    let mut current_supports_fix = false;
+    let mut current_fix_capability: Option<String> = None;
 
     for line in raw.lines() {
         let trimmed = line.trim();
@@ -150,17 +150,18 @@ fn fixable_rule_ids_from_metadata() -> HashSet<String> {
                 current_id = Some(id_val[..end].to_string());
             }
         }
-        if trimmed == "supports_fix: true," {
-            current_supports_fix = true;
+        if let Some(capability) = trimmed.strip_prefix("fix_capability: FixCapability::") {
+            current_fix_capability = Some(capability.trim_end_matches(',').to_string());
         }
         if trimmed == "}," || trimmed == "}" {
-            if current_supports_fix {
-                if let Some(id) = current_id.take() {
-                    ids.insert(id);
+            if let Some(capability) = current_fix_capability.take() {
+                if capability != "None" {
+                    if let Some(id) = current_id.take() {
+                        ids.insert(id);
+                    }
                 }
             }
             current_id = None;
-            current_supports_fix = false;
         }
     }
     ids
@@ -245,7 +246,7 @@ fn every_fixable_metadata_rule_has_fixable_adapter() {
     for id in &metadata_ids {
         assert!(
             adapter_ids.contains(id),
-            "rule '{id}' has supports_fix: true in metadata but no fixable adapter"
+            "rule '{id}' has a non-None fix_capability in metadata but no fixable adapter"
         );
     }
 }
@@ -257,7 +258,7 @@ fn every_fixable_adapter_rule_has_fixable_metadata() {
     for id in &adapter_ids {
         assert!(
             metadata_ids.contains(id),
-            "rule '{id}' has a fixable adapter but supports_fix: false in metadata"
+            "rule '{id}' has a fixable adapter but None fix_capability in metadata"
         );
     }
 }
@@ -270,6 +271,52 @@ fn fix_docs_mentions_every_fixable_rule() {
         assert!(
             docs.contains(&format!("`{id}`")),
             "rule '{id}' supports fix but is not documented in docs/fix.md"
+        );
+    }
+}
+
+fn rule_capabilities_from_metadata() -> HashMap<String, String> {
+    let raw = include_str!("../src/config/rule_metadata.rs");
+    let mut map = HashMap::new();
+    let mut current_id: Option<String> = None;
+
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if let Some(id_val) = trimmed.strip_prefix("id: \"") {
+            if let Some(end) = id_val.find('"') {
+                current_id = Some(id_val[..end].to_string());
+            }
+        }
+        if let Some(capability) = trimmed.strip_prefix("fix_capability: FixCapability::") {
+            let capability = capability.trim_end_matches(',').to_string();
+            if let Some(id) = current_id.take() {
+                map.insert(id, capability);
+            }
+        }
+        if trimmed == "}," || trimmed == "}" {
+            current_id = None;
+        }
+    }
+    map
+}
+
+#[test]
+fn fix_capability_classifications_match_plan() {
+    let capabilities = rule_capabilities_from_metadata();
+    let expected = [
+        ("no-debugger", "Safe"),
+        ("no-focused-test", "Safe"),
+        ("no-skipped-test", "Safe"),
+        ("no-empty-interface", "Conditional"),
+    ];
+
+    for (id, expected_capability) in expected {
+        let actual = capabilities
+            .get(id)
+            .unwrap_or_else(|| panic!("rule '{id}' missing fix_capability"));
+        assert_eq!(
+            actual, expected_capability,
+            "rule '{id}' has unexpected fix capability"
         );
     }
 }
