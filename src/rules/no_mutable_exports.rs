@@ -59,6 +59,8 @@ impl<'a, 'f> Visit<'a> for MutableExportsVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -76,55 +78,62 @@ mod tests {
     }
 
     #[test]
-    fn reports_export_let() {
+    fn reports_export_let() -> Result<()> {
         let violations = run_check("export let count = 0;\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiline_export_let() {
+    fn reports_multiline_export_let() -> Result<()> {
         let violations = run_check("export\n  let count = 0;\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_export_var() {
+    fn reports_export_var() -> Result<()> {
         let violations = run_check("export var count = 0;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_export_const() {
+    fn allows_export_const() -> Result<()> {
         let violations = run_check("export const count = 0;\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_named_function_export() {
+    fn allows_named_function_export() -> Result<()> {
         let violations = run_check("export function foo() {}\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_export_let_in_comments_and_strings() {
+    fn ignores_export_let_in_comments_and_strings() -> Result<()> {
         let source = r#"// export let count = 0;
 const text = "export let count = 0";
 /* export let count = 0; */
 "#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_match_export_letting() {
+    fn does_not_match_export_letting() -> Result<()> {
         let source = "export letting foo = 1;\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

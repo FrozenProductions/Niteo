@@ -137,6 +137,8 @@ fn has_valid_prefix(name: &str, prefixes: &[&str]) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{BooleanPrefixRuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -162,7 +164,7 @@ mod tests {
     }
 
     #[test]
-    fn allows_default_prefixed_boolean_literals() {
+    fn allows_default_prefixed_boolean_literals() -> Result<()> {
         for source in [
             "const isOpen = true;\n",
             "const hasPermission = false;\n",
@@ -171,83 +173,94 @@ mod tests {
             let violations = run_check(source, &test_config());
             assert!(violations.is_empty(), "expected no violations for: {source:?}");
         }
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_unprefixed_boolean_literal() {
+    fn reports_unprefixed_boolean_literal() -> Result<()> {
         let source = "const open = true;\n";
         let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(7));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_unprefixed_boolean_type() {
+    fn reports_unprefixed_boolean_type() -> Result<()> {
         let source = "const open: boolean = fetchData();\n";
         let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("open"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_unprefixed_boolean_capital_type() {
+    fn reports_unprefixed_boolean_capital_type() -> Result<()> {
         let source = "const open: Boolean = fetchData();\n";
         let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_prefixed_boolean_type() {
+    fn allows_prefixed_boolean_type() -> Result<()> {
         let source = "const isReady: boolean = check();\n";
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_let_with_prefix() {
+    fn allows_let_with_prefix() -> Result<()> {
         let source = "let hasChanged = false;\n";
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_let_without_prefix() {
+    fn reports_let_without_prefix() -> Result<()> {
         let source = "let changed = false;\n";
         let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_var_declarations() {
+    fn ignores_var_declarations() -> Result<()> {
         let source = "var open = true;\n";
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_boolean_const() {
+    fn ignores_non_boolean_const() -> Result<()> {
         let source = "const count = 1;\nconst name = 'Niteo';\n";
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_boolean_type() {
+    fn ignores_non_boolean_type() -> Result<()> {
         let source = "const count: number = 1;\nconst name: string = 'Niteo';\n";
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_destructured_variables() {
+    fn ignores_destructured_variables() -> Result<()> {
         let source = "const { open } = props;\n";
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn respects_custom_prefixes() {
+    fn respects_custom_prefixes() -> Result<()> {
         let config = BooleanPrefixRuleConfig {
             severity: Severity::Warn,
             prefixes: vec!["should".to_string(), "will".to_string()],
@@ -256,10 +269,11 @@ mod tests {
         let source = "const shouldRender = true;\n";
         let violations = run_check(source, &config);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn flags_unprefixed_with_custom_prefixes() {
+    fn flags_unprefixed_with_custom_prefixes() -> Result<()> {
         let config = BooleanPrefixRuleConfig {
             severity: Severity::Warn,
             prefixes: vec!["should".to_string()],
@@ -268,31 +282,35 @@ mod tests {
         let source = "const isOpen = true;\n";
         let violations = run_check(source, &config);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn requires_camel_case_after_prefix() {
+    fn requires_camel_case_after_prefix() -> Result<()> {
         let source = "const isopen = true;\n";
         let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_boolean_literals_in_comments() {
+    fn ignores_boolean_literals_in_comments() -> Result<()> {
         let source = "// const open = true;\n/* const open = false; */\n";
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_boolean_literals_in_strings() {
+    fn ignores_boolean_literals_in_strings() -> Result<()> {
         let source = r#"const text = "const open = true";"#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_const_when_ignore_constants_enabled() {
+    fn ignores_const_when_ignore_constants_enabled() -> Result<()> {
         let config = BooleanPrefixRuleConfig {
             severity: Severity::Warn,
             prefixes: vec![],
@@ -301,10 +319,11 @@ mod tests {
         let source = "const open = true;\n";
         let violations = run_check(source, &config);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn still_reports_let_when_ignore_constants_enabled() {
+    fn still_reports_let_when_ignore_constants_enabled() -> Result<()> {
         let config = BooleanPrefixRuleConfig {
             severity: Severity::Warn,
             prefixes: vec![],
@@ -313,10 +332,11 @@ mod tests {
         let source = "let open = true;\n";
         let violations = run_check(source, &config);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn resolves_ignore_constants_default() {
+    fn resolves_ignore_constants_default() -> Result<()> {
         let config = BooleanPrefixRuleConfig {
             severity: Severity::Warn,
             prefixes: vec!["should".to_string()],
@@ -325,5 +345,6 @@ mod tests {
         let source = "const shouldRender = true;\n";
         let violations = run_check(source, &config);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

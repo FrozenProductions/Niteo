@@ -115,6 +115,8 @@ fn check_exported_declarator<'a>(
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -143,131 +145,150 @@ mod tests {
     }
 
     #[test]
-    fn reports_exported_function_without_return_type() {
+    fn reports_exported_function_without_return_type() -> Result<()> {
         let violations = run_check("export function add(a: number, b: number) { return a + b; }");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("add"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_exported_function_with_return_type() {
+    fn allows_exported_function_with_return_type() -> Result<()> {
         let violations =
             run_check("export function add(a: number, b: number): number { return a + b; }");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_exported_arrow_without_return_type() {
+    fn reports_exported_arrow_without_return_type() -> Result<()> {
         let violations = run_check("export const add = (a: number, b: number) => a + b;");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("add"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_exported_arrow_with_return_type() {
+    fn allows_exported_arrow_with_return_type() -> Result<()> {
         let violations =
             run_check("export const add = (a: number, b: number): number => a + b;");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_exported_function_expression_without_return_type() {
+    fn reports_exported_function_expression_without_return_type() -> Result<()> {
         let violations =
             run_check("export const add = function(a: number, b: number) { return a + b; };");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("add"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_exported_function_expression_with_return_type() {
+    fn allows_exported_function_expression_with_return_type() -> Result<()> {
         let violations = run_check(
             "export const add = function(a: number, b: number): number { return a + b; };",
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_default_exported_function_without_return_type() {
+    fn reports_default_exported_function_without_return_type() -> Result<()> {
         let violations = run_check("export default function greet() { return 'hello'; }");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("greet"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_default_exported_function_with_return_type() {
+    fn allows_default_exported_function_with_return_type() -> Result<()> {
         let violations =
             run_check("export default function greet(): string { return 'hello'; }");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_default_exported_anonymous_function() {
+    fn reports_default_exported_anonymous_function() -> Result<()> {
         let violations = run_check("export default function() { return 'hello'; }");
         assert_eq!(violations.len(), 1);
         assert!(violations[0].subject.is_none());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_default_exported_arrow_without_return_type() {
+    fn reports_default_exported_arrow_without_return_type() -> Result<()> {
         let violations = run_check("export default () => { return 'hello'; };");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_default_exported_arrow_with_return_type() {
+    fn allows_default_exported_arrow_with_return_type() -> Result<()> {
         let violations = run_check("export default (): string => { return 'hello'; };");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_exported_functions() {
+    fn ignores_non_exported_functions() -> Result<()> {
         let violations = run_check("function add(a: number, b: number) { return a + b; }");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_function_exports() {
+    fn ignores_non_function_exports() -> Result<()> {
         let violations = run_check("export const value = 42;");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_exported_class() {
+    fn ignores_exported_class() -> Result<()> {
         let violations = run_check("export class Foo { bar() { return 1; } }");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_violations() {
+    fn reports_multiple_violations() -> Result<()> {
         let source = "export function a() { return 1; }\nexport const b = () => 2;";
         let violations = run_check(source);
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_correct_line() {
+    fn reports_correct_line() -> Result<()> {
         let source = "const x = 1;\nexport function foo() { return x; }\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_in_comments() {
+    fn ignores_in_comments() -> Result<()> {
         let source = "// export function foo() { return 1; }";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_exported_void_function_with_return_type() {
+    fn allows_exported_void_function_with_return_type() -> Result<()> {
         let violations = run_check("export function log(msg: string): void { console.log(msg); }");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_re_export_specifiers() {
+    fn allows_re_export_specifiers() -> Result<()> {
         let violations = run_check("export { foo } from './foo';");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

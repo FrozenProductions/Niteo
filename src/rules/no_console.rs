@@ -92,6 +92,8 @@ fn is_file_allowed(file: &Path, config: &NoConsoleRuleConfig) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{NoConsoleRuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -109,7 +111,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_console_methods() {
+    fn reports_console_methods() -> Result<()> {
         for source in [
             "console.log('hello');\n",
             "console.warn('warning');\n",
@@ -118,16 +120,18 @@ mod tests {
             let violations = run_check(source, &test_config());
             assert_eq!(violations.len(), 1, "expected 1 violation for: {source:?}");
         }
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_console_bracket_access() {
+    fn reports_console_bracket_access() -> Result<()> {
         let violations = run_check("console['log']('hello');\n", &test_config());
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_console_in_service_files() {
+    fn allows_console_in_service_files() -> Result<()> {
         let config = NoConsoleRuleConfig {
             severity: Severity::Warn,
             allow_patterns: vec![".service.ts".to_string()],
@@ -139,28 +143,32 @@ mod tests {
         let program = parser_return.program;
         let violations = check_file(Path::new("api.service.ts"), &program, &line_index, &config);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_console_in_comments() {
+    fn ignores_console_in_comments() -> Result<()> {
         let source = "// console.log('hello');\n/* console.warn('test'); */\n";
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_console_in_strings() {
+    fn ignores_console_in_strings() -> Result<()> {
         let source = r#"const text = "console.log('hello')";"#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_log_property_on_non_console_object() {
+    fn ignores_log_property_on_non_console_object() -> Result<()> {
         let source = r#"const logger = { log: console.log }; logger.log('hello');"#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> NoConsoleRuleConfig {
         NoConsoleRuleConfig {

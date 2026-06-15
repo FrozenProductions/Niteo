@@ -31,7 +31,7 @@ pub fn check_files(
 
     for group_files in grouped.values() {
         let first_file = match group_files.first() {
-            Some(f) => f,
+            Some(file) => file,
             None => continue,
         };
         let config = config_set.config_for_file(first_file);

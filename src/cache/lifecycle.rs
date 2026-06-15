@@ -56,7 +56,7 @@ pub fn prepare_cache(
 
     for file in files {
         let content = match std::fs::read(file) {
-            Ok(c) => c,
+            Ok(content) => content,
             Err(_) => continue,
         };
         let hash = hash_content(&content);

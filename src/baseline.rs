@@ -162,6 +162,8 @@ fn pathbuf_to_unix_string(path: &Path) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use std::path::Path;
 
     use crate::config::Severity;
@@ -169,7 +171,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn filters_existing_violations() {
+    fn filters_existing_violations() -> Result<()> {
         let root = Path::new("/repo/src");
         let existing = violation("/repo/src/app.ts", Some(1), "no-console");
         let new = violation("/repo/src/new.ts", Some(1), "no-console");
@@ -179,10 +181,12 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].file, new.file);
+
+        Ok(())
     }
 
     #[test]
-    fn treats_changed_location_as_new() {
+    fn treats_changed_location_as_new() -> Result<()> {
         let root = Path::new("/repo/src");
         let baseline = Baseline::from_violations(
             root,
@@ -195,10 +199,12 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
+
+        Ok(())
     }
 
     #[test]
-    fn ignores_changed_details_for_same_violation_identity() {
+    fn ignores_changed_details_for_same_violation_identity() -> Result<()> {
         let root = Path::new("/repo/src");
         let mut existing = violation("/repo/src", None, "min-items-per-directory");
         existing.detail = Some("Contains 1 TypeScript files (minimum: 3).".to_string());
@@ -209,6 +215,8 @@ mod tests {
         let violations = baseline.filter_new_violations(root, vec![changed]);
 
         assert!(violations.is_empty());
+
+        Ok(())
     }
 
     fn violation(file: &str, line: Option<usize>, rule: &'static str) -> Violation {
@@ -225,7 +233,7 @@ mod tests {
     }
 
     #[test]
-    fn prune_removes_stale_entries() {
+    fn prune_removes_stale_entries() -> Result<()> {
         let root = Path::new("/repo");
         let baseline = Baseline::from_violations(
             root,
@@ -245,10 +253,12 @@ mod tests {
 
         assert_eq!(result.removed_count, 1);
         assert_eq!(result.baseline.violation_count(), 2);
+
+        Ok(())
     }
 
     #[test]
-    fn prune_keeps_all_when_current() {
+    fn prune_keeps_all_when_current() -> Result<()> {
         let root = Path::new("/repo");
         let violations = vec![violation("/repo/src/app.ts", Some(1), "no-console")];
         let baseline = Baseline::from_violations(root, &violations);
@@ -257,10 +267,12 @@ mod tests {
 
         assert_eq!(result.removed_count, 0);
         assert_eq!(result.baseline.violation_count(), 1);
+
+        Ok(())
     }
 
     #[test]
-    fn prune_removes_all_when_no_current_violations() {
+    fn prune_removes_all_when_no_current_violations() -> Result<()> {
         let root = Path::new("/repo");
         let baseline = Baseline::from_violations(
             root,
@@ -271,5 +283,7 @@ mod tests {
 
         assert_eq!(result.removed_count, 1);
         assert_eq!(result.baseline.violation_count(), 0);
+
+        Ok(())
     }
 }

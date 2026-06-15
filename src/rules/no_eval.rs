@@ -84,6 +84,8 @@ fn make_violation(
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -106,45 +108,51 @@ mod tests {
     }
 
     #[test]
-    fn reports_eval_call() {
+    fn reports_eval_call() -> Result<()> {
         let violations = run_check("eval('code');\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_new_function() {
+    fn reports_new_function() -> Result<()> {
         let violations = run_check("new Function('return 1');\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_new_function_with_space() {
+    fn reports_new_function_with_space() -> Result<()> {
         let violations = run_check("new  Function('return 1');\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_eval_in_comments() {
+    fn ignores_eval_in_comments() -> Result<()> {
         let source = "// eval('code');\n/* new Function('test'); */\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_eval_in_strings() {
+    fn ignores_eval_in_strings() -> Result<()> {
         let source = r#"const text = "eval('hello')";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_match_identifier_fragment() {
+    fn does_not_match_identifier_fragment() -> Result<()> {
         let source = "const evaluate = true;\nconst FunctionBuilder = class {};\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

@@ -1,8 +1,9 @@
 use crate::harness;
+use anyhow::{Context, Result};
 
 #[test]
-fn cache_flag_creates_cache_file() {
-    let project = harness::copy_fixture("reports/clean").unwrap();
+fn cache_flag_creates_cache_file() -> Result<()> {
+    let project = harness::copy_fixture("reports/clean")?;
 
     harness::niteo_in_project(project.path())
         .args(["lint", "--cache"])
@@ -12,16 +13,17 @@ fn cache_flag_creates_cache_file() {
     let cache_path = project.path().join(".niteo").join("cache.json");
     assert!(cache_path.exists(), "cache file should be created");
 
-    let contents = std::fs::read_to_string(&cache_path).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&contents).unwrap();
+    let contents = std::fs::read_to_string(&cache_path)?;
+    let parsed: serde_json::Value = serde_json::from_str(&contents)?;
     assert_eq!(parsed["version"], 1);
     assert!(parsed["niteo_version"].is_string());
     assert!(parsed["files"].is_object());
+    Ok(())
 }
 
 #[test]
-fn clear_cache_removes_cache_file() {
-    let project = harness::copy_fixture("reports/clean").unwrap();
+fn clear_cache_removes_cache_file() -> Result<()> {
+    let project = harness::copy_fixture("reports/clean")?;
     let cache_path = project.path().join(".niteo").join("cache.json");
 
     harness::niteo_in_project(project.path())
@@ -39,11 +41,12 @@ fn clear_cache_removes_cache_file() {
         !cache_path.exists(),
         "cache file should be removed after --clear-cache"
     );
+    Ok(())
 }
 
 #[test]
-fn cache_invalidates_when_file_changes() {
-    let project = harness::copy_fixture("reports/clean").unwrap();
+fn cache_invalidates_when_file_changes() -> Result<()> {
+    let project = harness::copy_fixture("reports/clean")?;
     let cache_path = project.path().join(".niteo").join("cache.json");
 
     harness::niteo_in_project(project.path())
@@ -51,22 +54,26 @@ fn cache_invalidates_when_file_changes() {
         .assert()
         .success();
 
-    let first_cache = std::fs::read_to_string(&cache_path).unwrap();
-    let first_parsed: serde_json::Value = serde_json::from_str(&first_cache).unwrap();
-    let first_files = first_parsed["files"].as_object().unwrap();
+    let first_cache = std::fs::read_to_string(&cache_path)?;
+    let first_parsed: serde_json::Value = serde_json::from_str(&first_cache)?;
+    let first_files = first_parsed["files"]
+        .as_object()
+        .context("expected files object")?;
     let first_file_count = first_files.len();
 
     let ts_path = project.path().join("src/utils.ts");
-    std::fs::write(&ts_path, "export const newValue = 1;\n").unwrap();
+    std::fs::write(&ts_path, "export const newValue = 1;\n")?;
 
     harness::niteo_in_project(project.path())
         .args(["lint", "--cache"])
         .assert()
         .success();
 
-    let second_cache = std::fs::read_to_string(&cache_path).unwrap();
-    let second_parsed: serde_json::Value = serde_json::from_str(&second_cache).unwrap();
-    let second_files = second_parsed["files"].as_object().unwrap();
+    let second_cache = std::fs::read_to_string(&cache_path)?;
+    let second_parsed: serde_json::Value = serde_json::from_str(&second_cache)?;
+    let second_files = second_parsed["files"]
+        .as_object()
+        .context("expected files object")?;
     let second_file_count = second_files.len();
 
     assert_eq!(
@@ -74,11 +81,12 @@ fn cache_invalidates_when_file_changes() {
         first_file_count + 1,
         "cache should include the new file"
     );
+    Ok(())
 }
 
 #[test]
-fn cache_reuses_entries_for_unchanged_files() {
-    let project = harness::copy_fixture("reports/clean").unwrap();
+fn cache_reuses_entries_for_unchanged_files() -> Result<()> {
+    let project = harness::copy_fixture("reports/clean")?;
     let cache_path = project.path().join(".niteo").join("cache.json");
 
     harness::niteo_in_project(project.path())
@@ -86,44 +94,51 @@ fn cache_reuses_entries_for_unchanged_files() {
         .assert()
         .success();
 
-    let first_cache = std::fs::read_to_string(&cache_path).unwrap();
-    let first_parsed: serde_json::Value = serde_json::from_str(&first_cache).unwrap();
+    let first_cache = std::fs::read_to_string(&cache_path)?;
+    let first_parsed: serde_json::Value = serde_json::from_str(&first_cache)?;
 
     let first_entry = first_parsed["files"]
         .as_object()
-        .unwrap()
+        .context("expected files object")?
         .values()
         .next()
-        .unwrap()
+        .context("expected at least one file entry")?
         .clone();
-    let first_hash = first_entry["content_hash"].as_str().unwrap().to_string();
+    let first_hash = first_entry["content_hash"]
+        .as_str()
+        .context("expected content hash string")?
+        .to_string();
 
     harness::niteo_in_project(project.path())
         .args(["lint", "--cache"])
         .assert()
         .success();
 
-    let second_cache = std::fs::read_to_string(&cache_path).unwrap();
-    let second_parsed: serde_json::Value = serde_json::from_str(&second_cache).unwrap();
+    let second_cache = std::fs::read_to_string(&cache_path)?;
+    let second_parsed: serde_json::Value = serde_json::from_str(&second_cache)?;
 
     let second_entry = second_parsed["files"]
         .as_object()
-        .unwrap()
+        .context("expected files object")?
         .values()
         .next()
-        .unwrap()
+        .context("expected at least one file entry")?
         .clone();
-    let second_hash = second_entry["content_hash"].as_str().unwrap().to_string();
+    let second_hash = second_entry["content_hash"]
+        .as_str()
+        .context("expected content hash string")?
+        .to_string();
 
     assert_eq!(
         first_hash, second_hash,
         "unchanged files should keep same hash"
     );
+    Ok(())
 }
 
 #[test]
-fn no_cache_does_not_create_cache_file() {
-    let project = harness::copy_fixture("reports/clean").unwrap();
+fn no_cache_does_not_create_cache_file() -> Result<()> {
+    let project = harness::copy_fixture("reports/clean")?;
     let cache_path = project.path().join(".niteo").join("cache.json");
 
     harness::niteo_in_project(project.path())
@@ -135,4 +150,5 @@ fn no_cache_does_not_create_cache_file() {
         !cache_path.exists(),
         "cache should not be created without --cache"
     );
+    Ok(())
 }

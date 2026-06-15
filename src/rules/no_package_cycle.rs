@@ -97,12 +97,14 @@ fn format_cycle(cycle: &[String]) -> String {
         return String::new();
     }
     let mut display = parts.clone();
-    display.push(parts[0].clone());
+    display.push(parts.first().cloned().unwrap_or_default());
     display.join(" -> ")
 }
 
 #[cfg(test)]
 mod tests {
+
+        use anyhow::{Context, Result};
     use super::*;
     use crate::config::structure::DomainConfig;
     use crate::config::{RuleConfig, Severity};
@@ -165,7 +167,7 @@ mod tests {
     }
 
     #[test]
-    fn detects_direct_package_cycle() {
+    fn detects_direct_package_cycle() -> Result<()> {
         let root = PathBuf::from("/repo");
         let workspace = workspace_with_cycle(&root);
         let files = vec![
@@ -176,12 +178,21 @@ mod tests {
         let violations = run_check("/repo/packages/app/src/main.ts", &files, &workspace);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].rule, NO_PACKAGE_CYCLE_RULE_ID);
-        assert!(violations[0].detail.as_ref().unwrap().contains("app"));
-        assert!(violations[0].detail.as_ref().unwrap().contains("ui"));
+        assert!(violations[0]
+            .detail
+            .as_ref()
+            .context("expected detail")?
+            .contains("app"));
+        assert!(violations[0]
+            .detail
+            .as_ref()
+            .context("expected detail")?
+            .contains("ui"));
+        Ok(())
     }
 
     #[test]
-    fn no_violation_in_acyclic_graph() {
+    fn no_violation_in_acyclic_graph() -> Result<()> {
         let root = PathBuf::from("/repo");
         let workspace = workspace_with_cycle(&root);
         let files = vec![
@@ -190,10 +201,11 @@ mod tests {
         ];
         let violations = run_check("/repo/packages/app/src/main.ts", &files, &workspace);
         assert!(violations.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn no_violations_without_workspace() {
+    fn no_violations_without_workspace() -> Result<()> {
         let files = vec![
             ("/repo/packages/app/src/main.ts", "import { Button } from '../../ui/src/index';"),
             ("/repo/packages/ui/src/index.ts", "import { App } from '../../app/src/index';"),
@@ -216,5 +228,6 @@ mod tests {
             &test_config(),
         );
         assert!(violations.is_empty());
+        Ok(())
     }
 }

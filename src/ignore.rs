@@ -80,7 +80,7 @@ fn find_directive(line: &str, line_number: usize) -> Option<IgnoreDirective> {
                 index = skip_string(bytes, index, current);
             }
             (b'/', Some(b'/')) => {
-                let comment_text = &line[index + 2..];
+                let comment_text = line.get(index + 2..).unwrap_or("");
                 return parse_comment_directive(comment_text, line_number);
             }
             (b'/', Some(b'*')) => {
@@ -106,7 +106,7 @@ fn parse_comment_directive(comment: &str, line_number: usize) -> Option<IgnoreDi
         return None;
     };
 
-    let after_prefix = &trimmed[prefix.len()..];
+    let after_prefix = trimmed.get(prefix.len()..).unwrap_or("");
     let rules = parse_rules(after_prefix);
 
     Some(IgnoreDirective {
@@ -137,7 +137,7 @@ fn skip_string(bytes: &[u8], start: usize, quote: u8) -> usize {
                 index += 2;
                 continue;
             }
-            Some(q) if q == quote => return index + 1,
+            Some(byte) if byte == quote => return index + 1,
             _ => index += 1,
         }
     }
@@ -199,59 +199,71 @@ impl SuppressionReport {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use anyhow::Result;
 
     #[test]
-    fn parse_file_ignore_all_rules() {
+    fn parse_file_ignore_all_rules() -> Result<()> {
         let source = "// niteo-ignore-file\nconst x = 1;\n";
         let directives = parse_ignore_directives(source);
 
         assert_eq!(directives.len(), 1);
         assert_eq!(directives[0].kind, IgnoreKind::File);
         assert!(directives[0].rules.is_empty());
+
+        Ok(())
     }
 
     #[test]
-    fn parse_file_ignore_specific_rule() {
+    fn parse_file_ignore_specific_rule() -> Result<()> {
         let source = "// niteo-ignore-file: no-console\nconst x = 1;\n";
         let directives = parse_ignore_directives(source);
 
         assert_eq!(directives.len(), 1);
         assert_eq!(directives[0].kind, IgnoreKind::File);
         assert_eq!(directives[0].rules, vec!["no-console"]);
+
+        Ok(())
     }
 
     #[test]
-    fn parse_file_ignore_multiple_rules() {
+    fn parse_file_ignore_multiple_rules() -> Result<()> {
         let source = "// niteo-ignore-file: no-console, no-debugger\nconst x = 1;\n";
         let directives = parse_ignore_directives(source);
 
         assert_eq!(directives.len(), 1);
         assert_eq!(directives[0].rules, vec!["no-console", "no-debugger"]);
+
+        Ok(())
     }
 
     #[test]
-    fn parse_next_line_ignore_all_rules() {
+    fn parse_next_line_ignore_all_rules() -> Result<()> {
         let source = "// niteo-ignore-next-line\nconsole.log('test');\n";
         let directives = parse_ignore_directives(source);
 
         assert_eq!(directives.len(), 1);
         assert_eq!(directives[0].kind, IgnoreKind::NextLine);
         assert_eq!(directives[0].line, 1);
+
+        Ok(())
     }
 
     #[test]
-    fn parse_next_line_ignore_specific_rule() {
+    fn parse_next_line_ignore_specific_rule() -> Result<()> {
         let source = "// niteo-ignore-next-line: no-console\nconsole.log('test');\n";
         let directives = parse_ignore_directives(source);
 
         assert_eq!(directives.len(), 1);
         assert_eq!(directives[0].kind, IgnoreKind::NextLine);
         assert_eq!(directives[0].rules, vec!["no-console"]);
+
+        Ok(())
     }
 
     #[test]
-    fn parse_inline_line_ignore() {
+    fn parse_inline_line_ignore() -> Result<()> {
         let source = "console.log('test'); // niteo-ignore-line\n";
         let directives = parse_ignore_directives(source);
 
@@ -259,38 +271,46 @@ mod tests {
         assert_eq!(directives[0].kind, IgnoreKind::Line);
         assert_eq!(directives[0].line, 1);
         assert!(directives[0].rules.is_empty());
+
+        Ok(())
     }
 
     #[test]
-    fn parse_inline_line_ignore_specific_rule() {
+    fn parse_inline_line_ignore_specific_rule() -> Result<()> {
         let source = "console.log('test'); // niteo-ignore-line: no-console\n";
         let directives = parse_ignore_directives(source);
 
         assert_eq!(directives.len(), 1);
         assert_eq!(directives[0].kind, IgnoreKind::Line);
         assert_eq!(directives[0].rules, vec!["no-console"]);
+
+        Ok(())
     }
 
     #[test]
-    fn parse_standalone_line_ignore() {
+    fn parse_standalone_line_ignore() -> Result<()> {
         let source = "// niteo-ignore-line\nconsole.log('test');\n";
         let directives = parse_ignore_directives(source);
 
         assert_eq!(directives.len(), 1);
         assert_eq!(directives[0].kind, IgnoreKind::Line);
         assert_eq!(directives[0].line, 1);
+
+        Ok(())
     }
 
     #[test]
-    fn ignores_directives_inside_strings() {
+    fn ignores_directives_inside_strings() -> Result<()> {
         let source = "const x = \"// niteo-ignore-file\";\n";
         let directives = parse_ignore_directives(source);
 
         assert!(directives.is_empty());
+
+        Ok(())
     }
 
     #[test]
-    fn suppress_file_violation() {
+    fn suppress_file_violation() -> Result<()> {
         let directives = parse_ignore_directives("// niteo-ignore-file\nconst x = 1;");
 
         assert!(should_suppress_violation(
@@ -303,10 +323,12 @@ mod tests {
             Some(2),
             "no-debugger"
         ));
+
+        Ok(())
     }
 
     #[test]
-    fn suppress_file_violation_specific_rule() {
+    fn suppress_file_violation_specific_rule() -> Result<()> {
         let directives =
             parse_ignore_directives("// niteo-ignore-file: no-console\nconsole.log('x');");
 
@@ -320,10 +342,12 @@ mod tests {
             Some(2),
             "no-debugger"
         ));
+
+        Ok(())
     }
 
     #[test]
-    fn suppress_next_line_violation() {
+    fn suppress_next_line_violation() -> Result<()> {
         let directives = parse_ignore_directives("// niteo-ignore-next-line\nconsole.log('test');");
 
         assert!(should_suppress_violation(
@@ -336,10 +360,12 @@ mod tests {
             Some(3),
             "no-console"
         ));
+
+        Ok(())
     }
 
     #[test]
-    fn suppress_inline_line_violation() {
+    fn suppress_inline_line_violation() -> Result<()> {
         let directives = parse_ignore_directives("console.log('test'); // niteo-ignore-line");
 
         assert!(should_suppress_violation(
@@ -352,10 +378,12 @@ mod tests {
             Some(2),
             "no-console"
         ));
+
+        Ok(())
     }
 
     #[test]
-    fn multiple_directives_in_file() {
+    fn multiple_directives_in_file() -> Result<()> {
         let source =
             "// niteo-ignore-file: no-enums\n\n// niteo-ignore-next-line\nconsole.log('x');\n";
         let directives = parse_ignore_directives(source);
@@ -364,5 +392,7 @@ mod tests {
         assert_eq!(directives[0].kind, IgnoreKind::File);
         assert_eq!(directives[1].kind, IgnoreKind::NextLine);
         assert_eq!(directives[1].line, 3);
+
+        Ok(())
     }
 }

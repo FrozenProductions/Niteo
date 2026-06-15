@@ -63,6 +63,8 @@ impl<'a> Visit<'a> for HookJsxVisitor {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::structure::ProjectStructureConfig;
     use crate::config::{RuleConfig, Severity};
@@ -88,59 +90,65 @@ mod tests {
     }
 
     #[test]
-    fn reports_jsx_in_hook_file() {
+    fn reports_jsx_in_hook_file() -> Result<()> {
         let violations = run_check(
             "export function useAuth() {\n  return <div>Loading</div>;\n}\n",
             "src/hooks/useAuth.ts",
         );
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_jsx_in_dot_hook_file() {
+    fn reports_jsx_in_dot_hook_file() -> Result<()> {
         let violations = run_check(
             "export function useAuth() {\n  return <p>Hello</p>;\n}\n",
             "useAuth.hook.ts",
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_jsx_in_dot_hooks_file() {
+    fn reports_jsx_in_dot_hooks_file() -> Result<()> {
         let violations = run_check(
             "export function useAuth() {\n  return <span>Hi</span>;\n}\n",
             "useAuth.hooks.ts",
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_hook_without_jsx() {
+    fn allows_hook_without_jsx() -> Result<()> {
         let violations = run_check(
             "export function useAuth() {\n  return { user: null };\n}\n",
             "src/hooks/useAuth.ts",
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_jsx_in_non_hook_file() {
+    fn ignores_jsx_in_non_hook_file() -> Result<()> {
         let violations = run_check(
             "export function Auth() {\n  return <div>Login</div>;\n}\n",
             "src/components/Auth.tsx",
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_jsx_in_comments_and_strings() {
+    fn ignores_jsx_in_comments_and_strings() -> Result<()> {
         let source = r#"// return <div>Loading</div>;
 const text = "<p>Hello</p>";
 "#;
         let violations = run_check(source, "src/hooks/useAuth.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

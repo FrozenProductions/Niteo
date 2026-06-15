@@ -81,6 +81,8 @@ fn index_of(order: &[String], name: &str) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+
+        use anyhow::{Context, Result};
     use super::*;
     use crate::config::architecture::LayerBoundaryConfig;
     use crate::config::structure::DomainConfig;
@@ -174,47 +176,52 @@ mod tests {
     }
 
     #[test]
-    fn allows_downward_import() {
+    fn allows_downward_import() -> Result<()> {
         let source = r#"import { Thing } from "../entities/index";"#;
         let violations = run_check("features/index.ts", source, &test_config(), &test_layers());
         assert!(violations.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn allows_same_layer_import() {
+    fn allows_same_layer_import() -> Result<()> {
         let source = r#"import { Other } from "./other";"#;
         let violations = run_check("features/index.ts", source, &test_config(), &test_layers());
         assert!(violations.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn reports_upward_import() {
+    fn reports_upward_import() -> Result<()> {
         let source = r#"import { getSession } from "../features/auth/session";"#;
         let violations = run_check("shared/date.ts", source, &test_config(), &test_layers());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].rule, "layer-boundaries");
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-        let detail = violations[0].detail.as_deref().unwrap();
+        let detail = violations[0].detail.as_deref().context("expected detail")?;
         assert!(detail.contains("shared cannot import features"));
+        Ok(())
     }
 
     #[test]
-    fn ignores_unknown_source_layer() {
+    fn ignores_unknown_source_layer() -> Result<()> {
         let source = r#"import { Something } from "../shared/helper";"#;
         let violations = run_check("lib/unknown.ts", source, &test_config(), &test_layers());
         assert!(violations.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn ignores_unknown_target_layer() {
+    fn ignores_unknown_target_layer() -> Result<()> {
         let source = r#"import { Something } from "../lib/unknown";"#;
         let violations = run_check("features/index.ts", source, &test_config(), &test_layers());
         assert!(violations.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn quiet_when_no_layers_configured() {
+    fn quiet_when_no_layers_configured() -> Result<()> {
         let empty_layers = LayerBoundaryConfig::default();
         let source = r#"import { Something } from "../features";"#;
         let files_with_sources = vec![
@@ -231,22 +238,25 @@ mod tests {
             &empty_layers,
         );
         assert!(violations.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn reports_edge_span_positions() {
+    fn reports_edge_span_positions() -> Result<()> {
         let source = r#"
 import { getSession } from "../features/auth/session";
 "#;
         let violations = run_check("shared/date.ts", source.trim(), &test_config(), &test_layers());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
+        Ok(())
     }
 
     #[test]
-    fn reports_reexport_violation() {
+    fn reports_reexport_violation() -> Result<()> {
         let source = r#"export { getSession } from "../features/auth/session";"#;
         let violations = run_check("shared/date.ts", source, &test_config(), &test_layers());
         assert_eq!(violations.len(), 1);
+        Ok(())
     }
 }

@@ -108,6 +108,8 @@ impl ImportResolverIndex {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use std::path::{Path, PathBuf};
 
     use crate::import_graph::helpers::{is_relative_specifier, normalize_path};
@@ -124,61 +126,75 @@ mod tests {
     }
 
     #[test]
-    fn identifies_relative_specifiers() {
+    fn identifies_relative_specifiers() -> Result<()> {
         assert!(is_relative_specifier("./foo"));
         assert!(is_relative_specifier("../bar"));
         assert!(is_relative_specifier("/absolute"));
         assert!(!is_relative_specifier("lodash"));
         assert!(!is_relative_specifier("@scope/package"));
+
+        Ok(())
     }
 
     #[test]
-    fn normalizes_paths_correctly() {
+    fn normalizes_paths_correctly() -> Result<()> {
         let path = Path::new("src/components/../utils/./helper");
         let normalized = normalize_path(path);
         assert_eq!(normalized, PathBuf::from("src/utils/helper"));
+
+        Ok(())
     }
 
     #[test]
-    fn resolves_relative_import() {
+    fn resolves_relative_import() -> Result<()> {
         let files = vec![PathBuf::from("src/a.ts"), PathBuf::from("src/b.ts")];
         let resolved = resolve_import_specifier(Path::new("src/a.ts"), "./b", &files);
         assert_eq!(resolved, Some(PathBuf::from("src/b.ts")));
+
+        Ok(())
     }
 
     #[test]
-    fn resolves_import_with_extension() {
+    fn resolves_import_with_extension() -> Result<()> {
         let files = vec![PathBuf::from("src/a.ts"), PathBuf::from("src/b.ts")];
         let resolved = resolve_import_specifier(Path::new("src/a.ts"), "./b.ts", &files);
         assert_eq!(resolved, Some(PathBuf::from("src/b.ts")));
+
+        Ok(())
     }
 
     #[test]
-    fn resolves_directory_import_to_barrel() {
+    fn resolves_directory_import_to_barrel() -> Result<()> {
         let files = vec![
             PathBuf::from("src/a.ts"),
             PathBuf::from("src/components/index.ts"),
         ];
         let resolved = resolve_import_specifier(Path::new("src/a.ts"), "./components", &files);
         assert_eq!(resolved, Some(PathBuf::from("src/components/index.ts")));
+
+        Ok(())
     }
 
     #[test]
-    fn returns_none_for_external_import() {
+    fn returns_none_for_external_import() -> Result<()> {
         let files = vec![PathBuf::from("src/a.ts")];
         let resolved = resolve_import_specifier(Path::new("src/a.ts"), "lodash", &files);
         assert_eq!(resolved, None);
+
+        Ok(())
     }
 
     #[test]
-    fn returns_none_for_unresolved_import() {
+    fn returns_none_for_unresolved_import() -> Result<()> {
         let files = vec![PathBuf::from("src/a.ts")];
         let resolved = resolve_import_specifier(Path::new("src/a.ts"), "./nonexistent", &files);
         assert_eq!(resolved, None);
+
+        Ok(())
     }
 
     #[test]
-    fn resolves_extensionless_duplicate_deterministically() {
+    fn resolves_extensionless_duplicate_deterministically() -> Result<()> {
         let files = vec![
             PathBuf::from("src/a.ts"),
             PathBuf::from("src/b.ts"),
@@ -195,10 +211,12 @@ mod tests {
         let resolved_reversed =
             resolve_import_specifier(Path::new("src/a.ts"), "./b", &files_reversed);
         assert_eq!(resolved_reversed, Some(PathBuf::from("src/b.tsx")));
+
+        Ok(())
     }
 
     #[test]
-    fn resolves_directory_barrel_duplicate_deterministically() {
+    fn resolves_directory_barrel_duplicate_deterministically() -> Result<()> {
         let files = vec![
             PathBuf::from("src/a.ts"),
             PathBuf::from("src/components.ts"),
@@ -218,10 +236,12 @@ mod tests {
             resolved_reversed,
             Some(PathBuf::from("src/components/index.ts"))
         );
+
+        Ok(())
     }
 
     #[test]
-    fn classifies_relative_specifier() {
+    fn classifies_relative_specifier() -> Result<()> {
         let resolver = ImportResolverIndex::new(&[], None);
         assert_eq!(
             resolver.classify_specifier("./foo"),
@@ -232,10 +252,12 @@ mod tests {
             SpecifierKind::Relative
         );
         assert_eq!(resolver.classify_specifier("/abs"), SpecifierKind::Relative);
+
+        Ok(())
     }
 
     #[test]
-    fn classifies_alias_specifier() {
+    fn classifies_alias_specifier() -> Result<()> {
         let tsconfig = TsConfig {
             base_url: PathBuf::from("/repo"),
             aliases: vec![ResolvedPathAlias {
@@ -253,10 +275,12 @@ mod tests {
             resolver.classify_specifier("@/shared/date"),
             SpecifierKind::Alias
         );
+
+        Ok(())
     }
 
     #[test]
-    fn classifies_external_specifier() {
+    fn classifies_external_specifier() -> Result<()> {
         let resolver = ImportResolverIndex::new(&[], None);
         assert_eq!(
             resolver.classify_specifier("lodash"),
@@ -266,10 +290,12 @@ mod tests {
             resolver.classify_specifier("@scope/package"),
             SpecifierKind::External
         );
+
+        Ok(())
     }
 
     #[test]
-    fn classifies_alias_when_tsconfig_has_multiple_aliases() {
+    fn classifies_alias_when_tsconfig_has_multiple_aliases() -> Result<()> {
         let tsconfig = TsConfig {
             base_url: PathBuf::from("/repo"),
             aliases: vec![
@@ -301,5 +327,7 @@ mod tests {
             resolver.classify_specifier("./relative"),
             SpecifierKind::Relative
         );
+
+        Ok(())
     }
 }

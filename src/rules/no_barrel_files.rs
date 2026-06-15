@@ -46,6 +46,8 @@ fn is_re_export(stmt: &Statement<'_>) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::check_file;
     use crate::config::{RuleConfig, Severity};
     use crate::rules::Violation;
@@ -64,7 +66,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_barrel_file_with_re_exports() {
+    fn reports_barrel_file_with_re_exports() -> Result<()> {
         let source = r#"export { Button } from "./Button";
 export type { ButtonProps } from "./Button.type";
 "#;
@@ -73,35 +75,39 @@ export type { ButtonProps } from "./Button.type";
         assert_eq!(violations.len(), 1);
         assert!(violations[0].line.is_none());
         assert!(violations[0].column.is_none());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_barrel_file_with_namespace_re_exports() {
+    fn reports_barrel_file_with_namespace_re_exports() -> Result<()> {
         let source = r#"export * from "./Button";
 export * as ButtonParts from "./Button.parts";
 "#;
         let violations = run_check("index.ts", source);
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_barrel_files() {
+    fn ignores_non_barrel_files() -> Result<()> {
         let source = r#"export { Button } from "./Button";
 "#;
         let violations = run_check("Button.ts", source);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_index_file_without_re_exports() {
+    fn ignores_index_file_without_re_exports() -> Result<()> {
         let source = r#"const value = 1;
 "#;
         let violations = run_check("index.ts", source);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

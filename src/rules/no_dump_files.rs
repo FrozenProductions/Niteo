@@ -52,6 +52,8 @@ fn dump_violation(file: &Path, stem: &str, severity: Severity) -> Violation {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::check_files;
     use crate::config::{NoDumpFilesRuleConfig, Severity};
     use std::path::PathBuf;
@@ -64,27 +66,29 @@ mod tests {
     }
 
     #[test]
-    fn reports_default_forbidden_files() {
+    fn reports_default_forbidden_files() -> Result<()> {
         for path in ["src/utils.ts", "src/helpers.tsx", "src/types.ts"] {
             let files = vec![PathBuf::from(path)];
             let violations = check_files(&files, &test_config());
             assert_eq!(violations.len(), 1, "expected 1 violation for: {path}");
             assert_eq!(violations[0].rule, crate::rules::NO_DUMP_FILES_RULE_ID);
         }
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_specific_files() {
+    fn ignores_specific_files() -> Result<()> {
         let files = vec![
             PathBuf::from("src/Button.tsx"),
             PathBuf::from("src/useAuth.ts"),
         ];
         let violations = check_files(&files, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_custom_extra_names() {
+    fn reports_custom_extra_names() -> Result<()> {
         let config = NoDumpFilesRuleConfig {
             severity: Severity::Warn,
             extra_names: vec!["constants".to_string()],
@@ -92,19 +96,22 @@ mod tests {
         let files = vec![PathBuf::from("src/constants.ts")];
         let violations = check_files(&files, &config);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn case_insensitive_match() {
+    fn case_insensitive_match() -> Result<()> {
         let files = vec![PathBuf::from("src/Utils.ts")];
         let violations = check_files(&files, &test_config());
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_match_partial_names() {
+    fn does_not_match_partial_names() -> Result<()> {
         let files = vec![PathBuf::from("src/authUtils.ts")];
         let violations = check_files(&files, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

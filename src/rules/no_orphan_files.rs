@@ -57,6 +57,8 @@ fn is_entry_file(file: &Path, entry_files: &[String]) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::check_file;
     use crate::config::structure::DomainConfig;
     use crate::config::{NoOrphanFilesRuleConfig, Severity};
@@ -91,7 +93,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_orphan_file() {
+    fn reports_orphan_file() -> Result<()> {
         let files = vec![
             ("src/orphan.ts", "export const x = 1;\n"),
             ("src/used.ts", "export const y = 2;\n"),
@@ -100,56 +102,62 @@ mod tests {
         let violations = run_check("src/orphan.ts", &files);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_imported_file() {
+    fn allows_imported_file() -> Result<()> {
         let files = vec![
             ("src/used.ts", "export const y = 2;\n"),
             ("src/main.ts", "import { y } from './used';\n"),
         ];
         let violations = run_check("src/used.ts", &files);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_entry_file() {
+    fn allows_entry_file() -> Result<()> {
         let files = vec![
             ("src/main.ts", "console.log('entry');\n"),
         ];
         let violations = run_check("src/main.ts", &files);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_app_entry_file() {
+    fn allows_app_entry_file() -> Result<()> {
         let files = vec![
             ("src/app.ts", "console.log('app');\n"),
         ];
         let violations = run_check("src/app.ts", &files);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_test_file() {
+    fn allows_test_file() -> Result<()> {
         let files = vec![
             ("src/utils.test.ts", "import { test } from 'vitest';\n"),
         ];
         let violations = run_check("src/utils.test.ts", &files);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_file_only_importing_external() {
+    fn reports_file_only_importing_external() -> Result<()> {
         let files = vec![
             ("src/lonely.ts", "import { z } from 'zod';\n"),
         ];
         let violations = run_check("src/lonely.ts", &files);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_re_exported_file() {
+    fn allows_re_exported_file() -> Result<()> {
         let files = vec![
             ("src/utils.ts", "export const x = 1;\n"),
             ("src/index.ts", "export { x } from './utils';\n"),
@@ -157,5 +165,6 @@ mod tests {
         ];
         let violations = run_check("src/utils.ts", &files);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

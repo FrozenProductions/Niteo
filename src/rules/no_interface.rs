@@ -80,6 +80,8 @@ fn interface_violation(
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{NoInterfaceRuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -119,24 +121,26 @@ mod tests {
     }
 
     #[test]
-    fn reports_single_interface() {
+    fn reports_single_interface() -> Result<()> {
         let violations = run_check("interface User { name: string }\n", &test_config());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_declaration_merging() {
+    fn allows_declaration_merging() -> Result<()> {
         let source = r#"interface User { name: string }
 interface User { age: number }
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_all_interfaces_when_merging_disabled() {
+    fn reports_all_interfaces_when_merging_disabled() -> Result<()> {
         let source = r#"interface User { name: string }
 interface User { age: number }
 "#;
@@ -144,10 +148,11 @@ interface User { age: number }
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[1].line, Some(2));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_mixed_interfaces() {
+    fn reports_mixed_interfaces() -> Result<()> {
         let source = r#"interface User { name: string }
 interface User { age: number }
 interface Post { title: string }
@@ -156,48 +161,53 @@ interface Post { title: string }
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(3));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_interface_in_comments_and_strings() {
+    fn ignores_interface_in_comments_and_strings() -> Result<()> {
         let source = r#"// interface User { name: string }
 const text = "interface User";
 /* interface Post { title: string } */
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_match_identifier_fragments() {
+    fn does_not_match_identifier_fragments() -> Result<()> {
         let source = r#"const interfacex = true;
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_interface_in_jsx_text() {
+    fn ignores_interface_in_jsx_text() -> Result<()> {
         let source = r#"<p className="mt-1">
     Scale the full app interface for the current window.
 </p>
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_interface_in_jsx_text_with_bracketed_tailwind_class() {
+    fn ignores_interface_in_jsx_text_with_bracketed_tailwind_class() -> Result<()> {
         let source = r#"<p className="mt-1 text-xs leading-[1.55] text-fumi-400">
     Scale the full app interface for the current window.
 </p>
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_interface_in_nested_jsx_text() {
+    fn ignores_interface_in_nested_jsx_text() -> Result<()> {
         let source = r#"<div>
     <p>The user interface is ready.</p>
     <span>interface keyword in text</span>
@@ -205,10 +215,11 @@ const text = "interface User";
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_interface_in_jsx_expression() {
+    fn reports_interface_in_jsx_expression() -> Result<()> {
         let source = r#"<div>
     {user.name}
 </div>
@@ -218,26 +229,29 @@ interface User { name: string }
         let violations = run_check_tsx(source, &strict_config());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(5));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_interface_in_jsx_attribute_values() {
+    fn ignores_interface_in_jsx_attribute_values() -> Result<()> {
         let source = r#"<Component tooltip="This interface is deprecated" />
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn handles_jsx_fragments() {
+    fn handles_jsx_fragments() -> Result<()> {
         let source = r#"<><p>interface text</p></>
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn handles_jsx_with_expressions() {
+    fn handles_jsx_with_expressions() -> Result<()> {
         let source = r#"<div>
     {user.name}
     <p>interface description</p>
@@ -246,10 +260,11 @@ interface User { name: string }
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn handles_jsx_attribute_expression_with_nested_object() {
+    fn handles_jsx_attribute_expression_with_nested_object() -> Result<()> {
         let source = r#"<Component
     options={{ label: "interface label", value: count }}
 >
@@ -258,10 +273,11 @@ interface User { name: string }
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_interface_after_jsx() {
+    fn reports_interface_after_jsx() -> Result<()> {
         let source = r#"const element = <p>interface text</p>;
 
 interface User { name: string }
@@ -270,5 +286,6 @@ interface User { name: string }
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(3));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 }

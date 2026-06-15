@@ -102,8 +102,8 @@ fn parse_file(path: &Path) -> Result<TsConfig> {
 
 fn split_pattern(pattern: &str) -> (String, String) {
     if let Some(pos) = pattern.find('*') {
-        let prefix = pattern[..pos].to_string();
-        let suffix = pattern[pos + 1..].to_string();
+        let prefix = pattern.get(..pos).unwrap_or("").to_string();
+        let suffix = pattern.get(pos + 1..).unwrap_or("").to_string();
         (prefix, suffix)
     } else {
         (pattern.to_string(), String::new())
@@ -116,7 +116,7 @@ pub fn match_alias<'a>(alias: &ResolvedPathAlias, specifier: &'a str) -> Option<
             let wildcard_start = alias.prefix.len();
             let wildcard_end = specifier.len().saturating_sub(alias.suffix.len());
             if wildcard_end >= wildcard_start {
-                return Some(&specifier[wildcard_start..wildcard_end]);
+                return Some(specifier.get(wildcard_start..wildcard_end).unwrap_or(""));
             }
         }
     } else if specifier == alias.pattern {
@@ -130,36 +130,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn split_simple_pattern() {
+    fn split_simple_pattern() -> Result<()> {
         let (prefix, suffix) = split_pattern("@/*");
         assert_eq!(prefix, "@/");
         assert_eq!(suffix, "");
+        Ok(())
     }
 
     #[test]
-    fn split_pattern_with_suffix() {
+    fn split_pattern_with_suffix() -> Result<()> {
         let (prefix, suffix) = split_pattern("@features/*/utils");
         assert_eq!(prefix, "@features/");
         assert_eq!(suffix, "/utils");
+        Ok(())
     }
 
     #[test]
-    fn split_star_only() {
+    fn split_star_only() -> Result<()> {
         let (prefix, suffix) = split_pattern("*");
         assert_eq!(prefix, "");
         assert_eq!(suffix, "");
+        Ok(())
     }
 
     #[test]
-    fn split_no_wildcard() {
+    fn split_no_wildcard() -> Result<()> {
         let (prefix, suffix) = split_pattern("react");
         assert_eq!(prefix, "react");
         assert_eq!(suffix, "");
+        Ok(())
     }
 
     #[test]
-    fn parses_tsconfig_with_paths() {
-        let dir = tempfile::tempdir().unwrap();
+    fn parses_tsconfig_with_paths() -> Result<()> {
+        let dir = tempfile::tempdir()?;
         let config_path = dir.path().join("tsconfig.json");
         std::fs::write(
             &config_path,
@@ -171,21 +175,21 @@ mod tests {
                     }
                 }
             }"#,
-        )
-        .unwrap();
+        )?;
 
-        let tsconfig = parse_file(&config_path).unwrap();
+        let tsconfig = parse_file(&config_path)?;
         assert_eq!(tsconfig.aliases.len(), 1);
         assert_eq!(tsconfig.aliases[0].prefix, "@/");
         assert_eq!(tsconfig.aliases[0].suffix, "");
         assert_eq!(tsconfig.aliases[0].targets.len(), 1);
         assert_eq!(tsconfig.aliases[0].targets[0].prefix, "src/");
         assert_eq!(tsconfig.aliases[0].targets[0].suffix, "");
+        Ok(())
     }
 
     #[test]
-    fn parses_minimal_tsconfig() {
-        let dir = tempfile::tempdir().unwrap();
+    fn parses_minimal_tsconfig() -> Result<()> {
+        let dir = tempfile::tempdir()?;
         let config_path = dir.path().join("tsconfig.json");
         std::fs::write(
             &config_path,
@@ -194,46 +198,48 @@ mod tests {
                     "baseUrl": "src"
                 }
             }"#,
-        )
-        .unwrap();
+        )?;
 
-        let tsconfig = parse_file(&config_path).unwrap();
+        let tsconfig = parse_file(&config_path)?;
         assert!(tsconfig.base_url.ends_with("src"));
         assert!(tsconfig.aliases.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn parses_tsconfig_without_compiler_options() {
-        let dir = tempfile::tempdir().unwrap();
+    fn parses_tsconfig_without_compiler_options() -> Result<()> {
+        let dir = tempfile::tempdir()?;
         let config_path = dir.path().join("tsconfig.json");
-        std::fs::write(&config_path, r#"{}"#).unwrap();
+        std::fs::write(&config_path, r#"{}"#)?;
 
-        let tsconfig = parse_file(&config_path).unwrap();
+        let tsconfig = parse_file(&config_path)?;
         assert_eq!(tsconfig.aliases.len(), 0);
+        Ok(())
     }
 
     #[test]
-    fn discover_returns_none_when_no_tsconfig() {
-        let dir = tempfile::tempdir().unwrap();
-        let result = discover_and_parse(dir.path()).unwrap();
+    fn discover_returns_none_when_no_tsconfig() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let result = discover_and_parse(dir.path())?;
         assert!(result.is_none());
+        Ok(())
     }
 
     #[test]
-    fn discover_finds_tsconfig() {
-        let dir = tempfile::tempdir().unwrap();
+    fn discover_finds_tsconfig() -> Result<()> {
+        let dir = tempfile::tempdir()?;
         std::fs::write(
             dir.path().join("tsconfig.json"),
             r#"{"compilerOptions": {"baseUrl": "."}}"#,
-        )
-        .unwrap();
+        )?;
 
-        let result = discover_and_parse(dir.path()).unwrap();
+        let result = discover_and_parse(dir.path())?;
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]
-    fn match_alias_wildcard_captures_middle() {
+    fn match_alias_wildcard_captures_middle() -> Result<()> {
         let alias = ResolvedPathAlias {
             pattern: "@/*".into(),
             prefix: "@/".into(),
@@ -242,10 +248,11 @@ mod tests {
         };
         assert_eq!(match_alias(&alias, "@/shared/date"), Some("shared/date"));
         assert_eq!(match_alias(&alias, "lodash"), None);
+        Ok(())
     }
 
     #[test]
-    fn match_alias_exact_does_not_match_prefix() {
+    fn match_alias_exact_does_not_match_prefix() -> Result<()> {
         let alias = ResolvedPathAlias {
             pattern: "react".into(),
             prefix: "react".into(),
@@ -254,10 +261,11 @@ mod tests {
         };
         assert_eq!(match_alias(&alias, "react"), Some(""));
         assert_eq!(match_alias(&alias, "react-dom"), None);
+        Ok(())
     }
 
     #[test]
-    fn match_alias_with_suffix_pattern() {
+    fn match_alias_with_suffix_pattern() -> Result<()> {
         let alias = ResolvedPathAlias {
             pattern: "@features/*/utils".into(),
             prefix: "@features/".into(),
@@ -270,5 +278,6 @@ mod tests {
             Some("nested/dir")
         );
         assert_eq!(match_alias(&alias, "@features/auth/other"), None);
+        Ok(())
     }
 }

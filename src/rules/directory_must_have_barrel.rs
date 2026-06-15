@@ -59,6 +59,8 @@ fn directory_violation(dir: &Path, severity: Severity) -> Violation {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::directory_inventory::{DirectoryFacts, DirectoryInventory};
     use std::path::PathBuf;
@@ -84,7 +86,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_directory_with_child_folder_and_no_index_ts() {
+    fn reports_directory_with_child_folder_and_no_index_ts() -> Result<()> {
         let inventory = DirectoryInventory {
             directories: vec![make_facts(
                 "src/features",
@@ -99,10 +101,11 @@ mod tests {
         assert_eq!(violations[0].line, None);
         assert_eq!(violations[0].column, None);
         assert!(violations[0].detail.is_some());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_directory_with_child_folder_and_index_ts() {
+    fn allows_directory_with_child_folder_and_index_ts() -> Result<()> {
         let inventory = DirectoryInventory {
             directories: vec![make_facts(
                 "src/features",
@@ -113,10 +116,11 @@ mod tests {
 
         let violations = check_inventory(&inventory, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_leaf_directory_without_index_ts() {
+    fn allows_leaf_directory_without_index_ts() -> Result<()> {
         let inventory = DirectoryInventory {
             directories: vec![make_facts(
                 "src/features/billing",
@@ -127,10 +131,11 @@ mod tests {
 
         let violations = check_inventory(&inventory, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_index_tsx() {
+    fn ignores_index_tsx() -> Result<()> {
         let inventory = DirectoryInventory {
             directories: vec![make_facts(
                 "src/features",
@@ -141,10 +146,11 @@ mod tests {
 
         let violations = check_inventory(&inventory, &test_config());
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn respects_severity_from_config() {
+    fn respects_severity_from_config() -> Result<()> {
         let inventory = DirectoryInventory {
             directories: vec![make_facts(
                 "src/features",
@@ -159,10 +165,11 @@ mod tests {
         let violations = check_inventory(&inventory, &config);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].severity, Severity::Error);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn skips_ignored_directories() {
+    fn skips_ignored_directories() -> Result<()> {
         let inventory = DirectoryInventory {
             directories: vec![make_facts(
                 "node_modules",
@@ -173,5 +180,6 @@ mod tests {
 
         let violations = check_inventory(&inventory, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

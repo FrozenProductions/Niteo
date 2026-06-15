@@ -52,44 +52,56 @@ impl LayerBoundaryConfig {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use anyhow::Result;
 
     #[test]
-    fn empty_config_is_unconfigured() {
+    fn empty_config_is_unconfigured() -> Result<()> {
         let config = LayerBoundaryConfig::default();
         assert!(!config.is_configured());
+
+        Ok(())
     }
 
     #[test]
-    fn configured_when_order_exists() {
+    fn configured_when_order_exists() -> Result<()> {
         let mut config = LayerBoundaryConfig::default();
         config.order = vec!["app".to_string()];
         assert!(config.is_configured());
+
+        Ok(())
     }
 
     #[test]
-    fn layer_for_file_matches_folder() {
+    fn layer_for_file_matches_folder() -> Result<()> {
         let config = make_test_layers();
         let path = Path::new("src/shared/date.ts");
         assert_eq!(config.layer_for_file(path), Some("shared"));
+
+        Ok(())
     }
 
     #[test]
-    fn layer_for_file_matches_nested() {
+    fn layer_for_file_matches_nested() -> Result<()> {
         let config = make_test_layers();
         let path = Path::new("src/app/auth/login.ts");
         assert_eq!(config.layer_for_file(path), Some("app"));
+
+        Ok(())
     }
 
     #[test]
-    fn layer_for_file_unknown_returns_none() {
+    fn layer_for_file_unknown_returns_none() -> Result<()> {
         let config = make_test_layers();
         let path = Path::new("src/lib/something.ts");
         assert_eq!(config.layer_for_file(path), None);
+
+        Ok(())
     }
 
     #[test]
-    fn layer_for_file_prefers_most_specific() {
+    fn layer_for_file_prefers_most_specific() -> Result<()> {
         let mut config = LayerBoundaryConfig::default();
         config.order = vec!["app".to_string(), "app-sub".to_string()];
         config.definitions.insert(
@@ -109,10 +121,12 @@ mod tests {
 
         let path = Path::new("src/app/admin/page.ts");
         assert_eq!(config.layer_for_file(path), Some("app-sub"));
+
+        Ok(())
     }
 
     #[test]
-    fn layer_for_file_suffix_match() {
+    fn layer_for_file_suffix_match() -> Result<()> {
         let mut config = LayerBoundaryConfig::default();
         config.order = vec!["shared".to_string()];
         config.definitions.insert(
@@ -125,6 +139,8 @@ mod tests {
 
         let path = Path::new("src/utils/helper.shared.ts");
         assert_eq!(config.layer_for_file(path), Some("shared"));
+
+        Ok(())
     }
 
     fn make_test_layers() -> LayerBoundaryConfig {

@@ -166,6 +166,8 @@ fn check_exported_declarator<'a>(
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -190,105 +192,121 @@ mod tests {
     }
 
     #[test]
-    fn reports_array_param_in_exported_function() {
+    fn reports_array_param_in_exported_function() -> Result<()> {
         let violations = run_check("export function process(items: string[]) {}");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("process.items"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_readonly_array_param() {
+    fn allows_readonly_array_param() -> Result<()> {
         let violations = run_check("export function process(items: readonly string[]) {}");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_array_type_reference_param() {
+    fn reports_array_type_reference_param() -> Result<()> {
         let violations = run_check("export function process(items: Array<string>) {}");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_readonly_array_type_reference() {
+    fn allows_readonly_array_type_reference() -> Result<()> {
         let violations = run_check("export function process(items: ReadonlyArray<string>) {}");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_array_param_in_exported_arrow() {
+    fn reports_array_param_in_exported_arrow() -> Result<()> {
         let violations = run_check("export const process = (items: number[]) => {};");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("process.items"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_array_param_in_exported_function_expression() {
+    fn reports_array_param_in_exported_function_expression() -> Result<()> {
         let violations = run_check("export const process = function(items: string[]) {};");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_array_param_in_default_exported_function() {
+    fn reports_array_param_in_default_exported_function() -> Result<()> {
         let violations = run_check("export default function process(items: string[]) {}");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_array_param_in_default_exported_arrow() {
+    fn reports_array_param_in_default_exported_arrow() -> Result<()> {
         let violations = run_check("export default (items: string[]) => {};");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_exported_function() {
+    fn ignores_non_exported_function() -> Result<()> {
         let violations = run_check("function process(items: string[]) {}");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_array_params() {
+    fn ignores_non_array_params() -> Result<()> {
         let violations = run_check("export function process(name: string, count: number) {}");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_array_params() {
+    fn reports_multiple_array_params() -> Result<()> {
         let violations =
             run_check("export function merge(a: string[], b: number[]) {}");
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_readonly_mixed_with_non_array() {
+    fn allows_readonly_mixed_with_non_array() -> Result<()> {
         let violations = run_check(
             "export function process(name: string, items: readonly string[]) {}",
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_rest_param_with_array_type() {
+    fn reports_rest_param_with_array_type() -> Result<()> {
         let violations = run_check("export function process(...items: string[][]) {}");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_readonly_rest_param() {
+    fn allows_readonly_rest_param() -> Result<()> {
         let violations = run_check("export function process(...items: readonly string[][]) {}");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_correct_line() {
+    fn reports_correct_line() -> Result<()> {
         let source = "const x = 1;\nexport function foo(items: string[]) {}\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_tuple_param() {
+    fn allows_tuple_param() -> Result<()> {
         let violations = run_check("export function process(items: [string, number]) {}");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

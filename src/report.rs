@@ -12,10 +12,12 @@ pub use suppressions::render_suppression_report_text;
 
 #[cfg(test)]
 mod tests {
+
     use crate::config::Severity;
     use crate::report::model::FailureThreshold;
     use crate::report::model::Report;
     use crate::rules::Violation;
+    use anyhow::Result;
     use std::path::PathBuf;
 
     fn make_violation(severity: Severity) -> Violation {
@@ -32,7 +34,7 @@ mod tests {
     }
 
     #[test]
-    fn test_failure_threshold_error() {
+    fn test_failure_threshold_error() -> Result<()> {
         let report = Report::new(vec![], vec![make_violation(Severity::Error)]);
         assert!(report.has_findings_at_or_above(FailureThreshold::Error));
 
@@ -41,10 +43,12 @@ mod tests {
 
         let report_info = Report::new(vec![], vec![make_violation(Severity::Info)]);
         assert!(!report_info.has_findings_at_or_above(FailureThreshold::Error));
+
+        Ok(())
     }
 
     #[test]
-    fn test_failure_threshold_warn() {
+    fn test_failure_threshold_warn() -> Result<()> {
         let report_error = Report::new(vec![], vec![make_violation(Severity::Error)]);
         assert!(report_error.has_findings_at_or_above(FailureThreshold::Warn));
 
@@ -53,10 +57,12 @@ mod tests {
 
         let report_info = Report::new(vec![], vec![make_violation(Severity::Info)]);
         assert!(!report_info.has_findings_at_or_above(FailureThreshold::Warn));
+
+        Ok(())
     }
 
     #[test]
-    fn test_failure_threshold_any() {
+    fn test_failure_threshold_any() -> Result<()> {
         let report_error = Report::new(vec![], vec![make_violation(Severity::Error)]);
         assert!(report_error.has_findings_at_or_above(FailureThreshold::Any));
 
@@ -68,5 +74,7 @@ mod tests {
 
         let report_off = Report::new(vec![], vec![make_violation(Severity::Off)]);
         assert!(!report_off.has_findings_at_or_above(FailureThreshold::Any));
+
+        Ok(())
     }
 }

@@ -72,6 +72,8 @@ pub fn check_file(
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::structure::DomainConfig;
     use crate::config::{RuleConfig, Severity};
@@ -111,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn allows_public_import_from_another_package() {
+    fn allows_public_import_from_another_package() -> Result<()> {
         let root = PathBuf::from("/repo");
         let workspace = workspace_with_packages(&root);
         let files = vec![
@@ -128,10 +130,11 @@ mod tests {
             &test_config(),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_private_import_by_relative_path() {
+    fn reports_private_import_by_relative_path() -> Result<()> {
         let root = PathBuf::from("/repo");
         let workspace = workspace_with_packages(&root);
         let files = vec![
@@ -149,10 +152,11 @@ mod tests {
         );
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].rule, NO_PRIVATE_PACKAGE_IMPORT_RULE_ID);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_same_package_internal_import() {
+    fn allows_same_package_internal_import() -> Result<()> {
         let root = PathBuf::from("/repo");
         let workspace = workspace_with_packages(&root);
         let files = vec![
@@ -169,10 +173,11 @@ mod tests {
             &test_config(),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn no_violations_without_workspace() {
+    fn no_violations_without_workspace() -> Result<()> {
         let files = vec![
             ("/repo/packages/app/src/main.ts", "import { Button } from '../../ui/src/internal/Button';"),
             ("/repo/packages/ui/src/internal/Button.ts", "export const Button = 1;"),
@@ -187,10 +192,11 @@ mod tests {
             &test_config(),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn no_violations_when_source_outside_packages() {
+    fn no_violations_when_source_outside_packages() -> Result<()> {
         let root = PathBuf::from("/repo");
         let workspace = workspace_with_packages(&root);
         let files = vec![
@@ -207,5 +213,6 @@ mod tests {
             &test_config(),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

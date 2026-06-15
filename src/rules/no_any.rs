@@ -71,6 +71,8 @@ impl<'a, 'f> Visit<'a> for AnyKeywordVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::structure::DomainConfig;
     use crate::config::{NoAnyRuleConfig, Severity};
@@ -117,68 +119,78 @@ mod tests {
     }
 
     #[test]
-    fn reports_explicit_any_type_annotation() {
+    fn reports_explicit_any_type_annotation() -> Result<()> {
         let violations = run_check("const value: any = 'test';\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_any_in_function_parameter() {
+    fn reports_any_in_function_parameter() -> Result<()> {
         let violations = run_check("function foo(arg: any) {}\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_any_in_function_return_type() {
+    fn reports_any_in_function_return_type() -> Result<()> {
         let violations = run_check("function foo(): any { return null; }\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_any_in_type_assertion() {
+    fn reports_any_in_type_assertion() -> Result<()> {
         let violations = run_check("const value = obj as any;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_any_in_generic_type_parameter() {
+    fn reports_any_in_generic_type_parameter() -> Result<()> {
         let violations = run_check("const arr: Array<any> = [];\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_any_in_interface_property() {
+    fn reports_any_in_interface_property() -> Result<()> {
         let violations = run_check("interface Foo { bar: any; }\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_any_in_type_alias() {
+    fn reports_any_in_type_alias() -> Result<()> {
         let violations = run_check("type Foo = any;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_any_usages() {
+    fn reports_multiple_any_usages() -> Result<()> {
         let violations = run_check("const a: any = 1; const b: any = 2;\n");
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_unknown_type() {
+    fn allows_unknown_type() -> Result<()> {
         let violations = run_check("const value: unknown = 'test';\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_specific_types() {
+    fn allows_specific_types() -> Result<()> {
         let violations = run_check("const value: string = 'test';\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_any_in_generated_folder() {
+    fn allows_any_in_generated_folder() -> Result<()> {
         let allocator = Allocator::default();
         let source = "const value: any = 'test';\n";
         let line_index = LineIndex::new(source);
@@ -192,10 +204,11 @@ mod tests {
             &default_generated(),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_any_in_generated_file_suffix() {
+    fn allows_any_in_generated_file_suffix() -> Result<()> {
         let allocator = Allocator::default();
         let source = "const value: any = 'test';\n";
         let line_index = LineIndex::new(source);
@@ -209,10 +222,11 @@ mod tests {
             &default_generated(),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_any_in_custom_allowed_folder() {
+    fn allows_any_in_custom_allowed_folder() -> Result<()> {
         let config = NoAnyRuleConfig {
             severity: Severity::Warn,
             allowed_folders: vec!["legacy".to_string()],
@@ -230,43 +244,50 @@ mod tests {
             &default_generated(),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_any_in_comments() {
+    fn ignores_any_in_comments() -> Result<()> {
         let source = "// const value: any = 'test';\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_any_in_strings() {
+    fn ignores_any_in_strings() -> Result<()> {
         let source = r#"const text = "const value: any = 'test';";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_record_with_unknown() {
+    fn allows_record_with_unknown() -> Result<()> {
         let violations = run_check("const obj: Record<string, unknown> = {};\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_any_in_union_type() {
+    fn reports_any_in_union_type() -> Result<()> {
         let violations = run_check("type Foo = string | any;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_any_in_intersection_type() {
+    fn reports_any_in_intersection_type() -> Result<()> {
         let violations = run_check("type Foo = object & any;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_any_in_conditional_type() {
+    fn reports_any_in_conditional_type() -> Result<()> {
         let violations = run_check("type Foo<T> = T extends any ? T : never;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 }

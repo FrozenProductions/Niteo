@@ -209,6 +209,8 @@ impl<'a, 'f> EntryFileVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{EntryFileNoLogicRuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -243,159 +245,180 @@ mod tests {
     }
 
     #[test]
-    fn skips_non_entry_files() {
+    fn skips_non_entry_files() -> Result<()> {
         let source = "function helper() { return 42; }\n";
         let violations = run_check("utils.ts", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_imports_in_entry_file() {
+    fn allows_imports_in_entry_file() -> Result<()> {
         let source = "import { App } from './App';\nimport React from 'react';\n";
         let violations = run_check("main.tsx", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_expression_statements_in_entry_file() {
+    fn allows_expression_statements_in_entry_file() -> Result<()> {
         let source = "import { createRoot } from 'react-dom/client';\ncreateRoot(document.getElementById('root')!).render(null);\n";
         let violations = run_check("main.tsx", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_named_exports_in_entry_file() {
+    fn allows_named_exports_in_entry_file() -> Result<()> {
         let source = "export { App } from './App';\nexport type { Props } from './types';\n";
         let violations = run_check("main.ts", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_export_all_in_entry_file() {
+    fn allows_export_all_in_entry_file() -> Result<()> {
         let source = "export * from './module';\n";
         let violations = run_check("main.ts", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_default_export_function_in_entry_file() {
+    fn allows_default_export_function_in_entry_file() -> Result<()> {
         let source = "export default function App() { return null; }\n";
         let violations = run_check("app.tsx", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_type_declarations_in_entry_file() {
+    fn allows_type_declarations_in_entry_file() -> Result<()> {
         let source =
             "type Config = { port: number };\ninterface Props { children: React.ReactNode }\n";
         let violations = run_check("main.ts", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_simple_const_in_entry_file() {
+    fn allows_simple_const_in_entry_file() -> Result<()> {
         let source = "const port = 3000;\nconst name = 'app';\n";
         let violations = run_check("main.ts", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_function_declaration_in_main() {
+    fn reports_function_declaration_in_main() -> Result<()> {
         let source = "function bootstrap() { console.log('starting'); }\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject, Some("bootstrap".to_string()));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_function_declaration_in_app() {
+    fn reports_function_declaration_in_app() -> Result<()> {
         let source = "function setup() { return {}; }\n";
         let violations = run_check("app.tsx", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_function_declaration_in_layout() {
+    fn reports_function_declaration_in_layout() -> Result<()> {
         let source = "function computeLayout() { return {}; }\n";
         let violations = run_check("layout.tsx", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_function_declaration_in_page() {
+    fn reports_function_declaration_in_page() -> Result<()> {
         let source = "function fetchData() { return []; }\n";
         let violations = run_check("page.tsx", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_class_declaration() {
+    fn reports_class_declaration() -> Result<()> {
         let source = "class AppService { run() {} }\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject, Some("AppService".to_string()));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_arrow_function_variable() {
+    fn reports_arrow_function_variable() -> Result<()> {
         let source = "const bootstrap = () => { console.log('starting'); };\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject, Some("bootstrap".to_string()));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_function_expression_variable() {
+    fn reports_function_expression_variable() -> Result<()> {
         let source = "const init = function() { return true; };\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject, Some("init".to_string()));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_if_statement() {
+    fn reports_if_statement() -> Result<()> {
         let source = "if (true) { console.log('yes'); }\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_for_loop() {
+    fn reports_for_loop() -> Result<()> {
         let source = "for (let i = 0; i < 10; i++) {}\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_while_loop() {
+    fn reports_while_loop() -> Result<()> {
         let source = "while (true) { break; }\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_switch_statement() {
+    fn reports_switch_statement() -> Result<()> {
         let source = "switch (x) { case 1: break; }\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_try_catch() {
+    fn reports_try_catch() -> Result<()> {
         let source = "try { doSomething(); } catch (e) { console.error(e); }\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_violations() {
+    fn reports_multiple_violations() -> Result<()> {
         let source = "function a() {}\nfunction b() {}\nclass C {}\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 3);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn custom_entry_files_config() {
+    fn custom_entry_files_config() -> Result<()> {
         let config = EntryFileNoLogicRuleConfig {
             severity: Severity::Warn,
             entry_files: vec!["bootstrap".to_string()],
@@ -403,10 +426,11 @@ mod tests {
         let source = "function init() { return true; }\n";
         let violations = run_check_with_config("bootstrap.ts", source, &config);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn custom_entry_files_non_match() {
+    fn custom_entry_files_non_match() -> Result<()> {
         let config = EntryFileNoLogicRuleConfig {
             severity: Severity::Warn,
             entry_files: vec!["bootstrap".to_string()],
@@ -414,17 +438,19 @@ mod tests {
         let source = "function init() { return true; }\n";
         let violations = run_check_with_config("server.ts", source, &config);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_const_with_function_call() {
+    fn allows_const_with_function_call() -> Result<()> {
         let source = "const app = createApp();\nconst root = document.getElementById('root');\n";
         let violations = run_check("main.ts", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn typical_main_ts_is_clean() {
+    fn typical_main_ts_is_clean() -> Result<()> {
         let source = r#"import { createRoot } from 'react-dom/client';
 import { App } from './App';
 
@@ -433,10 +459,11 @@ root.render(<App />);
 "#;
         let violations = run_check("main.tsx", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn typical_app_tsx_is_clean() {
+    fn typical_app_tsx_is_clean() -> Result<()> {
         let source = r#"import { Layout } from './Layout';
 import { RouterProvider } from 'react-router-dom';
 
@@ -446,33 +473,38 @@ export default function App() {
 "#;
         let violations = run_check("app.tsx", source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_default_export_class() {
+    fn reports_default_export_class() -> Result<()> {
         let source = "export default class App { run() {} }\n";
         let violations = run_check("app.tsx", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_for_in_loop() {
+    fn reports_for_in_loop() -> Result<()> {
         let source = "for (const key in obj) {}\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_for_of_loop() {
+    fn reports_for_of_loop() -> Result<()> {
         let source = "for (const item of items) {}\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_do_while_loop() {
+    fn reports_do_while_loop() -> Result<()> {
         let source = "do { } while (false);\n";
         let violations = run_check("main.ts", source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 }

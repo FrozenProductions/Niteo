@@ -104,6 +104,8 @@ impl<'a, 'f> Visit<'a> for NestedFunctionVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{NoNestedFunctionsRuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -133,53 +135,59 @@ mod tests {
     }
 
     #[test]
-    fn allows_top_level_function() {
+    fn allows_top_level_function() -> Result<()> {
         let source = "function foo() {}\n";
         let violations = run_check(source, 1);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_one_level_of_nesting_with_max_depth_2() {
+    fn allows_one_level_of_nesting_with_max_depth_2() -> Result<()> {
         let source = "function outer() { function inner() {} }\n";
         let violations = run_check(source, 2);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_two_levels_of_nesting_with_max_depth_2() {
+    fn reports_two_levels_of_nesting_with_max_depth_2() -> Result<()> {
         let source =
             "function outer() { function middle() { function inner() {} } }\n";
         let violations = run_check(source, 2);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("inner"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_arrow_functions_as_nesting() {
+    fn reports_arrow_functions_as_nesting() -> Result<()> {
         let source =
             "function outer() { const inner = () => { const deep = () => {} }; }\n";
         let violations = run_check(source, 2);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_nested_arrows_in_arrow() {
+    fn reports_nested_arrows_in_arrow() -> Result<()> {
         let source = "const a = () => { const b = () => { const c = () => {} }; };\n";
         let violations = run_check(source, 2);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_flat_callbacks() {
+    fn allows_flat_callbacks() -> Result<()> {
         let source =
             "function outer() { [1, 2].map(x => x + 1); }\n";
         let violations = run_check(source, 2);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_violations() {
+    fn reports_multiple_violations() -> Result<()> {
         let source = r#"function a() {
   function b() {
     function c() {}
@@ -189,10 +197,11 @@ mod tests {
 "#;
         let violations = run_check(source, 2);
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn depth_resets_after_function_ends() {
+    fn depth_resets_after_function_ends() -> Result<()> {
         let source = r#"function first() {
   function nested() {}
 }
@@ -202,22 +211,25 @@ function second() {
 "#;
         let violations = run_check(source, 2);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn max_depth_1_reports_any_nesting() {
+    fn max_depth_1_reports_any_nesting() -> Result<()> {
         let source = "function outer() { function inner() {} }\n";
         let violations = run_check(source, 1);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("inner"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn mixed_function_and_arrow_nesting() {
+    fn mixed_function_and_arrow_nesting() -> Result<()> {
         let source =
             "function outer() { const mid = () => { function deep() {} } }\n";
         let violations = run_check(source, 2);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("deep"));
-    }
+    
+        Ok(())}
 }

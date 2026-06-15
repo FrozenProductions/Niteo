@@ -54,6 +54,8 @@ impl<'a, 'f> Visit<'a> for NonNullAssertionVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -82,66 +84,76 @@ mod tests {
     }
 
     #[test]
-    fn reports_non_null_assertion() {
+    fn reports_non_null_assertion() -> Result<()> {
         let violations = run_check("const value = obj!.prop;\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_non_null_assertion_on_function_call() {
+    fn reports_non_null_assertion_on_function_call() -> Result<()> {
         let violations = run_check("const result = getValue()!;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_non_null_assertion_on_array_access() {
+    fn reports_non_null_assertion_on_array_access() -> Result<()> {
         let violations = run_check("const item = array[0]!;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_non_null_assertions() {
+    fn reports_multiple_non_null_assertions() -> Result<()> {
         let violations = run_check("const a = x!; const b = y!;\n");
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_optional_chaining() {
+    fn allows_optional_chaining() -> Result<()> {
         let violations = run_check("const value = obj?.prop;\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_nullish_coalescing() {
+    fn allows_nullish_coalescing() -> Result<()> {
         let violations = run_check("const value = obj ?? 'default';\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_type_guard() {
+    fn allows_type_guard() -> Result<()> {
         let violations = run_check("if (obj) { const value = obj.prop; }\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_null_in_comments() {
+    fn ignores_non_null_in_comments() -> Result<()> {
         let source = "// const value = obj!.prop;\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_null_in_strings() {
+    fn ignores_non_null_in_strings() -> Result<()> {
         let source = r#"const text = "obj!.prop";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_nested_non_null_assertion() {
+    fn reports_nested_non_null_assertion() -> Result<()> {
         let violations = run_check("const value = obj!.nested!.prop;\n");
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
 }

@@ -134,9 +134,12 @@ impl Workspace {
                     }
                 }
             } else if glob_parts.len() == 2 && glob_pattern.ends_with("/*") {
-                let base = workspace_root.join(glob_parts[0]);
-                let prefix = format!("{}/", glob_parts[0]);
-                let glob_suffix = &glob_pattern[prefix.len()..];
+                let first_part = glob_parts
+                    .first()
+                    .context("glob pattern is missing base directory")?;
+                let base = workspace_root.join(first_part);
+                let prefix = format!("{}/", first_part);
+                let glob_suffix = glob_pattern.get(prefix.len()..).unwrap_or("");
                 if glob_suffix == "*"
                     && let Ok(entries) = std::fs::read_dir(&base)
                 {
@@ -240,8 +243,8 @@ impl Workspace {
                 entrypoints.push(directory.join(s.trim_start_matches("./")));
             }
             serde_json::Value::Object(obj) => {
-                for v in obj.values() {
-                    Self::collect_export_paths(directory, v, entrypoints);
+                for value in obj.values() {
+                    Self::collect_export_paths(directory, value, entrypoints);
                 }
             }
             _ => {}
@@ -323,7 +326,7 @@ impl WorkspaceGraph {
                 match visited.get(neighbor) {
                     Some(VisitState::InStack) => {
                         if let Some(pos) = stack.iter().position(|s| s == neighbor) {
-                            let cycle = stack[pos..].to_vec();
+                            let cycle = stack.get(pos..).unwrap_or(&[]).to_vec();
                             let mut exists = false;
                             for existing_cycle in &*cycles {
                                 if existing_cycle.len() == cycle.len()
@@ -359,24 +362,26 @@ enum VisitState {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use anyhow::{Context, Result};
     use std::fs;
 
-    fn create_package(dir: &Path, name: &str) {
+    fn create_package(dir: &Path, name: &str) -> Result<()> {
         let package_json = serde_json::json!({
             "name": name,
             "main": "index.js"
         });
         fs::write(
             dir.join("package.json"),
-            serde_json::to_string_pretty(&package_json).unwrap(),
-        )
-        .unwrap();
+            serde_json::to_string_pretty(&package_json)?,
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn discovers_workspaces_from_package_json() {
-        let tmp = tempfile::tempdir().unwrap();
+    fn discovers_workspaces_from_package_json() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
         let root = tmp.path();
 
         let package_json = serde_json::json!({
@@ -385,22 +390,22 @@ mod tests {
         });
         fs::write(
             root.join("package.json"),
-            serde_json::to_string_pretty(&package_json).unwrap(),
-        )
-        .unwrap();
+            serde_json::to_string_pretty(&package_json)?,
+        )?;
 
-        fs::create_dir_all(root.join("packages/ui")).unwrap();
-        fs::create_dir_all(root.join("packages/shared")).unwrap();
-        create_package(&root.join("packages/ui"), "ui");
-        create_package(&root.join("packages/shared"), "shared");
+        fs::create_dir_all(root.join("packages/ui"))?;
+        fs::create_dir_all(root.join("packages/shared"))?;
+        create_package(&root.join("packages/ui"), "ui")?;
+        create_package(&root.join("packages/shared"), "shared")?;
 
-        let workspace = Workspace::discover(root).unwrap();
+        let workspace = Workspace::discover(root)?;
         assert_eq!(workspace.packages.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn discovers_workspaces_from_package_json_object() {
-        let tmp = tempfile::tempdir().unwrap();
+    fn discovers_workspaces_from_package_json_object() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
         let root = tmp.path();
 
         let package_json = serde_json::json!({
@@ -411,52 +416,53 @@ mod tests {
         });
         fs::write(
             root.join("package.json"),
-            serde_json::to_string_pretty(&package_json).unwrap(),
-        )
-        .unwrap();
+            serde_json::to_string_pretty(&package_json)?,
+        )?;
 
-        fs::create_dir_all(root.join("packages/a")).unwrap();
-        fs::create_dir_all(root.join("apps/b")).unwrap();
-        create_package(&root.join("packages/a"), "a");
-        create_package(&root.join("apps/b"), "b");
+        fs::create_dir_all(root.join("packages/a"))?;
+        fs::create_dir_all(root.join("apps/b"))?;
+        create_package(&root.join("packages/a"), "a")?;
+        create_package(&root.join("apps/b"), "b")?;
 
-        let workspace = Workspace::discover(root).unwrap();
+        let workspace = Workspace::discover(root)?;
         assert_eq!(workspace.packages.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn discovers_workspaces_from_pnpm_workspace() {
-        let tmp = tempfile::tempdir().unwrap();
+    fn discovers_workspaces_from_pnpm_workspace() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
         let root = tmp.path();
 
         fs::write(
             root.join("pnpm-workspace.yaml"),
             "packages:\n  - 'packages/*'\n",
-        )
-        .unwrap();
+        )?;
 
-        fs::create_dir_all(root.join("packages/ui")).unwrap();
-        create_package(&root.join("packages/ui"), "ui");
+        fs::create_dir_all(root.join("packages/ui"))?;
+        create_package(&root.join("packages/ui"), "ui")?;
 
-        let workspace = Workspace::discover(root).unwrap();
+        let workspace = Workspace::discover(root)?;
         assert_eq!(workspace.packages.len(), 1);
         assert_eq!(workspace.packages[0].name, "ui");
+        Ok(())
     }
 
     #[test]
-    fn missing_workspaces_returns_empty() {
-        let tmp = tempfile::tempdir().unwrap();
+    fn missing_workspaces_returns_empty() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
         let root = tmp.path();
 
-        fs::write(root.join("package.json"), r#"{"name":"root"}"#).unwrap();
+        fs::write(root.join("package.json"), r#"{"name":"root"}"#)?;
 
-        let workspace = Workspace::discover(root).unwrap();
+        let workspace = Workspace::discover(root)?;
         assert!(workspace.packages.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn file_inside_package_maps_to_package() {
-        let tmp = tempfile::tempdir().unwrap();
+    fn file_inside_package_maps_to_package() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
         let root = tmp.path();
 
         let package_json = serde_json::json!({
@@ -465,47 +471,47 @@ mod tests {
         });
         fs::write(
             root.join("package.json"),
-            serde_json::to_string_pretty(&package_json).unwrap(),
-        )
-        .unwrap();
+            serde_json::to_string_pretty(&package_json)?,
+        )?;
 
-        fs::create_dir_all(root.join("packages/ui")).unwrap();
-        create_package(&root.join("packages/ui"), "ui");
+        fs::create_dir_all(root.join("packages/ui"))?;
+        create_package(&root.join("packages/ui"), "ui")?;
 
-        let workspace = Workspace::discover(root).unwrap();
+        let workspace = Workspace::discover(root)?;
         let file_path = root.join("packages/ui/src/components/Button.tsx");
         let package = workspace.package_for(&file_path);
 
         assert!(package.is_some());
-        assert_eq!(package.unwrap().name, "ui");
+        assert_eq!(package.context("expected package")?.name, "ui");
+        Ok(())
     }
 
     #[test]
-    fn file_outside_packages_maps_to_none() {
-        let tmp = tempfile::tempdir().unwrap();
+    fn file_outside_packages_maps_to_none() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
         let root = tmp.path();
 
-        fs::create_dir_all(root.join("src")).unwrap();
+        fs::create_dir_all(root.join("src"))?;
         fs::write(
             root.join("package.json"),
             r#"{"name":"root","workspaces":["packages/*"]}"#,
-        )
-        .unwrap();
-        fs::create_dir_all(root.join("packages/ui")).unwrap();
-        create_package(&root.join("packages/ui"), "ui");
+        )?;
+        fs::create_dir_all(root.join("packages/ui"))?;
+        create_package(&root.join("packages/ui"), "ui")?;
 
-        let workspace = Workspace::discover(root).unwrap();
+        let workspace = Workspace::discover(root)?;
         let file_path = root.join("src/main.ts");
         let package = workspace.package_for(&file_path);
 
         assert!(package.is_none());
+        Ok(())
     }
 
     #[test]
-    fn resolves_exports_entrypoints() {
-        let tmp = tempfile::tempdir().unwrap();
+    fn resolves_exports_entrypoints() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
         let dir = tmp.path().join("pkg");
-        fs::create_dir_all(&dir).unwrap();
+        fs::create_dir_all(&dir)?;
 
         let package_json = serde_json::json!({
             "name": "test-pkg",
@@ -516,11 +522,10 @@ mod tests {
         });
         fs::write(
             dir.join("package.json"),
-            serde_json::to_string_pretty(&package_json).unwrap(),
-        )
-        .unwrap();
+            serde_json::to_string_pretty(&package_json)?,
+        )?;
 
-        let package = Workspace::load_package(&dir).unwrap();
+        let package = Workspace::load_package(&dir).context("expected package to load")?;
         assert!(
             package
                 .public_entrypoints
@@ -533,13 +538,14 @@ mod tests {
                 .iter()
                 .any(|p| p.ends_with("internal.ts"))
         );
+        Ok(())
     }
 
     #[test]
-    fn falls_back_to_main_module_fields() {
-        let tmp = tempfile::tempdir().unwrap();
+    fn falls_back_to_main_module_fields() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
         let dir = tmp.path().join("pkg");
-        fs::create_dir_all(&dir).unwrap();
+        fs::create_dir_all(&dir)?;
 
         let package_json = serde_json::json!({
             "name": "test-pkg",
@@ -548,21 +554,21 @@ mod tests {
         });
         fs::write(
             dir.join("package.json"),
-            serde_json::to_string_pretty(&package_json).unwrap(),
-        )
-        .unwrap();
+            serde_json::to_string_pretty(&package_json)?,
+        )?;
 
-        let package = Workspace::load_package(&dir).unwrap();
+        let package = Workspace::load_package(&dir).context("expected package to load")?;
         assert!(
             package
                 .public_entrypoints
                 .iter()
                 .any(|p| p.ends_with("index.js"))
         );
+        Ok(())
     }
 
     #[test]
-    fn workspace_graph_finds_cycles() {
+    fn workspace_graph_finds_cycles() -> Result<()> {
         let graph = WorkspaceGraph {
             package_graph: {
                 let mut map = HashMap::new();
@@ -582,10 +588,11 @@ mod tests {
 
         let cycles = graph.find_cycles();
         assert_eq!(cycles.len(), 1);
+        Ok(())
     }
 
     #[test]
-    fn workspace_graph_allows_acyclic() {
+    fn workspace_graph_allows_acyclic() -> Result<()> {
         let graph = WorkspaceGraph {
             package_graph: {
                 let mut map = HashMap::new();
@@ -606,5 +613,6 @@ mod tests {
 
         let cycles = graph.find_cycles();
         assert!(cycles.is_empty());
+        Ok(())
     }
 }

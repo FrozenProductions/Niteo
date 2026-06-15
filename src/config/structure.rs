@@ -71,20 +71,24 @@ impl Default for ProjectStructureConfig {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use anyhow::Result;
     use std::path::Path;
 
     #[test]
-    fn default_hooks_domain() {
+    fn default_hooks_domain() -> Result<()> {
         let config = ProjectStructureConfig::default();
         assert!(config.hooks.matches_file(Path::new("src/hooks/useAuth.ts")));
         assert!(config.hooks.matches_file(Path::new("useAuth.hook.ts")));
         assert!(config.hooks.matches_file(Path::new("useAuth.hooks.ts")));
         assert!(!config.hooks.matches_file(Path::new("src/utils/format.ts")));
+
+        Ok(())
     }
 
     #[test]
-    fn default_components_domain() {
+    fn default_components_domain() -> Result<()> {
         let config = ProjectStructureConfig::default();
         assert!(
             config
@@ -106,19 +110,23 @@ mod tests {
                 .components
                 .matches_file(Path::new("src/hooks/useAuth.ts"))
         );
+
+        Ok(())
     }
 
     #[test]
-    fn default_types_domain() {
+    fn default_types_domain() -> Result<()> {
         let config = ProjectStructureConfig::default();
         assert!(config.types.matches_file(Path::new("types/Button.ts")));
         assert!(config.types.matches_file(Path::new("Button.type.ts")));
         assert!(config.types.matches_file(Path::new("Button.types.ts")));
         assert!(!config.types.matches_file(Path::new("Button.tsx")));
+
+        Ok(())
     }
 
     #[test]
-    fn default_constants_domain() {
+    fn default_constants_domain() -> Result<()> {
         let config = ProjectStructureConfig::default();
         assert!(
             config
@@ -132,19 +140,23 @@ mod tests {
                 .constants
                 .matches_file(Path::new("src/utils/format.ts"))
         );
+
+        Ok(())
     }
 
     #[test]
-    fn default_tests_domain() {
+    fn default_tests_domain() -> Result<()> {
         let config = ProjectStructureConfig::default();
         assert!(config.tests.matches_file(Path::new("tests/auth.test.ts")));
         assert!(config.tests.matches_file(Path::new("src/auth.test.ts")));
         assert!(config.tests.matches_file(Path::new("src/auth.tests.ts")));
         assert!(!config.tests.matches_file(Path::new("src/auth.ts")));
+
+        Ok(())
     }
 
     #[test]
-    fn custom_domain_config() {
+    fn custom_domain_config() -> Result<()> {
         let domain = DomainConfig {
             folders: vec!["custom-hooks".to_string()],
             file_suffixes: vec![".custom.ts".to_string()],
@@ -152,5 +164,7 @@ mod tests {
         assert!(domain.matches_file(Path::new("custom-hooks/useAuth.ts")));
         assert!(domain.matches_file(Path::new("useAuth.custom.ts")));
         assert!(!domain.matches_file(Path::new("hooks/useAuth.ts")));
+
+        Ok(())
     }
 }

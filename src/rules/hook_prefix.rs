@@ -149,6 +149,8 @@ fn has_valid_prefix(name: &str, prefixes: &[&str]) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::structure::ProjectStructureConfig;
     use crate::config::{HookPrefixRuleConfig, Severity};
@@ -181,93 +183,105 @@ mod tests {
     }
 
     #[test]
-    fn ignores_non_hook_files() {
+    fn ignores_non_hook_files() -> Result<()> {
         let source = "export function authenticate() { return true; }\n";
         let violations = run_check(source, "src/components/Auth.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_use_prefixed_function_in_hooks_folder() {
+    fn allows_use_prefixed_function_in_hooks_folder() -> Result<()> {
         let source = "export function useAuth() { return { user: null }; }\n";
         let violations = run_check(source, "src/hooks/useAuth.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_use_prefixed_arrow_in_hooks_folder() {
+    fn allows_use_prefixed_arrow_in_hooks_folder() -> Result<()> {
         let source = "export const useCounter = () => { return { count: 0 }; };\n";
         let violations = run_check(source, "src/hooks/useCounter.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_unprefixed_function_in_hooks_folder() {
+    fn reports_unprefixed_function_in_hooks_folder() -> Result<()> {
         let source = "export function authenticate() { return true; }\n";
         let violations = run_check(source, "src/hooks/auth.ts");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_unprefixed_arrow_in_hooks_folder() {
+    fn reports_unprefixed_arrow_in_hooks_folder() -> Result<()> {
         let source = "export const getData = () => { return {}; };\n";
         let violations = run_check(source, "src/hooks/getData.ts");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("getData"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_function_const_in_hooks_folder() {
+    fn ignores_non_function_const_in_hooks_folder() -> Result<()> {
         let source = "const value = 42;\nconst name = 'Niteo';\n";
         let violations = run_check(source, "src/hooks/constants.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_var_declarations() {
+    fn ignores_var_declarations() -> Result<()> {
         let source = "var authenticate = function() { return true; };\n";
         let violations = run_check(source, "src/hooks/auth.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_prefixed_let_in_hooks_folder() {
+    fn allows_prefixed_let_in_hooks_folder() -> Result<()> {
         let source = "let useCounter = () => { return { count: 0 }; };\n";
         let violations = run_check(source, "src/hooks/useCounter.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_unprefixed_let_function_in_hooks_folder() {
+    fn reports_unprefixed_let_function_in_hooks_folder() -> Result<()> {
         let source = "let counter = () => { return { count: 0 }; };\n";
         let violations = run_check(source, "src/hooks/counter.ts");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_prefixed_in_dot_hook_file() {
+    fn allows_prefixed_in_dot_hook_file() -> Result<()> {
         let source = "export function useToggle() { return [true, () => {}] as const; }\n";
         let violations = run_check(source, "useToggle.hook.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_unprefixed_in_dot_hook_file() {
+    fn reports_unprefixed_in_dot_hook_file() -> Result<()> {
         let source = "export function toggle() { return [true, () => {}] as const; }\n";
         let violations = run_check(source, "toggle.hook.ts");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_prefixed_in_dot_hooks_file() {
+    fn allows_prefixed_in_dot_hooks_file() -> Result<()> {
         let source = "export function useToggle() { return [true, () => {}] as const; }\n";
         let violations = run_check(source, "useToggle.hooks.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn respects_custom_prefixes() {
+    fn respects_custom_prefixes() -> Result<()> {
         let config = HookPrefixRuleConfig {
             severity: Severity::Warn,
             prefixes: vec!["should".to_string(), "with".to_string()],
@@ -285,10 +299,11 @@ mod tests {
             &hooks,
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn flags_unprefixed_with_custom_prefixes() {
+    fn flags_unprefixed_with_custom_prefixes() -> Result<()> {
         let config = HookPrefixRuleConfig {
             severity: Severity::Warn,
             prefixes: vec!["should".to_string()],
@@ -306,26 +321,30 @@ mod tests {
             &hooks,
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn requires_camel_case_after_prefix() {
+    fn requires_camel_case_after_prefix() -> Result<()> {
         let source = "export function usecounter() { return { count: 0 }; }\n";
         let violations = run_check(source, "src/hooks/useCounter.ts");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_destructured_variables() {
+    fn ignores_destructured_variables() -> Result<()> {
         let source = "const { useAuth } = someImportedModule;\n";
         let violations = run_check(source, "src/hooks/auth.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_arrow_non_function_const() {
+    fn ignores_non_arrow_non_function_const() -> Result<()> {
         let source = "const useAuth = someExistingHook;\n";
         let violations = run_check(source, "src/hooks/auth.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

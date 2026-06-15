@@ -89,11 +89,11 @@ pub fn validate_config_source(source: &str) -> ConfigValidationReport {
     let mut diagnostics = Vec::new();
 
     let value: toml::Value = match toml::from_str(source) {
-        Ok(v) => v,
-        Err(e) => {
+        Ok(value) => value,
+        Err(error) => {
             diagnostics.push(ConfigDiagnostic {
                 severity: ConfigDiagnosticSeverity::Error,
-                message: format!("failed to parse TOML: {e}"),
+                message: format!("failed to parse TOML: {error}"),
                 path: None,
                 rule: None,
             });
@@ -251,62 +251,73 @@ fn damerau_levenshtein(a: &str, b: &str) -> usize {
         return a_len;
     }
 
-    let mut d = vec![vec![0usize; b_len + 1]; a_len + 1];
-    for (i, row) in d.iter_mut().enumerate().take(a_len + 1) {
-        row[0] = i;
+    let mut matrix = vec![vec![0usize; b_len + 1]; a_len + 1];
+    for (a_index, row) in matrix.iter_mut().enumerate().take(a_len + 1) {
+        if let Some(cell) = row.first_mut() {
+            *cell = a_index;
+        }
     }
-    for (j, item) in d[0].iter_mut().enumerate().take(b_len + 1) {
-        *item = j;
+    if let Some(first_row) = matrix.first_mut() {
+        for (b_index, cell) in first_row.iter_mut().enumerate().take(b_len + 1) {
+            *cell = b_index;
+        }
     }
 
-    for i in 1..=a_len {
-        for j in 1..=b_len {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] {
+    for a_index in 1..=a_len {
+        for b_index in 1..=b_len {
+            let cost = if a_chars[a_index - 1] == b_chars[b_index - 1] {
                 0
             } else {
                 1
             };
-            let deletion = d[i - 1][j] + 1;
-            let insertion = d[i][j - 1] + 1;
-            let substitution = d[i - 1][j - 1] + cost;
-            d[i][j] = deletion.min(insertion).min(substitution);
+            let deletion = matrix[a_index - 1][b_index] + 1;
+            let insertion = matrix[a_index][b_index - 1] + 1;
+            let substitution = matrix[a_index - 1][b_index - 1] + cost;
+            matrix[a_index][b_index] = deletion.min(insertion).min(substitution);
 
-            if i > 1
-                && j > 1
-                && a_chars[i - 1] == b_chars[j - 2]
-                && a_chars[i - 2] == b_chars[j - 1]
+            if a_index > 1
+                && b_index > 1
+                && a_chars[a_index - 1] == b_chars[b_index - 2]
+                && a_chars[a_index - 2] == b_chars[b_index - 1]
             {
-                d[i][j] = d[i][j].min(d[i - 2][j - 2] + cost);
+                matrix[a_index][b_index] =
+                    matrix[a_index][b_index].min(matrix[a_index - 2][b_index - 2] + cost);
             }
         }
     }
 
-    d[a_len][b_len]
+    matrix[a_len][b_len]
 }
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use anyhow::Result;
 
     #[test]
-    fn valid_default_config_passes() {
+    fn valid_default_config_passes() -> Result<()> {
         let source = crate::config::defaults::DEFAULT_CONFIG_SOURCE;
         let report = validate_config_source(source);
         assert!(!report.has_errors());
+
+        Ok(())
     }
 
     #[test]
-    fn unknown_rule_name_reports_error() {
+    fn unknown_rule_name_reports_error() -> Result<()> {
         let source = r#"
 [rules.non-existent-rule]
 severity = "warn"
 "#;
         let report = validate_config_source(source);
         assert!(report.has_errors());
+
+        Ok(())
     }
 
     #[test]
-    fn unknown_option_reports_warning() {
+    fn unknown_option_reports_warning() -> Result<()> {
         let source = r#"
 [rules.no-console]
 severity = "warn"
@@ -318,20 +329,24 @@ bogus-option = true
             .iter()
             .any(|d| d.message.contains("unknown option"));
         assert!(has_option_warning);
+
+        Ok(())
     }
 
     #[test]
-    fn unknown_severity_reports_error() {
+    fn unknown_severity_reports_error() -> Result<()> {
         let source = r#"
 [rules.no-console]
 severity = "warning"
 "#;
         let report = validate_config_source(source);
         assert!(report.has_errors());
+
+        Ok(())
     }
 
     #[test]
-    fn conflicting_rules_report_warning() {
+    fn conflicting_rules_report_warning() -> Result<()> {
         let source = r#"
 [rules.directory-must-have-barrel]
 severity = "warn"
@@ -345,10 +360,12 @@ severity = "warn"
             .iter()
             .any(|d| d.message.contains("conflicts with"));
         assert!(has_conflict);
+
+        Ok(())
     }
 
     #[test]
-    fn disabled_conflicting_rule_does_not_report() {
+    fn disabled_conflicting_rule_does_not_report() -> Result<()> {
         let source = r#"
 [rules.directory-must-have-barrel]
 severity = "off"
@@ -362,20 +379,24 @@ severity = "warn"
             .iter()
             .any(|d| d.message.contains("conflicts with"));
         assert!(!has_conflict);
+
+        Ok(())
     }
 
     #[test]
-    fn shorthand_severity_validation() {
+    fn shorthand_severity_validation() -> Result<()> {
         let source = r#"
 [rules.no-console]
 severity = "warn"
 "#;
         let report = validate_config_source(source);
         assert!(!report.has_errors());
+
+        Ok(())
     }
 
     #[test]
-    fn unknown_severity_via_shorthand() {
+    fn unknown_severity_via_shorthand() -> Result<()> {
         let source = r#"
 [rules]
 no-console = "warnign"
@@ -386,5 +407,7 @@ no-console = "warnign"
             .iter()
             .any(|d| d.message.contains("unknown severity") && d.message.contains("warnign"));
         assert!(has_severity_error);
+
+        Ok(())
     }
 }

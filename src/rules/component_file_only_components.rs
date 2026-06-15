@@ -187,6 +187,8 @@ fn is_default_export_component(decl: &ExportDefaultDeclaration) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::structure::ProjectStructureConfig;
     use crate::config::{RuleConfig, Severity};
@@ -218,189 +220,215 @@ mod tests {
     }
 
     #[test]
-    fn allows_pascal_case_function_in_components_folder() {
+    fn allows_pascal_case_function_in_components_folder() -> Result<()> {
         let source = "export function Button() { return null; }\n";
         let violations = run_check(source, "src/components/Button.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_pascal_case_arrow_in_components_folder() {
+    fn allows_pascal_case_arrow_in_components_folder() -> Result<()> {
         let source = "export const Modal = () => { return null; };\n";
         let violations = run_check(source, "src/components/Modal.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_pascal_case_class_in_components_folder() {
+    fn allows_pascal_case_class_in_components_folder() -> Result<()> {
         let source = "export class Card extends Component {}\n";
         let violations = run_check(source, "src/components/Card.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_camel_case_function_in_components_folder() {
+    fn reports_camel_case_function_in_components_folder() -> Result<()> {
         let source = "export function formatDate() { return ''; }\n";
         let violations = run_check(source, "src/components/formatDate.tsx");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("formatDate"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_camel_case_arrow_in_components_folder() {
+    fn reports_camel_case_arrow_in_components_folder() -> Result<()> {
         let source = "export const getData = () => { return {}; };\n";
         let violations = run_check(source, "src/components/getData.tsx");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("getData"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_type_alias_in_components_folder() {
+    fn reports_type_alias_in_components_folder() -> Result<()> {
         let source = "export type User = { id: string; };\n";
         let violations = run_check(source, "src/components/User.tsx");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("User"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_interface_in_components_folder() {
+    fn reports_interface_in_components_folder() -> Result<()> {
         let source = "export interface Props { name: string; }\n";
         let violations = run_check(source, "src/components/Props.tsx");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("Props"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_enum_in_components_folder() {
+    fn reports_enum_in_components_folder() -> Result<()> {
         let source = "export enum Size { Small, Large }\n";
         let violations = run_check(source, "src/components/Size.tsx");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_namespace_in_components_folder() {
+    fn reports_namespace_in_components_folder() -> Result<()> {
         let source = "export namespace Utils { export function go() {} }\n";
         let violations = run_check(source, "src/components/Utils.tsx");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_default_export_interface_in_components_folder() {
+    fn reports_default_export_interface_in_components_folder() -> Result<()> {
         let source = "export default interface Config { url: string; }\n";
         let violations = run_check(source, "src/components/Config.tsx");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_default_export_pascal_case_function() {
+    fn allows_default_export_pascal_case_function() -> Result<()> {
         let source = "export default function App() { return null; }\n";
         let violations = run_check(source, "src/components/App.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_default_export_expression() {
+    fn allows_default_export_expression() -> Result<()> {
         let source = "export default memo(() => { return null; });\n";
         let violations = run_check(source, "src/components/App.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_export_specifier_with_camel_case_name() {
+    fn reports_export_specifier_with_camel_case_name() -> Result<()> {
         let source = "const helper = () => {};\nexport { helper };\n";
         let violations = run_check(source, "src/components/Button.tsx");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_export_specifier_with_pascal_case_name() {
+    fn allows_export_specifier_with_pascal_case_name() -> Result<()> {
         let source = "const Icon = () => null;\nexport { Icon };\n";
         let violations = run_check(source, "src/components/Button.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_component_files() {
+    fn ignores_non_component_files() -> Result<()> {
         let source = "export function formatDate() { return ''; }\n";
         let violations = run_check(source, "src/utils/format.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_in_dot_component_file() {
+    fn allows_in_dot_component_file() -> Result<()> {
         let source = "export function Button() { return null; }\n";
         let violations = run_check(source, "Button.component.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_in_dot_component_file() {
+    fn reports_in_dot_component_file() -> Result<()> {
         let source = "export function helper() { return null; }\n";
         let violations = run_check(source, "Button.component.tsx");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_destructured_exports() {
+    fn ignores_destructured_exports() -> Result<()> {
         let source = "export const { format } = someModule;\n";
         let violations = run_check(source, "src/components/Button.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_screaming_snake_case_constants() {
+    fn allows_screaming_snake_case_constants() -> Result<()> {
         let source = "export const API_URL = 'https://example.com';\n";
         let violations = run_check(source, "src/components/Button.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_camel_case_non_function_variable() {
+    fn reports_camel_case_non_function_variable() -> Result<()> {
         let source = "export const pageSize = 10;\n";
         let violations = run_check(source, "src/components/Button.tsx");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_type_file_in_components_folder() {
+    fn ignores_type_file_in_components_folder() -> Result<()> {
         let source = "export type Account = { id: string; };\n";
         let violations = run_check(source, "src/components/account.type.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_types_file_in_components_folder() {
+    fn ignores_types_file_in_components_folder() -> Result<()> {
         let source =
             "export type Account = { id: string; };\nexport type User = { name: string; };\n";
         let violations = run_check(source, "src/components/account.types.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_constant_file_in_components_folder() {
+    fn ignores_constant_file_in_components_folder() -> Result<()> {
         let source = "export const SIZES = { small: 10, large: 20 };\n";
         let violations = run_check(source, "src/components/sizes.constant.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_constants_file_in_components_folder() {
+    fn ignores_constants_file_in_components_folder() -> Result<()> {
         let source = "export const SIZES = { small: 10, large: 20 };\n";
         let violations = run_check(source, "src/components/sizes.constants.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_hook_file_in_components_folder() {
+    fn ignores_hook_file_in_components_folder() -> Result<()> {
         let source = "export function useButton() { return { ref: null }; }\n";
         let violations = run_check(source, "src/components/useButton.hook.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_ts_files_in_components_folder() {
+    fn ignores_ts_files_in_components_folder() -> Result<()> {
         let source = "export const helper = () => {};\nexport type Props = { id: string };\n";
         let violations = run_check(source, "src/components/utils.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

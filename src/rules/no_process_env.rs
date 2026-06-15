@@ -87,6 +87,8 @@ fn matches_process_env(expr: &StaticMemberExpression<'_>) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -109,60 +111,68 @@ mod tests {
     }
 
     #[test]
-    fn reports_direct_process_env_access() {
+    fn reports_direct_process_env_access() -> Result<()> {
         let violations = run_check("const env = process.env;\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(13));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_process_env_property_access() {
+    fn reports_process_env_property_access() -> Result<()> {
         let violations = run_check("const key = process.env.API_KEY;\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(13));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_process_env_computed_access() {
+    fn reports_process_env_computed_access() -> Result<()> {
         let violations = run_check(r#"const key = process.env["API_KEY"];\n"#);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_process_env_in_conditional() {
+    fn reports_process_env_in_conditional() -> Result<()> {
         let violations = run_check("if (process.env.NODE_ENV === 'production') {}\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_process_without_env() {
+    fn ignores_process_without_env() -> Result<()> {
         let source = "const pid = process.pid;\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_env_not_on_process() {
+    fn ignores_env_not_on_process() -> Result<()> {
         let source = "const env = app.env;\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_process_env_in_comments() {
+    fn ignores_process_env_in_comments() -> Result<()> {
         let source = "// const key = process.env.API_KEY;\n/* process.env.NODE_ENV */\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_process_env_in_strings() {
+    fn ignores_process_env_in_strings() -> Result<()> {
         let source = r#"const text = "process.env.API_KEY";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

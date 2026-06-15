@@ -18,9 +18,11 @@ pub use store::{
 };
 #[cfg(test)]
 mod tests {
+
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
 
+    use anyhow::{Context, Result};
     use oxc_span::Span;
 
     use crate::cache::edges::import_edge_to_cached;
@@ -30,28 +32,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hash_content_is_stable() {
+    fn hash_content_is_stable() -> Result<()> {
         let a = hash_content(b"hello");
         let b = hash_content(b"hello");
         assert_eq!(a, b);
+        Ok(())
     }
 
     #[test]
-    fn hash_content_changes_with_input() {
+    fn hash_content_changes_with_input() -> Result<()> {
         let a = hash_content(b"hello");
         let b = hash_content(b"world");
         assert_ne!(a, b);
+        Ok(())
     }
 
     #[test]
-    fn hash_file_list_is_sorted() {
+    fn hash_file_list_is_sorted() -> Result<()> {
         let a = hash_file_list(&[PathBuf::from("b"), PathBuf::from("a")]);
         let b = hash_file_list(&[PathBuf::from("a"), PathBuf::from("b")]);
         assert_eq!(a, b);
+        Ok(())
     }
 
     #[test]
-    fn cache_valid_matches_all_fields() {
+    fn cache_valid_matches_all_fields() -> Result<()> {
         let cache = CacheFile {
             version: CACHE_SCHEMA_VERSION,
             niteo_version: "0.2.0".to_string(),
@@ -66,10 +71,11 @@ mod tests {
         assert!(!is_cache_valid(&cache, "0.2.0", "abc", Some("xyz"), "ghi"));
         assert!(!is_cache_valid(&cache, "0.2.0", "abc", None, "ghi"));
         assert!(!is_cache_valid(&cache, "0.2.0", "abc", Some("def"), "xyz"));
+        Ok(())
     }
 
     #[test]
-    fn cache_version_mismatch_invalidates() {
+    fn cache_version_mismatch_invalidates() -> Result<()> {
         let cache = CacheFile {
             version: 999,
             niteo_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -85,28 +91,31 @@ mod tests {
             None,
             "ghi"
         ));
+        Ok(())
     }
 
     #[test]
-    fn read_missing_cache_returns_none() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let result = read_cache(temp_dir.path()).unwrap();
+    fn read_missing_cache_returns_none() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let result = read_cache(temp_dir.path())?;
         assert!(result.is_none());
+        Ok(())
     }
 
     #[test]
-    fn read_corrupted_cache_returns_error() {
-        let temp_dir = tempfile::tempdir().unwrap();
+    fn read_corrupted_cache_returns_error() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
         let path = temp_dir.path().join(".niteo").join("cache.json");
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(&path, "not valid json").unwrap();
+        std::fs::create_dir_all(path.parent().context("expected parent directory")?)?;
+        std::fs::write(&path, "not valid json")?;
         let result = read_cache(temp_dir.path());
         assert!(result.is_err());
+        Ok(())
     }
 
     #[test]
-    fn write_and_read_cache_roundtrip() {
-        let temp_dir = tempfile::tempdir().unwrap();
+    fn write_and_read_cache_roundtrip() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
         let mut files = HashMap::new();
         files.insert(
             "src/a.ts".to_string(),
@@ -132,19 +141,23 @@ mod tests {
             file_list_hash: "fl".to_string(),
             files,
         };
-        write_cache(temp_dir.path(), &cache).unwrap();
-        let read = read_cache(temp_dir.path()).unwrap().unwrap();
+        write_cache(temp_dir.path(), &cache)?;
+        let read = read_cache(temp_dir.path())?.context("missing cache")?;
         assert_eq!(read.version, CACHE_SCHEMA_VERSION);
         assert_eq!(read.niteo_version, "0.2.0");
-        let entry = read.files.get("src/a.ts").unwrap();
+        let entry = read
+            .files
+            .get("src/a.ts")
+            .context("missing a.ts cache entry")?;
         assert_eq!(entry.content_hash, "abc");
         assert_eq!(entry.import_edges.len(), 1);
         assert_eq!(entry.import_edges[0].specifier, "./b");
+        Ok(())
     }
 
     #[test]
-    fn clear_cache_removes_file() {
-        let temp_dir = tempfile::tempdir().unwrap();
+    fn clear_cache_removes_file() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
         let cache = CacheFile {
             version: CACHE_SCHEMA_VERSION,
             niteo_version: "0.2.0".to_string(),
@@ -153,28 +166,30 @@ mod tests {
             file_list_hash: "fl".to_string(),
             files: HashMap::new(),
         };
-        write_cache(temp_dir.path(), &cache).unwrap();
+        write_cache(temp_dir.path(), &cache)?;
         assert!(cache_path(temp_dir.path()).exists());
-        clear_cache(temp_dir.path()).unwrap();
+        clear_cache(temp_dir.path())?;
         assert!(!cache_path(temp_dir.path()).exists());
+        Ok(())
     }
 
     #[test]
-    fn clear_cache_missing_is_noop() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        clear_cache(temp_dir.path()).unwrap();
+    fn clear_cache_missing_is_noop() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        clear_cache(temp_dir.path())?;
         assert!(!cache_path(temp_dir.path()).exists());
+        Ok(())
     }
 
     #[test]
-    fn prepare_cache_miss_when_file_hash_changes() {
-        let temp_dir = tempfile::tempdir().unwrap();
+    fn prepare_cache_miss_when_file_hash_changes() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
         let project_root = temp_dir.path();
         let file = project_root.join("a.ts");
-        std::fs::write(&file, "original").unwrap();
+        std::fs::write(&file, "original")?;
 
         let config_path = project_root.join("niteo.toml");
-        std::fs::write(&config_path, "test config").unwrap();
+        std::fs::write(&config_path, "test config")?;
         let config_hash = hash_config_files(&[config_path.clone()]);
 
         let mut files_map = HashMap::new();
@@ -195,25 +210,25 @@ mod tests {
             file_list_hash: hash_file_list(&[file.clone()]),
             files: files_map,
         };
-        write_cache(project_root, &cache).unwrap();
+        write_cache(project_root, &cache)?;
 
-        std::fs::write(&file, "changed").unwrap();
+        std::fs::write(&file, "changed")?;
 
-        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)
-            .unwrap()
-            .unwrap();
+        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)?
+            .context("missing cache")?;
         assert!(state.cached_edges.get(&file).is_none());
+        Ok(())
     }
 
     #[test]
-    fn prepare_cache_hit_when_unchanged() {
-        let temp_dir = tempfile::tempdir().unwrap();
+    fn prepare_cache_hit_when_unchanged() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
         let project_root = temp_dir.path();
         let file = project_root.join("a.ts");
-        std::fs::write(&file, "original").unwrap();
+        std::fs::write(&file, "original")?;
 
         let config_path = project_root.join("niteo.toml");
-        std::fs::write(&config_path, "test config").unwrap();
+        std::fs::write(&config_path, "test config")?;
         let config_hash = hash_config_files(&[config_path.clone()]);
 
         let mut files_map = HashMap::new();
@@ -241,27 +256,30 @@ mod tests {
             file_list_hash: hash_file_list(&[file.clone()]),
             files: files_map,
         };
-        write_cache(project_root, &cache).unwrap();
+        write_cache(project_root, &cache)?;
 
-        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)
-            .unwrap()
-            .unwrap();
-        let edges = state.cached_edges.get(&file).unwrap();
+        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)?
+            .context("missing cache")?;
+        let edges = state
+            .cached_edges
+            .get(&file)
+            .context("missing cached edges for file")?;
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].specifier, "./b");
         assert_eq!(edges[0].resolved_target, Some(project_root.join("b.ts")));
         assert_eq!(edges[0].span, Span::new(0, 5));
+        Ok(())
     }
 
     #[test]
-    fn prepare_cache_invalidates_when_niteo_version_changes() {
-        let temp_dir = tempfile::tempdir().unwrap();
+    fn prepare_cache_invalidates_when_niteo_version_changes() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
         let project_root = temp_dir.path();
         let file = project_root.join("a.ts");
-        std::fs::write(&file, "content").unwrap();
+        std::fs::write(&file, "content")?;
 
         let config_path = project_root.join("niteo.toml");
-        std::fs::write(&config_path, "test config").unwrap();
+        std::fs::write(&config_path, "test config")?;
         let config_hash = hash_config_files(&[config_path.clone()]);
 
         let mut files_map = HashMap::new();
@@ -282,20 +300,20 @@ mod tests {
             file_list_hash: hash_file_list(&[file.clone()]),
             files: files_map,
         };
-        write_cache(project_root, &cache).unwrap();
+        write_cache(project_root, &cache)?;
 
-        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)
-            .unwrap()
-            .unwrap();
+        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)?
+            .context("missing cache")?;
         assert!(state.cached_edges.get(&file).is_none());
+        Ok(())
     }
 
     #[test]
-    fn prepare_cache_invalidates_when_config_hash_changes() {
-        let temp_dir = tempfile::tempdir().unwrap();
+    fn prepare_cache_invalidates_when_config_hash_changes() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
         let project_root = temp_dir.path();
         let file = project_root.join("a.ts");
-        std::fs::write(&file, "content").unwrap();
+        std::fs::write(&file, "content")?;
 
         let mut files_map = HashMap::new();
         files_map.insert(
@@ -315,26 +333,26 @@ mod tests {
             file_list_hash: hash_file_list(&[file.clone()]),
             files: files_map,
         };
-        write_cache(project_root, &cache).unwrap();
+        write_cache(project_root, &cache)?;
 
         let config_path = project_root.join("niteo.toml");
-        std::fs::write(&config_path, "new config").unwrap();
+        std::fs::write(&config_path, "new config")?;
 
-        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)
-            .unwrap()
-            .unwrap();
+        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)?
+            .context("missing cache")?;
         assert!(state.cached_edges.get(&file).is_none());
+        Ok(())
     }
 
     #[test]
-    fn prepare_cache_invalidates_when_file_list_changes() {
-        let temp_dir = tempfile::tempdir().unwrap();
+    fn prepare_cache_invalidates_when_file_list_changes() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
         let project_root = temp_dir.path();
         let file_a = project_root.join("a.ts");
-        std::fs::write(&file_a, "content").unwrap();
+        std::fs::write(&file_a, "content")?;
 
         let config_path = project_root.join("niteo.toml");
-        std::fs::write(&config_path, "test config").unwrap();
+        std::fs::write(&config_path, "test config")?;
         let config_hash = hash_config_files(&[config_path.clone()]);
 
         let mut files_map = HashMap::new();
@@ -355,49 +373,49 @@ mod tests {
             file_list_hash: hash_file_list(&[file_a.clone()]),
             files: files_map,
         };
-        write_cache(project_root, &cache).unwrap();
+        write_cache(project_root, &cache)?;
 
         let file_b = project_root.join("b.ts");
-        std::fs::write(&file_b, "other").unwrap();
+        std::fs::write(&file_b, "other")?;
 
         let state = prepare_cache(
             project_root,
             &[file_a.clone(), file_b.clone()],
             &[config_path],
             None,
-        )
-        .unwrap()
-        .unwrap();
+        )?
+        .context("missing cache")?;
         assert!(state.cached_edges.get(&file_a).is_none());
+        Ok(())
     }
 
     #[test]
-    fn prepare_cache_returns_none_when_no_cache_exists() {
-        let temp_dir = tempfile::tempdir().unwrap();
+    fn prepare_cache_returns_none_when_no_cache_exists() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
         let project_root = temp_dir.path();
         let file = project_root.join("a.ts");
-        std::fs::write(&file, "content").unwrap();
+        std::fs::write(&file, "content")?;
 
         let state = prepare_cache(
             project_root,
             &[file.clone()],
             &[project_root.join("niteo.toml")],
             None,
-        )
-        .unwrap()
-        .unwrap();
+        )?
+        .context("missing cache")?;
         assert!(state.cache.is_none());
         assert!(state.cached_edges.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn finalize_cache_writes_all_files() {
-        let temp_dir = tempfile::tempdir().unwrap();
+    fn finalize_cache_writes_all_files() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
         let project_root = temp_dir.path();
         let file_a = project_root.join("a.ts");
         let file_b = project_root.join("b.ts");
-        std::fs::write(&file_a, "content a").unwrap();
-        std::fs::write(&file_b, "content b").unwrap();
+        std::fs::write(&file_a, "content a")?;
+        std::fs::write(&file_b, "content b")?;
 
         let mut graph = ImportGraph::new();
         graph.add_file(file_a.clone(), false, false);
@@ -429,41 +447,44 @@ mod tests {
             None,
             &state,
             &graph,
-        )
-        .unwrap();
+        )?;
 
-        let read = read_cache(project_root).unwrap().unwrap();
+        let read = read_cache(project_root)?.context("missing cache")?;
         assert_eq!(read.files.len(), 2);
-        let entry_a = read.files.get("a.ts").unwrap();
+        let entry_a = read.files.get("a.ts").context("missing a.ts cache entry")?;
         assert_eq!(entry_a.import_edges.len(), 1);
         assert_eq!(entry_a.import_edges[0].specifier, "./b");
+        Ok(())
     }
 
     #[test]
-    fn normalize_path_for_cache_strips_prefix() {
+    fn normalize_path_for_cache_strips_prefix() -> Result<()> {
         let root = Path::new("/project");
         let path = Path::new("/project/src/a.ts");
         assert_eq!(normalize_path_for_cache(path, root), "src/a.ts");
+        Ok(())
     }
 
     #[test]
-    fn normalize_path_for_cache_falls_back_to_full() {
+    fn normalize_path_for_cache_falls_back_to_full() -> Result<()> {
         let root = Path::new("/project");
         let path = Path::new("/other/src/a.ts");
         assert_eq!(normalize_path_for_cache(path, root), "/other/src/a.ts");
+        Ok(())
     }
 
     #[test]
-    fn denormalize_path_from_cache_reconstructs() {
+    fn denormalize_path_from_cache_reconstructs() -> Result<()> {
         let root = Path::new("/project");
         assert_eq!(
             denormalize_path_from_cache("src/a.ts", root),
             PathBuf::from("/project/src/a.ts")
         );
+        Ok(())
     }
 
     #[test]
-    fn import_edge_to_cached_roundtrip() {
+    fn import_edge_to_cached_roundtrip() -> Result<()> {
         let project_root = Path::new("/project");
         let edge = ImportEdge {
             source_file: PathBuf::from("/project/src/a.ts"),
@@ -479,10 +500,11 @@ mod tests {
         assert_eq!(cached.kind, "import");
         assert_eq!(cached.span_start, 10);
         assert_eq!(cached.span_end, 20);
+        Ok(())
     }
 
     #[test]
-    fn cached_import_edges_to_import_roundtrip() {
+    fn cached_import_edges_to_import_roundtrip() -> Result<()> {
         let project_root = Path::new("/project");
         let cached = CachedImportEdge {
             specifier: "./b".to_string(),
@@ -502,5 +524,6 @@ mod tests {
         );
         assert_eq!(edges[0].kind, ImportKind::ReExport);
         assert_eq!(edges[0].span, Span::new(5, 15));
+        Ok(())
     }
 }

@@ -57,6 +57,8 @@ impl<'a, 'f> Visit<'a> for ThenChainVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -80,43 +82,49 @@ mod tests {
     }
 
     #[test]
-    fn reports_basic_then_chain() {
+    fn reports_basic_then_chain() -> Result<()> {
         let violations = run_check("fetch('/api').then(res => res.json());\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_chained_then() {
+    fn reports_chained_then() -> Result<()> {
         let violations = run_check(
             "fetch('/api')\n  .then(res => res.json())\n  .then(data => console.log(data));\n",
         );
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_then_with_catch() {
+    fn reports_then_with_catch() -> Result<()> {
         let violations =
             run_check("fetch('/api').then(res => res.json()).catch(err => console.error(err));\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_report_other_member_calls() {
+    fn does_not_report_other_member_calls() -> Result<()> {
         let violations = run_check("[1, 2, 3].map(x => x * 2);\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_then_on_any_object() {
+    fn reports_then_on_any_object() -> Result<()> {
         let violations = run_check("const obj = { then: () => {} }; obj.then();\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_then_inside_callback() {
+    fn reports_then_inside_callback() -> Result<()> {
         let violations =
             run_check("function doWork() { return fetch('/api').then(res => res.json()); }\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 }

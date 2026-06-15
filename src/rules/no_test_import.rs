@@ -56,6 +56,8 @@ pub fn check_file(
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::structure::DomainConfig;
     use crate::config::{RuleConfig, Severity};
@@ -98,93 +100,106 @@ mod tests {
     }
 
     #[test]
-    fn reports_import_from_test_suffix() {
+    fn reports_import_from_test_suffix() -> Result<()> {
         let violations = run_check("import { helper } from './helper.test';", "src/auth.ts");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("./helper.test"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_import_from_tests_suffix() {
+    fn reports_import_from_tests_suffix() -> Result<()> {
         let violations = run_check("import { setup } from './setup.tests';", "src/auth.ts");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_import_from_tests_folder() {
+    fn reports_import_from_tests_folder() -> Result<()> {
         let violations = run_check("import { mock } from '../tests/mock';", "src/sub/auth.ts");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_export_from_test_file() {
+    fn reports_export_from_test_file() -> Result<()> {
         let violations = run_check("export { helper } from './helper.test';", "src/auth.ts");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_export_all_from_test_file() {
+    fn reports_export_all_from_test_file() -> Result<()> {
         let violations = run_check("export * from './helper.tests';", "src/auth.ts");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_dynamic_import_from_test_file() {
+    fn reports_dynamic_import_from_test_file() -> Result<()> {
         let violations = run_check(
             "const helper = await import('./helper.test');",
             "src/auth.ts",
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_import_from_production_file() {
+    fn allows_import_from_production_file() -> Result<()> {
         let violations = run_check("import { auth } from './auth';", "src/service.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_imports_in_test_files() {
+    fn allows_imports_in_test_files() -> Result<()> {
         let violations = run_check(
             "import { helper } from './helper.test';",
             "src/auth.test.ts",
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_imports_in_test_folder() {
+    fn allows_imports_in_test_folder() -> Result<()> {
         let violations = run_check("import { helper } from './helper.test';", "tests/auth.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_package_imports() {
+    fn ignores_package_imports() -> Result<()> {
         let violations = run_check(
             "import { render } from '@testing-library/react';",
             "src/auth.ts",
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_bare_specifier_with_test_name() {
+    fn ignores_bare_specifier_with_test_name() -> Result<()> {
         let violations = run_check("import { test } from 'vitest';", "src/auth.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_correct_line_position() {
+    fn reports_correct_line_position() -> Result<()> {
         let source = "import { a } from './a';\nimport { b } from './b.test';\n";
         let violations = run_check(source, "src/auth.ts");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_export_named_without_source() {
+    fn allows_export_named_without_source() -> Result<()> {
         let violations = run_check("const x = 1; export { x };", "src/auth.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

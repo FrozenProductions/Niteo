@@ -67,8 +67,9 @@ fn is_excluded_type(ts_type: &TSType<'_>, source: &str) -> bool {
     match ts_type {
         TSType::TSAnyKeyword(_) | TSType::TSUnknownKeyword(_) => true,
         TSType::TSTypeReference(type_ref) => {
-            let type_text =
-                &source[type_ref.span.start as usize..type_ref.span.end as usize];
+            let type_text = source
+                .get(type_ref.span.start as usize..type_ref.span.end as usize)
+                .unwrap_or("");
             type_text == "const"
         }
         _ => false,
@@ -89,6 +90,8 @@ fn is_literal_expression(expr: &Expression<'_>) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::check_file;
     use crate::config::{RuleConfig, Severity};
     use crate::rules::Violation;
@@ -107,7 +110,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_literal_as_cast() {
+    fn reports_literal_as_cast() -> Result<()> {
         for source in [
             "const config = { port: 3000 } as Config;\n",
             "const items = [1, 2, 3] as number[];\n",
@@ -118,45 +121,51 @@ mod tests {
             assert_eq!(violations.len(), 1, "expected 1 violation for: {source:?}");
             assert_eq!(violations[0].line, Some(1));
         }
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_as_const() {
+    fn allows_as_const() -> Result<()> {
         let violations = run_check("const config = { port: 3000 } as const;\n");
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_as_any() {
+    fn allows_as_any() -> Result<()> {
         let violations = run_check("const value = something as any;\n");
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_as_unknown() {
+    fn allows_as_unknown() -> Result<()> {
         let violations = run_check("const value = something as unknown as Target;\n");
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_variable_as_cast() {
+    fn allows_variable_as_cast() -> Result<()> {
         let violations = run_check("const value = someVar as Target;\n");
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_function_call_as_cast() {
+    fn allows_function_call_as_cast() -> Result<()> {
         let violations = run_check("const result = getData() as Response;\n");
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_as_in_comments_and_strings() {
+    fn ignores_as_in_comments_and_strings() -> Result<()> {
         let source = r#"// const x = {} as Config;
 const text = "as Config";
 /* const x = {} as Config; */
@@ -164,15 +173,17 @@ const text = "as Config";
         let violations = run_check(source);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_match_as_in_identifier() {
+    fn does_not_match_as_in_identifier() -> Result<()> {
         let source = "const task = 'hello';\n";
         let violations = run_check(source);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

@@ -75,40 +75,52 @@ fn is_typescript_file(path: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use anyhow::Result;
 
     #[test]
-    fn recognizes_ts_files() {
+    fn recognizes_ts_files() -> Result<()> {
         assert!(is_typescript_file("src/index.ts"));
         assert!(is_typescript_file("foo.ts"));
+
+        Ok(())
     }
 
     #[test]
-    fn recognizes_tsx_files() {
+    fn recognizes_tsx_files() -> Result<()> {
         assert!(is_typescript_file("src/Component.tsx"));
         assert!(is_typescript_file("App.tsx"));
+
+        Ok(())
     }
 
     #[test]
-    fn rejects_non_typescript_files() {
+    fn rejects_non_typescript_files() -> Result<()> {
         assert!(!is_typescript_file("src/index.js"));
         assert!(!is_typescript_file("src/index.jsx"));
         assert!(!is_typescript_file("src/style.css"));
         assert!(!is_typescript_file("README.md"));
         assert!(!is_typescript_file("Cargo.toml"));
+
+        Ok(())
     }
 
     #[test]
-    fn rejects_partial_extensions() {
+    fn rejects_partial_extensions() -> Result<()> {
         assert!(!is_typescript_file("src/file.ats"));
         assert!(!is_typescript_file("src/file.atsx"));
         assert!(!is_typescript_file("src/file.d.ts.map"));
+
+        Ok(())
     }
 
     #[test]
-    fn handles_paths_with_directories() {
+    fn handles_paths_with_directories() -> Result<()> {
         assert!(is_typescript_file("a/b/c/deep.ts"));
         assert!(is_typescript_file("a/b/c/deep.tsx"));
         assert!(!is_typescript_file("a/b/c/deep.js"));
+
+        Ok(())
     }
 }

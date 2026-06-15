@@ -53,6 +53,8 @@ impl<'a, 'f> Visit<'a> for TypeAssertionVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -76,65 +78,75 @@ mod tests {
     }
 
     #[test]
-    fn reports_as_cast() {
+    fn reports_as_cast() -> Result<()> {
         let violations = run_check("const value = something as string;\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_as_cast_with_literal() {
+    fn reports_as_cast_with_literal() -> Result<()> {
         let violations = run_check("const config = { port: 3000 } as Config;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_as_const() {
+    fn reports_as_const() -> Result<()> {
         let violations = run_check("const value = { x: 1 } as const;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_type_assertions() {
+    fn reports_multiple_type_assertions() -> Result<()> {
         let violations = run_check("const a = x as string; const b = y as number;\n");
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_nested_type_assertion() {
+    fn reports_nested_type_assertion() -> Result<()> {
         let violations = run_check("const value = (obj as any).prop as string;\n");
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_satisfies() {
+    fn allows_satisfies() -> Result<()> {
         let violations = run_check("const config = { port: 3000 } satisfies Config;\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_type_narrowing() {
+    fn allows_type_narrowing() -> Result<()> {
         let violations = run_check("if (typeof value === 'string') { const s = value; }\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_type_annotations() {
+    fn allows_type_annotations() -> Result<()> {
         let violations = run_check("const value: string = 'test';\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_as_in_comments() {
+    fn ignores_as_in_comments() -> Result<()> {
         let source = "// const value = x as string;\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_as_in_strings() {
+    fn ignores_as_in_strings() -> Result<()> {
         let source = r#"const text = "x as string";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

@@ -52,6 +52,8 @@ impl<'a, 'f> Visit<'a> for EnumVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -69,23 +71,25 @@ mod tests {
     }
 
     #[test]
-    fn reports_enum_declaration() {
+    fn reports_enum_declaration() -> Result<()> {
         let violations = run_check("enum Status { Active, Inactive }\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_const_enum() {
+    fn reports_const_enum() -> Result<()> {
         let violations = run_check("const enum Color { Red, Green, Blue }\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_enums() {
+    fn reports_multiple_enums() -> Result<()> {
         let source = r#"enum A { X }
 enum B { Y }
 "#;
@@ -93,26 +97,29 @@ enum B { Y }
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[1].line, Some(2));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_enum_in_comments_and_strings() {
+    fn ignores_enum_in_comments_and_strings() -> Result<()> {
         let source = r#"// enum Status { Active }
 const text = "enum Status";
 /* enum Color { Red } */
 "#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_match_identifier_fragments() {
+    fn does_not_match_identifier_fragments() -> Result<()> {
         let source = r#"const enumeration = true;
 const value = "before enum after";
 "#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

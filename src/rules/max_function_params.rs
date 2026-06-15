@@ -99,6 +99,8 @@ impl<'a, 'f> Visit<'a> for MaxFunctionParamsVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{MaxFunctionParamsRuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -128,116 +130,130 @@ mod tests {
     }
 
     #[test]
-    fn allows_function_within_limit() {
+    fn allows_function_within_limit() -> Result<()> {
         let violations = run_check("function add(a: number, b: number) { return a + b; }", 3);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_function_exceeding_limit() {
+    fn reports_function_exceeding_limit() -> Result<()> {
         let violations = run_check(
             "function createUser(name: string, age: number, email: string, role: string) {}",
             3,
         );
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("createUser"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_arrow_within_limit() {
+    fn allows_arrow_within_limit() -> Result<()> {
         let violations = run_check("const add = (a: number, b: number) => a + b;", 3);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_arrow_exceeding_limit() {
+    fn reports_arrow_exceeding_limit() -> Result<()> {
         let violations = run_check(
             "const createUser = (name: string, age: number, email: string, role: string) => {};",
             3,
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_method_within_limit() {
+    fn allows_method_within_limit() -> Result<()> {
         let violations = run_check(
             "class User { greet(name: string, greeting: string) { return `${greeting}, ${name}`; } }",
             3,
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_method_exceeding_limit() {
+    fn reports_method_exceeding_limit() -> Result<()> {
         let violations = run_check(
             "class User { create(name: string, age: number, email: string, role: string) {} }",
             3,
         );
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("create"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_function_at_exact_limit() {
+    fn allows_function_at_exact_limit() -> Result<()> {
         let violations = run_check(
             "function foo(a: number, b: number, c: number) {}",
             3,
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_violations() {
+    fn reports_multiple_violations() -> Result<()> {
         let source = r#"
 function foo(a: number, b: number, c: number, d: number) {}
 const bar = (x: number, y: number, z: number, w: number) => {};
 "#;
         let violations = run_check(source, 3);
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_correct_line() {
+    fn reports_correct_line() -> Result<()> {
         let source = "const x = 1;\nfunction foo(a: number, b: number, c: number, d: number) {}\n";
         let violations = run_check(source, 3);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_function_expression_within_limit() {
+    fn allows_function_expression_within_limit() -> Result<()> {
         let violations = run_check(
             "const add = function(a: number, b: number) { return a + b; };",
             3,
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_function_expression_exceeding_limit() {
+    fn reports_function_expression_exceeding_limit() -> Result<()> {
         let violations = run_check(
             "const createUser = function(name: string, age: number, email: string, role: string) {};",
             3,
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_in_comments() {
+    fn ignores_in_comments() -> Result<()> {
         let source = "// function foo(a: number, b: number, c: number, d: number) {}";
         let violations = run_check(source, 3);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_zero_params() {
+    fn allows_zero_params() -> Result<()> {
         let violations = run_check("function foo() {}", 0);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_one_param_when_max_is_zero() {
+    fn reports_one_param_when_max_is_zero() -> Result<()> {
         let violations = run_check("function foo(a: number) {}", 0);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 }

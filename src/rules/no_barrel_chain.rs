@@ -61,6 +61,8 @@ pub fn check_file(
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::check_file;
     use crate::config::structure::DomainConfig;
     use crate::config::{RuleConfig, Severity};
@@ -70,7 +72,7 @@ mod tests {
     use std::path::Path;
 
     #[test]
-    fn reports_re_export_from_folder_barrel() {
+    fn reports_re_export_from_folder_barrel() -> Result<()> {
         let files_with_sources = vec![
             ("src/components/index.ts", "export { Button } from './button';\n"),
             ("src/components/button/index.ts", ""),
@@ -84,10 +86,11 @@ mod tests {
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
         assert_eq!(violations[0].subject.as_deref(), Some("./button"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_re_export_from_explicit_barrel_file() {
+    fn reports_re_export_from_explicit_barrel_file() -> Result<()> {
         let files_with_sources = vec![
             ("src/index.ts", "export * from './components/index';\n"),
             ("src/components/index.ts", ""),
@@ -95,10 +98,11 @@ mod tests {
         let violations = run_check("src/index.ts", &files_with_sources);
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_type_re_export_from_barrel() {
+    fn reports_type_re_export_from_barrel() -> Result<()> {
         let files_with_sources = vec![
             ("src/index.ts", "export type { Props } from './types';\n"),
             ("src/types/index.ts", ""),
@@ -106,10 +110,11 @@ mod tests {
         let violations = run_check("src/index.ts", &files_with_sources);
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_re_export_from_non_barrel_file() {
+    fn allows_re_export_from_non_barrel_file() -> Result<()> {
         let files_with_sources = vec![
             ("src/index.ts", "export { Button } from './Button';\n"),
             ("src/Button.ts", ""),
@@ -117,10 +122,11 @@ mod tests {
         let violations = run_check("src/index.ts", &files_with_sources);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_non_barrel_files() {
+    fn allows_non_barrel_files() -> Result<()> {
         let files_with_sources = vec![
             ("src/Button.ts", "export { Button } from './components';\n"),
             ("src/components/index.ts", ""),
@@ -128,17 +134,19 @@ mod tests {
         let violations = run_check("src/Button.ts", &files_with_sources);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_external_re_exports() {
+    fn ignores_external_re_exports() -> Result<()> {
         let files_with_sources = vec![
             ("src/index.ts", "export { z } from 'zod';\n"),
         ];
         let violations = run_check("src/index.ts", &files_with_sources);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

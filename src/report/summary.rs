@@ -219,7 +219,7 @@ pub fn group_line_ranges(violations: &[&Violation]) -> Vec<String> {
 
     let mut ranges: Vec<String> = Vec::new();
     let first = match violations.first() {
-        Some(v) => v,
+        Some(violation) => violation,
         None => return Vec::new(),
     };
     let mut start = first.line.unwrap_or(1);

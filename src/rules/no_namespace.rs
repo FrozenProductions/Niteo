@@ -55,6 +55,8 @@ impl<'a, 'f> Visit<'a> for NamespaceVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -78,27 +80,30 @@ mod tests {
     }
 
     #[test]
-    fn reports_namespace_declaration() {
+    fn reports_namespace_declaration() -> Result<()> {
         let violations = run_check("namespace Foo {}\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_report_module_declaration() {
+    fn does_not_report_module_declaration() -> Result<()> {
         let violations = run_check("declare module 'foo' {}\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_namespace_with_export() {
+    fn reports_namespace_with_export() -> Result<()> {
         let violations = run_check("export namespace Utils {}\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_nested_namespaces() {
+    fn reports_nested_namespaces() -> Result<()> {
         let violations = run_check(
             r#"namespace Outer {
     namespace Inner {}
@@ -106,10 +111,11 @@ mod tests {
 "#,
         );
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_report_type_only_import() {
+    fn does_not_report_type_only_import() -> Result<()> {
         let source = r#"
 import type { ComponentType } from 'react';
 
@@ -117,5 +123,6 @@ const Example: ComponentType = () => null;
 "#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

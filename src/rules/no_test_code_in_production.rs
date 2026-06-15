@@ -113,6 +113,8 @@ fn is_test_library_source(source: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::structure::DomainConfig;
     use crate::config::{RuleConfig, Severity};
@@ -150,7 +152,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_test_globals() {
+    fn reports_test_globals() -> Result<()> {
         for (source, expected_subject) in [
             ("describe('suite', () => {});", "describe"),
             ("it('works', () => {});", "it"),
@@ -166,64 +168,73 @@ mod tests {
                 "wrong subject for: {source:?}",
             );
         }
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_jest_import() {
+    fn reports_jest_import() -> Result<()> {
         let violations = run_check("import { jest } from 'jest';", "src/auth.ts");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("jest"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_vitest_import() {
+    fn reports_vitest_import() -> Result<()> {
         let violations = run_check("import { describe } from 'vitest';", "src/auth.ts");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("vitest"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_testing_library_import() {
+    fn reports_testing_library_import() -> Result<()> {
         let violations = run_check(
             "import { render } from '@testing-library/react';",
             "src/auth.ts",
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_test_code_in_test_files_by_suffix() {
+    fn allows_test_code_in_test_files_by_suffix() -> Result<()> {
         let violations = run_check(
             "describe('suite', () => { it('works', () => {}); });",
             "src/auth.test.ts",
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_test_code_in_test_files_by_folder() {
+    fn allows_test_code_in_test_files_by_folder() -> Result<()> {
         let violations = run_check("describe('suite', () => {});", "tests/auth.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_non_test_code_in_production() {
+    fn allows_non_test_code_in_production() -> Result<()> {
         let source = "export function add(a: number, b: number) { return a + b; }";
         let violations = run_check(source, "src/math.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_non_test_imports() {
+    fn allows_non_test_imports() -> Result<()> {
         let source = "import { useState } from 'react';";
         let violations = run_check(source, "src/Component.tsx");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_match_partial_identifiers() {
+    fn does_not_match_partial_identifiers() -> Result<()> {
         let source = "const describe_something = true; const expectError = false;";
         let violations = run_check(source, "src/auth.ts");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

@@ -74,6 +74,8 @@ impl<'a, 'f> Visit<'a> for NoAbbreviationsVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{NoAbbreviationsRuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -96,7 +98,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_default_abbreviations() {
+    fn reports_default_abbreviations() -> Result<()> {
         for (source, expected_subject) in [
             ("const btn = document.querySelector('button');\n", "btn"),
             ("const ctx = getContext();\n", "ctx"),
@@ -117,71 +119,80 @@ mod tests {
                 "detail missing abbreviation for: {source:?}",
             );
         }
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_camelcase_abbreviation() {
+    fn reports_camelcase_abbreviation() -> Result<()> {
         let source = "const btnLabel = 'Click me';\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("btnLabel"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_abbreviation_in_function_name() {
+    fn reports_abbreviation_in_function_name() -> Result<()> {
         let source = "function getCtx() { return {}; }\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("getCtx"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_abbreviation_in_parameter() {
+    fn reports_abbreviation_in_parameter() -> Result<()> {
         let source = "function render(btnElement: HTMLElement) {}\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("btnElement"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_abbreviation_in_arrow_function() {
+    fn reports_abbreviation_in_arrow_function() -> Result<()> {
         let source = "const handler = (ctxArg: unknown) => {};\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("ctxArg"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_abbreviation_in_class_name() {
+    fn reports_abbreviation_in_class_name() -> Result<()> {
         let source = "class BtnFactory {}\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("BtnFactory"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_normal_identifiers() {
+    fn allows_normal_identifiers() -> Result<()> {
         let source = "const button = document.querySelector('button');\nconst context = getContext();\nconst manager = new Manager();\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_identifiers_without_abbreviations() {
+    fn allows_identifiers_without_abbreviations() -> Result<()> {
         let source = "const label = 'Click me';\nconst count = 42;\nfunction render() {}\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_in_same_line() {
+    fn reports_multiple_in_same_line() -> Result<()> {
         let source = "const btn = document.querySelector('button'), ctx = getContext();\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_custom_extra_abbreviation() {
+    fn reports_custom_extra_abbreviation() -> Result<()> {
         let config = NoAbbreviationsRuleConfig {
             severity: Severity::Warn,
             extra_abbreviations: vec!["req".to_string(), "res".to_string()],
@@ -197,21 +208,24 @@ mod tests {
             &config,
         );
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_abbreviations_in_strings() {
+    fn ignores_abbreviations_in_strings() -> Result<()> {
         let source = r#"const text = "use btn or ctx";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_abbreviations_in_comments() {
+    fn ignores_abbreviations_in_comments() -> Result<()> {
         let source = "// const btn = null;\n/* const ctx = null; */\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> NoAbbreviationsRuleConfig {
         NoAbbreviationsRuleConfig {

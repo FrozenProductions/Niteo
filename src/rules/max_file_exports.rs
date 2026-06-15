@@ -71,6 +71,8 @@ fn count_named_specifiers(specifiers: &[ExportSpecifier]) -> usize {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{FileExportsRuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -93,7 +95,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_files_with_too_many_named_export_declarations() {
+    fn reports_files_with_too_many_named_export_declarations() -> Result<()> {
         let source = r#"export const one = 1;
 export function two() {}
 export class Three {}
@@ -103,10 +105,11 @@ export interface Four {}
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn counts_named_export_lists() {
+    fn counts_named_export_lists() -> Result<()> {
         let source = r#"const one = 1;
 const two = 2;
 const three = 3;
@@ -114,25 +117,28 @@ export { one, two as renamedTwo, type three };
 "#;
         let violations = run_check(source, 2);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn counts_multiple_variable_exports() {
+    fn counts_multiple_variable_exports() -> Result<()> {
         let violations = run_check("export const one = 1, two = 2, three = 3;\n", 2);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_files_within_limit() {
+    fn allows_files_within_limit() -> Result<()> {
         let source = r#"export const one = 1;
 export { two, three };
 "#;
         let violations = run_check(source, 3);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_exports_in_comments_and_strings() {
+    fn ignores_exports_in_comments_and_strings() -> Result<()> {
         let source = r#"const text = "export const one = 1";
 // export const two = 2;
 /* export const three = 3; */
@@ -140,24 +146,27 @@ export const four = 4;
 "#;
         let violations = run_check(source, 1);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn counts_default_and_namespace_exports() {
+    fn counts_default_and_namespace_exports() -> Result<()> {
         let source = r#"export default value;
 export * from "./other";
 export * as names from "./names";
 "#;
         let violations = run_check(source, 2);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn counts_multiple_variable_declarations() {
+    fn counts_multiple_variable_declarations() -> Result<()> {
         let source = "export const one = 1, two = 2, three = 3, four = 4, five = 5;\n";
         let violations = run_check(source, 4);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     fn test_config(max_exports: usize) -> FileExportsRuleConfig {
         FileExportsRuleConfig {

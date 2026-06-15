@@ -70,6 +70,8 @@ impl<'a, 'f> Visit<'a> for DefaultExportVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::structure::ProjectStructureConfig;
     use crate::config::{NoDefaultExportRuleConfig, Severity};
@@ -98,7 +100,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_default_function_export() {
+    fn reports_default_function_export() -> Result<()> {
         let violations = run_check(
             "export default function Component() {}\n",
             "Component.tsx",
@@ -107,10 +109,11 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_default_value_export() {
+    fn reports_default_value_export() -> Result<()> {
         let violations = run_check(
             "const value = 1;\nexport default value;\n",
             "Component.tsx",
@@ -119,10 +122,11 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiline_default_export() {
+    fn reports_multiline_default_export() -> Result<()> {
         let violations = run_check(
             "export\n  default value;\n",
             "Component.tsx",
@@ -131,49 +135,54 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_named_exports() {
+    fn allows_named_exports() -> Result<()> {
         let violations = run_check(
             "export function Component() {}\nexport { value } from './value';\n",
             "Component.tsx",
             false,
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_export_default_in_comments_and_strings() {
+    fn ignores_export_default_in_comments_and_strings() -> Result<()> {
         let source = r#"// export default value;
 const text = "export default value";
 /* export default value; */
 "#;
         let violations = run_check(source, "Component.tsx", false);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_match_identifier_fragments() {
+    fn does_not_match_identifier_fragments() -> Result<()> {
         let source = r#"const exportDefault = true;
 const value = "before export default after";
 "#;
         let violations = run_check(source, "Component.tsx", false);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn general_mode_also_checks_non_component_files() {
+    fn general_mode_also_checks_non_component_files() -> Result<()> {
         let violations = run_check(
             "export default function helper() {}\n",
             "src/utils/helper.ts",
             false,
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn components_only_reports_in_component_file() {
+    fn components_only_reports_in_component_file() -> Result<()> {
         let violations = run_check(
             "export default function Button() {}\n",
             "src/components/Button.tsx",
@@ -182,65 +191,72 @@ const value = "before export default after";
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn components_only_reports_default_value_export_in_component_file() {
+    fn components_only_reports_default_value_export_in_component_file() -> Result<()> {
         let violations = run_check(
             "const Button = () => {};\nexport default Button;\n",
             "src/components/Button.tsx",
             true,
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn components_only_reports_in_dot_component_file() {
+    fn components_only_reports_in_dot_component_file() -> Result<()> {
         let violations = run_check(
             "export default function Button() {}\n",
             "Button.component.tsx",
             true,
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn components_only_allows_named_exports_in_component_file() {
+    fn components_only_allows_named_exports_in_component_file() -> Result<()> {
         let violations = run_check(
             "export function Button() {}\nexport const Modal = () => {};\n",
             "src/components/Button.tsx",
             true,
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn components_only_ignores_non_component_files() {
+    fn components_only_ignores_non_component_files() -> Result<()> {
         let violations = run_check(
             "export default function helper() {}\n",
             "src/utils/helper.ts",
             true,
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn components_only_ignores_default_export_in_hook_file() {
+    fn components_only_ignores_default_export_in_hook_file() -> Result<()> {
         let violations = run_check(
             "export default function useAuth() {}\n",
             "src/hooks/useAuth.ts",
             true,
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn components_only_reports_multiline_default_export() {
+    fn components_only_reports_multiline_default_export() -> Result<()> {
         let violations = run_check(
             "export\n  default Button;\n",
             "src/components/Button.tsx",
             true,
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 }

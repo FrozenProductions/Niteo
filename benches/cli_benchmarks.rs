@@ -1,32 +1,33 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use anyhow::Result;
+use criterion::{Criterion, black_box};
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
 
-fn write_react_project(dir: &Path, count: usize) {
-    fs::create_dir_all(dir.join("src")).unwrap();
-    fs::create_dir_all(dir.join("src/components")).unwrap();
-    fs::create_dir_all(dir.join("src/utils")).unwrap();
-    fs::create_dir_all(dir.join("src/hooks")).unwrap();
+fn write_react_project(dir: &Path, count: usize) -> Result<()> {
+    fs::create_dir_all(dir.join("src"))?;
+    fs::create_dir_all(dir.join("src/components"))?;
+    fs::create_dir_all(dir.join("src/utils"))?;
+    fs::create_dir_all(dir.join("src/hooks"))?;
 
     let niteo_config = r#"
 [root]
 allow = ["src", "scripts"]
 [rules]
 "#;
-    fs::write(dir.join("niteo.toml"), niteo_config).unwrap();
+    fs::write(dir.join("niteo.toml"), niteo_config)?;
 
     let barrel = (1..=count)
         .map(|i| format!("export * from './component{}';", i))
         .collect::<Vec<_>>()
         .join("\n");
-    fs::write(dir.join("src/components/index.ts"), barrel).unwrap();
+    fs::write(dir.join("src/components/index.ts"), barrel)?;
 
     let utils_barrel = (1..=count / 2)
         .map(|i| format!("export * from './util{}';", i))
         .collect::<Vec<_>>()
         .join("\n");
-    fs::write(dir.join("src/utils/index.ts"), utils_barrel).unwrap();
+    fs::write(dir.join("src/utils/index.ts"), utils_barrel)?;
 
     for i in 1..=count {
         let content = format!(
@@ -54,8 +55,7 @@ export function Component{}({{ title, count }}: Props{}) {{
         fs::write(
             dir.join(format!("src/components/component{}.tsx", i)),
             content,
-        )
-        .unwrap();
+        )?;
     }
 
     for i in 1..=count / 2 {
@@ -66,7 +66,7 @@ export function Component{}({{ title, count }}: Props{}) {{
 "#,
             i, i
         );
-        fs::write(dir.join(format!("src/utils/util{}.ts", i)), content).unwrap();
+        fs::write(dir.join(format!("src/utils/util{}.ts", i)), content)?;
     }
 
     for i in 1..=count / 4 {
@@ -87,7 +87,7 @@ export function useData{}({{ id }}: UseData{}Options) {{
 "#,
             i, i, i
         );
-        fs::write(dir.join(format!("src/hooks/useData{}.ts", i)), content).unwrap();
+        fs::write(dir.join(format!("src/hooks/useData{}.ts", i)), content)?;
     }
 
     let app_content = format!(
@@ -110,17 +110,18 @@ export function App() {{
 }}
 "#
     );
-    fs::write(dir.join("src/App.tsx"), app_content).unwrap();
+    fs::write(dir.join("src/App.tsx"), app_content)?;
+    Ok(())
 }
 
-fn write_import_heavy_project(dir: &Path, count: usize) {
-    fs::create_dir_all(dir.join("src")).unwrap();
+fn write_import_heavy_project(dir: &Path, count: usize) -> Result<()> {
+    fs::create_dir_all(dir.join("src"))?;
 
     let config = r#"[root]
 allow = ["src"]
 [rules]
 "#;
-    fs::write(dir.join("niteo.toml"), config).unwrap();
+    fs::write(dir.join("niteo.toml"), config)?;
 
     for i in 1..=count {
         let import_count = 5 + (i % 11);
@@ -143,79 +144,94 @@ export function util{}(value: number): number {{
             i,
             i
         );
-        fs::write(dir.join(format!("src/util{}.ts", i)), content).unwrap();
+        fs::write(dir.join(format!("src/util{}.ts", i)), content)?;
     }
 
     let barrel = (1..=count)
         .map(|i| format!("export * from './util{}';", i))
         .collect::<Vec<_>>()
         .join("\n");
-    fs::write(dir.join("src/index.ts"), barrel).unwrap();
+    fs::write(dir.join("src/index.ts"), barrel)?;
+    Ok(())
 }
 
-fn bench_cli(c: &mut Criterion) {
+fn bench_cli(c: &mut Criterion) -> Result<()> {
     let mut group = c.benchmark_group("cli");
     group.sample_size(10);
 
     for count in [25usize, 100, 250, 1000] {
         let bench_name = format!("cli_lint_react_{}_files_json", count);
+        let temp_dir = TempDir::new()?;
+        write_react_project(temp_dir.path(), count)?;
+        let mut run_result = Ok(());
         group.bench_function(bench_name, |b| {
-            let temp_dir = TempDir::new().unwrap();
-            write_react_project(temp_dir.path(), count);
-
             b.iter(|| {
-                let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
-                    .args(["lint", "--format", "json"])
-                    .current_dir(temp_dir.path())
-                    .output()
-                    .unwrap();
+                run_result = (|| -> Result<()> {
+                    let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
+                        .args(["lint", "--format", "json"])
+                        .current_dir(temp_dir.path())
+                        .output()?;
 
-                black_box(status);
+                    black_box(status);
+                    Ok(())
+                })();
             });
         });
+        run_result?;
     }
 
     let formats: [(&str, &[&str]); 2] = [("text", &[]), ("sarif", &["--format", "sarif"])];
 
     for (format_name, format_args) in formats {
         let bench_name = format!("cli_lint_react_100_files_{}", format_name);
+        let temp_dir = TempDir::new()?;
+        write_react_project(temp_dir.path(), 100)?;
+        let mut run_result = Ok(());
         group.bench_function(bench_name, |b| {
-            let temp_dir = TempDir::new().unwrap();
-            write_react_project(temp_dir.path(), 100);
-
             b.iter(|| {
-                let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
-                    .args(["lint"])
-                    .args(format_args)
-                    .current_dir(temp_dir.path())
-                    .output()
-                    .unwrap();
+                run_result = (|| -> Result<()> {
+                    let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
+                        .args(["lint"])
+                        .args(format_args)
+                        .current_dir(temp_dir.path())
+                        .output()?;
 
-                black_box(status);
+                    black_box(status);
+                    Ok(())
+                })();
             });
         });
+        run_result?;
     }
 
     for count in [50usize, 100, 200] {
         let bench_name = format!("cli_lint_import_heavy_{}_files_json", count);
+        let temp_dir = TempDir::new()?;
+        write_import_heavy_project(temp_dir.path(), count)?;
+        let mut run_result = Ok(());
         group.bench_function(bench_name, |b| {
-            let temp_dir = TempDir::new().unwrap();
-            write_import_heavy_project(temp_dir.path(), count);
-
             b.iter(|| {
-                let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
-                    .args(["lint", "--format", "json"])
-                    .current_dir(temp_dir.path())
-                    .output()
-                    .unwrap();
+                run_result = (|| -> Result<()> {
+                    let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
+                        .args(["lint", "--format", "json"])
+                        .current_dir(temp_dir.path())
+                        .output()?;
 
-                black_box(status);
+                    black_box(status);
+                    Ok(())
+                })();
             });
         });
+        run_result?;
     }
 
     group.finish();
+    Ok(())
 }
 
-criterion_group!(benches, bench_cli);
-criterion_main!(benches);
+fn main() -> Result<()> {
+    let mut criterion = Criterion::default().configure_from_args();
+    bench_cli(&mut criterion)?;
+    criterion.final_summary();
+    Ok(())
+}

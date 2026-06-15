@@ -22,6 +22,8 @@ impl ImportGraph {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::{Context, Result};
     use std::path::{Path, PathBuf};
 
     use crate::config::structure::DomainConfig;
@@ -30,7 +32,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn resolves_aliased_import_through_graph() {
+    fn resolves_aliased_import_through_graph() -> Result<()> {
         let tsconfig = TsConfig {
             base_url: PathBuf::from("/repo"),
             aliases: vec![ResolvedPathAlias {
@@ -61,16 +63,17 @@ mod tests {
         let edge = graph
             .edges_from(Path::new("/repo/src/app.ts"))
             .next()
-            .unwrap();
+            .context("expected at least one edge")?;
         assert_eq!(edge.specifier, "@/shared/helper");
         assert_eq!(
             edge.resolved_target,
             Some(PathBuf::from("/repo/src/shared/helper.ts"))
         );
+        Ok(())
     }
 
     #[test]
-    fn resolves_aliased_import_when_first_alias_does_not_match() {
+    fn resolves_aliased_import_when_first_alias_does_not_match() -> Result<()> {
         let tsconfig = TsConfig {
             base_url: PathBuf::from("/repo"),
             aliases: vec![
@@ -112,11 +115,12 @@ mod tests {
         let edge = graph
             .edges_from(Path::new("/repo/src/app.ts"))
             .next()
-            .unwrap();
+            .context("expected at least one edge")?;
         assert_eq!(edge.specifier, "@/shared/helper");
         assert_eq!(
             edge.resolved_target,
             Some(PathBuf::from("/repo/src/shared/helper.ts"))
         );
+        Ok(())
     }
 }

@@ -48,6 +48,8 @@ fn is_re_export(stmt: &Statement<'_>) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::check_file;
     use crate::config::{RuleConfig, Severity};
     use crate::rules::Violation;
@@ -66,27 +68,29 @@ mod tests {
     }
 
     #[test]
-    fn allows_named_re_exports() {
+    fn allows_named_re_exports() -> Result<()> {
         let source = r#"export { Button } from "./Button";
 export type { ButtonProps } from "./Button.type";
 "#;
         let violations = run_check("index.ts", source);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_namespace_re_exports() {
+    fn allows_namespace_re_exports() -> Result<()> {
         let source = r#"export * from "./Button";
 export * as ButtonParts from "./Button.parts";
 "#;
         let violations = run_check("index.ts", source);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_multiline_re_exports() {
+    fn allows_multiline_re_exports() -> Result<()> {
         let source = r#"export {
   Button,
   type ButtonProps,
@@ -95,18 +99,20 @@ export * as ButtonParts from "./Button.parts";
         let violations = run_check("index.ts", source);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_barrel_files() {
+    fn ignores_non_barrel_files() -> Result<()> {
         let source = r#"const value = 1;"#;
         let violations = run_check("Button.ts", source);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_imports_in_barrels() {
+    fn reports_imports_in_barrels() -> Result<()> {
         let source = r#"import { Button } from "./Button";
 export { Button };
 "#;
@@ -115,10 +121,11 @@ export { Button };
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_local_exports_in_barrels() {
+    fn reports_local_exports_in_barrels() -> Result<()> {
         let source = r#"export { Button };
 "#;
         let violations = run_check("index.ts", source);
@@ -126,10 +133,11 @@ export { Button };
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_logic_after_re_exports() {
+    fn reports_logic_after_re_exports() -> Result<()> {
         let source = r#"export { Button } from "./Button";
 
 const value = 1;
@@ -139,7 +147,8 @@ const value = 1;
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(3));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

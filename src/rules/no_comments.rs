@@ -43,7 +43,9 @@ pub fn check_file(
 }
 
 fn is_niteo_directive(source: &str, comment: &oxc_ast::ast::Comment) -> bool {
-    let text = &source[comment.content_span().start as usize..comment.content_span().end as usize];
+    let text = source
+        .get(comment.content_span().start as usize..comment.content_span().end as usize)
+        .unwrap_or("");
     let trimmed = text.trim_start();
     trimmed.starts_with("niteo-ignore-file")
         || trimmed.starts_with("niteo-ignore-next-line")
@@ -53,13 +55,15 @@ fn is_niteo_directive(source: &str, comment: &oxc_ast::ast::Comment) -> bool {
 fn is_doc_comment(source: &str, comment: &oxc_ast::ast::Comment) -> bool {
     match comment.kind {
         CommentKind::Line => {
-            let text =
-                &source[comment.content_span().start as usize..comment.content_span().end as usize];
+            let text = source
+                .get(comment.content_span().start as usize..comment.content_span().end as usize)
+                .unwrap_or("");
             text.starts_with('/')
         }
         CommentKind::SingleLineBlock | CommentKind::MultiLineBlock => {
-            let text =
-                &source[comment.content_span().start as usize..comment.content_span().end as usize];
+            let text = source
+                .get(comment.content_span().start as usize..comment.content_span().end as usize)
+                .unwrap_or("");
             text.starts_with('*')
         }
     }
@@ -67,6 +71,8 @@ fn is_doc_comment(source: &str, comment: &oxc_ast::ast::Comment) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::check_file;
     use crate::config::{CommentsRuleConfig, Severity};
     use crate::rules::Violation;
@@ -86,53 +92,58 @@ mod tests {
     }
 
     #[test]
-    fn finds_line_comments() {
+    fn finds_line_comments() -> Result<()> {
         let violations = run_check("const value = 1 // no\n", &test_config());
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(17));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn finds_block_comments() {
+    fn finds_block_comments() -> Result<()> {
         let violations = run_check("const value = /* no */ 1\n", &test_config());
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(15));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn finds_tsx_comments() {
+    fn finds_tsx_comments() -> Result<()> {
         let source = "export function View() {\n  return <div>{/* no */}</div>\n}\n";
         let violations = run_check(source, &test_config());
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
         assert_eq!(violations[0].column, Some(16));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_comment_markers_inside_strings() {
+    fn ignores_comment_markers_inside_strings() -> Result<()> {
         let source = r#"const url = "https://example.com"
 const block = "/* not a comment */"
 "#;
         let violations = run_check(source, &test_config());
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_doc_comments_when_allowed() {
+    fn ignores_doc_comments_when_allowed() -> Result<()> {
         let source = "/// User model\n/** Component docs */\nconst value = 1\n";
         let violations = run_check(source, &test_config());
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_doc_comments_when_disallowed() {
+    fn reports_doc_comments_when_disallowed() -> Result<()> {
         let config = CommentsRuleConfig {
             severity: Severity::Warn,
             allow_doc_comments: false,
@@ -141,47 +152,53 @@ const block = "/* not a comment */"
         let violations = run_check(source, &config);
 
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_niteo_ignore_file_directive() {
+    fn ignores_niteo_ignore_file_directive() -> Result<()> {
         let source = "// niteo-ignore-file\nconst x = 1;\n";
         let violations = run_check(source, &test_config());
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_niteo_ignore_next_line_directive() {
+    fn ignores_niteo_ignore_next_line_directive() -> Result<()> {
         let source = "// niteo-ignore-next-line: no-console\nconsole.log('test');\n";
         let violations = run_check(source, &test_config());
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_niteo_ignore_line_directive() {
+    fn ignores_niteo_ignore_line_directive() -> Result<()> {
         let source = "console.log('test'); // niteo-ignore-line\n";
         let violations = run_check(source, &test_config());
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_niteo_directive_with_extra_whitespace() {
+    fn ignores_niteo_directive_with_extra_whitespace() -> Result<()> {
         let source = "//   niteo-ignore-file\nconst x = 1;\n";
         let violations = run_check(source, &test_config());
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn still_reports_non_directive_niteo_comments() {
+    fn still_reports_non_directive_niteo_comments() -> Result<()> {
         let source = "// niteo is a linter\nconst x = 1;\n";
         let violations = run_check(source, &test_config());
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     fn test_config() -> CommentsRuleConfig {
         CommentsRuleConfig {

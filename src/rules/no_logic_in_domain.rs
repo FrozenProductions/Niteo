@@ -185,7 +185,7 @@ fn starts_const_with_logic(bytes: &[u8], index: usize) -> bool {
     };
 
     let after_const = const_pos + b"const".len();
-    let after_const_bytes = &bytes[after_const..];
+    let after_const_bytes = bytes.get(after_const..).unwrap_or(b"");
     if !after_const_bytes
         .first()
         .is_some_and(|&b| b.is_ascii_whitespace())
@@ -194,13 +194,13 @@ fn starts_const_with_logic(bytes: &[u8], index: usize) -> bool {
     }
 
     let after_name = skip_past_identifier(bytes, after_const);
-    let after_eq = skip_whitespace(&bytes[after_name..]);
+    let after_eq = skip_whitespace(bytes.get(after_name..).unwrap_or(b""));
     if !after_eq.starts_with(b"=") {
         return false;
     }
 
     let after_eq_pos = after_eq.as_ptr() as usize - bytes.as_ptr() as usize + b"=".len();
-    let after_eq_whitespace = skip_whitespace(&bytes[after_eq_pos..]);
+    let after_eq_whitespace = skip_whitespace(bytes.get(after_eq_pos..).unwrap_or(b""));
 
     starts_arrow_function(after_eq_whitespace) || starts_function_expression(after_eq_whitespace)
 }
@@ -212,7 +212,7 @@ fn find_const_position(bytes: &[u8], index: usize) -> Option<usize> {
 
     if starts_keyword(bytes, index, b"export") {
         let after_export = index + b"export".len();
-        let rest = skip_whitespace(&bytes[after_export..]);
+        let rest = skip_whitespace(bytes.get(after_export..).unwrap_or(b""));
         if rest.starts_with(b"const") {
             let rest_offset = rest.as_ptr() as usize - bytes.as_ptr() as usize;
             return Some(rest_offset);
@@ -234,7 +234,7 @@ fn starts_arrow_function(slice: &[u8]) -> bool {
         .is_some_and(|&b| b.is_ascii_alphabetic() || b == b'_')
     {
         let after_param = skip_past_identifier(slice, 0);
-        let after_param_whitespace = skip_whitespace(&slice[after_param..]);
+        let after_param_whitespace = skip_whitespace(slice.get(after_param..).unwrap_or(b""));
         return after_param_whitespace.starts_with(b"=>");
     }
 
@@ -250,7 +250,7 @@ fn starts_function_expression(slice: &[u8]) -> bool {
     }
 
     if slice.starts_with(b"async") {
-        let after_async = skip_whitespace(&slice[b"async".len()..]);
+        let after_async = skip_whitespace(slice.get(b"async".len()..).unwrap_or(b""));
         return after_async.starts_with(b"function");
     }
 
@@ -287,7 +287,7 @@ fn skip_past_paren_group(bytes: &[u8]) -> &[u8] {
             b')' => {
                 depth -= 1;
                 if depth == 0 {
-                    return &bytes[index + 1..];
+                    return bytes.get(index + 1..).unwrap_or(b"");
                 }
             }
             _ => {}
@@ -296,7 +296,7 @@ fn skip_past_paren_group(bytes: &[u8]) -> &[u8] {
         index += 1;
     }
 
-    &bytes[bytes.len()..]
+    b""
 }
 
 fn skip_past_identifier(bytes: &[u8], start: usize) -> usize {
@@ -321,7 +321,7 @@ fn starts_function_declaration(bytes: &[u8], index: usize) -> bool {
 
     if starts_keyword(bytes, index, b"export") {
         let after_export = index + b"export".len();
-        let rest = skip_whitespace(&bytes[after_export..]);
+        let rest = skip_whitespace(bytes.get(after_export..).unwrap_or(b""));
         let rest_offset = rest.as_ptr() as usize - bytes.as_ptr() as usize;
 
         if rest.starts_with(b"function") {
@@ -335,7 +335,7 @@ fn starts_function_declaration(bytes: &[u8], index: usize) -> bool {
         }
 
         if rest.starts_with(b"async") {
-            let after_async = skip_whitespace(&bytes[rest_offset + b"async".len()..]);
+            let after_async = skip_whitespace(bytes.get(rest_offset + b"async".len()..).unwrap_or(b""));
             if after_async.starts_with(b"function") {
                 return true;
             }
@@ -344,7 +344,7 @@ fn starts_function_declaration(bytes: &[u8], index: usize) -> bool {
 
     if starts_keyword(bytes, index, b"async") {
         let after_async = index + b"async".len();
-        let rest = skip_whitespace(&bytes[after_async..]);
+        let rest = skip_whitespace(bytes.get(after_async..).unwrap_or(b""));
         let rest_offset = rest.as_ptr() as usize - bytes.as_ptr() as usize;
 
         if rest.starts_with(b"function") {
@@ -352,7 +352,7 @@ fn starts_function_declaration(bytes: &[u8], index: usize) -> bool {
         }
 
         if rest.starts_with(b"export") {
-            let after_export = skip_whitespace(&bytes[rest_offset + b"export".len()..]);
+            let after_export = skip_whitespace(bytes.get(rest_offset + b"export".len()..).unwrap_or(b""));
             if after_export.starts_with(b"async function") || after_export.starts_with(b"function")
             {
                 return true;
@@ -376,7 +376,7 @@ fn starts_const_declaration(bytes: &[u8], index: usize) -> bool {
 
     if starts_keyword(bytes, index, b"export") {
         let after_export = index + b"export".len();
-        let rest = skip_whitespace(&bytes[after_export..]);
+        let rest = skip_whitespace(bytes.get(after_export..).unwrap_or(b""));
         if rest.starts_with(b"const") {
             let rest_offset = rest.as_ptr() as usize - bytes.as_ptr() as usize;
             let after_const = rest_offset + b"const".len();
@@ -405,7 +405,7 @@ fn starts_let_declaration(bytes: &[u8], index: usize) -> bool {
 
     if starts_keyword(bytes, index, b"export") {
         let after_export = index + b"export".len();
-        let rest = skip_whitespace(&bytes[after_export..]);
+        let rest = skip_whitespace(bytes.get(after_export..).unwrap_or(b""));
         if rest.starts_with(b"let") {
             let rest_offset = rest.as_ptr() as usize - bytes.as_ptr() as usize;
             let after_let = rest_offset + b"let".len();
@@ -434,7 +434,7 @@ fn starts_var_declaration(bytes: &[u8], index: usize) -> bool {
 
     if starts_keyword(bytes, index, b"export") {
         let after_export = index + b"export".len();
-        let rest = skip_whitespace(&bytes[after_export..]);
+        let rest = skip_whitespace(bytes.get(after_export..).unwrap_or(b""));
         if rest.starts_with(b"var") {
             let rest_offset = rest.as_ptr() as usize - bytes.as_ptr() as usize;
             let after_var = rest_offset + b"var".len();
@@ -463,7 +463,7 @@ fn starts_class_declaration(bytes: &[u8], index: usize) -> bool {
 
     if starts_keyword(bytes, index, b"export") {
         let after_export = index + b"export".len();
-        let rest = skip_whitespace(&bytes[after_export..]);
+        let rest = skip_whitespace(bytes.get(after_export..).unwrap_or(b""));
         if rest.starts_with(b"class") {
             let rest_offset = rest.as_ptr() as usize - bytes.as_ptr() as usize;
             let after_class = rest_offset + b"class".len();
@@ -484,7 +484,7 @@ fn skip_whitespace(bytes: &[u8]) -> &[u8] {
     while bytes.get(index).is_some_and(|&b| matches!(b, b' ' | b'\t' | b'\r' | b'\n')) {
         index += 1;
     }
-    &bytes[index..]
+    bytes.get(index..).unwrap_or(b"")
 }
 
 fn starts_keyword(bytes: &[u8], index: usize, keyword: &[u8]) -> bool {
@@ -642,6 +642,8 @@ fn skip_regex_literal(bytes: &[u8], cursor: &mut Cursor) {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::check_file;
     use crate::config::structure::{DomainConfig, ProjectStructureConfig};
     use crate::config::{RuleConfig, Severity};
@@ -662,7 +664,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_function_in_types_folder() {
+    fn reports_function_in_types_folder() -> Result<()> {
         let violations = check_file(
             Path::new("types/Button.ts"),
             "function handleClick() {}\n",
@@ -673,10 +675,11 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_const_in_constants_folder() {
+    fn allows_const_in_constants_folder() -> Result<()> {
         let violations = check_file(
             Path::new("constants/routes.ts"),
             "export const ROUTES = { HOME: '/' };\n",
@@ -686,10 +689,11 @@ mod tests {
         );
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_function_in_constants_folder() {
+    fn reports_function_in_constants_folder() -> Result<()> {
         let violations = check_file(
             Path::new("constants/routes.ts"),
             "function getRoute() { return '/'; }\n",
@@ -699,10 +703,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_const_arrow_function_in_constants_folder() {
+    fn reports_const_arrow_function_in_constants_folder() -> Result<()> {
         let violations = check_file(
             Path::new("constants/routes.ts"),
             "const getRoute = () => '/';\n",
@@ -712,10 +717,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_function_in_type_file() {
+    fn reports_function_in_type_file() -> Result<()> {
         let violations = check_file(
             Path::new("Button.type.ts"),
             "export function handleClick() {}\n",
@@ -725,10 +731,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_class_in_constant_file() {
+    fn reports_class_in_constant_file() -> Result<()> {
         let violations = check_file(
             Path::new("api.constants.ts"),
             "export class ApiClient {}\n",
@@ -738,10 +745,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_type_declaration_in_type_file() {
+    fn allows_type_declaration_in_type_file() -> Result<()> {
         let violations = check_file(
             Path::new("Button.type.ts"),
             "export type ButtonProps = { label: string };\n",
@@ -751,10 +759,11 @@ mod tests {
         );
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_const_in_type_file() {
+    fn reports_const_in_type_file() -> Result<()> {
         let violations = check_file(
             Path::new("Button.type.ts"),
             "const VALUE = 1;\n",
@@ -764,10 +773,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_let_declaration() {
+    fn reports_let_declaration() -> Result<()> {
         let violations = check_file(
             Path::new("types/state.ts"),
             "let count = 0;\n",
@@ -777,10 +787,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_async_function() {
+    fn reports_async_function() -> Result<()> {
         let violations = check_file(
             Path::new("types/api.ts"),
             "async function fetchData() {}\n",
@@ -790,10 +801,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_logic_in_comments() {
+    fn ignores_logic_in_comments() -> Result<()> {
         let source = "// function handleClick() {}\n/* const value = 1; */\n";
         let violations = check_file(
             Path::new("types/test.ts"),
@@ -804,10 +816,11 @@ mod tests {
         );
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_logic_in_strings() {
+    fn ignores_logic_in_strings() -> Result<()> {
         let source = r#"const text = "function handleClick() {}";"#;
         let violations = check_file(
             Path::new("constants/test.ts"),
@@ -818,10 +831,11 @@ mod tests {
         );
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_keywords_in_regex() {
+    fn ignores_keywords_in_regex() -> Result<()> {
         let source = r#"export const PATTERN = /\b(function|const|local|export)\b/g;"#;
         let violations = check_file(
             Path::new("constants/test.ts"),
@@ -832,10 +846,11 @@ mod tests {
         );
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_keywords_in_object_literals() {
+    fn ignores_keywords_in_object_literals() -> Result<()> {
         let source = r#"export const DOCS = {
     function: "Define a function body.",
     local: "Declare a local variable.",
@@ -850,10 +865,11 @@ mod tests {
         );
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn respects_custom_type_folder() {
+    fn respects_custom_type_folder() -> Result<()> {
         let types = DomainConfig {
             folders: vec!["typings".to_string()],
             file_suffixes: vec![".type.ts".to_string(), ".types.ts".to_string()],
@@ -867,10 +883,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn respects_custom_type_suffix() {
+    fn respects_custom_type_suffix() -> Result<()> {
         let types = DomainConfig {
             folders: vec!["types".to_string()],
             file_suffixes: vec![".model.ts".to_string()],
@@ -884,10 +901,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn respects_custom_constants_folder() {
+    fn respects_custom_constants_folder() -> Result<()> {
         let constants = DomainConfig {
             folders: vec!["config".to_string()],
             file_suffixes: vec![".constant.ts".to_string(), ".constants.ts".to_string()],
@@ -901,10 +919,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_non_domain_files() {
+    fn ignores_non_domain_files() -> Result<()> {
         let violations = check_file(
             Path::new("Button.tsx"),
             "function handleClick() {}\n",
@@ -914,10 +933,11 @@ mod tests {
         );
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_exported_arrow_function_in_constants() {
+    fn reports_exported_arrow_function_in_constants() -> Result<()> {
         let violations = check_file(
             Path::new("constants/helpers.ts"),
             "export const formatName = (name: string) => name.trim();\n",
@@ -927,10 +947,11 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_exported_function_expression_in_constants() {
+    fn reports_exported_function_expression_in_constants() -> Result<()> {
         let violations = check_file(
             Path::new("constants/helpers.ts"),
             "export const formatName = function(name: string) { return name.trim(); };\n",
@@ -940,6 +961,7 @@ mod tests {
         );
 
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 }
 

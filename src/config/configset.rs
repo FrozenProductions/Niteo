@@ -251,11 +251,13 @@ fn find_parent_node(
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use crate::config::architecture::ArchitectureConfig;
     use crate::config::rules::GitignoreConfig;
     use crate::config::structure::ProjectStructureConfig;
     use crate::rules::RulesConfig;
+    use anyhow::{Context, Result};
     use std::fs;
 
     fn remove_dir_if_exists(path: &Path) {
@@ -267,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn config_for_file_selects_deepest_match() {
+    fn config_for_file_selects_deepest_match() -> Result<()> {
         let root_config = ProjectConfig {
             root: PathBuf::from("/project/src"),
             gitignore: GitignoreConfig::default(),
@@ -311,10 +313,11 @@ mod tests {
             config_set.config_for_file(file_in_src).root,
             PathBuf::from("/project/src")
         );
+        Ok(())
     }
 
     #[test]
-    fn child_directories_returns_immediate_children() {
+    fn child_directories_returns_immediate_children() -> Result<()> {
         let make_config = || ProjectConfig {
             root: PathBuf::from("/project"),
             gitignore: GitignoreConfig::default(),
@@ -361,28 +364,27 @@ mod tests {
         let children_of_a = config_set.child_directories(1);
         assert_eq!(children_of_a.len(), 1);
         assert!(children_of_a.contains(&PathBuf::from("/project/a/sub")));
+        Ok(())
     }
 
     #[test]
-    fn discover_child_configs_finds_nested_toml() {
+    fn discover_child_configs_finds_nested_toml() -> Result<()> {
         let tmp = std::env::temp_dir().join("niteo_test_discover");
         remove_dir_if_exists(&tmp);
-        fs::create_dir_all(tmp.join("packages/admin")).unwrap();
-        fs::create_dir_all(tmp.join("packages/web")).unwrap();
+        fs::create_dir_all(tmp.join("packages/admin"))?;
+        fs::create_dir_all(tmp.join("packages/web"))?;
 
-        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n")?;
         fs::write(
             tmp.join("packages/admin/niteo.toml"),
             "[rules.no-console]\nseverity = \"error\"\n",
-        )
-        .unwrap();
+        )?;
         fs::write(
             tmp.join("packages/web/niteo.toml"),
             "[rules.no-console]\nseverity = \"off\"\n",
-        )
-        .unwrap();
+        )?;
 
-        let configs = discover_child_configs(&tmp, &tmp, &tmp).unwrap();
+        let configs = discover_child_configs(&tmp, &tmp, &tmp)?;
         assert_eq!(configs.len(), 2);
 
         let dirs: Vec<&Path> = configs
@@ -393,24 +395,26 @@ mod tests {
         assert!(dirs.contains(&tmp.join("packages/web").as_path()));
 
         remove_dir_if_exists(&tmp);
+        Ok(())
     }
 
     #[test]
-    fn discover_child_configs_excludes_root_config() {
+    fn discover_child_configs_excludes_root_config() -> Result<()> {
         let tmp = std::env::temp_dir().join("niteo_test_discover_root");
         remove_dir_if_exists(&tmp);
-        fs::create_dir_all(&tmp).unwrap();
+        fs::create_dir_all(&tmp)?;
 
-        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n")?;
 
-        let configs = discover_child_configs(&tmp, &tmp, &tmp).unwrap();
+        let configs = discover_child_configs(&tmp, &tmp, &tmp)?;
         assert_eq!(configs.len(), 0);
 
         remove_dir_if_exists(&tmp);
+        Ok(())
     }
 
     #[test]
-    fn config_for_file_falls_back_to_root() {
+    fn config_for_file_falls_back_to_root() -> Result<()> {
         let root_config = ProjectConfig {
             root: PathBuf::from("/project"),
             gitignore: GitignoreConfig::default(),
@@ -436,118 +440,111 @@ mod tests {
             config_set.config_for_file(file_outside).root,
             PathBuf::from("/project")
         );
+        Ok(())
     }
 
     #[test]
-    fn resolve_default_loads_nested_config() {
+    fn resolve_default_loads_nested_config() -> Result<()> {
         let tmp = std::env::temp_dir().join("niteo_test_resolve_default");
         remove_dir_if_exists(&tmp);
-        fs::create_dir_all(tmp.join("src/admin")).unwrap();
+        fs::create_dir_all(tmp.join("src/admin"))?;
 
-        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n")?;
         fs::write(
             tmp.join("src/admin/niteo.toml"),
             "[rules.no-console]\nseverity = \"error\"\n",
-        )
-        .unwrap();
+        )?;
 
-        let result = ConfigSet::resolve(
+        let config_set = ConfigSet::resolve(
             &tmp,
             ConfigSetOptions {
                 root_override: None,
                 scan_scope: None,
                 deny_child_configs: false,
             },
-        );
-
-        assert!(result.is_ok());
-        let config_set = result.unwrap();
+        )?;
         assert_eq!(config_set.children.len(), 1);
 
         remove_dir_if_exists(&tmp);
+        Ok(())
     }
 
     #[test]
-    fn resolve_strict_fails_with_nested_config() {
+    fn resolve_strict_fails_with_nested_config() -> Result<()> {
         let tmp = std::env::temp_dir().join("niteo_test_resolve_strict");
         remove_dir_if_exists(&tmp);
-        fs::create_dir_all(tmp.join("src/admin")).unwrap();
+        fs::create_dir_all(tmp.join("src/admin"))?;
 
-        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n")?;
         fs::write(
             tmp.join("src/admin/niteo.toml"),
             "[rules.no-console]\nseverity = \"error\"\n",
-        )
-        .unwrap();
+        )?;
 
-        let result = ConfigSet::resolve(
+        let error_message = ConfigSet::resolve(
             &tmp,
             ConfigSetOptions {
                 root_override: None,
                 scan_scope: None,
                 deny_child_configs: true,
             },
-        );
-
-        assert!(result.is_err());
-        let error_message = result.unwrap_err().to_string();
+        )
+        .err()
+        .context("expected resolve to fail")?
+        .to_string();
         assert!(error_message.contains("--deny-child-configs"));
         assert!(error_message.contains("niteo.toml"));
 
         remove_dir_if_exists(&tmp);
+        Ok(())
     }
 
     #[test]
-    fn resolve_strict_succeeds_with_only_root_config() {
+    fn resolve_strict_succeeds_with_only_root_config() -> Result<()> {
         let tmp = std::env::temp_dir().join("niteo_test_resolve_strict_root_only");
         remove_dir_if_exists(&tmp);
-        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::create_dir_all(tmp.join("src"))?;
 
-        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n")?;
 
-        let result = ConfigSet::resolve(
+        let config_set = ConfigSet::resolve(
             &tmp,
             ConfigSetOptions {
                 root_override: None,
                 scan_scope: None,
                 deny_child_configs: true,
             },
-        );
-
-        assert!(result.is_ok());
-        let config_set = result.unwrap();
+        )?;
         assert_eq!(config_set.children.len(), 0);
 
         remove_dir_if_exists(&tmp);
+        Ok(())
     }
 
     #[test]
-    fn resolve_strict_respects_scope() {
+    fn resolve_strict_respects_scope() -> Result<()> {
         let tmp = std::env::temp_dir().join("niteo_test_resolve_strict_scope");
         remove_dir_if_exists(&tmp);
-        fs::create_dir_all(tmp.join("src/admin")).unwrap();
-        fs::create_dir_all(tmp.join("packages/other")).unwrap();
+        fs::create_dir_all(tmp.join("src/admin"))?;
+        fs::create_dir_all(tmp.join("packages/other"))?;
 
-        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n").unwrap();
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"src\"\n")?;
         fs::write(
             tmp.join("packages/other/niteo.toml"),
             "[rules.no-console]\nseverity = \"error\"\n",
-        )
-        .unwrap();
+        )?;
 
-        let result = ConfigSet::resolve(
+        let config_set = ConfigSet::resolve(
             &tmp,
             ConfigSetOptions {
                 root_override: None,
                 scan_scope: Some(tmp.join("src").as_path()),
                 deny_child_configs: true,
             },
-        );
-
-        assert!(result.is_ok());
-        let config_set = result.unwrap();
+        )?;
         assert_eq!(config_set.children.len(), 0);
 
         remove_dir_if_exists(&tmp);
+        Ok(())
     }
 }

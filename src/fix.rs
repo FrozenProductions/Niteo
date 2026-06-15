@@ -169,8 +169,7 @@ fn overlapping_fix_indices(fixes: &[Fix]) -> HashSet<usize> {
 
     let mut rejected = HashSet::new();
     for window in annotated.windows(2) {
-        let first = &window[0];
-        let second = &window[1];
+        let [first, second] = window else { continue };
         if first.edit.end > second.edit.start {
             rejected.insert(first.fix_index);
             rejected.insert(second.fix_index);
@@ -211,7 +210,8 @@ pub fn validate_edits(source: &str, edits: &[TextEdit]) -> EditValidationResult 
 
 fn has_overlap(edits: &[TextEdit]) -> bool {
     for window in edits.windows(2) {
-        if window[0].end > window[1].start {
+        let [first, second] = window else { continue };
+        if first.end > second.start {
             return true;
         }
     }
@@ -230,12 +230,12 @@ pub fn apply_edits(source: &str, edits: &[TextEdit]) -> String {
         let start = edit.start;
         let end = edit.end;
 
-        result.insert_str(0, &source[end..cursor]);
+        result.insert_str(0, source.get(end..cursor).unwrap_or(""));
         result.insert_str(0, &edit.replacement);
         cursor = start;
     }
 
-    result.insert_str(0, &source[..cursor]);
+    result.insert_str(0, source.get(..cursor).unwrap_or(""));
     result
 }
 
@@ -285,7 +285,7 @@ pub fn remove_span(start: usize, end: usize) -> TextEdit {
 }
 
 pub fn extend_end_through_optional_semicolon(source: &str, end: usize) -> usize {
-    let after = &source[end..];
+    let after = source.get(end..).unwrap_or("");
     let after_trimmed = after.trim_start();
     if after_trimmed.starts_with(';') {
         let semicolon_offset = after.len() - after_trimmed.len();
@@ -296,7 +296,7 @@ pub fn extend_end_through_optional_semicolon(source: &str, end: usize) -> usize 
 }
 
 pub fn extend_end_through_line_trivia(source: &str, end: usize) -> usize {
-    let after = &source[end..];
+    let after = source.get(end..).unwrap_or("");
     let mut new_end = end;
     for (index, byte) in after.bytes().enumerate() {
         match byte {
@@ -316,7 +316,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn non_overlapping_edits_apply() {
+    fn non_overlapping_edits_apply() -> Result<()> {
         let source = "aaabbbccc";
         let edits = vec![
             TextEdit {
@@ -332,10 +332,11 @@ mod tests {
         ];
         let result = apply_edits(source, &edits);
         assert_eq!(result, "ccc");
+        Ok(())
     }
 
     #[test]
-    fn overlapping_edits_rejected() {
+    fn overlapping_edits_rejected() -> Result<()> {
         let edits = vec![
             TextEdit {
                 start: 0,
@@ -349,10 +350,11 @@ mod tests {
             },
         ];
         assert!(has_overlap(&edits));
+        Ok(())
     }
 
     #[test]
-    fn reverse_order_preserves_offsets() {
+    fn reverse_order_preserves_offsets() -> Result<()> {
         let source = "abcdef";
         let edits = vec![
             TextEdit {
@@ -368,10 +370,11 @@ mod tests {
         ];
         let result = apply_edits(source, &edits);
         assert_eq!(result, "ABCDEF");
+        Ok(())
     }
 
     #[test]
-    fn replacement_at_same_span() {
+    fn replacement_at_same_span() -> Result<()> {
         let source = "debugger;\n";
         let edits = vec![TextEdit {
             start: 0,
@@ -380,10 +383,11 @@ mod tests {
         }];
         let result = apply_edits(source, &edits);
         assert_eq!(result, "");
+        Ok(())
     }
 
     #[test]
-    fn validate_rejects_start_greater_than_end() {
+    fn validate_rejects_start_greater_than_end() -> Result<()> {
         let source = "abcdef";
         let edits = vec![TextEdit {
             start: 5,
@@ -394,10 +398,11 @@ mod tests {
             validate_edits(source, &edits),
             EditValidationResult::Invalid { .. }
         ));
+        Ok(())
     }
 
     #[test]
-    fn validate_rejects_end_beyond_source() {
+    fn validate_rejects_end_beyond_source() -> Result<()> {
         let source = "abcdef";
         let edits = vec![TextEdit {
             start: 0,
@@ -408,10 +413,11 @@ mod tests {
             validate_edits(source, &edits),
             EditValidationResult::Invalid { .. }
         ));
+        Ok(())
     }
 
     #[test]
-    fn validate_rejects_non_char_boundary() {
+    fn validate_rejects_non_char_boundary() -> Result<()> {
         let source = "\u{4f60}\u{597d}";
         let edits = vec![TextEdit {
             start: 1,
@@ -422,10 +428,11 @@ mod tests {
             validate_edits(source, &edits),
             EditValidationResult::Invalid { .. }
         ));
+        Ok(())
     }
 
     #[test]
-    fn validate_detects_overlap() {
+    fn validate_detects_overlap() -> Result<()> {
         let source = "abcdef";
         let edits = vec![
             TextEdit {
@@ -443,48 +450,55 @@ mod tests {
             validate_edits(source, &edits),
             EditValidationResult::Overlapping
         );
+        Ok(())
     }
 
     #[test]
-    fn span_edit_builds_text_edit() {
+    fn span_edit_builds_text_edit() -> Result<()> {
         let edit = span_edit(1, 3, "x");
         assert_eq!(edit.start, 1);
         assert_eq!(edit.end, 3);
         assert_eq!(edit.replacement, "x");
+        Ok(())
     }
 
     #[test]
-    fn remove_span_builds_empty_replacement() {
+    fn remove_span_builds_empty_replacement() -> Result<()> {
         let edit = remove_span(1, 3);
         assert_eq!(edit.replacement, "");
+        Ok(())
     }
 
     #[test]
-    fn extend_end_through_optional_semicolon_finds_semicolon() {
+    fn extend_end_through_optional_semicolon_finds_semicolon() -> Result<()> {
         let source = "debugger; more";
         let end = 8;
         assert_eq!(extend_end_through_optional_semicolon(source, end), 9);
+        Ok(())
     }
 
     #[test]
-    fn extend_end_through_optional_semicolon_ignores_no_semicolon() {
+    fn extend_end_through_optional_semicolon_ignores_no_semicolon() -> Result<()> {
         let source = "debugger more";
         let end = 8;
         assert_eq!(extend_end_through_optional_semicolon(source, end), 8);
+        Ok(())
     }
 
     #[test]
-    fn extend_end_through_line_trivia_stops_after_newline() {
+    fn extend_end_through_line_trivia_stops_after_newline() -> Result<()> {
         let source = "abc   \nmore";
         let end = 3;
         assert_eq!(extend_end_through_line_trivia(source, end), 7);
+        Ok(())
     }
 
     #[test]
-    fn extend_end_through_line_trivia_stops_at_non_whitespace() {
+    fn extend_end_through_line_trivia_stops_at_non_whitespace() -> Result<()> {
         let source = "abc   more";
         let end = 3;
         assert_eq!(extend_end_through_line_trivia(source, end), 6);
+        Ok(())
     }
 
     fn test_file_path(name: &str) -> PathBuf {
@@ -498,9 +512,9 @@ mod tests {
     }
 
     #[test]
-    fn non_overlapping_fixes_from_different_rules_apply() {
+    fn non_overlapping_fixes_from_different_rules_apply() -> Result<()> {
         let path = test_file_path("non_overlap");
-        std::fs::write(&path, "aaabbbccc").unwrap();
+        std::fs::write(&path, "aaabbbccc")?;
 
         let fixes = vec![
             build_fix(
@@ -529,21 +543,21 @@ mod tests {
                 dry_run: false,
                 validate_parse: false,
             },
-        )
-        .unwrap();
+        )?;
 
-        let result = std::fs::read_to_string(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
+        let result = std::fs::read_to_string(&path)?;
+        std::fs::remove_file(&path)?;
 
         assert_eq!(result, "ABccc");
         assert_eq!(outcome.rejected_overlapping, 0);
         assert!(outcome.fixed_files.contains(&path));
+        Ok(())
     }
 
     #[test]
-    fn overlapping_fixes_reject_only_conflicting_fixes() {
+    fn overlapping_fixes_reject_only_conflicting_fixes() -> Result<()> {
         let path = test_file_path("partial_overlap");
-        std::fs::write(&path, "aaabbbccc").unwrap();
+        std::fs::write(&path, "aaabbbccc")?;
 
         let fixes = vec![
             build_fix(
@@ -581,21 +595,21 @@ mod tests {
                 dry_run: false,
                 validate_parse: false,
             },
-        )
-        .unwrap();
+        )?;
 
-        let result = std::fs::read_to_string(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
+        let result = std::fs::read_to_string(&path)?;
+        std::fs::remove_file(&path)?;
 
         assert_eq!(result, "aaabbbC");
         assert_eq!(outcome.rejected_overlapping, 2);
         assert!(outcome.fixed_files.contains(&path));
+        Ok(())
     }
 
     #[test]
-    fn internally_overlapping_fix_is_rejected() {
+    fn internally_overlapping_fix_is_rejected() -> Result<()> {
         let path = test_file_path("internal_overlap");
-        std::fs::write(&path, "aaabbbcccddd").unwrap();
+        std::fs::write(&path, "aaabbbcccddd")?;
 
         let fixes = vec![
             build_fix(
@@ -631,21 +645,21 @@ mod tests {
                 dry_run: false,
                 validate_parse: false,
             },
-        )
-        .unwrap();
+        )?;
 
-        let result = std::fs::read_to_string(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
+        let result = std::fs::read_to_string(&path)?;
+        std::fs::remove_file(&path)?;
 
         assert_eq!(result, "aaabbbcccC");
         assert_eq!(outcome.rejected_overlapping, 2);
         assert!(outcome.fixed_files.contains(&path));
+        Ok(())
     }
 
     #[test]
-    fn all_overlapping_fixes_reject_file_write() {
+    fn all_overlapping_fixes_reject_file_write() -> Result<()> {
         let path = test_file_path("all_overlap");
-        std::fs::write(&path, "aaabbbccc").unwrap();
+        std::fs::write(&path, "aaabbbccc")?;
 
         let fixes = vec![
             build_fix(
@@ -674,14 +688,14 @@ mod tests {
                 dry_run: false,
                 validate_parse: false,
             },
-        )
-        .unwrap();
+        )?;
 
-        let result = std::fs::read_to_string(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
+        let result = std::fs::read_to_string(&path)?;
+        std::fs::remove_file(&path)?;
 
         assert_eq!(result, "aaabbbccc");
         assert_eq!(outcome.rejected_overlapping, 2);
         assert!(!outcome.fixed_files.contains(&path));
+        Ok(())
     }
 }

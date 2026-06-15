@@ -87,12 +87,14 @@ fn duplicate_violation(file: &Path, other: &Path, name: &str, severity: Severity
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::check_files;
     use crate::config::{NoDuplicateFileNamesRuleConfig, Severity};
     use std::path::PathBuf;
 
     #[test]
-    fn reports_duplicate_names_in_different_dirs() {
+    fn reports_duplicate_names_in_different_dirs() -> Result<()> {
         let files = vec![
             PathBuf::from("src/components/Button.ts"),
             PathBuf::from("src/utils/Button.ts"),
@@ -107,10 +109,11 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject, Some("Button.ts".to_string()));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_index_files_by_default() {
+    fn ignores_index_files_by_default() -> Result<()> {
         let files = vec![
             PathBuf::from("src/components/index.ts"),
             PathBuf::from("src/utils/index.ts"),
@@ -124,10 +127,11 @@ mod tests {
         let violations = check_files(&files, &config);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn respects_custom_ignore_names() {
+    fn respects_custom_ignore_names() -> Result<()> {
         let files = vec![
             PathBuf::from("src/components/types.ts"),
             PathBuf::from("src/utils/types.ts"),
@@ -141,10 +145,11 @@ mod tests {
         let violations = check_files(&files, &config);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_duplicate_pairs() {
+    fn reports_multiple_duplicate_pairs() -> Result<()> {
         let files = vec![
             PathBuf::from("src/a/utils.ts"),
             PathBuf::from("src/b/utils.ts"),
@@ -159,10 +164,11 @@ mod tests {
         let violations = check_files(&files, &config);
 
         assert_eq!(violations.len(), 3);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_different_extensions() {
+    fn ignores_different_extensions() -> Result<()> {
         let files = vec![
             PathBuf::from("src/components/Button.ts"),
             PathBuf::from("src/utils/Button.tsx"),
@@ -176,5 +182,6 @@ mod tests {
         let violations = check_files(&files, &config);
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

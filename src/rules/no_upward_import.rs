@@ -43,6 +43,8 @@ fn upward_depth(specifier: &[u8]) -> usize {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::structure::DomainConfig;
     use crate::config::{Severity, UpwardImportRuleConfig};
@@ -78,33 +80,36 @@ mod tests {
     }
 
     #[test]
-    fn reports_upward_relative_imports() {
+    fn reports_upward_relative_imports() -> Result<()> {
         let source = r#"import { shared } from "../../../shared";
 "#;
         let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_upward_relative_export_from() {
+    fn reports_upward_relative_export_from() -> Result<()> {
         let source = r#"export { shared } from "../shared";
 "#;
         let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_dynamic_upward_imports() {
+    fn reports_dynamic_upward_imports() -> Result<()> {
         let source = r#"const shared = await import("../../shared");
 "#;
         let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn keeps_line_positions_after_multiline_imports() {
+    fn keeps_line_positions_after_multiline_imports() -> Result<()> {
         let source = r#"import {
   local,
 } from "./local";
@@ -114,43 +119,48 @@ import { shared } from "../shared";
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(4));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_same_folder_and_downward_imports() {
+    fn allows_same_folder_and_downward_imports() -> Result<()> {
         let source = r#"import { value } from "./value";
 export { other } from "./other";
 const shared = import("shared");
 "#;
         let violations = run_check(source, &test_config());
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_treat_export_default_as_export_from() {
+    fn does_not_treat_export_default_as_export_from() -> Result<()> {
         let source = r#"export default function Component() {}
 import { shared } from "../shared";
 "#;
         let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_configured_upward_depth() {
+    fn allows_configured_upward_depth() -> Result<()> {
         let source = r#"import { shared } from "../shared";
 import { other } from "../../other";
 "#;
         let violations = run_check(source, &test_config_with_depth(1));
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_export_all_upward() {
+    fn reports_export_all_upward() -> Result<()> {
         let source = r#"export * from "../other";
 "#;
         let violations = run_check(source, &test_config());
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 }

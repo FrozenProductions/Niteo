@@ -48,44 +48,50 @@ fn last_location(source: &str) -> Location {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::check_file;
     use crate::config::{FileLengthRuleConfig, Severity};
     use std::path::Path;
 
     #[test]
-    fn allows_files_within_limit() {
+    fn allows_files_within_limit() -> Result<()> {
         let source = "line 1\nline 2\nline 3\n";
         let violations = check_file(Path::new("file.ts"), source, &test_config(3));
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_files_over_limit() {
+    fn reports_files_over_limit() -> Result<()> {
         let source = "line 1\nline 2\nline 3\nline 4\n";
         let violations = check_file(Path::new("file.ts"), source, &test_config(3));
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(5));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_last_column_when_file_has_no_trailing_newline() {
+    fn reports_last_column_when_file_has_no_trailing_newline() -> Result<()> {
         let source = "line 1\nline 2\nline 3";
         let violations = check_file(Path::new("file.ts"), source, &test_config(2));
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(3));
         assert_eq!(violations[0].column, Some(7));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn counts_empty_file_as_zero_lines() {
+    fn counts_empty_file_as_zero_lines() -> Result<()> {
         let violations = check_file(Path::new("file.ts"), "", &test_config(1));
 
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config(max_lines: usize) -> FileLengthRuleConfig {
         FileLengthRuleConfig {

@@ -92,6 +92,8 @@ impl<'a, 'f> Visit<'a> for RestrictedImportsVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{NoRestrictedImportsRuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -116,91 +118,103 @@ mod tests {
     }
 
     #[test]
-    fn reports_exact_match() {
+    fn reports_exact_match() -> Result<()> {
         let config = test_config(&["lodash"]);
         let violations = run_check("import { merge } from 'lodash';\n", &config);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].subject, Some("lodash".to_string()));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_subpath_match() {
+    fn reports_subpath_match() -> Result<()> {
         let config = test_config(&["lodash"]);
         let violations = run_check("import merge from 'lodash/fp/merge';\n", &config);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject, Some("lodash/fp/merge".to_string()));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_scoped_package() {
+    fn reports_scoped_package() -> Result<()> {
         let config = test_config(&["@internal/legacy"]);
         let violations = run_check("import { foo } from '@internal/legacy';\n", &config);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_scoped_package_subpath() {
+    fn reports_scoped_package_subpath() -> Result<()> {
         let config = test_config(&["@internal/legacy"]);
         let violations = run_check("import { foo } from '@internal/legacy/utils';\n", &config);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_re_export_named() {
+    fn reports_re_export_named() -> Result<()> {
         let config = test_config(&["moment"]);
         let violations = run_check("export { format } from 'moment';\n", &config);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_re_export_all() {
+    fn reports_re_export_all() -> Result<()> {
         let config = test_config(&["moment"]);
         let violations = run_check("export * from 'moment';\n", &config);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_non_restricted_import() {
+    fn allows_non_restricted_import() -> Result<()> {
         let config = test_config(&["lodash"]);
         let violations = run_check("import { useState } from 'react';\n", &config);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_partial_name_that_is_not_subpath() {
+    fn allows_partial_name_that_is_not_subpath() -> Result<()> {
         let config = test_config(&["lodash"]);
         let violations = run_check("import { x } from 'lodash-es';\n", &config);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_violations() {
+    fn reports_multiple_violations() -> Result<()> {
         let config = test_config(&["lodash", "moment"]);
         let source = "import { merge } from 'lodash';\nimport moment from 'moment';\n";
         let violations = run_check(source, &config);
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_imports_in_comments() {
+    fn ignores_imports_in_comments() -> Result<()> {
         let config = test_config(&["lodash"]);
         let source = "// import { merge } from 'lodash';\n";
         let violations = run_check(source, &config);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_relative_path_restriction() {
+    fn reports_relative_path_restriction() -> Result<()> {
         let config = test_config(&["../internal"]);
         let violations = run_check("import { secret } from '../internal';\n", &config);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_type_only_import() {
+    fn reports_type_only_import() -> Result<()> {
         let config = test_config(&["legacy-types"]);
         let violations = run_check("import type { Foo } from 'legacy-types';\n", &config);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 }

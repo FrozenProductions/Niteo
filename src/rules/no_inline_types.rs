@@ -126,6 +126,8 @@ fn is_in_types_directory(file: &Path, types: &DomainConfig) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::{TypeLocationStyle, check_file};
     use crate::config::structure::{DomainConfig, ProjectStructureConfig};
     use crate::config::{RuleConfig, Severity};
@@ -163,7 +165,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_type_aliases_outside_type_files() {
+    fn reports_type_aliases_outside_type_files() -> Result<()> {
         let types = default_types();
         let violations = run_check(
             "type ButtonProps = { label: string };\n",
@@ -172,10 +174,11 @@ mod tests {
         );
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_interfaces_outside_type_files() {
+    fn reports_interfaces_outside_type_files() -> Result<()> {
         let types = default_types();
         let source = r#"export interface ButtonProps {
   label: string;
@@ -187,10 +190,11 @@ mod tests {
             TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")], &types),
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_type_declarations_in_type_files() {
+    fn allows_type_declarations_in_type_files() -> Result<()> {
         let types = default_types();
         let violations = run_check(
             "export type ButtonProps = { label: string };\n",
@@ -198,10 +202,11 @@ mod tests {
             TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")], &types),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_type_declarations_in_detected_types_directories() {
+    fn allows_type_declarations_in_detected_types_directories() -> Result<()> {
         let types = default_types();
         let violations = run_check(
             "export interface ButtonProps {}\n",
@@ -209,10 +214,11 @@ mod tests {
             TypeLocationStyle::detect(&[PathBuf::from("types/Button.ts")], &types),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_outside_detected_types_directories() {
+    fn reports_outside_detected_types_directories() -> Result<()> {
         let types = default_types();
         let violations = run_check(
             "interface ButtonProps {}\n",
@@ -220,10 +226,11 @@ mod tests {
             TypeLocationStyle::detect(&[PathBuf::from("types/Button.ts")], &types),
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn defaults_to_type_file_style_when_no_structure_exists() {
+    fn defaults_to_type_file_style_when_no_structure_exists() -> Result<()> {
         let types = default_types();
         let violations = run_check(
             "type ButtonProps = { label: string };\n",
@@ -231,10 +238,11 @@ mod tests {
             TypeLocationStyle::detect(&[PathBuf::from("Button.ts")], &types),
         );
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_imports_re_exports_comments_and_strings() {
+    fn ignores_imports_re_exports_comments_and_strings() -> Result<()> {
         let types = default_types();
         let source = r#"import type { ButtonProps } from "./Button.type";
 export type { ButtonProps } from "./Button.type";
@@ -248,10 +256,11 @@ const text = "type ButtonProps = {}";
             TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")], &types),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_declaration_files() {
+    fn allows_declaration_files() -> Result<()> {
         let types = default_types();
         let violations = run_check(
             "interface Window { appVersion: string }\n",
@@ -259,10 +268,11 @@ const text = "type ButtonProps = {}";
             TypeLocationStyle::detect(&[PathBuf::from("Button.type.ts")], &types),
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn custom_type_folder() {
+    fn custom_type_folder() -> Result<()> {
         let types = DomainConfig {
             folders: vec!["typings".to_string()],
             file_suffixes: vec![".type.ts".to_string()],
@@ -282,10 +292,11 @@ const text = "type ButtonProps = {}";
             &types,
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn custom_type_suffix() {
+    fn custom_type_suffix() -> Result<()> {
         let types = DomainConfig {
             folders: vec!["types".to_string()],
             file_suffixes: vec![".types.ts".to_string()],
@@ -305,5 +316,6 @@ const text = "type ButtonProps = {}";
             &types,
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

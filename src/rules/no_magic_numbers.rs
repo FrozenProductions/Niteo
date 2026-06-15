@@ -103,6 +103,8 @@ impl<'a, 'f> Visit<'a> for MagicNumberVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::Severity;
     use crate::syntax::LineIndex;
@@ -128,92 +130,106 @@ mod tests {
     }
 
     #[test]
-    fn reports_magic_number_in_function_call() {
+    fn reports_magic_number_in_function_call() -> Result<()> {
         let violations = run_check("setTimeout(callback, 3000);\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_magic_number_in_expression() {
+    fn reports_magic_number_in_expression() -> Result<()> {
         let violations = run_check("const result = price * 1.15;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_magic_number_in_array() {
+    fn reports_magic_number_in_array() -> Result<()> {
         let violations = run_check("const array = [1, 2, 3, 42, 5];\n");
         assert_eq!(violations.len(), 5);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_numbers_in_const_declarations() {
+    fn allows_numbers_in_const_declarations() -> Result<()> {
         let violations = run_check("const MAX_SIZE = 100;\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_numbers_in_enum_members() {
+    fn allows_numbers_in_enum_members() -> Result<()> {
         let violations = run_check("enum Status { Active = 1, Inactive = 0 }\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_numbers_in_type_annotations() {
+    fn allows_numbers_in_type_annotations() -> Result<()> {
         let violations = run_check("type Size = 10 | 20 | 30;\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_numbers_in_jsx_attributes() {
+    fn allows_numbers_in_jsx_attributes() -> Result<()> {
         let violations = run_check("const element = <div width={100} height={200} />;\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_magic_number_in_let_declaration() {
+    fn reports_magic_number_in_let_declaration() -> Result<()> {
         let violations = run_check("let count = 42;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_magic_number_in_var_declaration() {
+    fn reports_magic_number_in_var_declaration() -> Result<()> {
         let violations = run_check("var value = 3.14;\n");
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_configured_numbers() {
+    fn allows_configured_numbers() -> Result<()> {
         let violations = run_check_with_config(
             "const x = 1; const y = 0; const z = -1;",
             vec!["0".to_string(), "1".to_string(), "-1".to_string()],
         );
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_multiple_const_declarations() {
+    fn allows_multiple_const_declarations() -> Result<()> {
         let violations = run_check("const a = 10, b = 20, c = 30;\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_magic_numbers() {
+    fn reports_multiple_magic_numbers() -> Result<()> {
         let violations = run_check("calculate(10, 20, 30);\n");
         assert_eq!(violations.len(), 3);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_numbers_in_comments() {
+    fn ignores_numbers_in_comments() -> Result<()> {
         let source = "// const value = 42;\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_numbers_in_strings() {
+    fn ignores_numbers_in_strings() -> Result<()> {
         let source = r#"const text = "42";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 }

@@ -55,6 +55,8 @@ impl<'a, 'f> Visit<'a> for ExportStarVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -72,42 +74,47 @@ mod tests {
     }
 
     #[test]
-    fn reports_export_star() {
+    fn reports_export_star() -> Result<()> {
         let violations = run_check("export * from './module';\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiline_export_star() {
+    fn reports_multiline_export_star() -> Result<()> {
         let violations = run_check("export\n  * from './module';\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_named_re_exports() {
+    fn allows_named_re_exports() -> Result<()> {
         let violations = run_check("export { foo, bar } from './module';\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_namespace_re_exports() {
+    fn allows_namespace_re_exports() -> Result<()> {
         let violations = run_check("export * as utils from './utils';\n");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_export_star_in_comments_and_strings() {
+    fn ignores_export_star_in_comments_and_strings() -> Result<()> {
         let source = r#"// export * from './module';
 const text = "export * from './module'";
 /* export * from './module'; */
 "#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

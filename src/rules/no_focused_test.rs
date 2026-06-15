@@ -68,6 +68,8 @@ pub fn fix_file(
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -108,139 +110,158 @@ mod tests {
     }
 
     #[test]
-    fn reports_describe_only() {
+    fn reports_describe_only() -> Result<()> {
         let violations = run_check("describe.only('suite', () => {});");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("describe.only"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_it_only() {
+    fn reports_it_only() -> Result<()> {
         let violations = run_check("it.only('works', () => {});");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("it.only"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_test_only() {
+    fn reports_test_only() -> Result<()> {
         let violations = run_check("test.only('works', () => {});");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("test.only"));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_focused_tests() {
+    fn reports_multiple_focused_tests() -> Result<()> {
         let source = "describe.only('suite', () => { it.only('works', () => {}); });";
         let violations = run_check(source);
         assert_eq!(violations.len(), 2);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_regular_describe() {
+    fn ignores_regular_describe() -> Result<()> {
         let violations = run_check("describe('suite', () => {});");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_regular_it() {
+    fn ignores_regular_it() -> Result<()> {
         let violations = run_check("it('works', () => {});");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_regular_test() {
+    fn ignores_regular_test() -> Result<()> {
         let violations = run_check("test('works', () => {});");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_describe_skip() {
+    fn ignores_describe_skip() -> Result<()> {
         let violations = run_check("describe.skip('suite', () => {});");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_it_skip() {
+    fn ignores_it_skip() -> Result<()> {
         let violations = run_check("it.skip('works', () => {});");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_other_member_calls() {
+    fn ignores_other_member_calls() -> Result<()> {
         let violations = run_check("foo.only('something');");
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_in_comments() {
+    fn ignores_in_comments() -> Result<()> {
         let source = "// describe.only('suite', () => {});";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_in_strings() {
+    fn ignores_in_strings() -> Result<()> {
         let source = r#"const text = "it.only('works', () => {})";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_correct_line() {
+    fn reports_correct_line() -> Result<()> {
         let source = "const x = 1;\nit.only('works', () => {});\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_removes_describe_only() {
+    fn fix_removes_describe_only() -> Result<()> {
         let source = "describe.only('suite', () => {});";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "describe('suite', () => {});");
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_removes_it_only() {
+    fn fix_removes_it_only() -> Result<()> {
         let source = "it.only('works', () => {});";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "it('works', () => {});");
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_removes_test_only() {
+    fn fix_removes_test_only() -> Result<()> {
         let source = "test.only('works', () => {});";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "test('works', () => {});");
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_removes_multiple_focused_tests() {
+    fn fix_removes_multiple_focused_tests() -> Result<()> {
         let source = "describe.only('suite', () => { it.only('works', () => {}); });";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "describe('suite', () => { it('works', () => {}); });");
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_leaves_non_test_only() {
+    fn fix_leaves_non_test_only() -> Result<()> {
         let source = "foo.only('something');";
         let edits = run_fix(source);
         assert!(edits.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_no_focused_test_returns_empty() {
+    fn fix_no_focused_test_returns_empty() -> Result<()> {
         let source = "describe('suite', () => {});";
         let edits = run_fix(source);
         assert!(edits.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_disabled_returns_empty() {
+    fn fix_disabled_returns_empty() -> Result<()> {
         let source = "it.only('works', () => {});";
         let allocator = Allocator::default();
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
@@ -250,5 +271,6 @@ mod tests {
         };
         let edits = fix_file(Path::new("auth.test.ts"), &program, source, &config);
         assert!(edits.is_empty());
-    }
+    
+        Ok(())}
 }

@@ -104,7 +104,7 @@ fn is_body_effectively_empty(source: &str, body_span: oxc_span::Span) -> bool {
     if inner_start >= inner_end {
         return true;
     }
-    let inner = &source[inner_start..inner_end];
+    let inner = source.get(inner_start..inner_end).unwrap_or("");
     inner.chars().all(|char| char.is_whitespace())
 }
 
@@ -165,6 +165,8 @@ impl<'a, 'f> Visit<'a> for EmptyInterfaceVisitor<'a, 'f> {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -204,30 +206,33 @@ mod tests {
     }
 
     #[test]
-    fn reports_empty_interface() {
+    fn reports_empty_interface() -> Result<()> {
         let violations = run_check("interface Empty {}\n");
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_empty_interface_with_newline() {
+    fn reports_empty_interface_with_newline() -> Result<()> {
         let source = "interface Empty {\n}\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_empty_interface_with_whitespace() {
+    fn reports_empty_interface_with_whitespace() -> Result<()> {
         let source = "interface Empty {   }\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_multiple_empty_interfaces() {
+    fn reports_multiple_empty_interfaces() -> Result<()> {
         let source = r#"interface A {}
 interface B {}
 "#;
@@ -235,101 +240,114 @@ interface B {}
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[1].line, Some(2));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_interface_with_members() {
+    fn allows_interface_with_members() -> Result<()> {
         let source = "interface User { name: string }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_interface_with_comment_in_body() {
+    fn allows_interface_with_comment_in_body() -> Result<()> {
         let source = "interface User { /* todo */ name: string }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_interface_in_comments_and_strings() {
+    fn ignores_interface_in_comments_and_strings() -> Result<()> {
         let source = r#"// interface Empty {}
 const text = "interface Empty {}";
 /* interface Empty {} */
 "#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn does_not_match_identifier_fragments() {
+    fn does_not_match_identifier_fragments() -> Result<()> {
         let source = r#"const interfacex = true;
 "#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_converts_basic_empty_interface() {
+    fn fix_converts_basic_empty_interface() -> Result<()> {
         let source = "interface Empty {}\n";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "type Empty = Record<string, never>;\n");
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_converts_exported_empty_interface() {
+    fn fix_converts_exported_empty_interface() -> Result<()> {
         let source = "export interface Empty {}\n";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "export type Empty = Record<string, never>;\n");
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_does_not_convert_interface_with_extends() {
+    fn fix_does_not_convert_interface_with_extends() -> Result<()> {
         let source = "interface Empty extends Base {}\n";
         let edits = run_fix(source);
         assert!(edits.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_does_not_convert_declaration_file() {
+    fn fix_does_not_convert_declaration_file() -> Result<()> {
         let source = "interface Empty {}\n";
         let edits = run_fix_with_path(source, "types.d.ts");
         assert!(edits.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_does_not_convert_declared_interface() {
+    fn fix_does_not_convert_declared_interface() -> Result<()> {
         let source = "declare interface Empty {}\n";
         let edits = run_fix(source);
         assert!(edits.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_does_not_convert_merged_interface() {
+    fn fix_does_not_convert_merged_interface() -> Result<()> {
         let source = "interface Empty {}\ninterface Empty { name: string }\n";
         let edits = run_fix(source);
         assert!(edits.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_does_not_convert_interface_with_comment_in_body() {
+    fn fix_does_not_convert_interface_with_comment_in_body() -> Result<()> {
         let source = "interface Empty { /* todo */ }\n";
         let edits = run_fix(source);
         assert!(edits.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_converts_multiple_empty_interfaces() {
+    fn fix_converts_multiple_empty_interfaces() -> Result<()> {
         let source = "interface A {}\ninterface B {}\n";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "type A = Record<string, never>;\ntype B = Record<string, never>;\n");
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fix_disabled_returns_empty() {
+    fn fix_disabled_returns_empty() -> Result<()> {
         let source = "interface Empty {}\n";
         let allocator = Allocator::default();
         let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
@@ -339,15 +357,17 @@ const text = "interface Empty {}";
         };
         let edits = fix_file(Path::new("types.ts"), &program, source, &config);
         assert!(edits.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn fixed_source_parses() {
+    fn fixed_source_parses() -> Result<()> {
         let source = "interface Empty {}\n";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         let allocator = Allocator::default();
         let parser_return = Parser::new(&allocator, &fixed, SourceType::ts()).parse();
         assert!(!parser_return.panicked);
-    }
+    
+        Ok(())}
 }

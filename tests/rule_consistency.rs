@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 
 /// Parse rule IDs from the catalog source as a fallback for external tests.
@@ -50,7 +51,7 @@ fn known_rule_set() -> HashSet<String> {
 }
 
 #[test]
-fn every_known_rule_has_catalog_entry() {
+fn every_known_rule_has_catalog_entry() -> Result<()> {
     let known = known_rule_set();
     let catalog_ids = rule_ids_from_catalog_source();
     for id in &known {
@@ -59,10 +60,11 @@ fn every_known_rule_has_catalog_entry() {
             "rule '{id}' is in known_rule_ids() but missing from catalog.rs"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn every_catalog_rule_is_known() {
+fn every_catalog_rule_is_known() -> Result<()> {
     let known = known_rule_set();
     let catalog_ids = rule_ids_from_catalog_source();
     for id in &catalog_ids {
@@ -71,10 +73,11 @@ fn every_catalog_rule_is_known() {
             "rule '{id}' is documented in catalog.rs but missing from known_rule_ids()"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn preset_refs_only_known_rules() {
+fn preset_refs_only_known_rules() -> Result<()> {
     let known = known_rule_set();
     let preset_ids = rule_ids_from_preset_source();
     let mut seen = HashSet::new();
@@ -83,10 +86,11 @@ fn preset_refs_only_known_rules() {
             assert!(known.contains(&id), "preset references unknown rule '{id}'");
         }
     }
+    Ok(())
 }
 
 #[test]
-fn docs_rules_md_mentions_every_known_rule() {
+fn docs_rules_md_mentions_every_known_rule() -> Result<()> {
     let known = known_rule_set();
     let docs = include_str!("../docs/rules.md");
     for id in &known {
@@ -97,10 +101,11 @@ fn docs_rules_md_mentions_every_known_rule() {
             "rule '{id}' is in known_rule_ids() but not mentioned in docs/rules.md"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn every_configurable_rule_has_metadata_entry() {
+fn every_configurable_rule_has_metadata_entry() -> Result<()> {
     let known = known_rule_set();
     let raw = include_str!("../src/config/rule_metadata.rs");
 
@@ -111,10 +116,11 @@ fn every_configurable_rule_has_metadata_entry() {
             "rule '{id}' missing from rule_metadata.rs"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn every_metadata_entry_has_catalog_entry() {
+fn every_metadata_entry_has_catalog_entry() -> Result<()> {
     let catalog_ids = rule_ids_from_catalog_source();
     let raw = include_str!("../src/config/rule_metadata.rs");
 
@@ -135,6 +141,7 @@ fn every_metadata_entry_has_catalog_entry() {
             "rule '{id}' is in rule_metadata.rs but missing from catalog.rs"
         );
     }
+    Ok(())
 }
 
 fn fixable_rule_ids_from_metadata() -> HashSet<String> {
@@ -240,7 +247,7 @@ fn fixable_rule_ids_from_adapters() -> HashSet<String> {
 }
 
 #[test]
-fn every_fixable_metadata_rule_has_fixable_adapter() {
+fn every_fixable_metadata_rule_has_fixable_adapter() -> Result<()> {
     let metadata_ids = fixable_rule_ids_from_metadata();
     let adapter_ids = fixable_rule_ids_from_adapters();
     for id in &metadata_ids {
@@ -249,10 +256,11 @@ fn every_fixable_metadata_rule_has_fixable_adapter() {
             "rule '{id}' has a non-None fix_capability in metadata but no fixable adapter"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn every_fixable_adapter_rule_has_fixable_metadata() {
+fn every_fixable_adapter_rule_has_fixable_metadata() -> Result<()> {
     let metadata_ids = fixable_rule_ids_from_metadata();
     let adapter_ids = fixable_rule_ids_from_adapters();
     for id in &adapter_ids {
@@ -261,10 +269,11 @@ fn every_fixable_adapter_rule_has_fixable_metadata() {
             "rule '{id}' has a fixable adapter but None fix_capability in metadata"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn fix_docs_mentions_every_fixable_rule() {
+fn fix_docs_mentions_every_fixable_rule() -> Result<()> {
     let fixable_ids = fixable_rule_ids_from_metadata();
     let docs = include_str!("../docs/fix.md");
     for id in &fixable_ids {
@@ -273,6 +282,7 @@ fn fix_docs_mentions_every_fixable_rule() {
             "rule '{id}' supports fix but is not documented in docs/fix.md"
         );
     }
+    Ok(())
 }
 
 fn rule_capabilities_from_metadata() -> HashMap<String, String> {
@@ -301,7 +311,7 @@ fn rule_capabilities_from_metadata() -> HashMap<String, String> {
 }
 
 #[test]
-fn fix_capability_classifications_match_plan() {
+fn fix_capability_classifications_match_plan() -> Result<()> {
     let capabilities = rule_capabilities_from_metadata();
     let expected = [
         ("no-debugger", "Safe"),
@@ -319,4 +329,5 @@ fn fix_capability_classifications_match_plan() {
             "rule '{id}' has unexpected fix capability"
         );
     }
+    Ok(())
 }

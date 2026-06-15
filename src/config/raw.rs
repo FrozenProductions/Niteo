@@ -42,12 +42,15 @@ impl RawConfig {
     ) -> Option<RawProjectConfig> {
         match (parent, child) {
             (None, None) => None,
-            (Some(p), None) => Some(p.clone()),
-            (None, Some(c)) => Some(c.clone()),
-            (Some(p), Some(c)) => Some(RawProjectConfig {
-                root: p.root.clone(),
-                respect_gitignore: c.respect_gitignore.or(p.respect_gitignore),
-                structure: Self::merge_structure(p.structure.as_ref(), c.structure.as_ref()),
+            (Some(parent), None) => Some(parent.clone()),
+            (None, Some(child)) => Some(child.clone()),
+            (Some(parent), Some(child)) => Some(RawProjectConfig {
+                root: parent.root.clone(),
+                respect_gitignore: child.respect_gitignore.or(parent.respect_gitignore),
+                structure: Self::merge_structure(
+                    parent.structure.as_ref(),
+                    child.structure.as_ref(),
+                ),
             }),
         }
     }
@@ -58,10 +61,13 @@ impl RawConfig {
     ) -> Option<RawArchitectureConfig> {
         match (parent, child) {
             (None, None) => None,
-            (Some(p), None) => Some(p.clone()),
-            (None, Some(c)) => Some(c.clone()),
-            (Some(p), Some(c)) => Some(RawArchitectureConfig {
-                layers: RawLayerBoundaryConfig::merge(p.layers.as_ref(), c.layers.as_ref()),
+            (Some(parent), None) => Some(parent.clone()),
+            (None, Some(child)) => Some(child.clone()),
+            (Some(parent), Some(child)) => Some(RawArchitectureConfig {
+                layers: RawLayerBoundaryConfig::merge(
+                    parent.layers.as_ref(),
+                    child.layers.as_ref(),
+                ),
             }),
         }
     }
@@ -72,15 +78,18 @@ impl RawConfig {
     ) -> Option<RawProjectStructure> {
         match (parent, child) {
             (None, None) => None,
-            (Some(p), None) => Some(p.clone()),
-            (None, Some(c)) => Some(c.clone()),
-            (Some(p), Some(c)) => Some(RawProjectStructure {
-                hooks: c.hooks.clone().or_else(|| p.hooks.clone()),
-                components: c.components.clone().or_else(|| p.components.clone()),
-                types: c.types.clone().or_else(|| p.types.clone()),
-                constants: c.constants.clone().or_else(|| p.constants.clone()),
-                tests: c.tests.clone().or_else(|| p.tests.clone()),
-                generated: c.generated.clone().or_else(|| p.generated.clone()),
+            (Some(parent), None) => Some(parent.clone()),
+            (None, Some(child)) => Some(child.clone()),
+            (Some(parent), Some(child)) => Some(RawProjectStructure {
+                hooks: child.hooks.clone().or_else(|| parent.hooks.clone()),
+                components: child
+                    .components
+                    .clone()
+                    .or_else(|| parent.components.clone()),
+                types: child.types.clone().or_else(|| parent.types.clone()),
+                constants: child.constants.clone().or_else(|| parent.constants.clone()),
+                tests: child.tests.clone().or_else(|| parent.tests.clone()),
+                generated: child.generated.clone().or_else(|| parent.generated.clone()),
             }),
         }
     }
@@ -91,11 +100,11 @@ impl RawConfig {
     ) -> Option<HashMap<String, RawRuleConfig>> {
         match (parent, child) {
             (None, None) => None,
-            (Some(p), None) => Some(p.clone()),
-            (None, Some(c)) => Some(c.clone()),
-            (Some(p), Some(c)) => {
-                let mut merged = p.clone();
-                for (name, child_rule) in c {
+            (Some(parent), None) => Some(parent.clone()),
+            (None, Some(child)) => Some(child.clone()),
+            (Some(parent), Some(child)) => {
+                let mut merged = parent.clone();
+                for (name, child_rule) in child {
                     match merged.get(name) {
                         Some(parent_rule) => {
                             merged.insert(
@@ -649,12 +658,12 @@ impl RawLayerBoundaryConfig {
     ) -> Option<RawLayerBoundaryConfig> {
         match (parent, child) {
             (None, None) => None,
-            (Some(p), None) => Some(p.clone()),
-            (None, Some(c)) => Some(c.clone()),
-            (Some(p), Some(c)) => {
-                let order = c.order.clone().or_else(|| p.order.clone());
-                let mut definitions = p.definitions.clone();
-                for (name, child_def) in &c.definitions {
+            (Some(parent), None) => Some(parent.clone()),
+            (None, Some(child)) => Some(child.clone()),
+            (Some(parent), Some(child)) => {
+                let order = child.order.clone().or_else(|| parent.order.clone());
+                let mut definitions = parent.definitions.clone();
+                for (name, child_def) in &child.definitions {
                     definitions.insert(name.clone(), child_def.clone());
                 }
                 Some(RawLayerBoundaryConfig { order, definitions })
@@ -682,10 +691,12 @@ impl RawLayerBoundaryConfig {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use anyhow::{Context, Result};
 
     #[test]
-    fn default_config_parses_architecture() {
+    fn default_config_parses_architecture() -> Result<()> {
         let source = r#"
 [architecture.layers]
 order = ["app", "features", "entities", "shared"]
@@ -702,7 +713,7 @@ folders = ["entities"]
 [architecture.layers.shared]
 folders = ["shared"]
 "#;
-        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let raw: RawConfig = toml::from_str(source).context("valid config")?;
         let arch = raw.architecture();
         assert_eq!(
             arch.layers.order,
@@ -710,36 +721,43 @@ folders = ["shared"]
         );
         assert_eq!(arch.layers.definitions.len(), 4);
         assert_eq!(
-            arch.layers.definitions.get("shared").unwrap().folders,
+            arch.layers
+                .definitions
+                .get("shared")
+                .context("expected shared layer")?
+                .folders,
             vec!["shared"]
         );
+        Ok(())
     }
 
     #[test]
-    fn missing_architecture_uses_defaults() {
+    fn missing_architecture_uses_defaults() -> Result<()> {
         let source = r#"
 [project]
 root = "src"
 "#;
-        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let raw: RawConfig = toml::from_str(source).context("valid config")?;
         let arch = raw.architecture();
         assert!(arch.layers.order.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn architecture_layer_order_only_defines_layers() {
+    fn architecture_layer_order_only_defines_layers() -> Result<()> {
         let source = r#"
 [architecture.layers]
 order = ["shared", "core"]
 "#;
-        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let raw: RawConfig = toml::from_str(source).context("valid config")?;
         let arch = raw.architecture();
         assert_eq!(arch.layers.order, vec!["shared", "core"]);
         assert!(arch.layers.definitions.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn architecture_layer_with_suffixes() {
+    fn architecture_layer_with_suffixes() -> Result<()> {
         let source = r#"
 [architecture.layers]
 order = ["features"]
@@ -748,15 +766,20 @@ order = ["features"]
 folders = ["features"]
 file-suffixes = [".feature.ts"]
 "#;
-        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let raw: RawConfig = toml::from_str(source).context("valid config")?;
         let arch = raw.architecture();
-        let def = arch.layers.definitions.get("features").unwrap();
+        let def = arch
+            .layers
+            .definitions
+            .get("features")
+            .context("expected features layer")?;
         assert_eq!(def.folders, vec!["features"]);
         assert_eq!(def.file_suffixes, vec![".feature.ts"]);
+        Ok(())
     }
 
     #[test]
-    fn default_config_parses_structure() {
+    fn default_config_parses_structure() -> Result<()> {
         let source = r#"
 [project]
 root = "src"
@@ -781,7 +804,7 @@ file-suffixes = [".constant.ts", ".constants.ts"]
 folders = ["tests"]
 file-suffixes = [".test.ts", ".tests.ts"]
 "#;
-        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let raw: RawConfig = toml::from_str(source).context("valid config")?;
         let structure = raw.structure();
         assert_eq!(structure.hooks.folders, vec!["hooks"]);
         assert_eq!(structure.hooks.file_suffixes, vec![".hook.ts", ".hooks.ts"]);
@@ -790,15 +813,16 @@ file-suffixes = [".test.ts", ".tests.ts"]
         assert_eq!(structure.constants.folders, vec!["constants"]);
         assert_eq!(structure.tests.folders, vec!["tests"]);
         assert_eq!(structure.tests.file_suffixes, vec![".test.ts", ".tests.ts"]);
+        Ok(())
     }
 
     #[test]
-    fn missing_structure_uses_defaults() {
+    fn missing_structure_uses_defaults() -> Result<()> {
         let source = r#"
 [project]
 root = "src"
 "#;
-        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let raw: RawConfig = toml::from_str(source).context("valid config")?;
         let structure = raw.structure();
         let defaults = ProjectStructureConfig::default();
         assert_eq!(structure.hooks.folders, defaults.hooks.folders);
@@ -808,85 +832,86 @@ root = "src"
         assert_eq!(structure.constants.folders, defaults.constants.folders);
         assert_eq!(structure.tests.folders, defaults.tests.folders);
         assert_eq!(structure.tests.file_suffixes, defaults.tests.file_suffixes);
+        Ok(())
     }
 
     #[test]
-    fn custom_structure_overrides_defaults() {
+    fn custom_structure_overrides_defaults() -> Result<()> {
         let source = r#"
 [project.structure.hooks]
 folders = ["custom-hooks"]
 file-suffixes = [".custom.ts"]
 "#;
-        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let raw: RawConfig = toml::from_str(source).context("valid config")?;
         let structure = raw.structure();
         assert_eq!(structure.hooks.folders, vec!["custom-hooks"]);
         assert_eq!(structure.hooks.file_suffixes, vec![".custom.ts"]);
         let defaults = ProjectStructureConfig::default();
         assert_eq!(structure.components.folders, defaults.components.folders);
+        Ok(())
     }
 
     #[test]
-    fn partial_domain_config_preserves_defaults() {
+    fn partial_domain_config_preserves_defaults() -> Result<()> {
         let source = r#"
 [project.structure.types]
 folders = ["typings"]
 "#;
-        let raw: RawConfig = toml::from_str(source).expect("valid config");
+        let raw: RawConfig = toml::from_str(source).context("valid config")?;
         let structure = raw.structure();
         assert_eq!(structure.types.folders, vec!["typings"]);
         let defaults = ProjectStructureConfig::default();
         assert_eq!(structure.types.file_suffixes, defaults.types.file_suffixes);
+        Ok(())
     }
 
     #[test]
-    fn merge_child_severity_overrides_parent_options() {
+    fn merge_child_severity_overrides_parent_options() -> Result<()> {
         let parent: RawConfig = toml::from_str(
             r#"
 [rules.no-console]
 severity = "warn"
 allow-patterns = ["debug"]
 "#,
-        )
-        .unwrap();
+        )?;
         let child: RawConfig = toml::from_str(
             r#"
 [rules.no-console]
 severity = "error"
 "#,
-        )
-        .unwrap();
+        )?;
 
         let merged = RawConfig::merge(&parent, &child);
         let rules_config = merged.rules_config();
         assert_eq!(rules_config.no_console.severity, Severity::Error);
+        Ok(())
     }
 
     #[test]
-    fn merge_child_options_partial_override() {
+    fn merge_child_options_partial_override() -> Result<()> {
         let parent: RawConfig = toml::from_str(
             r#"
 [rules.no-large-file]
 severity = "warn"
 max-lines = 300
 "#,
-        )
-        .unwrap();
+        )?;
         let child: RawConfig = toml::from_str(
             r#"
 [rules.no-large-file]
 severity = "error"
 "#,
-        )
-        .unwrap();
+        )?;
 
         let merged = RawConfig::merge(&parent, &child);
         let rules_config = merged.rules_config();
         assert_eq!(rules_config.no_large_file.severity, Severity::Error);
         assert_eq!(rules_config.no_large_file.max_lines, 300);
+        Ok(())
     }
 
     #[test]
-    fn merge_inherits_parent_rules_not_in_child() {
+    fn merge_inherits_parent_rules_not_in_child() -> Result<()> {
         let parent: RawConfig = toml::from_str(
             r#"
 [rules.no-console]
@@ -894,68 +919,65 @@ severity = "warn"
 [rules.no-debugger]
 severity = "error"
 "#,
-        )
-        .unwrap();
+        )?;
         let child: RawConfig = toml::from_str(
             r#"
 [rules.no-console]
 severity = "off"
 "#,
-        )
-        .unwrap();
+        )?;
 
         let merged = RawConfig::merge(&parent, &child);
         let rules_config = merged.rules_config();
         assert_eq!(rules_config.no_console.severity, Severity::Off);
         assert_eq!(rules_config.no_debugger.severity, Severity::Error);
+        Ok(())
     }
 
     #[test]
-    fn merge_structure_child_overrides_parent_domain() {
+    fn merge_structure_child_overrides_parent_domain() -> Result<()> {
         let parent: RawConfig = toml::from_str(
             r#"
 [project.structure.tests]
 folders = ["tests"]
 file-suffixes = [".test.ts"]
 "#,
-        )
-        .unwrap();
+        )?;
         let child: RawConfig = toml::from_str(
             r#"
 [project.structure.tests]
 folders = ["__tests__"]
-file-suffixes = [".spec.ts"]
+file-suffixes = [".spechild.ts"]
 "#,
-        )
-        .unwrap();
+        )?;
 
         let merged = RawConfig::merge(&parent, &child);
         let structure = merged.structure();
         assert_eq!(structure.tests.folders, vec!["__tests__"]);
-        assert_eq!(structure.tests.file_suffixes, vec![".spec.ts"]);
+        assert_eq!(structure.tests.file_suffixes, vec![".spechild.ts"]);
+        Ok(())
     }
 
     #[test]
-    fn merge_structure_preserves_parent_root() {
+    fn merge_structure_preserves_parent_root() -> Result<()> {
         let parent: RawConfig = toml::from_str(
             r#"
 [project]
 root = "src"
 respect-gitignore = true
 "#,
-        )
-        .unwrap();
+        )?;
         let child: RawConfig = toml::from_str(
             r#"
 [project]
 respect-gitignore = false
 "#,
-        )
-        .unwrap();
+        )?;
 
         let merged = RawConfig::merge(&parent, &child);
-        let project = merged.project.as_ref().unwrap();
+        let project = merged.project.as_ref().context("expected project")?;
         assert_eq!(project.root, Some(PathBuf::from("src")));
         assert_eq!(project.respect_gitignore, Some(false));
+        Ok(())
     }
 }

@@ -114,6 +114,8 @@ fn is_console_callee(callee: &Expression<'_>) -> bool {
 
 #[cfg(test)]
 mod tests {
+
+    use anyhow::Result;
     use super::*;
     use crate::config::{RuleConfig, Severity};
     use crate::syntax::LineIndex;
@@ -136,135 +138,153 @@ mod tests {
     }
 
     #[test]
-    fn reports_empty_catch() {
+    fn reports_empty_catch() -> Result<()> {
         let source = "try { doWork(); } catch (e) {}\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_catch_without_binding() {
+    fn reports_catch_without_binding() -> Result<()> {
         let source = "try { doWork(); } catch {}\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_silent_catch_with_statements() {
+    fn reports_silent_catch_with_statements() -> Result<()> {
         let source = "try { doWork(); } catch (e) { const x = 1; }\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_silent_catch_with_function_call() {
+    fn reports_silent_catch_with_function_call() -> Result<()> {
         let source = "try { doWork(); } catch (e) { handleError(e); }\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_console_methods() {
+    fn allows_console_methods() -> Result<()> {
         for method in ["error", "warn", "log"] {
             let source = format!("try {{ doWork(); }} catch (e) {{ console.{method}(e); }}\n");
             let violations = run_check(&source);
             assert!(violations.is_empty(), "expected no violations for console.{method}");
         }
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_rethrow() {
+    fn allows_rethrow() -> Result<()> {
         let source = "try { doWork(); } catch (e) { throw e; }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_rethrow_with_wrapping() {
+    fn allows_rethrow_with_wrapping() -> Result<()> {
         let source = "try { doWork(); } catch (e) { throw new Error('wrapped', { cause: e }); }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_return_with_value() {
+    fn allows_return_with_value() -> Result<()> {
         let source = "function f() { try { doWork(); } catch (e) { return null; } }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn flags_return_without_value() {
+    fn flags_return_without_value() -> Result<()> {
         let source = "function f() { try { doWork(); } catch (e) { return; } }\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_console_in_nested_if() {
+    fn allows_console_in_nested_if() -> Result<()> {
         let source =
             "try { doWork(); } catch (e) { if (e instanceof Error) { console.error(e); } }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_throw_in_nested_if_else() {
+    fn allows_throw_in_nested_if_else() -> Result<()> {
         let source = "try { doWork(); } catch (e) { if (e.code === 1) { return null; } else { throw e; } }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn reports_silent_nested_if() {
+    fn reports_silent_nested_if() -> Result<()> {
         let source = "try { doWork(); } catch (e) { if (e.code === 1) { cleanup(); } }\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_console_in_switch_case() {
+    fn allows_console_in_switch_case() -> Result<()> {
         let source = "try { doWork(); } catch (e) { switch (e.code) { case 1: console.error(e); break; } }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_return_in_for_loop() {
+    fn allows_return_in_for_loop() -> Result<()> {
         let source = "try { doWork(); } catch (e) { for (const item of []) { return item; } }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn allows_throw_in_nested_try() {
+    fn allows_throw_in_nested_try() -> Result<()> {
         let source = "try { doWork(); } catch (e) { try { recover(); } catch { throw e; } }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_try_without_catch() {
+    fn ignores_try_without_catch() -> Result<()> {
         let source = "try { doWork(); } finally { cleanup(); }\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_catch_in_comments() {
+    fn ignores_catch_in_comments() -> Result<()> {
         let source = "// try { doWork(); } catch (e) {}\n/* try { } catch (e) {} */\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     #[test]
-    fn ignores_catch_in_strings() {
+    fn ignores_catch_in_strings() -> Result<()> {
         let source = r#"const text = "try { } catch (e) {}";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
-    }
+    
+        Ok(())}
 
     fn test_config() -> RuleConfig {
         RuleConfig {

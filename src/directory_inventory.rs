@@ -64,7 +64,7 @@ fn walk_and_collect(
 
     for entry in entries {
         let entry = match entry {
-            Ok(e) => e,
+            Ok(entry) => entry,
             Err(_) => continue,
         };
 
@@ -118,7 +118,7 @@ fn is_barrel_file(path: &Path) -> bool {
 
 fn analyze_barrel_file(path: &Path) -> BarrelFileFacts {
     let source = match fs::read_to_string(path) {
-        Ok(s) => s,
+        Ok(source) => source,
         Err(_) => return BarrelFileFacts { is_empty: false },
     };
 
@@ -141,7 +141,7 @@ fn is_empty_barrel_source(source: &str) -> bool {
 
         let statement_start = cursor;
         read_statement(bytes, &mut cursor);
-        let statement = &bytes[statement_start..cursor];
+        let statement = bytes.get(statement_start..cursor).unwrap_or(b"");
 
         if has_re_export_content(statement) {
             has_content = true;
@@ -323,7 +323,7 @@ fn skip_whitespace(bytes: &[u8]) -> &[u8] {
     while bytes.get(index).is_some_and(|&b| b.is_ascii_whitespace()) {
         index += 1;
     }
-    &bytes[index..]
+    bytes.get(index..).unwrap_or(b"")
 }
 
 #[derive(Debug)]
@@ -353,7 +353,7 @@ impl<'a> TokenScanner<'a> {
             self.index += 1;
         }
 
-        std::str::from_utf8(&self.source[start..self.index]).ok()
+        std::str::from_utf8(self.source.get(start..self.index).unwrap_or(b"")).ok()
     }
 
     fn contains_token(&mut self, expected: &str) -> bool {
@@ -398,19 +398,20 @@ impl<'a> TokenScanner<'a> {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use anyhow::{Context, Result};
     use std::fs;
 
-    fn create_temp_dir() -> PathBuf {
+    fn create_temp_dir() -> Result<PathBuf> {
         let dir = std::env::temp_dir().join(format!(
             "niteo_test_{}",
             std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .duration_since(std::time::UNIX_EPOCH)?
                 .as_nanos()
         ));
-        fs::create_dir_all(&dir).unwrap();
-        dir
+        fs::create_dir_all(&dir)?;
+        Ok(dir)
     }
 
     fn cleanup_temp_dir(dir: &Path) {
@@ -422,15 +423,14 @@ mod tests {
     }
 
     #[test]
-    fn inventory_walks_tree_and_records_facts() {
-        let root = create_temp_dir();
-        fs::create_dir_all(root.join("src/components")).unwrap();
-        fs::write(root.join("src/index.ts"), "export * from './components';").unwrap();
+    fn inventory_walks_tree_and_records_facts() -> Result<()> {
+        let root = create_temp_dir()?;
+        fs::create_dir_all(root.join("src/components"))?;
+        fs::write(root.join("src/index.ts"), "export * from './components';")?;
         fs::write(
             root.join("src/components/Button.tsx"),
             "export const Button = () => {};",
-        )
-        .unwrap();
+        )?;
 
         let inventory = collect_directory_inventory(&root, &[]);
 
@@ -439,21 +439,22 @@ mod tests {
             .directories
             .iter()
             .find(|d| d.path.ends_with("src"))
-            .unwrap();
+            .context("expected src directory")?;
         assert_eq!(src_facts.source_files.len(), 1);
         assert_eq!(src_facts.subdirectories.len(), 1);
         assert_eq!(src_facts.depth, 1);
 
         cleanup_temp_dir(&root);
+        Ok(())
     }
 
     #[test]
-    fn inventory_excludes_default_ignored_directories() {
-        let root = create_temp_dir();
-        fs::create_dir_all(root.join("node_modules/pkg")).unwrap();
-        fs::create_dir_all(root.join("src")).unwrap();
-        fs::write(root.join("node_modules/pkg/index.ts"), "export {};").unwrap();
-        fs::write(root.join("src/index.ts"), "export {};").unwrap();
+    fn inventory_excludes_default_ignored_directories() -> Result<()> {
+        let root = create_temp_dir()?;
+        fs::create_dir_all(root.join("node_modules/pkg"))?;
+        fs::create_dir_all(root.join("src"))?;
+        fs::write(root.join("node_modules/pkg/index.ts"), "export {};")?;
+        fs::write(root.join("src/index.ts"), "export {};")?;
 
         let inventory = collect_directory_inventory(&root, &[]);
 
@@ -471,15 +472,16 @@ mod tests {
         );
 
         cleanup_temp_dir(&root);
+        Ok(())
     }
 
     #[test]
-    fn inventory_excludes_specified_directories() {
-        let root = create_temp_dir();
-        fs::create_dir_all(root.join("src")).unwrap();
-        fs::create_dir_all(root.join("generated")).unwrap();
-        fs::write(root.join("src/index.ts"), "export {};").unwrap();
-        fs::write(root.join("generated/types.ts"), "export type Foo = {};").unwrap();
+    fn inventory_excludes_specified_directories() -> Result<()> {
+        let root = create_temp_dir()?;
+        fs::create_dir_all(root.join("src"))?;
+        fs::create_dir_all(root.join("generated"))?;
+        fs::write(root.join("src/index.ts"), "export {};")?;
+        fs::write(root.join("generated/types.ts"), "export type Foo = {};")?;
 
         let exclude = vec![root.join("generated")];
         let inventory = collect_directory_inventory(&root, &exclude);
@@ -498,11 +500,12 @@ mod tests {
         );
 
         cleanup_temp_dir(&root);
+        Ok(())
     }
 
     #[test]
-    fn inventory_handles_unreadable_paths_gracefully() {
-        let root = create_temp_dir();
+    fn inventory_handles_unreadable_paths_gracefully() -> Result<()> {
+        let root = create_temp_dir()?;
         let nonexistent = root.join("nonexistent");
 
         let inventory = collect_directory_inventory(&nonexistent, &[]);
@@ -510,13 +513,14 @@ mod tests {
         assert!(inventory.directories.is_empty());
 
         cleanup_temp_dir(&root);
+        Ok(())
     }
 
     #[test]
-    fn inventory_detects_empty_barrel_files() {
-        let root = create_temp_dir();
-        fs::create_dir_all(root.join("empty")).unwrap();
-        fs::write(root.join("empty/index.ts"), "").unwrap();
+    fn inventory_detects_empty_barrel_files() -> Result<()> {
+        let root = create_temp_dir()?;
+        fs::create_dir_all(root.join("empty"))?;
+        fs::write(root.join("empty/index.ts"), "")?;
 
         let inventory = collect_directory_inventory(&root, &[]);
 
@@ -524,27 +528,26 @@ mod tests {
             .directories
             .iter()
             .find(|d| d.path.ends_with("empty"))
-            .unwrap();
+            .context("expected empty directory")?;
         assert_eq!(empty_facts.barrel_files.len(), 1);
         assert!(empty_facts.barrel_files[0].is_empty);
 
         cleanup_temp_dir(&root);
+        Ok(())
     }
 
     #[test]
-    fn inventory_detects_non_empty_barrel_files() {
-        let root = create_temp_dir();
-        fs::create_dir_all(root.join("components")).unwrap();
+    fn inventory_detects_non_empty_barrel_files() -> Result<()> {
+        let root = create_temp_dir()?;
+        fs::create_dir_all(root.join("components"))?;
         fs::write(
             root.join("components/index.ts"),
             "export { Button } from './Button';",
-        )
-        .unwrap();
+        )?;
         fs::write(
             root.join("components/Button.tsx"),
             "export const Button = () => {};",
-        )
-        .unwrap();
+        )?;
 
         let inventory = collect_directory_inventory(&root, &[]);
 
@@ -552,17 +555,18 @@ mod tests {
             .directories
             .iter()
             .find(|d| d.path.ends_with("components"))
-            .unwrap();
+            .context("expected components directory")?;
         assert_eq!(comp_facts.barrel_files.len(), 1);
         assert!(!comp_facts.barrel_files[0].is_empty);
 
         cleanup_temp_dir(&root);
+        Ok(())
     }
 
     #[test]
-    fn inventory_records_correct_depth() {
-        let root = create_temp_dir();
-        fs::create_dir_all(root.join("a/b/c")).unwrap();
+    fn inventory_records_correct_depth() -> Result<()> {
+        let root = create_temp_dir()?;
+        fs::create_dir_all(root.join("a/b/c"))?;
 
         let inventory = collect_directory_inventory(&root, &[]);
 
@@ -570,34 +574,36 @@ mod tests {
             .directories
             .iter()
             .find(|d| d.path.ends_with("a"))
-            .unwrap();
+            .context("expected a directory")?;
         let b_facts = inventory
             .directories
             .iter()
             .find(|d| d.path.ends_with("b"))
-            .unwrap();
+            .context("expected b directory")?;
         let c_facts = inventory
             .directories
             .iter()
             .find(|d| d.path.ends_with("c"))
-            .unwrap();
+            .context("expected c directory")?;
 
         assert_eq!(a_facts.depth, 1);
         assert_eq!(b_facts.depth, 2);
         assert_eq!(c_facts.depth, 3);
 
         cleanup_temp_dir(&root);
+        Ok(())
     }
 
     #[test]
-    fn is_empty_barrel_source_detects_empty() {
+    fn is_empty_barrel_source_detects_empty() -> Result<()> {
         assert!(is_empty_barrel_source(""));
         assert!(is_empty_barrel_source("// just a comment\n"));
         assert!(is_empty_barrel_source("/* block comment */\n"));
+        Ok(())
     }
 
     #[test]
-    fn is_empty_barrel_source_detects_re_exports() {
+    fn is_empty_barrel_source_detects_re_exports() -> Result<()> {
         assert!(!is_empty_barrel_source(
             "export { Button } from './Button';\n"
         ));
@@ -605,12 +611,14 @@ mod tests {
         assert!(!is_empty_barrel_source(
             "export type { Props } from './types';\n"
         ));
+        Ok(())
     }
 
     #[test]
-    fn is_empty_barrel_source_rejects_logic() {
+    fn is_empty_barrel_source_rejects_logic() -> Result<()> {
         assert!(!is_empty_barrel_source("const x = 1;\n"));
         assert!(!is_empty_barrel_source("export const x = 1;\n"));
         assert!(!is_empty_barrel_source("export { Button };\n"));
+        Ok(())
     }
 }

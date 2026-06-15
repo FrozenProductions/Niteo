@@ -63,45 +63,52 @@ pub fn source_type_from_path(path: &Path) -> Option<SourceType> {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use anyhow::{Context, Result};
     use std::path::Path;
 
     #[test]
-    fn detects_typescript() {
-        let source_type = source_type_from_path(Path::new("foo.ts")).expect("ts");
+    fn detects_typescript() -> Result<()> {
+        let source_type = source_type_from_path(Path::new("foo.ts")).context("ts")?;
         assert!(source_type.is_typescript());
         assert!(!source_type.is_jsx());
+        Ok(())
     }
 
     #[test]
-    fn detects_tsx() {
-        let source_type = source_type_from_path(Path::new("Component.tsx")).expect("tsx");
+    fn detects_tsx() -> Result<()> {
+        let source_type = source_type_from_path(Path::new("Component.tsx")).context("tsx")?;
         assert!(source_type.is_typescript());
         assert!(source_type.is_jsx());
+        Ok(())
     }
 
     #[test]
-    fn detects_jsx() {
-        let source_type = source_type_from_path(Path::new("Component.jsx")).expect("jsx");
+    fn detects_jsx() -> Result<()> {
+        let source_type = source_type_from_path(Path::new("Component.jsx")).context("jsx")?;
         assert!(source_type.is_jsx());
         assert!(!source_type.is_typescript());
+        Ok(())
     }
 
     #[test]
-    fn detects_javascript_module_kinds() {
-        let mjs = source_type_from_path(Path::new("module.mjs")).expect("mjs");
+    fn detects_javascript_module_kinds() -> Result<()> {
+        let mjs = source_type_from_path(Path::new("module.mjs")).context("mjs")?;
         assert!(mjs.is_module());
-        let cjs = source_type_from_path(Path::new("module.cjs")).expect("cjs");
+        let cjs = source_type_from_path(Path::new("module.cjs")).context("cjs")?;
         assert!(cjs.is_commonjs());
+        Ok(())
     }
 
     #[test]
-    fn rejects_unknown_extension() {
+    fn rejects_unknown_extension() -> Result<()> {
         assert!(source_type_from_path(Path::new("README.md")).is_none());
+        Ok(())
     }
 
     #[test]
-    fn line_index_reports_lines_and_columns() {
+    fn line_index_reports_lines_and_columns() -> Result<()> {
         let source = "first\nsecond line\nthird";
         let index = LineIndex::new(source);
         assert_eq!(index.position(0).line, 1);
@@ -110,5 +117,6 @@ mod tests {
         assert_eq!(index.position(6).column, 1);
         assert_eq!(index.position(18).line, 3);
         assert_eq!(index.position(18).column, 1);
+        Ok(())
     }
 }
