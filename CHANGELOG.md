@@ -20,6 +20,10 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 - Workspace discovery and package model from `package.json` workspaces and `pnpm-workspace.yaml`.
 - `no-private-package-import` rule to prevent cross-package internal file imports.
 - `no-package-cycle` rule to detect package-level dependency cycles.
+- Autofix infrastructure with a new `fix` command and `lint --fix` flag.
+- Initial autofix support for `no-debugger`, `no-focused-test`, `no-skipped-test`, and `no-empty-interface`.
+- Rule category display in `niteo rules` text and JSON output.
+- Unresolved import breakdown by relative and alias imports in `niteo stats`.
 
 ### Changed
 
