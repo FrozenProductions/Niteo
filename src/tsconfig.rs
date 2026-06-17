@@ -11,6 +11,7 @@ pub struct TsConfig {
     pub config_dir: PathBuf,
     include_set: Option<GlobSet>,
     exclude_set: Option<GlobSet>,
+    from_file: bool,
 }
 
 impl Default for TsConfig {
@@ -21,6 +22,7 @@ impl Default for TsConfig {
             config_dir: PathBuf::from("."),
             include_set: None,
             exclude_set: None,
+            from_file: false,
         }
     }
 }
@@ -34,25 +36,28 @@ impl TsConfig {
             config_dir: PathBuf::from("."),
             include_set: None,
             exclude_set: None,
+            from_file: false,
         }
     }
 
     pub fn is_included(&self, path: &Path) -> bool {
-        let relative_path = match path.strip_prefix(&self.config_dir) {
-            Ok(path) => path,
-            Err(_) => return false,
-        };
+        if self.from_file {
+            let relative_path = match path.strip_prefix(&self.config_dir) {
+                Ok(path) => path,
+                Err(_) => return false,
+            };
 
-        if let Some(include_set) = &self.include_set
-            && !include_set.is_match(relative_path)
-        {
-            return false;
-        }
+            if let Some(include_set) = &self.include_set
+                && !include_set.is_match(relative_path)
+            {
+                return false;
+            }
 
-        if let Some(exclude_set) = &self.exclude_set
-            && exclude_set.is_match(relative_path)
-        {
-            return false;
+            if let Some(exclude_set) = &self.exclude_set
+                && exclude_set.is_match(relative_path)
+            {
+                return false;
+            }
         }
 
         true
@@ -61,8 +66,8 @@ impl TsConfig {
 
 fn build_optional_glob_set(patterns: Option<&Vec<String>>) -> Result<Option<GlobSet>> {
     let patterns = match patterns {
-        Some(patterns) if !patterns.is_empty() => patterns,
-        _ => return Ok(None),
+        Some(patterns) => patterns,
+        None => return Ok(None),
     };
 
     let mut builder = GlobSetBuilder::new();
@@ -191,6 +196,7 @@ fn parse_file(path: &Path) -> Result<TsConfig> {
         config_dir: config_dir.to_path_buf(),
         include_set,
         exclude_set,
+        from_file: true,
     })
 }
 
