@@ -124,7 +124,6 @@ fn every_metadata_entry_has_catalog_entry() -> Result<()> {
     let catalog_ids = rule_ids_from_catalog_source();
     let raw = include_str!("../src/config/rule_metadata.rs");
 
-    // Collect rule IDs from metadata source
     let mut metadata_ids = std::collections::HashSet::new();
     for line in raw.lines() {
         let trimmed = line.trim();

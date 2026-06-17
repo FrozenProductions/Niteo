@@ -57,6 +57,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
     let files = if options.git_flag {
         resolve_changed_files(workspace_root)?
     } else {
+        // Always detect changed files for the optional prompt, even without --git
         let changed_files = git::get_changed_typescript_files().unwrap_or_else(|err| {
             eprintln!("warning: could not detect changed files via git: {err}");
             Vec::new()

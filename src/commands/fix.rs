@@ -180,7 +180,6 @@ pub fn fix_workspace(
 
     println!("Fixed {} file(s).", outcome.fixed_files.len());
 
-    // Prune baseline after fixing
     if let Some(existing_baseline) = baseline::read_baseline(&resolved_baseline_path)? {
         let result = existing_baseline.prune(&collected.project_root, &[]);
         if result.removed_count > 0 {

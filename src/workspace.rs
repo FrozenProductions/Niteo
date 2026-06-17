@@ -28,6 +28,7 @@ impl Workspace {
             packages.extend(Self::discovery_from_pnpm_workspace_yaml(workspace_root)?);
         }
 
+        // Deeper directories first so the most specific package wins in priority lookups
         packages.sort_by(|a, b| a.directory.cmp(&b.directory));
         packages.reverse();
 

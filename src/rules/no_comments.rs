@@ -16,7 +16,6 @@ pub fn check_file(
     let source = program.source_text;
     let mut violations = Vec::new();
 
-    // Don't flag niteo's own suppression directives as code comments
     for comment in &program.comments {
         if is_niteo_directive(source, comment) {
             continue;
