@@ -148,6 +148,8 @@ Every rule has a severity:
 
 Run `niteo config check` to validate the config file. It detects unknown rule names, unknown options, invalid severities, and conflicting rule combinations. See the [CLI reference](./cli.md#config-check) for details.
 
+> **Tip:** Severity values are validated strictly. A typo like `severity = "warning"` will fail with a clear error naming the invalid value and the allowed severities (`off`, `info`, `warn`, `error`).
+
 Use a simple string when you only need severity:
 
 ```toml
