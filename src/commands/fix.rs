@@ -72,8 +72,8 @@ pub fn fix_workspace(
             &config_for_file.rules,
             &config_for_file.structure,
             &config_for_file.architecture,
-            &import_graph_default(),
-            None,
+            &collected.import_graph,
+            collected.workspace.as_ref(),
         );
 
         let any_fixable = rules
@@ -122,8 +122,8 @@ pub fn fix_workspace(
             source: &source,
             program: parse_result.as_ref(),
             line_index: &line_index,
-            import_graph: &import_graph_default(),
-            workspace: None,
+            import_graph: &collected.import_graph,
+            workspace: collected.workspace.as_ref(),
             type_location_style,
         };
         let file_fixes = crate::fix::collect_fixes(&ctx, &rules);
@@ -190,8 +190,4 @@ pub fn fix_workspace(
     }
 
     Ok(())
-}
-
-fn import_graph_default() -> crate::import_graph::ImportGraph {
-    crate::import_graph::ImportGraph::default()
 }

@@ -5,14 +5,17 @@ use crate::config::{self, ConfigSet};
 use crate::discovery;
 use crate::git;
 use crate::ignore::SuppressionReport;
-use crate::import_graph;
+use crate::import_graph::{self, ImportGraph};
 use crate::rules;
+use crate::workspace::Workspace;
 
 pub struct AnalysisResult {
     pub project_root: PathBuf,
     pub files: Vec<PathBuf>,
     pub violations: Vec<rules::Violation>,
     pub suppression_report: SuppressionReport,
+    pub import_graph: ImportGraph,
+    pub workspace: Option<Workspace>,
 }
 
 pub struct AnalysisOptions {
@@ -25,14 +28,15 @@ pub struct AnalysisOptions {
     pub clear_cache: bool,
 }
 
-pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisResult> {
-    let root_config = config::ProjectConfig::resolve(workspace, options.root_override.clone())?;
+pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<AnalysisResult> {
+    let root_config =
+        config::ProjectConfig::resolve(workspace_root, options.root_override.clone())?;
     let scan_scope = options
         .scope_override
         .map(|scope| resolve_path(&root_config.root, scope));
 
     let config_set = ConfigSet::resolve(
-        workspace,
+        workspace_root,
         config::ConfigSetOptions {
             root_override: options.root_override,
             scan_scope: scan_scope.as_deref(),
@@ -43,13 +47,13 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
     let scan_root = scan_scope.as_deref().unwrap_or(&project_root);
 
     if options.clear_cache
-        && let Err(error) = crate::cache::clear_cache(workspace)
+        && let Err(error) = crate::cache::clear_cache(workspace_root)
     {
         eprintln!("warning: failed to clear cache: {error}");
     }
 
     let files = if options.git_flag {
-        resolve_changed_files(workspace)?
+        resolve_changed_files(workspace_root)?
     } else {
         let changed_files = git::get_changed_typescript_files().unwrap_or_else(|err| {
             eprintln!("warning: could not detect changed files via git: {err}");
@@ -59,7 +63,7 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
             && !changed_files.is_empty()
             && git::prompt_scan_changed_files(&changed_files)?
         {
-            resolve_changed_files(workspace)?
+            resolve_changed_files(workspace_root)?
         } else {
             discovery::discover_files(
                 &project_root,
@@ -69,13 +73,13 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
         }
     };
 
-    let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
+    let tsconfig = crate::tsconfig::discover_and_parse(workspace_root)?;
 
     let config_paths: Vec<PathBuf> = config_set
         .configs()
         .filter_map(|node| node.config_path.clone())
         .collect();
-    let tsconfig_path = workspace.join("tsconfig.json");
+    let tsconfig_path = workspace_root.join("tsconfig.json");
     let tsconfig_path = if tsconfig_path.exists() {
         Some(tsconfig_path)
     } else {
@@ -84,7 +88,7 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
 
     let cache_state = if options.cache_enabled {
         match crate::cache::prepare_cache(
-            workspace,
+            workspace_root,
             &files,
             &config_paths,
             tsconfig_path.as_deref(),
@@ -119,7 +123,7 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
 
     if let Some(ref cache_state) = cache_state
         && let Err(error) = crate::cache::finalize_cache(
-            workspace,
+            workspace_root,
             &files,
             &config_paths,
             tsconfig_path.as_deref(),
@@ -130,7 +134,7 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
         eprintln!("warning: failed to write cache: {error}");
     }
 
-    let workspace = crate::workspace::Workspace::discover(workspace).ok();
+    let workspace = crate::workspace::Workspace::discover(workspace_root).ok();
 
     let (file_violations, suppression_report) =
         rules::check_files(&files, &config_set, &graph, workspace.as_ref())?;
@@ -166,6 +170,8 @@ pub fn collect(workspace: &Path, options: AnalysisOptions) -> Result<AnalysisRes
         files,
         violations: all_violations,
         suppression_report,
+        import_graph: graph,
+        workspace,
     })
 }
 
