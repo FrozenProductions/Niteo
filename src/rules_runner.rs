@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use oxc_allocator::Allocator;
@@ -16,9 +17,15 @@ pub fn check_files(
     config_set: &config::ConfigSet,
     import_graph: &ImportGraph,
     workspace: Option<&crate::workspace::Workspace>,
-) -> Result<(Vec<Violation>, ignore::SuppressionReport)> {
+    cached_violations: &HashMap<PathBuf, Vec<Violation>>,
+) -> Result<(
+    Vec<Violation>,
+    ignore::SuppressionReport,
+    HashMap<PathBuf, String>,
+)> {
     let mut violations = Vec::new();
     let mut suppression_files = Vec::new();
+    let mut parse_failures: HashMap<PathBuf, String> = HashMap::new();
 
     // Group files by config pointer identity so rules are built once per unique config
     let mut grouped: std::collections::HashMap<usize, Vec<&PathBuf>> =
@@ -63,41 +70,49 @@ pub fn check_files(
                 .with_context(|| format!("failed to read {}", file.display()))?;
 
             let directives = ignore::parse_ignore_directives(&source);
-            let line_index = LineIndex::new(&source);
 
-            let allocator = Allocator::default();
-            let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
-                match crate::syntax::source_type_from_path(file) {
-                    Some(source_type) => {
-                        let parser_return = Parser::new(&allocator, &source, source_type).parse();
-                        if parser_return.panicked {
-                            None
-                        } else {
-                            Some(parser_return.program)
-                        }
-                    }
-                    None => None,
-                }
+            let mut file_violations = if let Some(cached) = cached_violations.get(*file) {
+                cached.clone()
             } else {
-                None
-            };
+                let line_index = LineIndex::new(&source);
 
-            let ctx = FileContext {
-                file,
-                source: &source,
-                program: parse_result.as_ref(),
-                line_index: &line_index,
-                type_location_style,
-                import_graph,
-                workspace,
-            };
+                let allocator = Allocator::default();
+                let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
+                    match crate::syntax::source_type_from_path(file) {
+                        Some(source_type) => {
+                            let parser_return =
+                                Parser::new(&allocator, &source, source_type).parse();
+                            if parser_return.panicked {
+                                parse_failures.insert((*file).clone(), "parse error".to_string());
+                                None
+                            } else {
+                                Some(parser_return.program)
+                            }
+                        }
+                        None => None,
+                    }
+                } else {
+                    None
+                };
 
-            let mut file_violations = Vec::new();
-            for rule in &rules {
-                if rule.severity().is_enabled() {
-                    file_violations.extend(rule.check(&ctx));
+                let ctx = FileContext {
+                    file,
+                    source: &source,
+                    program: parse_result.as_ref(),
+                    line_index: &line_index,
+                    type_location_style,
+                    import_graph,
+                    workspace,
+                };
+
+                let mut new_violations = Vec::new();
+                for rule in &rules {
+                    if rule.severity().is_enabled() {
+                        new_violations.extend(rule.check(&ctx));
+                    }
                 }
-            }
+                new_violations
+            };
 
             let suppressed_count = file_violations
                 .iter()
@@ -137,6 +152,7 @@ pub fn check_files(
         ignore::SuppressionReport {
             files: suppression_files,
         },
+        parse_failures,
     ))
 }
 

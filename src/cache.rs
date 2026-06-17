@@ -2,6 +2,7 @@ pub mod edges;
 pub mod key;
 pub mod lifecycle;
 pub mod store;
+pub mod violations;
 #[allow(unused_imports)]
 pub use edges::{CachedImportEdge, cached_import_edges_to_import};
 #[allow(unused_imports)]
@@ -26,8 +27,10 @@ mod tests {
     use oxc_span::Span;
 
     use crate::cache::edges::import_edge_to_cached;
+    use crate::config::Severity;
     use crate::import_graph::{ImportEdge, ImportGraph, ImportKind};
     use crate::import_resolver::SpecifierKind;
+    use crate::rules::{NO_CONSOLE_RULE_ID, Violation};
 
     use super::*;
 
@@ -190,7 +193,7 @@ mod tests {
 
         let config_path = project_root.join("niteo.toml");
         std::fs::write(&config_path, "test config")?;
-        let config_hash = hash_config_files(&[config_path.clone()]);
+        let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
         let mut files_map = HashMap::new();
         files_map.insert(
@@ -207,16 +210,21 @@ mod tests {
             niteo_version: env!("CARGO_PKG_VERSION").to_string(),
             config_hash,
             tsconfig_hash: None,
-            file_list_hash: hash_file_list(&[file.clone()]),
+            file_list_hash: hash_file_list(std::slice::from_ref(&file)),
             files: files_map,
         };
         write_cache(project_root, &cache)?;
 
         std::fs::write(&file, "changed")?;
 
-        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)?
-            .context("missing cache")?;
-        assert!(state.cached_edges.get(&file).is_none());
+        let state = prepare_cache(
+            project_root,
+            std::slice::from_ref(&file),
+            &[config_path],
+            None,
+        )?
+        .context("missing cache")?;
+        assert!(!state.cached_edges.contains_key(&file));
         Ok(())
     }
 
@@ -229,7 +237,7 @@ mod tests {
 
         let config_path = project_root.join("niteo.toml");
         std::fs::write(&config_path, "test config")?;
-        let config_hash = hash_config_files(&[config_path.clone()]);
+        let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
         let mut files_map = HashMap::new();
         files_map.insert(
@@ -253,13 +261,18 @@ mod tests {
             niteo_version: env!("CARGO_PKG_VERSION").to_string(),
             config_hash,
             tsconfig_hash: None,
-            file_list_hash: hash_file_list(&[file.clone()]),
+            file_list_hash: hash_file_list(std::slice::from_ref(&file)),
             files: files_map,
         };
         write_cache(project_root, &cache)?;
 
-        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)?
-            .context("missing cache")?;
+        let state = prepare_cache(
+            project_root,
+            std::slice::from_ref(&file),
+            &[config_path],
+            None,
+        )?
+        .context("missing cache")?;
         let edges = state
             .cached_edges
             .get(&file)
@@ -272,6 +285,182 @@ mod tests {
     }
 
     #[test]
+    fn prepare_cache_hit_restores_violations() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let project_root = temp_dir.path();
+        let file = project_root.join("a.ts");
+        std::fs::write(&file, "original")?;
+
+        let config_path = project_root.join("niteo.toml");
+        std::fs::write(&config_path, "test config")?;
+        let config_hash = hash_config_files(std::slice::from_ref(&config_path));
+
+        let mut files_map = HashMap::new();
+        files_map.insert(
+            "a.ts".to_string(),
+            CachedFileAnalysis {
+                content_hash: hash_content(b"original"),
+                import_edges: Vec::new(),
+                violations: vec![CachedViolation {
+                    line: Some(1),
+                    column: Some(2),
+                    rule: "no-console".to_string(),
+                    message: "message".to_string(),
+                    severity: "warn".to_string(),
+                    detail: Some("detail".to_string()),
+                    subject: Some("subject".to_string()),
+                }],
+                parse_failure: None,
+            },
+        );
+        let cache = CacheFile {
+            version: CACHE_SCHEMA_VERSION,
+            niteo_version: env!("CARGO_PKG_VERSION").to_string(),
+            config_hash,
+            tsconfig_hash: None,
+            file_list_hash: hash_file_list(std::slice::from_ref(&file)),
+            files: files_map,
+        };
+        write_cache(project_root, &cache)?;
+
+        let state = prepare_cache(
+            project_root,
+            std::slice::from_ref(&file),
+            &[config_path],
+            None,
+        )?
+        .context("missing cache")?;
+        let violations = state
+            .cached_violations
+            .get(&file)
+            .context("missing cached violations")?;
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "no-console");
+        assert_eq!(violations[0].message, "message");
+        assert_eq!(violations[0].severity, Severity::Warn);
+        assert_eq!(violations[0].detail, Some("detail".to_string()));
+        assert_eq!(violations[0].subject, Some("subject".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn finalize_cache_writes_violations() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let project_root = temp_dir.path();
+        let file = project_root.join("a.ts");
+        std::fs::write(&file, "content")?;
+
+        let mut file_hashes = HashMap::new();
+        file_hashes.insert(file.clone(), hash_content(b"content"));
+
+        let state = CacheState {
+            file_hashes,
+            cached_edges: HashMap::new(),
+            cached_violations: HashMap::new(),
+            cached_parse_failures: HashMap::new(),
+            dirty: true,
+        };
+
+        let violation = Violation {
+            file: file.clone(),
+            line: Some(1),
+            column: Some(2),
+            rule: NO_CONSOLE_RULE_ID,
+            message: "Disallow console statements.",
+            severity: Severity::Warn,
+            detail: None,
+            subject: None,
+        };
+
+        finalize_cache(
+            project_root,
+            std::slice::from_ref(&file),
+            &[project_root.join("niteo.toml")],
+            None,
+            &state,
+            &ImportGraph::new(),
+            &[violation],
+            &HashMap::new(),
+        )?;
+
+        let read = read_cache(project_root)?.context("missing cache")?;
+        let entry = read.files.get("a.ts").context("missing a.ts entry")?;
+        assert_eq!(entry.violations.len(), 1);
+        assert_eq!(entry.violations[0].rule, "no-console");
+        assert_eq!(entry.violations[0].message, "Disallow console statements.");
+        Ok(())
+    }
+
+    #[test]
+    fn finalize_cache_preserves_cached_violations() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let project_root = temp_dir.path();
+        let file_a = project_root.join("a.ts");
+        let file_b = project_root.join("b.ts");
+        std::fs::write(&file_a, "content a")?;
+        std::fs::write(&file_b, "content b")?;
+
+        let mut file_hashes = HashMap::new();
+        file_hashes.insert(file_a.clone(), hash_content(b"content a"));
+        file_hashes.insert(file_b.clone(), hash_content(b"content b"));
+
+        let mut cached_violations = HashMap::new();
+        cached_violations.insert(
+            file_a.clone(),
+            vec![Violation {
+                file: file_a.clone(),
+                line: Some(1),
+                column: Some(1),
+                rule: NO_CONSOLE_RULE_ID,
+                message: "cached violation",
+                severity: Severity::Warn,
+                detail: None,
+                subject: None,
+            }],
+        );
+
+        let state = CacheState {
+            file_hashes,
+            cached_edges: HashMap::new(),
+            cached_violations,
+            cached_parse_failures: HashMap::new(),
+            dirty: true,
+        };
+
+        let new_violation = Violation {
+            file: file_b.clone(),
+            line: Some(2),
+            column: Some(2),
+            rule: NO_CONSOLE_RULE_ID,
+            message: "new violation",
+            severity: Severity::Error,
+            detail: None,
+            subject: None,
+        };
+
+        finalize_cache(
+            project_root,
+            &[file_a.clone(), file_b.clone()],
+            &[project_root.join("niteo.toml")],
+            None,
+            &state,
+            &ImportGraph::new(),
+            &[new_violation],
+            &HashMap::new(),
+        )?;
+
+        let read = read_cache(project_root)?.context("missing cache")?;
+        let entry_a = read.files.get("a.ts").context("missing a.ts entry")?;
+        assert_eq!(entry_a.violations.len(), 1);
+        assert_eq!(entry_a.violations[0].message, "cached violation");
+
+        let entry_b = read.files.get("b.ts").context("missing b.ts entry")?;
+        assert_eq!(entry_b.violations.len(), 1);
+        assert_eq!(entry_b.violations[0].message, "new violation");
+        Ok(())
+    }
+
+    #[test]
     fn prepare_cache_invalidates_when_niteo_version_changes() -> Result<()> {
         let temp_dir = tempfile::tempdir()?;
         let project_root = temp_dir.path();
@@ -280,7 +469,7 @@ mod tests {
 
         let config_path = project_root.join("niteo.toml");
         std::fs::write(&config_path, "test config")?;
-        let config_hash = hash_config_files(&[config_path.clone()]);
+        let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
         let mut files_map = HashMap::new();
         files_map.insert(
@@ -297,14 +486,19 @@ mod tests {
             niteo_version: "old-version".to_string(),
             config_hash,
             tsconfig_hash: None,
-            file_list_hash: hash_file_list(&[file.clone()]),
+            file_list_hash: hash_file_list(std::slice::from_ref(&file)),
             files: files_map,
         };
         write_cache(project_root, &cache)?;
 
-        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)?
-            .context("missing cache")?;
-        assert!(state.cached_edges.get(&file).is_none());
+        let state = prepare_cache(
+            project_root,
+            std::slice::from_ref(&file),
+            &[config_path],
+            None,
+        )?
+        .context("missing cache")?;
+        assert!(!state.cached_edges.contains_key(&file));
         Ok(())
     }
 
@@ -330,7 +524,7 @@ mod tests {
             niteo_version: env!("CARGO_PKG_VERSION").to_string(),
             config_hash: "old-cfg".to_string(),
             tsconfig_hash: None,
-            file_list_hash: hash_file_list(&[file.clone()]),
+            file_list_hash: hash_file_list(std::slice::from_ref(&file)),
             files: files_map,
         };
         write_cache(project_root, &cache)?;
@@ -338,9 +532,14 @@ mod tests {
         let config_path = project_root.join("niteo.toml");
         std::fs::write(&config_path, "new config")?;
 
-        let state = prepare_cache(project_root, &[file.clone()], &[config_path], None)?
-            .context("missing cache")?;
-        assert!(state.cached_edges.get(&file).is_none());
+        let state = prepare_cache(
+            project_root,
+            std::slice::from_ref(&file),
+            &[config_path],
+            None,
+        )?
+        .context("missing cache")?;
+        assert!(!state.cached_edges.contains_key(&file));
         Ok(())
     }
 
@@ -353,7 +552,7 @@ mod tests {
 
         let config_path = project_root.join("niteo.toml");
         std::fs::write(&config_path, "test config")?;
-        let config_hash = hash_config_files(&[config_path.clone()]);
+        let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
         let mut files_map = HashMap::new();
         files_map.insert(
@@ -370,7 +569,7 @@ mod tests {
             niteo_version: env!("CARGO_PKG_VERSION").to_string(),
             config_hash,
             tsconfig_hash: None,
-            file_list_hash: hash_file_list(&[file_a.clone()]),
+            file_list_hash: hash_file_list(std::slice::from_ref(&file_a)),
             files: files_map,
         };
         write_cache(project_root, &cache)?;
@@ -385,7 +584,7 @@ mod tests {
             None,
         )?
         .context("missing cache")?;
-        assert!(state.cached_edges.get(&file_a).is_none());
+        assert!(!state.cached_edges.contains_key(&file_a));
         Ok(())
     }
 
@@ -398,13 +597,13 @@ mod tests {
 
         let state = prepare_cache(
             project_root,
-            &[file.clone()],
+            std::slice::from_ref(&file),
             &[project_root.join("niteo.toml")],
             None,
         )?
         .context("missing cache")?;
-        assert!(state.cache.is_none());
         assert!(state.cached_edges.is_empty());
+        assert!(state.cached_violations.is_empty());
         Ok(())
     }
 
@@ -434,9 +633,10 @@ mod tests {
         file_hashes.insert(file_b.clone(), hash_content(b"content b"));
 
         let state = CacheState {
-            cache: None,
             file_hashes,
             cached_edges: HashMap::new(),
+            cached_violations: HashMap::new(),
+            cached_parse_failures: HashMap::new(),
             dirty: true,
         };
 
@@ -447,6 +647,8 @@ mod tests {
             None,
             &state,
             &graph,
+            &[],
+            &HashMap::new(),
         )?;
 
         let read = read_cache(project_root)?.context("missing cache")?;

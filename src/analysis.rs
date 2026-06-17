@@ -107,6 +107,10 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         .as_ref()
         .map(|state| state.cached_edges.clone())
         .unwrap_or_default();
+    let cached_violations_map = cache_state
+        .as_ref()
+        .map(|state| state.cached_violations.clone())
+        .unwrap_or_default();
 
     let graph = import_graph::build_import_graph_with_cache(
         &files,
@@ -121,6 +125,16 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         &cached_edges_map,
     )?;
 
+    let workspace = crate::workspace::Workspace::discover(workspace_root).ok();
+
+    let (file_violations, suppression_report, parse_failures) = rules::check_files(
+        &files,
+        &config_set,
+        &graph,
+        workspace.as_ref(),
+        &cached_violations_map,
+    )?;
+
     if let Some(ref cache_state) = cache_state
         && let Err(error) = crate::cache::finalize_cache(
             workspace_root,
@@ -129,15 +143,12 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
             tsconfig_path.as_deref(),
             cache_state,
             &graph,
+            &file_violations,
+            &parse_failures,
         )
     {
         eprintln!("warning: failed to write cache: {error}");
     }
-
-    let workspace = crate::workspace::Workspace::discover(workspace_root).ok();
-
-    let (file_violations, suppression_report) =
-        rules::check_files(&files, &config_set, &graph, workspace.as_ref())?;
 
     let mut all_violations = file_violations;
 

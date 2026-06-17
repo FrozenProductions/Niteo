@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::cache::store::CacheFile;
 
-pub const CACHE_SCHEMA_VERSION: u32 = 1;
+pub const CACHE_SCHEMA_VERSION: u32 = 2;
 
 pub fn hash_content(content: &[u8]) -> String {
     blake3::hash(content).to_hex().to_string()

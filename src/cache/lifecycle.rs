@@ -8,15 +8,21 @@ use crate::cache::key::{
     CACHE_SCHEMA_VERSION, hash_config_files, hash_content, hash_file_list, hash_tsconfig,
     is_cache_valid, normalize_path_for_cache,
 };
-use crate::cache::store::{CacheFile, CachedFileAnalysis, read_cache, write_cache};
+use crate::cache::store::{
+    CacheFile, CachedFileAnalysis, CachedParseFailure, read_cache, write_cache,
+};
+use crate::cache::violations::{
+    StringInterner, build_rule_lookup, cached_violations_to_violations, violation_to_cached,
+};
 use crate::import_graph::{ImportEdge, ImportGraph};
+use crate::rules::Violation;
 
 #[derive(Debug)]
 pub struct CacheState {
-    #[allow(dead_code)]
-    pub cache: Option<CacheFile>,
     pub file_hashes: HashMap<PathBuf, String>,
     pub cached_edges: HashMap<PathBuf, Vec<ImportEdge>>,
+    pub cached_violations: HashMap<PathBuf, Vec<Violation>>,
+    pub cached_parse_failures: HashMap<PathBuf, CachedParseFailure>,
     pub dirty: bool,
 }
 
@@ -52,7 +58,12 @@ pub fn prepare_cache(
 
     let mut file_hashes = HashMap::new();
     let mut cached_edges = HashMap::new();
+    let mut cached_violations = HashMap::new();
+    let mut cached_parse_failures = HashMap::new();
     let mut dirty = !cache_valid;
+
+    let rule_lookup = build_rule_lookup();
+    let mut message_interner = StringInterner::new();
 
     for file in files {
         let content = match std::fs::read(file) {
@@ -69,6 +80,18 @@ pub fn prepare_cache(
             {
                 let edges = cached_import_edges_to_import(&entry.import_edges, file, project_root);
                 cached_edges.insert(file.clone(), edges);
+
+                let violations = cached_violations_to_violations(
+                    &entry.violations,
+                    file.clone(),
+                    &rule_lookup,
+                    &mut message_interner,
+                );
+                cached_violations.insert(file.clone(), violations);
+
+                if let Some(ref parse_failure) = entry.parse_failure {
+                    cached_parse_failures.insert(file.clone(), parse_failure.clone());
+                }
             } else {
                 dirty = true;
             }
@@ -78,13 +101,15 @@ pub fn prepare_cache(
     }
 
     Ok(Some(CacheState {
-        cache,
         file_hashes,
         cached_edges,
+        cached_violations,
+        cached_parse_failures,
         dirty,
     }))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn finalize_cache(
     project_root: &Path,
     files: &[PathBuf],
@@ -92,6 +117,8 @@ pub fn finalize_cache(
     tsconfig_path: Option<&Path>,
     cache_state: &CacheState,
     graph: &ImportGraph,
+    violations: &[Violation],
+    parse_failures: &HashMap<PathBuf, String>,
 ) -> Result<()> {
     if !cache_state.dirty {
         return Ok(());
@@ -111,6 +138,8 @@ pub fn finalize_cache(
         files: HashMap::new(),
     };
 
+    let violations_by_file = group_violations_by_file(violations);
+
     for file in files {
         let rel_path = normalize_path_for_cache(file, project_root);
         let content_hash = cache_state
@@ -127,16 +156,50 @@ pub fn finalize_cache(
             .map(|edge| import_edge_to_cached(edge, project_root))
             .collect();
 
+        let cached = cache_state.cached_violations.get(file);
+        let (file_violations, parse_failure) = if let Some(cached_violations) = cached {
+            let cached_parse_failure = cache_state.cached_parse_failures.get(file).cloned();
+            (
+                cached_violations.iter().map(violation_to_cached).collect(),
+                cached_parse_failure,
+            )
+        } else {
+            let new_violations = violations_by_file
+                .get(file)
+                .map(|file_violations| {
+                    file_violations
+                        .iter()
+                        .map(|v| violation_to_cached(v))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let parse_failure = parse_failures.get(file).map(|message| CachedParseFailure {
+                message: message.clone(),
+            });
+            (new_violations, parse_failure)
+        };
+
         new_cache.files.insert(
             rel_path,
             CachedFileAnalysis {
                 content_hash,
                 import_edges: edges,
-                violations: Vec::new(),
-                parse_failure: None,
+                violations: file_violations,
+                parse_failure,
             },
         );
     }
 
     write_cache(project_root, &new_cache)
+}
+
+fn group_violations_by_file(violations: &[Violation]) -> HashMap<PathBuf, Vec<&Violation>> {
+    let mut grouped: HashMap<PathBuf, Vec<&Violation>> = HashMap::new();
+    for violation in violations {
+        grouped
+            .entry(violation.file.clone())
+            .or_default()
+            .push(violation);
+    }
+    grouped
 }
