@@ -147,7 +147,7 @@ pub fn build_file_rules(
     import_graph: &ImportGraph,
     workspace: Option<&crate::workspace::Workspace>,
 ) -> Vec<Box<dyn FileRule>> {
-    vec![
+    let mut rules: Vec<Box<dyn FileRule>> = vec![
         Box::new(BooleanPrefixAdapter {
             config: config.boolean_prefix.clone(),
         }),
@@ -289,26 +289,29 @@ pub fn build_file_rules(
         Box::new(NoPrivatePackageImportAdapter {
             config: config.no_private_package_import.clone(),
         }),
-        Box::new(NoPackageCycleAdapter {
+    ];
+
+    if let Some(workspace) = workspace {
+        rules.push(Box::new(NoPackageCycleAdapter {
             config: config.no_package_cycle.clone(),
             context: crate::rules::no_package_cycle::PackageCycleContext::new(
-                workspace.unwrap_or(&crate::workspace::Workspace {
-                    root: std::path::PathBuf::new(),
-                    packages: vec![],
-                }),
+                workspace,
                 import_graph,
             ),
-        }),
-        Box::new(NoLogicInDomainAdapter {
-            config: config.no_logic_in_domain.clone(),
-            types: structure.types.clone(),
-            constants: structure.constants.clone(),
-        }),
-        Box::new(LayerBoundariesAdapter {
-            config: config.layer_boundaries.clone(),
-            layers: architecture.layers.clone(),
-        }),
-    ]
+        }));
+    }
+
+    rules.push(Box::new(NoLogicInDomainAdapter {
+        config: config.no_logic_in_domain.clone(),
+        types: structure.types.clone(),
+        constants: structure.constants.clone(),
+    }));
+    rules.push(Box::new(LayerBoundariesAdapter {
+        config: config.layer_boundaries.clone(),
+        layers: architecture.layers.clone(),
+    }));
+
+    rules
 }
 
 pub fn check_duplicate_file_names(
