@@ -23,7 +23,7 @@ These options are accepted by every command.
 | `--baseline <path>`     |       | Baseline file path. Defaults to `niteo-baseline.json`.                                                  |
 | `--report-suppressions` |       | Include suppression counts and stale ignore directives.                                                 |
 | `--watch`               |       | Re-run lint on file changes.                                                                            |
-| `--cache`               |       | Enable caching of analysis results.                                                                     |
+| `--cache`               |       | Enable caching of analysis results, parsed ASTs, and rule violations.                                   |
 | `--no-cache`            |       | Disable caching even when it would otherwise be enabled.                                                |
 | `--clear-cache`         |       | Clear the cache file before running.                                                                    |
 | `--fail-on <threshold>` |       | Minimum severity that causes lint to fail. Supported values: `error`, `warn`, `any`. Defaults to `any`. |
@@ -86,7 +86,7 @@ Watch mode disables the interactive changed-files prompt and always performs a f
 
 ### Cache
 
-`lint` can cache import graph analysis to speed up repeated runs. Use `--cache` to opt in:
+`lint` can cache import graph analysis, parsed AST results, and rule violations to speed up repeated runs. Use `--cache` to opt in:
 
 ```sh
 niteo lint --cache

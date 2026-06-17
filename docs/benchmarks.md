@@ -24,35 +24,63 @@ filesystem traversal, linting, reporting).
 
 #### Size matrix — react project
 
-| Benchmark | Files | Directories |
-|---|---|---|
-| `cli_lint_react_25_files_json` | 25 | 4 |
-| `cli_lint_react_100_files_json` | 100 | 4 |
-| `cli_lint_react_250_files_json` | 250 | 4 |
-| `cli_lint_react_1000_files_json` | 1000 | 4 |
+| Benchmark                        | Files | Directories |
+| -------------------------------- | ----- | ----------- |
+| `cli_lint_react_25_files_json`   | 25    | 4           |
+| `cli_lint_react_100_files_json`  | 100   | 4           |
+| `cli_lint_react_250_files_json`  | 250   | 4           |
+| `cli_lint_react_1000_files_json` | 1000  | 4           |
 
 All use `--format json`. The react project has components (TSX), utils (TS),
 hooks (TS), barrel exports, and imports from `react`.
 
+#### Cache size matrix — react project
+
+| Benchmark                                   | Files | Cache state |
+| ------------------------------------------- | ----- | ----------- |
+| `cli_lint_react_25_files_json_cache_warm`   | 25    | warm        |
+| `cli_lint_react_25_files_json_cache_cold`   | 25    | cold        |
+| `cli_lint_react_100_files_json_cache_warm`  | 100   | warm        |
+| `cli_lint_react_100_files_json_cache_cold`  | 100   | cold        |
+| `cli_lint_react_250_files_json_cache_warm`  | 250   | warm        |
+| `cli_lint_react_250_files_json_cache_cold`  | 250   | cold        |
+| `cli_lint_react_1000_files_json_cache_warm` | 1000  | warm        |
+| `cli_lint_react_1000_files_json_cache_cold` | 1000  | cold        |
+
+Warm benchmarks run `lint --cache` once to populate `.niteo/cache.json`, then
+measure repeated warm invocations. Cold benchmarks delete the cache file before
+each measured invocation.
+
 #### Output formats — react project
 
-| Benchmark | Command |
-|---|---|
-| `cli_lint_react_100_files_text` | `niteo lint` |
+| Benchmark                        | Command                     |
+| -------------------------------- | --------------------------- |
+| `cli_lint_react_100_files_text`  | `niteo lint`                |
 | `cli_lint_react_100_files_sarif` | `niteo lint --format sarif` |
 
 All use a 100-file react project. JSON output is covered in the size matrix above.
 
 #### Size matrix — import-heavy project
 
-| Benchmark | Files | Imports per file |
-|---|---|---|
-| `cli_lint_import_heavy_50_files_json` | 50 | ~5–16 |
-| `cli_lint_import_heavy_100_files_json` | 100 | ~5–16 |
-| `cli_lint_import_heavy_200_files_json` | 200 | ~5–16 |
+| Benchmark                              | Files | Imports per file |
+| -------------------------------------- | ----- | ---------------- |
+| `cli_lint_import_heavy_50_files_json`  | 50    | ~5–16            |
+| `cli_lint_import_heavy_100_files_json` | 100   | ~5–16            |
+| `cli_lint_import_heavy_200_files_json` | 200   | ~5–16            |
 
 Import-heavy projects have a dense import graph with a barrel re-exporting every
 file. This stresses import graph construction and resolver index size.
+
+#### Cache size matrix — import-heavy project
+
+| Benchmark                                         | Files | Cache state |
+| ------------------------------------------------- | ----- | ----------- |
+| `cli_lint_import_heavy_50_files_json_cache_warm`  | 50    | warm        |
+| `cli_lint_import_heavy_50_files_json_cache_cold`  | 50    | cold        |
+| `cli_lint_import_heavy_100_files_json_cache_warm` | 100   | warm        |
+| `cli_lint_import_heavy_100_files_json_cache_cold` | 100   | cold        |
+| `cli_lint_import_heavy_200_files_json_cache_warm` | 200   | warm        |
+| `cli_lint_import_heavy_200_files_json_cache_cold` | 200   | cold        |
 
 ## Fixture Design
 
@@ -80,26 +108,27 @@ creation cost is excluded from measurements.
 
 1. Establish a baseline on `main`:
 
-    ```sh
-    git checkout main
-    cargo bench --bench cli_benchmarks
-    ```
+   ```sh
+   git checkout main
+   cargo bench --bench cli_benchmarks
+   ```
 
 2. Switch to your branch and run again:
 
-    ```sh
-    cargo bench --bench cli_benchmarks
-    ```
+   ```sh
+   cargo bench --bench cli_benchmarks
+   ```
 
 3. Compare results:
 
-    ```sh
-    open target/criterion/report/index.html
-    ```
+   ```sh
+   open target/criterion/report/index.html
+   ```
 
 ## When To Add Benchmarks
 
 Add a benchmark when:
+
 - A rule's worst-case complexity could cause noticeable regression.
 - A new feature changes the hot path (config resolution, file discovery, import
   graph construction, reporting).

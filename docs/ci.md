@@ -94,7 +94,7 @@ Only `lint` supports SARIF and NDJSON output.
 
 ## Cache
 
-Caching is opt-in. Use `--cache` to speed up repeated runs by storing import graph analysis at `.niteo/cache.json`:
+Caching is opt-in. Use `--cache` to speed up repeated runs by storing import graph analysis, parsed AST results, and rule violations at `.niteo/cache.json`:
 
 ```sh
 npx niteo-cli lint --cache
@@ -182,4 +182,3 @@ npx niteo-cli lint --deny-child-configs --scope src
 This only rejects child configs found under `src/`.
 
 See [Configuration](./configuration.md#cascading-configs) for cascading config semantics and [Configuration](./configuration.md#presets) for preset profiles.
-
