@@ -53,6 +53,24 @@ respect-gitignore = true
 
 `--root` overrides `[project].root`.
 
+## Workspace Packages
+
+Niteo discovers workspace packages from `package.json` `workspaces` (either a top-level array or `workspaces.packages`) and from `pnpm-workspace.yaml` `packages`. Each entry is a glob pattern relative to the workspace root.
+
+Glob patterns use gitignore-style semantics:
+
+- `*` matches a single path segment.
+- `**` matches any number of path segments recursively.
+- `!` patterns exclude previously matched paths.
+
+Examples:
+
+```json
+["packages/*", "packages/*/*", "apps/*/packages/*", "packages/**", "!packages/excluded"]
+```
+
+Rules such as `no-package-cycle` and `no-private-package-import` rely on this discovery. They are disabled when no workspace is detected.
+
 ## Project Structure
 
 Project structure settings tell Niteo how to identify domain-specific files such as components, hooks, types, constants, tests, and generated files.

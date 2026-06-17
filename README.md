@@ -105,6 +105,8 @@ niteo graph
 
 Niteo supports cascading configs. Place a `niteo.toml` at the workspace root and additional `niteo.toml` files inside individual packages. Child configs merge on top of the root config, overriding only the fields they declare.
 
+Workspace packages are discovered from `package.json` `workspaces` and `pnpm-workspace.yaml` `packages`. Niteo supports nested globs (`apps/*/packages/*`), recursive globs (`packages/**`), and negative globs (`!packages/excluded`).
+
 ```toml
 # niteo.toml (root)
 [project]
