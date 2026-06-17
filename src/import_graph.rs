@@ -33,9 +33,9 @@ mod tests {
 
     #[test]
     fn resolves_aliased_import_through_graph() -> Result<()> {
-        let tsconfig = TsConfig {
-            base_url: PathBuf::from("/repo"),
-            aliases: vec![ResolvedPathAlias {
+        let tsconfig = TsConfig::new(
+            PathBuf::from("/repo"),
+            vec![ResolvedPathAlias {
                 pattern: "@/*".into(),
                 prefix: "@/".into(),
                 suffix: "".into(),
@@ -44,7 +44,7 @@ mod tests {
                     suffix: "".into(),
                 }],
             }],
-        };
+        );
 
         let files_with_sources = vec![
             (
@@ -74,9 +74,9 @@ mod tests {
 
     #[test]
     fn resolves_aliased_import_when_first_alias_does_not_match() -> Result<()> {
-        let tsconfig = TsConfig {
-            base_url: PathBuf::from("/repo"),
-            aliases: vec![
+        let tsconfig = TsConfig::new(
+            PathBuf::from("/repo"),
+            vec![
                 ResolvedPathAlias {
                     pattern: "@components/*".into(),
                     prefix: "@components/".into(),
@@ -96,7 +96,7 @@ mod tests {
                     }],
                 },
             ],
-        };
+        );
 
         let files_with_sources = vec![
             (

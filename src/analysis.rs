@@ -52,6 +52,8 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         eprintln!("warning: failed to clear cache: {error}");
     }
 
+    let tsconfig = crate::tsconfig::discover_and_parse(workspace_root)?;
+
     let files = if options.git_flag {
         resolve_changed_files(workspace_root)?
     } else {
@@ -69,11 +71,10 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
                 &project_root,
                 scan_scope.as_deref(),
                 &config_set.root().gitignore,
+                tsconfig.as_ref(),
             )?
         }
     };
-
-    let tsconfig = crate::tsconfig::discover_and_parse(workspace_root)?;
 
     let config_paths: Vec<PathBuf> = config_set
         .configs()

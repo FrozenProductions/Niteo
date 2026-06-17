@@ -258,9 +258,9 @@ mod tests {
 
     #[test]
     fn classifies_alias_specifier() -> Result<()> {
-        let tsconfig = TsConfig {
-            base_url: PathBuf::from("/repo"),
-            aliases: vec![ResolvedPathAlias {
+        let tsconfig = TsConfig::new(
+            PathBuf::from("/repo"),
+            vec![ResolvedPathAlias {
                 pattern: "@/*".into(),
                 prefix: "@/".into(),
                 suffix: "".into(),
@@ -269,7 +269,7 @@ mod tests {
                     suffix: "".into(),
                 }],
             }],
-        };
+        );
         let resolver = ImportResolverIndex::new(&[], Some(&tsconfig));
         assert_eq!(
             resolver.classify_specifier("@/shared/date"),
@@ -296,9 +296,9 @@ mod tests {
 
     #[test]
     fn classifies_alias_when_tsconfig_has_multiple_aliases() -> Result<()> {
-        let tsconfig = TsConfig {
-            base_url: PathBuf::from("/repo"),
-            aliases: vec![
+        let tsconfig = TsConfig::new(
+            PathBuf::from("/repo"),
+            vec![
                 ResolvedPathAlias {
                     pattern: "@components/*".into(),
                     prefix: "@components/".into(),
@@ -312,7 +312,7 @@ mod tests {
                     targets: vec![],
                 },
             ],
-        };
+        );
         let resolver = ImportResolverIndex::new(&[], Some(&tsconfig));
         assert_eq!(resolver.classify_specifier("@/app"), SpecifierKind::Alias);
         assert_eq!(

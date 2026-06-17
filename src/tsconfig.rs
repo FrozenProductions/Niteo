@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -7,6 +8,9 @@ use std::path::{Path, PathBuf};
 pub struct TsConfig {
     pub base_url: PathBuf,
     pub aliases: Vec<ResolvedPathAlias>,
+    pub config_dir: PathBuf,
+    include_set: Option<GlobSet>,
+    exclude_set: Option<GlobSet>,
 }
 
 impl Default for TsConfig {
@@ -14,7 +18,86 @@ impl Default for TsConfig {
         Self {
             base_url: PathBuf::from("."),
             aliases: Vec::new(),
+            config_dir: PathBuf::from("."),
+            include_set: None,
+            exclude_set: None,
         }
+    }
+}
+
+impl TsConfig {
+    #[cfg(test)]
+    pub fn new(base_url: PathBuf, aliases: Vec<ResolvedPathAlias>) -> Self {
+        Self {
+            base_url,
+            aliases,
+            config_dir: PathBuf::from("."),
+            include_set: None,
+            exclude_set: None,
+        }
+    }
+
+    pub fn is_included(&self, path: &Path) -> bool {
+        let relative_path = match path.strip_prefix(&self.config_dir) {
+            Ok(path) => path,
+            Err(_) => return false,
+        };
+
+        if let Some(include_set) = &self.include_set
+            && !include_set.is_match(relative_path)
+        {
+            return false;
+        }
+
+        if let Some(exclude_set) = &self.exclude_set
+            && exclude_set.is_match(relative_path)
+        {
+            return false;
+        }
+
+        true
+    }
+}
+
+fn build_optional_glob_set(patterns: Option<&Vec<String>>) -> Result<Option<GlobSet>> {
+    let patterns = match patterns {
+        Some(patterns) if !patterns.is_empty() => patterns,
+        _ => return Ok(None),
+    };
+
+    let mut builder = GlobSetBuilder::new();
+    for pattern in patterns {
+        for expanded in expand_pattern(pattern) {
+            let glob = GlobBuilder::new(&expanded)
+                .literal_separator(true)
+                .build()
+                .with_context(|| format!("invalid tsconfig glob pattern: {expanded}"))?;
+            builder.add(glob);
+        }
+    }
+
+    let set = builder
+        .build()
+        .with_context(|| "failed to build tsconfig glob set")?;
+    Ok(Some(set))
+}
+
+fn expand_pattern(pattern: &str) -> Vec<String> {
+    let normalized = pattern.replace('\\', "/").trim_end_matches('/').to_string();
+    if normalized.is_empty() {
+        return vec!["".to_string()];
+    }
+
+    let last_segment = Path::new(&normalized)
+        .file_name()
+        .and_then(|segment| segment.to_str())
+        .unwrap_or(&normalized);
+    let has_extension = Path::new(last_segment).extension().is_some();
+
+    if has_extension {
+        vec![normalized]
+    } else {
+        vec![format!("{normalized}/**/*")]
     }
 }
 
@@ -36,6 +119,8 @@ pub struct PathTargetPattern {
 struct RawTsConfig {
     #[serde(rename = "compilerOptions")]
     compiler_options: Option<RawCompilerOptions>,
+    include: Option<Vec<String>>,
+    exclude: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -97,7 +182,16 @@ fn parse_file(path: &Path) -> Result<TsConfig> {
         });
     }
 
-    Ok(TsConfig { base_url, aliases })
+    let include_set = build_optional_glob_set(raw.include.as_ref())?;
+    let exclude_set = build_optional_glob_set(raw.exclude.as_ref())?;
+
+    Ok(TsConfig {
+        base_url,
+        aliases,
+        config_dir: config_dir.to_path_buf(),
+        include_set,
+        exclude_set,
+    })
 }
 
 fn split_pattern(pattern: &str) -> (String, String) {
@@ -278,6 +372,135 @@ mod tests {
             Some("nested/dir")
         );
         assert_eq!(match_alias(&alias, "@features/auth/other"), None);
+        Ok(())
+    }
+
+    #[test]
+    fn expand_directory_pattern_appends_recursive_wildcard() {
+        assert_eq!(expand_pattern("src"), vec!["src/**/*"]);
+    }
+
+    #[test]
+    fn expand_pattern_with_trailing_slash_appends_recursive_wildcard() {
+        assert_eq!(expand_pattern("src/"), vec!["src/**/*"]);
+    }
+
+    #[test]
+    fn expand_file_pattern_keeps_original() {
+        assert_eq!(expand_pattern("src/app.ts"), vec!["src/app.ts"]);
+    }
+
+    #[test]
+    fn expand_wildcard_pattern_keeps_original() {
+        assert_eq!(expand_pattern("src/**/*.ts"), vec!["src/**/*.ts"]);
+    }
+
+    #[test]
+    fn parses_tsconfig_with_include_and_exclude() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let config_path = dir.path().join("tsconfig.json");
+        std::fs::write(
+            &config_path,
+            r#"{
+                "include": ["src"],
+                "exclude": ["**/*.test.ts"]
+            }"#,
+        )?;
+
+        let tsconfig = parse_file(&config_path)?;
+        let root = dir.path();
+        assert!(tsconfig.is_included(&root.join("src/app.ts")));
+        assert!(!tsconfig.is_included(&root.join("src/app.test.ts")));
+        assert!(!tsconfig.is_included(&root.join("dist/app.ts")));
+        Ok(())
+    }
+
+    #[test]
+    fn is_included_with_no_restrictions_includes_all() {
+        let tsconfig = TsConfig::default();
+        assert!(tsconfig.is_included(Path::new("/project/src/app.ts")));
+        assert!(tsconfig.is_included(Path::new("/project/dist/bundle.js")));
+    }
+
+    #[test]
+    fn is_included_with_include_restricts_to_directory() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let config_path = dir.path().join("tsconfig.json");
+        std::fs::write(&config_path, r#"{"include": ["src"]}"#)?;
+
+        let tsconfig = parse_file(&config_path)?;
+        assert!(tsconfig.is_included(&dir.path().join("src/app.ts")));
+        assert!(tsconfig.is_included(&dir.path().join("src/lib/index.ts")));
+        assert!(!tsconfig.is_included(&dir.path().join("dist/app.ts")));
+        assert!(!tsconfig.is_included(&dir.path().join("tests/app.ts")));
+        Ok(())
+    }
+
+    #[test]
+    fn is_included_with_exclude_removes_directory() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let config_path = dir.path().join("tsconfig.json");
+        std::fs::write(&config_path, r#"{"exclude": ["dist"]}"#)?;
+
+        let tsconfig = parse_file(&config_path)?;
+        assert!(tsconfig.is_included(&dir.path().join("src/app.ts")));
+        assert!(!tsconfig.is_included(&dir.path().join("dist/app.ts")));
+        assert!(!tsconfig.is_included(&dir.path().join("dist/nested/app.ts")));
+        Ok(())
+    }
+
+    #[test]
+    fn is_included_with_file_pattern_excludes_matching_files() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let config_path = dir.path().join("tsconfig.json");
+        std::fs::write(&config_path, r#"{"exclude": ["**/*.test.ts"]}"#)?;
+
+        let tsconfig = parse_file(&config_path)?;
+        assert!(tsconfig.is_included(&dir.path().join("src/app.ts")));
+        assert!(!tsconfig.is_included(&dir.path().join("src/app.test.ts")));
+        assert!(!tsconfig.is_included(&dir.path().join("tests/feature.test.ts")));
+        Ok(())
+    }
+
+    #[test]
+    fn is_included_with_include_and_exclude_respects_both() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let config_path = dir.path().join("tsconfig.json");
+        std::fs::write(
+            &config_path,
+            r#"{
+                "include": ["src"],
+                "exclude": ["**/*.test.ts"]
+            }"#,
+        )?;
+
+        let tsconfig = parse_file(&config_path)?;
+        assert!(tsconfig.is_included(&dir.path().join("src/app.ts")));
+        assert!(!tsconfig.is_included(&dir.path().join("src/app.test.ts")));
+        assert!(!tsconfig.is_included(&dir.path().join("tests/app.ts")));
+        Ok(())
+    }
+
+    #[test]
+    fn is_included_with_empty_include_excludes_all() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let config_path = dir.path().join("tsconfig.json");
+        std::fs::write(&config_path, r#"{"include": []}"#)?;
+
+        let tsconfig = parse_file(&config_path)?;
+        assert!(!tsconfig.is_included(&dir.path().join("src/app.ts")));
+        assert!(!tsconfig.is_included(&dir.path().join("app.ts")));
+        Ok(())
+    }
+
+    #[test]
+    fn is_included_excludes_paths_outside_config_dir() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let config_path = dir.path().join("tsconfig.json");
+        std::fs::write(&config_path, r#"{}"#)?;
+
+        let tsconfig = parse_file(&config_path)?;
+        assert!(!tsconfig.is_included(Path::new("/other/app.ts")));
         Ok(())
     }
 }

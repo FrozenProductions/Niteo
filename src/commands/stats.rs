@@ -20,6 +20,8 @@ pub fn show(
     let scan_scope =
         scope_override.map(|scope| crate::analysis::resolve_path(&project_config.root, scope));
 
+    let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
+
     let files = if git_flag {
         crate::analysis::resolve_changed_files(workspace)?
     } else {
@@ -27,11 +29,11 @@ pub fn show(
             &project_config.root,
             scan_scope.as_deref(),
             &project_config.gitignore,
+            tsconfig.as_ref(),
         )?
     };
 
     let tests_config = project_config.structure.tests.clone();
-    let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
     let graph = import_graph::build_import_graph(
         &files,
         |file| tests_config.matches_file(file),
