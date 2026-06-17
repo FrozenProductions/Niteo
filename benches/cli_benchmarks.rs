@@ -180,6 +180,54 @@ fn bench_cli(c: &mut Criterion) -> Result<()> {
         run_result?;
     }
 
+    for count in [25usize, 100, 250, 1000] {
+        let warm_name = format!("cli_lint_react_{}_files_json_cache_warm", count);
+        let temp_dir = TempDir::new()?;
+        write_react_project(temp_dir.path(), count)?;
+
+        std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
+            .args(["lint", "--format", "json", "--cache"])
+            .current_dir(temp_dir.path())
+            .output()?;
+
+        let mut run_result = Ok(());
+        group.bench_function(warm_name, |b| {
+            b.iter(|| {
+                run_result = (|| -> Result<()> {
+                    let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
+                        .args(["lint", "--format", "json", "--cache"])
+                        .current_dir(temp_dir.path())
+                        .output()?;
+
+                    black_box(status);
+                    Ok(())
+                })();
+            });
+        });
+        run_result?;
+
+        let cold_name = format!("cli_lint_react_{}_files_json_cache_cold", count);
+        let cache_path = temp_dir.path().join(".niteo").join("cache.json");
+        let mut run_result = Ok(());
+        group.bench_function(cold_name, |b| {
+            b.iter(|| {
+                run_result = (|| -> Result<()> {
+                    if cache_path.exists() {
+                        fs::remove_file(&cache_path)?;
+                    }
+                    let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
+                        .args(["lint", "--format", "json", "--cache"])
+                        .current_dir(temp_dir.path())
+                        .output()?;
+
+                    black_box(status);
+                    Ok(())
+                })();
+            });
+        });
+        run_result?;
+    }
+
     let formats: [(&str, &[&str]); 2] = [("text", &[]), ("sarif", &["--format", "sarif"])];
 
     for (format_name, format_args) in formats {
@@ -214,6 +262,54 @@ fn bench_cli(c: &mut Criterion) -> Result<()> {
                 run_result = (|| -> Result<()> {
                     let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
                         .args(["lint", "--format", "json"])
+                        .current_dir(temp_dir.path())
+                        .output()?;
+
+                    black_box(status);
+                    Ok(())
+                })();
+            });
+        });
+        run_result?;
+    }
+
+    for count in [50usize, 100, 200] {
+        let warm_name = format!("cli_lint_import_heavy_{}_files_json_cache_warm", count);
+        let temp_dir = TempDir::new()?;
+        write_import_heavy_project(temp_dir.path(), count)?;
+
+        std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
+            .args(["lint", "--format", "json", "--cache"])
+            .current_dir(temp_dir.path())
+            .output()?;
+
+        let mut run_result = Ok(());
+        group.bench_function(warm_name, |b| {
+            b.iter(|| {
+                run_result = (|| -> Result<()> {
+                    let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
+                        .args(["lint", "--format", "json", "--cache"])
+                        .current_dir(temp_dir.path())
+                        .output()?;
+
+                    black_box(status);
+                    Ok(())
+                })();
+            });
+        });
+        run_result?;
+
+        let cold_name = format!("cli_lint_import_heavy_{}_files_json_cache_cold", count);
+        let cache_path = temp_dir.path().join(".niteo").join("cache.json");
+        let mut run_result = Ok(());
+        group.bench_function(cold_name, |b| {
+            b.iter(|| {
+                run_result = (|| -> Result<()> {
+                    if cache_path.exists() {
+                        fs::remove_file(&cache_path)?;
+                    }
+                    let status = std::process::Command::new(env!("CARGO_BIN_EXE_niteo"))
+                        .args(["lint", "--format", "json", "--cache"])
                         .current_dir(temp_dir.path())
                         .output()?;
 
