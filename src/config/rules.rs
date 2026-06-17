@@ -7,12 +7,15 @@ pub enum Severity {
 }
 
 impl Severity {
-    pub fn from_str(value: &str) -> Self {
+    pub fn from_str(value: &str) -> Result<Self, String> {
         match value {
-            "off" => Self::Off,
-            "info" => Self::Info,
-            "error" => Self::Error,
-            _ => Self::Warn,
+            "off" => Ok(Self::Off),
+            "info" => Ok(Self::Info),
+            "warn" => Ok(Self::Warn),
+            "error" => Ok(Self::Error),
+            _ => Err(format!(
+                "invalid severity '{value}'; must be one of: off, info, warn, error"
+            )),
         }
     }
 
@@ -467,5 +470,25 @@ impl Default for NoGodDomainRuleConfig {
             max_files: 20,
             ignore_dirs: vec![],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Severity;
+
+    #[test]
+    fn from_str_parses_valid_severities() {
+        assert_eq!(Severity::from_str("off").unwrap(), Severity::Off);
+        assert_eq!(Severity::from_str("info").unwrap(), Severity::Info);
+        assert_eq!(Severity::from_str("warn").unwrap(), Severity::Warn);
+        assert_eq!(Severity::from_str("error").unwrap(), Severity::Error);
+    }
+
+    #[test]
+    fn from_str_rejects_invalid_severity() {
+        let error = Severity::from_str("warning").unwrap_err();
+        assert!(error.contains("'warning'"));
+        assert!(error.contains("off, info, warn, error"));
     }
 }

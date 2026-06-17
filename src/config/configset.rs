@@ -43,7 +43,7 @@ impl ConfigSet {
                 .and_then(|project| project.root.as_deref()),
         );
 
-        let root_config = raw_to_project_config(&root_raw, project_root.clone());
+        let root_config = raw_to_project_config(&root_raw, project_root.clone())?;
 
         let scan_root = scan_scope.unwrap_or(&project_root);
 
@@ -71,7 +71,10 @@ impl ConfigSet {
                 .with_context(|| format!("failed to parse {}", config_path.display()))?;
 
             let merged_raw = RawConfig::merge(&root_raw, &child_raw);
-            let merged_config = raw_to_project_config(&merged_raw, project_root.clone());
+            let merged_config = raw_to_project_config(&merged_raw, project_root.clone())
+                .with_context(|| {
+                    format!("failed to validate rules in {}", config_path.display())
+                })?;
 
             let parent_index = find_parent_node(&root_node, &children, &config_dir);
 
@@ -140,14 +143,14 @@ fn read_root_config(workspace: &Path) -> Result<RawConfig> {
         .with_context(|| format!("failed to parse config from {}", config_path.display()))
 }
 
-fn raw_to_project_config(raw: &RawConfig, root: PathBuf) -> ProjectConfig {
-    ProjectConfig {
+fn raw_to_project_config(raw: &RawConfig, root: PathBuf) -> Result<ProjectConfig> {
+    Ok(ProjectConfig {
         root,
         gitignore: raw.gitignore(),
         structure: raw.structure(),
         architecture: raw.architecture(),
-        rules: raw.rules_config(),
-    }
+        rules: raw.rules_config().map_err(anyhow::Error::msg)?,
+    })
 }
 
 fn workspace_config_path(workspace: &Path) -> Option<PathBuf> {

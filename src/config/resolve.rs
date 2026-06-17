@@ -40,7 +40,7 @@ impl ProjectConfig {
             .and_then(|project| project.root.as_deref());
         let root = resolve_project_root(workspace, root_override, config_root);
 
-        Ok(raw_config.into_project_config(root))
+        raw_config.into_project_config(root)
     }
 }
 
@@ -101,13 +101,13 @@ fn read_config_file(workspace: &Path) -> Result<RawConfig> {
 }
 
 impl RawConfig {
-    pub(crate) fn into_project_config(self, root: PathBuf) -> ProjectConfig {
-        ProjectConfig {
+    pub(crate) fn into_project_config(self, root: PathBuf) -> Result<ProjectConfig> {
+        Ok(ProjectConfig {
             root,
             gitignore: self.gitignore(),
             structure: self.structure(),
             architecture: self.architecture(),
-            rules: self.rules_config(),
-        }
+            rules: self.rules_config().map_err(anyhow::Error::msg)?,
+        })
     }
 }

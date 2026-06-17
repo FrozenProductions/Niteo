@@ -76,7 +76,7 @@ pub fn list_with_preset(
         .ok_or_else(|| anyhow::anyhow!("unknown preset: {name}"))?;
     let source = config::presets::default_config_for_preset(preset);
     let raw: config::raw::RawConfig = toml::from_str(source)?;
-    let project_config = raw.into_project_config(std::env::current_dir()?);
+    let project_config = raw.into_project_config(std::env::current_dir()?)?;
     let rows = rule_documentation::configured_rules(&project_config);
 
     let rendered = match output_format {

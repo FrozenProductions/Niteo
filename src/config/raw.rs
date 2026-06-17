@@ -140,35 +140,44 @@ macro_rules! declare_raw_rules {
                 self.rules.as_ref().and_then(|rules| rules.get(name))
             }
 
-            pub fn rules_config(&self) -> RulesConfig {
-                RulesConfig {
-                    $( $simple_method: self.$simple_method(), )*
-                    $( $cd_method: self.$cd_method(), )*
-                    $( $custom_method: self.$custom_method(), )*
-                }
+            pub fn rules_config(&self) -> Result<RulesConfig, String> {
+                Ok(RulesConfig {
+                    $( $simple_method: self.$simple_method()?, )*
+                    $( $cd_method: self.$cd_method()?, )*
+                    $( $custom_method: self.$custom_method()?, )*
+                })
             }
 
             $(
-                fn $simple_method(&self) -> RuleConfig {
-                    self.rule($simple_name)
-                        .map(RawRuleConfig::to_rule_config)
-                        .unwrap_or_default()
+                fn $simple_method(&self) -> Result<RuleConfig, String> {
+                    match self.rule($simple_name) {
+                        Some(rule) => rule.to_rule_config().map_err(|error| {
+                            format!("in rule '{}': {}", $simple_name, error)
+                        }),
+                        None => Ok(RuleConfig::default()),
+                    }
                 }
             )*
 
             $(
-                fn $cd_method(&self) -> RuleConfig {
-                    self.rule($cd_name)
-                        .map(|rule| rule.to_rule_config_with_default($cd_sev))
-                        .unwrap_or(RuleConfig { severity: $cd_sev })
+                fn $cd_method(&self) -> Result<RuleConfig, String> {
+                    match self.rule($cd_name) {
+                        Some(rule) => rule.to_rule_config_with_default($cd_sev).map_err(|error| {
+                            format!("in rule '{}': {}", $cd_name, error)
+                        }),
+                        None => Ok(RuleConfig { severity: $cd_sev }),
+                    }
                 }
             )*
 
             $(
-                fn $custom_method(&self) -> $custom_type {
-                    self.rule($custom_name)
-                        .map(RawRuleConfig::$custom_converter)
-                        .unwrap_or_default()
+                fn $custom_method(&self) -> Result<$custom_type, String> {
+                    match self.rule($custom_name) {
+                        Some(rule) => RawRuleConfig::$custom_converter(rule).map_err(|error| {
+                            format!("in rule '{}': {}", $custom_name, error)
+                        }),
+                        None => Ok(<$custom_type>::default()),
+                    }
                 }
             )*
         }
@@ -349,21 +358,22 @@ macro_rules! declare_option_converters {
         ),* $(,)?
     ) => {
         $(
-            pub fn $method(&self) -> $config_type {
+            pub fn $method(&self) -> Result<$config_type, String> {
                 match self {
                     Self::Severity(severity) => {
                         let mut cfg = <$config_type>::default();
-                        cfg.severity = Severity::from_str(severity);
-                        cfg
+                        cfg.severity = Severity::from_str(severity)?;
+                        Ok(cfg)
                     }
                     Self::Options(options) => {
                         let mut cfg = <$config_type>::default();
-                        cfg.severity = Severity::from_str(
-                            options.severity.as_deref().unwrap_or("warn"),
-                        );
+                        cfg.severity = match options.severity.as_deref() {
+                            Some(severity) => Severity::from_str(severity)?,
+                            None => Severity::Warn,
+                        };
                         $( cfg.$field = options.$field.unwrap_or($default); )*
                         $( cfg.$clone_field = options.$clone_field.clone().unwrap_or_else(|| <$config_type>::default().$clone_field); )*
-                        cfg
+                        Ok(cfg)
                     }
                 }
             }
@@ -398,22 +408,24 @@ impl RawRuleConfig {
 }
 
 impl RawRuleConfig {
-    pub fn to_rule_config(&self) -> RuleConfig {
+    pub fn to_rule_config(&self) -> Result<RuleConfig, String> {
         self.to_rule_config_with_default(Severity::Warn)
     }
 
-    pub fn to_rule_config_with_default(&self, default_severity: Severity) -> RuleConfig {
+    pub fn to_rule_config_with_default(
+        &self,
+        default_severity: Severity,
+    ) -> Result<RuleConfig, String> {
         match self {
-            Self::Severity(severity) => RuleConfig {
-                severity: Severity::from_str(severity),
-            },
-            Self::Options(options) => RuleConfig {
-                severity: options
-                    .severity
-                    .as_deref()
-                    .map(Severity::from_str)
-                    .unwrap_or(default_severity),
-            },
+            Self::Severity(severity) => Ok(RuleConfig {
+                severity: Severity::from_str(severity)?,
+            }),
+            Self::Options(options) => Ok(RuleConfig {
+                severity: match options.severity.as_deref() {
+                    Some(severity) => Severity::from_str(severity)?,
+                    None => default_severity,
+                },
+            }),
         }
     }
 
@@ -882,7 +894,7 @@ severity = "error"
         )?;
 
         let merged = RawConfig::merge(&parent, &child);
-        let rules_config = merged.rules_config();
+        let rules_config = merged.rules_config().map_err(anyhow::Error::msg)?;
         assert_eq!(rules_config.no_console.severity, Severity::Error);
         Ok(())
     }
@@ -904,7 +916,7 @@ severity = "error"
         )?;
 
         let merged = RawConfig::merge(&parent, &child);
-        let rules_config = merged.rules_config();
+        let rules_config = merged.rules_config().map_err(anyhow::Error::msg)?;
         assert_eq!(rules_config.no_large_file.severity, Severity::Error);
         assert_eq!(rules_config.no_large_file.max_lines, 300);
         Ok(())
@@ -928,7 +940,7 @@ severity = "off"
         )?;
 
         let merged = RawConfig::merge(&parent, &child);
-        let rules_config = merged.rules_config();
+        let rules_config = merged.rules_config().map_err(anyhow::Error::msg)?;
         assert_eq!(rules_config.no_console.severity, Severity::Off);
         assert_eq!(rules_config.no_debugger.severity, Severity::Error);
         Ok(())
@@ -979,5 +991,23 @@ respect-gitignore = false
         assert_eq!(project.root, Some(PathBuf::from("src")));
         assert_eq!(project.respect_gitignore, Some(false));
         Ok(())
+    }
+
+    #[test]
+    fn rules_config_rejects_invalid_severity() {
+        let raw: RawConfig = toml::from_str(
+            r#"
+[rules.no-console]
+severity = "warning"
+"#,
+        )
+        .expect("valid toml");
+
+        let error = raw
+            .rules_config()
+            .expect_err("invalid severity should fail");
+        assert!(error.contains("'warning'"));
+        assert!(error.contains("no-console"));
+        assert!(error.contains("off, info, warn, error"));
     }
 }
