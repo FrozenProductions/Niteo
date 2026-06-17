@@ -109,3 +109,23 @@ fn lint_without_fix_is_unchanged() -> Result<()> {
     assert_eq!(after, original);
     Ok(())
 }
+
+#[test]
+fn fix_with_watch_is_rejected() -> Result<()> {
+    let project = harness::copy_fixture("fix")?;
+
+    let mut command = harness::niteo_in_project(project.path());
+    command.args(["--watch", "--fix"]);
+    let output = command.output()?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        !output.status.success(),
+        "expected --fix with --watch to fail: {stderr}"
+    );
+    assert!(
+        stderr.contains("--fix") && stderr.contains("--watch"),
+        "stderr should mention the conflicting flags: {stderr}"
+    );
+    Ok(())
+}

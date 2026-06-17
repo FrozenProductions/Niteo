@@ -97,6 +97,10 @@ pub fn run() -> Result<ExitCode> {
             ExitCode::SUCCESS
         }
         Command::Lint { fix } => {
+            if fix && cli.options.watch {
+                anyhow::bail!("--fix cannot be used with --watch");
+            }
+
             let cache_enabled = cli.options.cache && !cli.options.no_cache;
 
             let opts = commands::lint::LintOptions {
