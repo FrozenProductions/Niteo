@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
-use serde::Deserialize;
+use ignore::WalkBuilder;
+use ignore::overrides::OverrideBuilder;
 use std::collections::{HashMap, HashSet};
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -108,61 +110,73 @@ impl Workspace {
         let mut packages = Vec::new();
         let mut seen_dirs = HashSet::new();
 
-        for glob_pattern in globs {
-            let is_recursive = glob_pattern.contains("**");
-            let glob_parts: Vec<&str> = glob_pattern.split('/').collect();
+        if globs.is_empty() {
+            return Ok(packages);
+        }
 
-            if is_recursive {
-                let base = glob_parts
-                    .iter()
-                    .take_while(|p| !p.starts_with("**"))
-                    .fold(PathBuf::new(), |acc, &part| acc.join(part));
-                let base_path = workspace_root.join(&base);
+        let mut overrides = OverrideBuilder::new(workspace_root);
+        for glob in globs {
+            let normalized = glob
+                .trim()
+                .trim_matches('\'')
+                .trim_matches('"')
+                .strip_prefix("./")
+                .unwrap_or(glob.trim())
+                .trim_end_matches('/');
+            if normalized.is_empty() {
+                continue;
+            }
+            overrides.add(normalized)?;
+        }
+        let overrides = overrides.build()?;
 
-                if let Ok(entries) = std::fs::read_dir(&base_path) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.is_dir()
-                            && !seen_dirs.contains(&path)
-                            && Self::is_valid_package_dir(&path)
-                        {
-                            seen_dirs.insert(path.clone());
-                            if let Some(package) = Self::load_package(&path) {
-                                packages.push(package);
-                            }
-                        }
-                    }
+        let mut walker = WalkBuilder::new(workspace_root);
+        walker.git_ignore(true);
+        walker.hidden(false);
+        walker.follow_links(false);
+        walker.filter_entry(|entry| {
+            if entry
+                .file_type()
+                .map(|file_type| file_type.is_dir())
+                .unwrap_or(false)
+            {
+                let name = entry.file_name();
+                if name == OsStr::new("node_modules") || name == OsStr::new(".git") {
+                    return false;
                 }
-            } else if glob_parts.len() == 2 && glob_pattern.ends_with("/*") {
-                let first_part = glob_parts
-                    .first()
-                    .context("glob pattern is missing base directory")?;
-                let base = workspace_root.join(first_part);
-                let prefix = format!("{}/", first_part);
-                let glob_suffix = glob_pattern.get(prefix.len()..).unwrap_or("");
-                if glob_suffix == "*"
-                    && let Ok(entries) = std::fs::read_dir(&base)
-                {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.is_dir()
-                            && !seen_dirs.contains(&path)
-                            && Self::is_valid_package_dir(&path)
-                        {
-                            seen_dirs.insert(path.clone());
-                            if let Some(package) = Self::load_package(&path) {
-                                packages.push(package);
-                            }
-                        }
-                    }
-                }
-            } else {
-                let path = workspace_root.join(glob_pattern);
-                if !seen_dirs.contains(&path) && Self::is_valid_package_dir(&path) {
-                    seen_dirs.insert(path.clone());
-                    if let Some(package) = Self::load_package(&path) {
-                        packages.push(package);
-                    }
+            }
+            true
+        });
+
+        for entry in walker.build() {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(_) => continue,
+            };
+
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            if path == workspace_root {
+                continue;
+            }
+
+            let Ok(relative) = path.strip_prefix(workspace_root) else {
+                continue;
+            };
+            if relative.as_os_str().is_empty() {
+                continue;
+            }
+
+            let matched = overrides.matched(relative, true);
+            if matched.is_whitelist()
+                && !seen_dirs.contains(path)
+                && Self::is_valid_package_dir(path)
+            {
+                seen_dirs.insert(path.to_path_buf());
+                if let Some(package) = Self::load_package(path) {
+                    packages.push(package);
                 }
             }
         }
@@ -258,7 +272,7 @@ impl Workspace {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 struct PnpmWorkspace {
     packages: Vec<String>,
 }
@@ -613,6 +627,124 @@ mod tests {
 
         let cycles = graph.find_cycles();
         assert!(cycles.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn discovers_nested_workspaces() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let root = tmp.path();
+
+        let package_json = serde_json::json!({
+            "name": "root",
+            "workspaces": ["packages/*/*"]
+        });
+        fs::write(
+            root.join("package.json"),
+            serde_json::to_string_pretty(&package_json)?,
+        )?;
+
+        fs::create_dir_all(root.join("packages/group/a"))?;
+        fs::create_dir_all(root.join("packages/group/b"))?;
+        create_package(&root.join("packages/group/a"), "a")?;
+        create_package(&root.join("packages/group/b"), "b")?;
+
+        let workspace = Workspace::discover(root)?;
+        assert_eq!(workspace.packages.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn discovers_apps_packages_pattern() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let root = tmp.path();
+
+        let package_json = serde_json::json!({
+            "name": "root",
+            "workspaces": ["apps/*/packages/*"]
+        });
+        fs::write(
+            root.join("package.json"),
+            serde_json::to_string_pretty(&package_json)?,
+        )?;
+
+        fs::create_dir_all(root.join("apps/web/packages/ui"))?;
+        fs::create_dir_all(root.join("apps/admin/packages/shared"))?;
+        create_package(&root.join("apps/web/packages/ui"), "ui")?;
+        create_package(&root.join("apps/admin/packages/shared"), "shared")?;
+
+        let workspace = Workspace::discover(root)?;
+        assert_eq!(workspace.packages.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn excludes_negative_workspace_patterns() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let root = tmp.path();
+
+        let package_json = serde_json::json!({
+            "name": "root",
+            "workspaces": ["packages/*", "!packages/excluded"]
+        });
+        fs::write(
+            root.join("package.json"),
+            serde_json::to_string_pretty(&package_json)?,
+        )?;
+
+        fs::create_dir_all(root.join("packages/included"))?;
+        fs::create_dir_all(root.join("packages/excluded"))?;
+        create_package(&root.join("packages/included"), "included")?;
+        create_package(&root.join("packages/excluded"), "excluded")?;
+
+        let workspace = Workspace::discover(root)?;
+        assert_eq!(workspace.packages.len(), 1);
+        assert_eq!(workspace.packages[0].name, "included");
+        Ok(())
+    }
+
+    #[test]
+    fn discovers_recursive_workspace_pattern() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let root = tmp.path();
+
+        let package_json = serde_json::json!({
+            "name": "root",
+            "workspaces": ["packages/**"]
+        });
+        fs::write(
+            root.join("package.json"),
+            serde_json::to_string_pretty(&package_json)?,
+        )?;
+
+        fs::create_dir_all(root.join("packages/ui"))?;
+        fs::create_dir_all(root.join("packages/shared/utils"))?;
+        create_package(&root.join("packages/ui"), "ui")?;
+        create_package(&root.join("packages/shared/utils"), "utils")?;
+
+        let workspace = Workspace::discover(root)?;
+        assert_eq!(workspace.packages.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn discovers_pnpm_negative_workspace() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let root = tmp.path();
+
+        fs::write(
+            root.join("pnpm-workspace.yaml"),
+            "packages:\n  - 'packages/*'\n  - '!packages/excluded'\n",
+        )?;
+
+        fs::create_dir_all(root.join("packages/keep"))?;
+        fs::create_dir_all(root.join("packages/excluded"))?;
+        create_package(&root.join("packages/keep"), "keep")?;
+        create_package(&root.join("packages/excluded"), "excluded")?;
+
+        let workspace = Workspace::discover(root)?;
+        assert_eq!(workspace.packages.len(), 1);
+        assert_eq!(workspace.packages[0].name, "keep");
         Ok(())
     }
 }
