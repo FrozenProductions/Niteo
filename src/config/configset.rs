@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use super::defaults::{CONFIG_FILE_NAME, DEFAULT_CONFIG_SOURCE};
 use super::raw::RawConfig;
-use super::resolve::ProjectConfig;
+use super::resolve::{ProjectConfig, resolve_project_root};
 
 #[derive(Debug)]
 pub struct ConfigSet {
@@ -34,22 +34,14 @@ impl ConfigSet {
         let deny_child_configs = options.deny_child_configs;
         let root_raw = read_root_config(workspace)?;
 
-        let project_root = if let Some(root) = root_override {
-            absolutize(workspace, root)
-        } else if let Some(root) = root_raw
-            .project
-            .as_ref()
-            .and_then(|project| project.root.as_ref())
-        {
-            absolutize(workspace, root.clone())
-        } else {
-            let source_root = workspace.join("src");
-            if source_root.is_dir() {
-                source_root
-            } else {
-                workspace.to_path_buf()
-            }
-        };
+        let project_root = resolve_project_root(
+            workspace,
+            root_override,
+            root_raw
+                .project
+                .as_ref()
+                .and_then(|project| project.root.as_deref()),
+        );
 
         let root_config = raw_to_project_config(&root_raw, project_root.clone());
 
@@ -161,13 +153,6 @@ fn raw_to_project_config(raw: &RawConfig, root: PathBuf) -> ProjectConfig {
 fn workspace_config_path(workspace: &Path) -> Option<PathBuf> {
     let path = workspace.join(CONFIG_FILE_NAME);
     if path.exists() { Some(path) } else { None }
-}
-
-fn absolutize(workspace: &Path, path: PathBuf) -> PathBuf {
-    if path.is_absolute() {
-        return path;
-    }
-    workspace.join(path)
 }
 
 fn discover_child_configs(

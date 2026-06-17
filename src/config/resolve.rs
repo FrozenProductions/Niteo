@@ -34,24 +34,34 @@ impl ProjectConfig {
     pub fn resolve(workspace: &Path, root_override: Option<PathBuf>) -> Result<Self> {
         let raw_config = read_config_file(workspace)?;
 
-        let root = if let Some(root) = root_override {
-            absolutize(workspace, root)
-        } else if let Some(root) = raw_config
+        let config_root = raw_config
             .project
             .as_ref()
-            .and_then(|project| project.root.as_ref())
-        {
-            absolutize(workspace, root.to_path_buf())
-        } else {
-            let source_root = workspace.join("src");
-            if source_root.is_dir() {
-                source_root
-            } else {
-                workspace.to_path_buf()
-            }
-        };
+            .and_then(|project| project.root.as_deref());
+        let root = resolve_project_root(workspace, root_override, config_root);
 
         Ok(raw_config.into_project_config(root))
+    }
+}
+
+pub(crate) fn resolve_project_root(
+    workspace: &Path,
+    root_override: Option<PathBuf>,
+    config_root: Option<&Path>,
+) -> PathBuf {
+    if let Some(root) = root_override {
+        return absolutize(workspace, root);
+    }
+
+    if let Some(root) = config_root {
+        return absolutize(workspace, root.to_path_buf());
+    }
+
+    let source_root = workspace.join("src");
+    if source_root.is_dir() {
+        source_root
+    } else {
+        workspace.to_path_buf()
     }
 }
 
