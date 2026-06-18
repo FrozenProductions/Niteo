@@ -97,6 +97,13 @@ impl ConfigSet {
     }
 
     pub fn config_for_file(&self, file: &Path) -> &ProjectConfig {
+        self.config_with_id_for_file(file).1
+    }
+
+    /// Returns a stable id (0 for root, i+1 for `children[i]`) together with the matching config.
+    /// The id can be used as a hash key to group files by config without relying on pointer identity.
+    pub fn config_with_id_for_file(&self, file: &Path) -> (usize, &ProjectConfig) {
+        let mut best_id = 0usize;
         let mut best_match = &self.root;
         let mut best_depth = if file.starts_with(&self.root.directory) {
             self.root.directory.components().count()
@@ -104,17 +111,18 @@ impl ConfigSet {
             0
         };
 
-        for node in &self.children {
+        for (index, node) in self.children.iter().enumerate() {
             if file.starts_with(&node.directory) {
                 let depth = node.directory.components().count();
                 if depth > best_depth {
                     best_depth = depth;
                     best_match = node;
+                    best_id = index + 1;
                 }
             }
         }
 
-        &best_match.config
+        (best_id, &best_match.config)
     }
 
     pub fn configs(&self) -> impl Iterator<Item = &ResolvedConfigNode> {

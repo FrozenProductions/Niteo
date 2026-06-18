@@ -7,7 +7,7 @@ use std::sync::Arc;
 use oxc_parser::Parser;
 
 use crate::allocator::with_reusable_allocator;
-use crate::config::{self, ProjectConfig};
+use crate::config;
 use crate::ignore;
 use crate::import_graph::ImportGraph;
 use crate::rule_adapters::*;
@@ -69,13 +69,12 @@ pub fn check_files_with_parallelism(
     let mut suppression_files = Vec::new();
     let mut parse_failures: HashMap<PathBuf, String> = HashMap::new();
 
-    // Group files by config pointer identity so rules are built once per unique config
+    // Group files by stable config id so rules are built once per unique config
     let mut grouped: std::collections::HashMap<usize, Vec<&PathBuf>> =
         std::collections::HashMap::new();
     for file in files {
-        let config = config_set.config_for_file(file);
-        let config_ptr = config as *const ProjectConfig as usize;
-        grouped.entry(config_ptr).or_default().push(file);
+        let (config_id, _) = config_set.config_with_id_for_file(file);
+        grouped.entry(config_id).or_default().push(file);
     }
 
     let mut rules_by_config: std::collections::HashMap<
@@ -89,9 +88,9 @@ pub fn check_files_with_parallelism(
         crate::rules::TypeLocationStyle,
     > = std::collections::HashMap::new();
 
-    for (config_ptr, group_files) in &grouped {
+    for (config_id, group_files) in &grouped {
         let first_file = group_files.first().context("empty config group")?;
-        let config = config_set.config_for_file(first_file);
+        let (_, config) = config_set.config_with_id_for_file(first_file);
         let rules = Arc::new(build_file_rules(
             &config.rules,
             &config.structure,
@@ -109,23 +108,22 @@ pub fn check_files_with_parallelism(
         let file_refs: Vec<PathBuf> = group_files.iter().map(|file| (*file).clone()).collect();
         let type_location_style =
             crate::rules::TypeLocationStyle::detect(&file_refs, &config.structure.types);
-        rules_by_config.insert(*config_ptr, rules);
-        needs_ast_by_config.insert(*config_ptr, needs_ast);
-        type_styles_by_config.insert(*config_ptr, type_location_style);
+        rules_by_config.insert(*config_id, rules);
+        needs_ast_by_config.insert(*config_id, needs_ast);
+        type_styles_by_config.insert(*config_id, type_location_style);
     }
 
     let process_file = |file: &PathBuf| -> Result<FileResult> {
-        let config = config_set.config_for_file(file);
-        let config_ptr = config as *const ProjectConfig as usize;
-        let Some(rules) = rules_by_config.get(&config_ptr) else {
+        let (config_id, _) = config_set.config_with_id_for_file(file);
+        let Some(rules) = rules_by_config.get(&config_id) else {
             return Ok((Vec::new(), None, None));
         };
         let rules = rules.clone();
         let needs_ast = *needs_ast_by_config
-            .get(&config_ptr)
+            .get(&config_id)
             .context("missing needs_ast for config")?;
         let type_location_style = *type_styles_by_config
-            .get(&config_ptr)
+            .get(&config_id)
             .context("missing type style for config")?;
 
         let source = std::fs::read_to_string(file)
