@@ -47,6 +47,8 @@ pub fn build_import_graph_with_cache(
         }
     }
 
+    graph.build_edges_by_source();
+
     Ok(graph)
 }
 
@@ -75,6 +77,8 @@ pub fn build_import_graph_from_sources(
         let edges = extract_imports(&file, source, &resolver);
         graph.edges.extend(edges);
     }
+
+    graph.build_edges_by_source();
 
     graph
 }

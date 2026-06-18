@@ -75,8 +75,7 @@ fn render_json(graph: &import_graph::ImportGraph) -> Result<String> {
     }
 
     let nodes: Vec<NodeData> = graph
-        .files
-        .iter()
+        .iter_files()
         .map(|(path, node)| NodeData {
             path: path.display().to_string(),
             is_barrel: node.is_barrel,

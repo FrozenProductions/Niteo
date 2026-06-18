@@ -627,6 +627,7 @@ mod tests {
             kind: ImportKind::Import,
             span: Span::new(0, 10),
         });
+        graph.build_edges_by_source();
 
         let mut file_hashes = HashMap::new();
         file_hashes.insert(file_a.clone(), hash_content(b"content a"));

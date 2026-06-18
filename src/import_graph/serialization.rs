@@ -1,12 +1,12 @@
 use crate::import_graph::ImportGraph;
 use crate::import_graph::model::ImportKind;
 
-pub(crate) struct GraphFormatter {
-    graph: ImportGraph,
+pub(crate) struct GraphFormatter<'a> {
+    graph: &'a ImportGraph,
 }
 
-impl GraphFormatter {
-    pub(crate) fn new(graph: ImportGraph) -> Self {
+impl<'a> GraphFormatter<'a> {
+    pub(crate) fn new(graph: &'a ImportGraph) -> Self {
         Self { graph }
     }
 
@@ -16,7 +16,7 @@ impl GraphFormatter {
         output.push_str("  rankdir=LR;\n");
         output.push_str("  node [shape=box];\n\n");
 
-        for (path, node) in &self.graph.files {
+        for (path, node) in self.graph.iter_files() {
             let label = path
                 .file_name()
                 .and_then(|name| name.to_str())

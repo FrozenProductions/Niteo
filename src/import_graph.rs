@@ -12,11 +12,7 @@ pub use build::build_import_graph_from_sources;
 
 impl ImportGraph {
     pub fn format_dot(&self) -> String {
-        serialization::GraphFormatter::new(ImportGraph {
-            files: self.files.clone(),
-            edges: self.edges.clone(),
-        })
-        .to_dot()
+        serialization::GraphFormatter::new(self).to_dot()
     }
 }
 
