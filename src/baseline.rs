@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::rules::Violation;
 
@@ -153,17 +153,16 @@ fn normalize_path(root: &Path, path: &Path) -> String {
 
 fn pathbuf_to_unix_string(path: &Path) -> String {
     path.components()
-        .collect::<PathBuf>()
-        .display()
-        .to_string()
-        .replace('\\', "/")
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 #[cfg(test)]
 mod tests {
 
     use anyhow::Result;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use crate::config::Severity;
 
