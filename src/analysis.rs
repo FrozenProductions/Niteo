@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use crate::config::{self, ConfigSet};
 use crate::discovery;
@@ -14,8 +15,8 @@ pub struct AnalysisResult {
     pub files: Vec<PathBuf>,
     pub violations: Vec<rules::Violation>,
     pub suppression_report: SuppressionReport,
-    pub import_graph: ImportGraph,
-    pub workspace: Option<Workspace>,
+    pub import_graph: Arc<ImportGraph>,
+    pub workspace: Option<Arc<Workspace>>,
 }
 
 pub struct AnalysisOptions {
@@ -114,7 +115,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         .map(|state| state.cached_violations.clone())
         .unwrap_or_default();
 
-    let graph = import_graph::build_import_graph_with_cache(
+    let graph = Arc::new(import_graph::build_import_graph_with_cache(
         &files,
         |file| {
             config_set
@@ -125,15 +126,17 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         },
         tsconfig.as_ref(),
         &cached_edges_map,
-    )?;
+    )?);
 
-    let workspace = crate::workspace::Workspace::discover(workspace_root).ok();
+    let workspace = crate::workspace::Workspace::discover(workspace_root)
+        .ok()
+        .map(Arc::new);
 
     let (file_violations, suppression_report, parse_failures) = rules::check_files(
         &files,
         &config_set,
-        &graph,
-        workspace.as_ref(),
+        graph.clone(),
+        workspace.clone(),
         &cached_violations_map,
     )?;
 
@@ -144,7 +147,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
             &config_paths,
             tsconfig_path.as_deref(),
             cache_state,
-            &graph,
+            graph.as_ref(),
             &file_violations,
             &parse_failures,
         )

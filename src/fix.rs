@@ -239,7 +239,7 @@ pub fn apply_edits(source: &str, edits: &[TextEdit]) -> String {
     result
 }
 
-pub fn collect_fixes(ctx: &FileContext<'_>, rules: &[Box<dyn FileRule>]) -> Vec<Fix> {
+pub fn collect_fixes(ctx: &FileContext<'_>, rules: &[Box<dyn FileRule + Send + Sync>]) -> Vec<Fix> {
     let mut all_fixes = Vec::new();
     for rule in rules {
         if rule.severity().is_enabled() && rule.supports_fix() {

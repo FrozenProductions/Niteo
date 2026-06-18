@@ -72,8 +72,8 @@ pub fn fix_workspace(
             &config_for_file.rules,
             &config_for_file.structure,
             &config_for_file.architecture,
-            &collected.import_graph,
-            collected.workspace.as_ref(),
+            collected.import_graph.clone(),
+            collected.workspace.clone(),
         );
 
         let any_fixable = rules
@@ -122,8 +122,8 @@ pub fn fix_workspace(
             source: &source,
             program: parse_result.as_ref(),
             line_index: &line_index,
-            import_graph: &collected.import_graph,
-            workspace: collected.workspace.as_ref(),
+            import_graph: collected.import_graph.clone(),
+            workspace: collected.workspace.clone(),
             type_location_style,
         };
         let file_fixes = crate::fix::collect_fixes(&ctx, &rules);

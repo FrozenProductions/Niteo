@@ -151,7 +151,12 @@ impl FileRule for NoUpwardImportAdapter {
         false
     }
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        no_upward_import::check_file(ctx.file, ctx.line_index, ctx.import_graph, &self.config)
+        no_upward_import::check_file(
+            ctx.file,
+            ctx.line_index,
+            ctx.import_graph.as_ref(),
+            &self.config,
+        )
     }
 }
 
@@ -170,7 +175,7 @@ impl FileRule for LayerBoundariesAdapter {
         layer_boundaries::check_file(
             ctx.file,
             ctx.line_index,
-            ctx.import_graph,
+            ctx.import_graph.as_ref(),
             &self.config,
             &self.layers,
         )
@@ -460,7 +465,7 @@ impl FileRule for NoTestImportAdapter {
         no_test_import::check_file(
             ctx.file,
             ctx.line_index,
-            ctx.import_graph,
+            ctx.import_graph.as_ref(),
             &self.config,
             &self.tests,
         )
@@ -503,7 +508,12 @@ impl FileRule for NoBarrelChainAdapter {
         false
     }
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        no_barrel_chain::check_file(ctx.file, ctx.line_index, ctx.import_graph, &self.config)
+        no_barrel_chain::check_file(
+            ctx.file,
+            ctx.line_index,
+            ctx.import_graph.as_ref(),
+            &self.config,
+        )
     }
 }
 
@@ -522,7 +532,7 @@ impl FileRule for NoCircularImportAdapter {
         no_circular_import::check_file(
             ctx.file,
             ctx.line_index,
-            ctx.import_graph,
+            ctx.import_graph.as_ref(),
             &self.context,
             &self.config,
         )
@@ -540,7 +550,12 @@ impl FileRule for NoOrphanFilesAdapter {
         false
     }
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        no_orphan_files::check_file(ctx.file, ctx.line_index, ctx.import_graph, &self.config)
+        no_orphan_files::check_file(
+            ctx.file,
+            ctx.line_index,
+            ctx.import_graph.as_ref(),
+            &self.config,
+        )
     }
 }
 
@@ -581,8 +596,8 @@ impl FileRule for NoPrivatePackageImportAdapter {
         no_private_package_import::check_file(
             ctx.file,
             ctx.line_index,
-            ctx.import_graph,
-            ctx.workspace,
+            ctx.import_graph.as_ref(),
+            ctx.workspace.as_deref(),
             &self.config,
         )
     }
@@ -603,8 +618,8 @@ impl FileRule for NoPackageCycleAdapter {
         no_package_cycle::check_file(
             ctx.file,
             ctx.line_index,
-            ctx.import_graph,
-            ctx.workspace,
+            ctx.import_graph.as_ref(),
+            ctx.workspace.as_deref(),
             &self.context,
             &self.config,
         )

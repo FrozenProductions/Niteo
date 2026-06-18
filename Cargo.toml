@@ -11,6 +11,7 @@ ignore = "0.4.23"
 globset = "0.4.15"
 notify = "8.0.0"
 notify-debouncer-full = "0.5.0"
+rayon = "1.10"
 oxc_allocator = "0.132.0"
 oxc_ast = "0.132.0"
 oxc_ast_visit = "0.132.0"
@@ -31,4 +32,8 @@ criterion = "0.5"
 
 [[bench]]
 name = "cli_benchmarks"
+harness = false
+
+[[bench]]
+name = "parallelism_benchmark"
 harness = false

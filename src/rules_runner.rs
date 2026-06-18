@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use oxc_allocator::Allocator;
 use oxc_parser::Parser;
@@ -12,12 +14,13 @@ use crate::rule_adapters::*;
 use crate::rules::{FileContext, FileRule, RulesConfig, Violation};
 use crate::syntax::LineIndex;
 
-pub fn check_files(
+pub fn check_files_with_parallelism(
     files: &[PathBuf],
     config_set: &config::ConfigSet,
-    import_graph: &ImportGraph,
-    workspace: Option<&crate::workspace::Workspace>,
+    import_graph: Arc<ImportGraph>,
+    workspace: Option<Arc<crate::workspace::Workspace>>,
     cached_violations: &HashMap<PathBuf, Vec<Violation>>,
+    parallel: bool,
 ) -> Result<(
     Vec<Violation>,
     ignore::SuppressionReport,
@@ -36,114 +39,159 @@ pub fn check_files(
         grouped.entry(config_ptr).or_default().push(file);
     }
 
-    for group_files in grouped.values() {
-        let first_file = match group_files.first() {
-            Some(file) => file,
-            None => continue,
-        };
+    let mut rules_by_config: std::collections::HashMap<
+        usize,
+        Arc<Vec<Box<dyn FileRule + Send + Sync>>>,
+    > = std::collections::HashMap::new();
+    let mut needs_ast_by_config: std::collections::HashMap<usize, bool> =
+        std::collections::HashMap::new();
+    let mut type_styles_by_config: std::collections::HashMap<
+        usize,
+        crate::rules::no_inline_types::TypeLocationStyle,
+    > = std::collections::HashMap::new();
+
+    for (config_ptr, group_files) in &grouped {
+        let first_file = group_files.first().context("empty config group")?;
         let config = config_set.config_for_file(first_file);
-        let rules = build_file_rules(
+        let rules = Arc::new(build_file_rules(
             &config.rules,
             &config.structure,
             &config.architecture,
-            import_graph,
-            workspace,
-        );
-
+            import_graph.clone(),
+            workspace.clone(),
+        ));
         let any_enabled = rules.iter().any(|rule| rule.severity().is_enabled());
         if !any_enabled {
             continue;
         }
-
         let needs_ast = rules
             .iter()
             .any(|rule| rule.severity().is_enabled() && rule.needs_ast());
-
         let file_refs: Vec<PathBuf> = group_files.iter().map(|file| (*file).clone()).collect();
         let type_location_style = crate::rules::no_inline_types::TypeLocationStyle::detect(
             &file_refs,
             &config.structure.types,
         );
+        rules_by_config.insert(*config_ptr, rules);
+        needs_ast_by_config.insert(*config_ptr, needs_ast);
+        type_styles_by_config.insert(*config_ptr, type_location_style);
+    }
 
-        for file in group_files {
-            let source = std::fs::read_to_string(*file)
-                .with_context(|| format!("failed to read {}", file.display()))?;
+    let process_file = |file: &PathBuf| -> Result<(
+        Vec<Violation>,
+        Option<ignore::FileSuppressionInfo>,
+        Option<(PathBuf, String)>,
+    )> {
+        let config = config_set.config_for_file(file);
+        let config_ptr = config as *const ProjectConfig as usize;
+        let Some(rules) = rules_by_config.get(&config_ptr) else {
+            return Ok((Vec::new(), None, None::<(PathBuf, String)>));
+        };
+        let rules = rules.clone();
+        let needs_ast = *needs_ast_by_config
+            .get(&config_ptr)
+            .context("missing needs_ast for config")?;
+        let type_location_style = *type_styles_by_config
+            .get(&config_ptr)
+            .context("missing type style for config")?;
 
-            let directives = ignore::parse_ignore_directives(&source);
+        let source = std::fs::read_to_string(file)
+            .with_context(|| format!("failed to read {}", file.display()))?;
 
-            let mut file_violations = if let Some(cached) = cached_violations.get(*file) {
-                cached.clone()
-            } else {
-                let line_index = LineIndex::new(&source);
+        let directives = ignore::parse_ignore_directives(&source);
 
-                let allocator = Allocator::default();
-                let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
-                    match crate::syntax::source_type_from_path(file) {
-                        Some(source_type) => {
-                            let parser_return =
-                                Parser::new(&allocator, &source, source_type).parse();
-                            if parser_return.panicked {
-                                parse_failures.insert((*file).clone(), "parse error".to_string());
-                                None
-                            } else {
-                                Some(parser_return.program)
-                            }
+        let mut file_violations = if let Some(cached) = cached_violations.get(file) {
+            cached.clone()
+        } else {
+            let line_index = LineIndex::new(&source);
+
+            let allocator = Allocator::default();
+            let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
+                match crate::syntax::source_type_from_path(file) {
+                    Some(source_type) => {
+                        let parser_return = Parser::new(&allocator, &source, source_type).parse();
+                        if parser_return.panicked {
+                            return Ok((
+                                Vec::new(),
+                                None,
+                                Some((file.clone(), "parse error".to_string())),
+                            ));
                         }
-                        None => None,
+                        Some(parser_return.program)
                     }
-                } else {
-                    None
-                };
-
-                let ctx = FileContext {
-                    file,
-                    source: &source,
-                    program: parse_result.as_ref(),
-                    line_index: &line_index,
-                    type_location_style,
-                    import_graph,
-                    workspace,
-                };
-
-                let mut new_violations = Vec::new();
-                for rule in &rules {
-                    if rule.severity().is_enabled() {
-                        new_violations.extend(rule.check(&ctx));
-                    }
+                    None => None,
                 }
-                new_violations
+            } else {
+                None
             };
 
-            let suppressed_count = file_violations
-                .iter()
-                .filter(|violation| {
-                    ignore::should_suppress_violation(&directives, violation.line, violation.rule)
-                })
-                .count();
+            let ctx = FileContext {
+                file,
+                source: &source,
+                program: parse_result.as_ref(),
+                line_index: &line_index,
+                type_location_style,
+                import_graph: import_graph.clone(),
+                workspace: workspace.clone(),
+            };
 
-            let stale_directives: Vec<ignore::IgnoreDirective> = directives
-                .iter()
-                .filter(|directive| {
-                    !file_violations
-                        .iter()
-                        .any(|violation| directive.should_suppress(violation.line, violation.rule))
-                })
-                .cloned()
-                .collect();
-
-            if !directives.is_empty() {
-                suppression_files.push(ignore::FileSuppressionInfo {
-                    file: (*file).clone(),
-                    suppressed_count,
-                    stale_directives,
-                });
+            let mut new_violations = Vec::new();
+            for rule in rules.iter() {
+                if rule.severity().is_enabled() {
+                    new_violations.extend(rule.check(&ctx));
+                }
             }
+            new_violations
+        };
 
-            file_violations.retain(|violation| {
-                !ignore::should_suppress_violation(&directives, violation.line, violation.rule)
-            });
+        let suppressed_count = file_violations
+            .iter()
+            .filter(|violation| {
+                ignore::should_suppress_violation(&directives, violation.line, violation.rule)
+            })
+            .count();
 
-            violations.extend(file_violations);
+        let stale_directives: Vec<ignore::IgnoreDirective> = directives
+            .iter()
+            .filter(|directive| {
+                !file_violations
+                    .iter()
+                    .any(|violation| directive.should_suppress(violation.line, violation.rule))
+            })
+            .cloned()
+            .collect();
+
+        let suppression_info = if directives.is_empty() {
+            None
+        } else {
+            Some(ignore::FileSuppressionInfo {
+                file: file.clone(),
+                suppressed_count,
+                stale_directives,
+            })
+        };
+
+        file_violations.retain(|violation| {
+            !ignore::should_suppress_violation(&directives, violation.line, violation.rule)
+        });
+
+        Ok((file_violations, suppression_info, None::<(PathBuf, String)>))
+    };
+
+    let file_results: Vec<Result<_>> = if parallel {
+        files.par_iter().map(&process_file).collect()
+    } else {
+        files.iter().map(&process_file).collect()
+    };
+
+    for result in file_results {
+        let (file_violations, suppression_info, parse_failure) = result?;
+        violations.extend(file_violations);
+        if let Some(info) = suppression_info {
+            suppression_files.push(info);
+        }
+        if let Some((path, message)) = parse_failure {
+            parse_failures.insert(path, message);
         }
     }
 
@@ -156,14 +204,81 @@ pub fn check_files(
     ))
 }
 
+pub fn check_files(
+    files: &[PathBuf],
+    config_set: &config::ConfigSet,
+    import_graph: Arc<ImportGraph>,
+    workspace: Option<Arc<crate::workspace::Workspace>>,
+    cached_violations: &HashMap<PathBuf, Vec<Violation>>,
+) -> Result<(
+    Vec<Violation>,
+    ignore::SuppressionReport,
+    HashMap<PathBuf, String>,
+)> {
+    check_files_with_parallelism(
+        files,
+        config_set,
+        import_graph,
+        workspace,
+        cached_violations,
+        true,
+    )
+}
+
+/// Run `check_files` against a freshly-resolved project configuration.
+///
+/// This is exposed for the `parallelism_benchmark` so it can measure the same
+/// workload with `parallel` set to `false` (single-threaded) and `true`
+/// (multi-threaded). It builds the import graph, workspace, and config set once
+/// per call, matching the real analysis flow.
+pub fn check_files_for_benchmark(
+    project_root: &Path,
+    files: &[PathBuf],
+    parallel: bool,
+) -> Result<Vec<Violation>> {
+    let config_set = crate::config::ConfigSet::resolve(
+        project_root,
+        crate::config::ConfigSetOptions {
+            root_override: None,
+            scan_scope: None,
+            deny_child_configs: false,
+        },
+    )?;
+    let tsconfig = crate::tsconfig::discover_and_parse(project_root)?;
+    let graph = Arc::new(crate::import_graph::build_import_graph(
+        files,
+        |file| {
+            config_set
+                .config_for_file(file)
+                .structure
+                .tests
+                .matches_file(file)
+        },
+        tsconfig.as_ref(),
+    )?);
+    let workspace = crate::workspace::Workspace::discover(project_root)
+        .ok()
+        .map(Arc::new);
+    let cached_violations: HashMap<PathBuf, Vec<Violation>> = HashMap::new();
+    let (violations, _, _) = check_files_with_parallelism(
+        files,
+        &config_set,
+        graph,
+        workspace,
+        &cached_violations,
+        parallel,
+    )?;
+    Ok(violations)
+}
+
 pub fn build_file_rules(
     config: &RulesConfig,
     structure: &config::structure::ProjectStructureConfig,
     architecture: &config::architecture::ArchitectureConfig,
-    import_graph: &ImportGraph,
-    workspace: Option<&crate::workspace::Workspace>,
-) -> Vec<Box<dyn FileRule>> {
-    let mut rules: Vec<Box<dyn FileRule>> = vec![
+    import_graph: Arc<ImportGraph>,
+    workspace: Option<Arc<crate::workspace::Workspace>>,
+) -> Vec<Box<dyn FileRule + Send + Sync>> {
+    let mut rules: Vec<Box<dyn FileRule + Send + Sync>> = vec![
         Box::new(BooleanPrefixAdapter {
             config: config.boolean_prefix.clone(),
         }),
@@ -297,7 +412,9 @@ pub fn build_file_rules(
         }),
         Box::new(NoCircularImportAdapter {
             config: config.no_circular_import.clone(),
-            context: crate::rules::no_circular_import::CircularImportContext::new(import_graph),
+            context: crate::rules::no_circular_import::CircularImportContext::new(
+                import_graph.as_ref(),
+            ),
         }),
         Box::new(NoOrphanFilesAdapter {
             config: config.no_orphan_files.clone(),
@@ -311,8 +428,8 @@ pub fn build_file_rules(
         rules.push(Box::new(NoPackageCycleAdapter {
             config: config.no_package_cycle.clone(),
             context: crate::rules::no_package_cycle::PackageCycleContext::new(
-                workspace,
-                import_graph,
+                workspace.as_ref(),
+                import_graph.as_ref(),
             ),
         }));
     }

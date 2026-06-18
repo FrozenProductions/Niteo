@@ -55,6 +55,8 @@ macro_rules! declare_rules {
     (@sev $sev:expr) => { $sev };
 }
 
+use std::sync::Arc;
+
 declare_rules! {
     boolean_prefix => { id: BOOLEAN_PREFIX_RULE_ID, value: "boolean-prefix", path: "rules/domain/boolean_prefix.rs", config: crate::config::BooleanPrefixRuleConfig },
     component_file_only_components => { id: COMPONENT_FILE_ONLY_COMPONENTS_RULE_ID, value: "component-file-only-components", path: "rules/domain/component_file_only_components.rs", config: crate::config::RuleConfig },
@@ -129,7 +131,7 @@ pub struct TextEdit {
     pub replacement: String,
 }
 
-pub trait FileRule {
+pub trait FileRule: Send + Sync {
     fn severity(&self) -> Severity;
     fn needs_ast(&self) -> bool;
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation>;
@@ -153,10 +155,11 @@ pub struct FileContext<'a> {
     pub program: Option<&'a oxc_ast::ast::Program<'a>>,
     pub line_index: &'a LineIndex,
     pub type_location_style: no_inline_types::TypeLocationStyle,
-    pub import_graph: &'a ImportGraph,
-    pub workspace: Option<&'a crate::workspace::Workspace>,
+    pub import_graph: Arc<ImportGraph>,
+    pub workspace: Option<Arc<crate::workspace::Workspace>>,
 }
 
 pub use crate::rules_runner::{
     check_directory_rules, check_dump_files, check_duplicate_file_names, check_files,
+    check_files_for_benchmark, check_files_with_parallelism,
 };
