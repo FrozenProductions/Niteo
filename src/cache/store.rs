@@ -15,6 +15,21 @@ pub struct CacheFile {
     pub tsconfig_hash: Option<String>,
     pub file_list_hash: String,
     pub files: HashMap<String, CachedFileAnalysis>,
+    #[serde(default)]
+    pub graph: Option<CachedGraph>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CachedGraph {
+    pub edge_hash: String,
+    pub cycles: Vec<CachedCycle>,
+    pub imported_files: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CachedCycle {
+    pub canonical: String,
+    pub files: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

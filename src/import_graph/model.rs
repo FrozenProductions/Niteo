@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use oxc_span::Span;
@@ -40,11 +40,50 @@ pub struct ImportGraph {
     file_index: HashMap<PathBuf, u32>,
     pub edges: Vec<ImportEdge>,
     edges_by_source: Vec<Vec<usize>>,
+    pub(crate) cycles_by_file: Option<HashMap<PathBuf, Vec<PathBuf>>>,
+    pub(crate) imported_files: Option<HashSet<PathBuf>>,
 }
 
 impl ImportGraph {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn set_cycles_by_file(&mut self, cycles: HashMap<PathBuf, Vec<PathBuf>>) {
+        self.cycles_by_file = Some(cycles);
+    }
+
+    pub fn cycles_by_file(&self) -> Option<&HashMap<PathBuf, Vec<PathBuf>>> {
+        self.cycles_by_file.as_ref()
+    }
+
+    pub fn set_imported_files(&mut self, files: HashSet<PathBuf>) {
+        self.imported_files = Some(files);
+    }
+
+    pub fn imported_files(&self) -> Option<&HashSet<PathBuf>> {
+        self.imported_files.as_ref()
+    }
+
+    pub fn compute_edge_hash(&self) -> String {
+        use crate::cache::key::hash_string;
+
+        let mut lines: Vec<String> = Vec::with_capacity(self.edges.len());
+        for edge in &self.edges {
+            let target = edge.resolved_target.as_ref().map_or_else(
+                || "_".to_string(),
+                |path| path.to_string_lossy().to_string(),
+            );
+            lines.push(format!(
+                "{}|{}|{}|{:?}",
+                edge.source_file.display(),
+                target,
+                edge.specifier,
+                edge.kind
+            ));
+        }
+        lines.sort();
+        hash_string(&lines.join("\n"))
     }
 
     pub fn add_file(&mut self, path: PathBuf, is_barrel: bool, is_test: bool) {
@@ -152,4 +191,65 @@ impl ImportGraph {
 pub struct UnresolvedBreakdown {
     pub relative: usize,
     pub alias: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use oxc_span::Span;
+
+    use crate::import_graph::ImportKind;
+    use crate::import_graph::model::{ImportEdge, ImportGraph};
+    use crate::import_resolver::SpecifierKind;
+
+    #[test]
+    fn edge_hash_is_stable_for_same_edges() {
+        let mut graph = ImportGraph::new();
+        graph.add_file(PathBuf::from("/repo/a.ts"), false, false);
+        graph.add_file(PathBuf::from("/repo/b.ts"), false, false);
+        graph.edges.push(ImportEdge {
+            source_file: PathBuf::from("/repo/a.ts"),
+            specifier: "./b".to_string(),
+            specifier_kind: SpecifierKind::Relative,
+            resolved_target: Some(PathBuf::from("/repo/b.ts")),
+            kind: ImportKind::Import,
+            span: Span::new(0, 10),
+        });
+        graph.build_edges_by_source();
+
+        let first = graph.compute_edge_hash();
+        let second = graph.compute_edge_hash();
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn edge_hash_changes_when_edges_change() {
+        let mut graph = ImportGraph::new();
+        graph.add_file(PathBuf::from("/repo/a.ts"), false, false);
+        graph.add_file(PathBuf::from("/repo/b.ts"), false, false);
+        graph.edges.push(ImportEdge {
+            source_file: PathBuf::from("/repo/a.ts"),
+            specifier: "./b".to_string(),
+            specifier_kind: SpecifierKind::Relative,
+            resolved_target: Some(PathBuf::from("/repo/b.ts")),
+            kind: ImportKind::Import,
+            span: Span::new(0, 10),
+        });
+        graph.build_edges_by_source();
+
+        let before = graph.compute_edge_hash();
+        graph.edges.push(ImportEdge {
+            source_file: PathBuf::from("/repo/b.ts"),
+            specifier: "./a".to_string(),
+            specifier_kind: SpecifierKind::Relative,
+            resolved_target: Some(PathBuf::from("/repo/a.ts")),
+            kind: ImportKind::Import,
+            span: Span::new(0, 10),
+        });
+        graph.build_edges_by_source();
+
+        let after = graph.compute_edge_hash();
+        assert_ne!(before, after);
+    }
 }

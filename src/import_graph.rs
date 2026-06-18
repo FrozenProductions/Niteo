@@ -3,6 +3,7 @@ pub mod extract;
 pub mod helpers;
 pub mod model;
 pub(crate) mod serialization;
+pub mod topology;
 
 pub use build::{build_import_graph, build_import_graph_with_cache};
 pub use model::{ImportEdge, ImportGraph, ImportKind};

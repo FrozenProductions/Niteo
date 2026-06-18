@@ -1,8 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::config::RuleConfig;
 use crate::import_graph::ImportGraph;
+use crate::import_graph::topology::compute_cycles;
 use crate::rules::{NO_CIRCULAR_IMPORT_RULE_ID, Violation};
 use crate::syntax::LineIndex;
 
@@ -14,38 +15,10 @@ pub struct CircularImportContext {
 
 impl CircularImportContext {
     pub fn new(import_graph: &ImportGraph) -> Self {
-        let adjacency = build_adjacency(import_graph);
-        let sccs = find_sccs(&adjacency);
-
-        let mut cycles_by_file = HashMap::new();
-
-        for scc in sccs {
-            let Some(first) = scc.first() else {
-                continue;
-            };
-
-            let is_cyclic = if scc.len() > 1 {
-                true
-            } else {
-                adjacency
-                    .get(first)
-                    .is_some_and(|neighbors| neighbors.contains(first))
-            };
-
-            if !is_cyclic {
-                continue;
-            }
-
-            let mut sorted_scc = scc;
-            sorted_scc.sort();
-            let Some(canonical) = sorted_scc.first().cloned() else {
-                continue;
-            };
-
-            let cycle = reconstruct_cycle(&canonical, &sorted_scc, &adjacency);
-            cycles_by_file.insert(canonical, cycle);
-        }
-
+        let cycles_by_file = import_graph
+            .cycles_by_file()
+            .cloned()
+            .unwrap_or_else(|| compute_cycles(import_graph));
         Self { cycles_by_file }
     }
 }
@@ -88,175 +61,6 @@ pub fn check_file(
     }
 
     violations
-}
-
-fn build_adjacency(import_graph: &ImportGraph) -> HashMap<PathBuf, Vec<PathBuf>> {
-    let mut adjacency: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
-    for edge in &import_graph.edges {
-        if let Some(target) = &edge.resolved_target {
-            adjacency
-                .entry(edge.source_file.clone())
-                .or_default()
-                .push(target.clone());
-        }
-    }
-    for neighbors in adjacency.values_mut() {
-        neighbors.sort();
-        neighbors.dedup();
-    }
-    adjacency
-}
-
-fn find_sccs(adjacency: &HashMap<PathBuf, Vec<PathBuf>>) -> Vec<Vec<PathBuf>> {
-    let mut all_nodes: HashSet<PathBuf> = HashSet::new();
-    for (source, targets) in adjacency {
-        all_nodes.insert(source.clone());
-        for target in targets {
-            all_nodes.insert(target.clone());
-        }
-    }
-
-    let mut sorted_nodes: Vec<PathBuf> = all_nodes.into_iter().collect();
-    sorted_nodes.sort();
-
-    let mut visited = HashSet::new();
-    let mut finish_order = Vec::new();
-
-    for node in &sorted_nodes {
-        if !visited.contains(node) {
-            dfs_finish(node, adjacency, &mut visited, &mut finish_order);
-        }
-    }
-
-    let mut transpose: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
-    for (source, targets) in adjacency {
-        for target in targets {
-            transpose
-                .entry(target.clone())
-                .or_default()
-                .push(source.clone());
-        }
-    }
-    for neighbors in transpose.values_mut() {
-        neighbors.sort();
-        neighbors.dedup();
-    }
-
-    let mut visited = HashSet::new();
-    let mut sccs = Vec::new();
-
-    for node in finish_order.iter().rev() {
-        if !visited.contains(node) {
-            let mut scc = Vec::new();
-            dfs_collect(node, &transpose, &mut visited, &mut scc);
-            sccs.push(scc);
-        }
-    }
-
-    sccs
-}
-
-fn dfs_finish(
-    start: &Path,
-    adjacency: &HashMap<PathBuf, Vec<PathBuf>>,
-    visited: &mut HashSet<PathBuf>,
-    finish_order: &mut Vec<PathBuf>,
-) {
-    let mut stack: Vec<(PathBuf, usize)> = vec![(start.to_path_buf(), 0)];
-    visited.insert(start.to_path_buf());
-
-    while let Some((node, idx)) = stack.last_mut() {
-        if let Some(neighbors) = adjacency.get(node) {
-            if *idx < neighbors.len() {
-                let next = neighbors[*idx].clone();
-                *idx += 1;
-                if !visited.contains(&next) {
-                    visited.insert(next.clone());
-                    stack.push((next, 0));
-                }
-            } else {
-                finish_order.push(node.clone());
-                stack.pop();
-            }
-        } else {
-            finish_order.push(node.clone());
-            stack.pop();
-        }
-    }
-}
-
-fn dfs_collect(
-    start: &Path,
-    adjacency: &HashMap<PathBuf, Vec<PathBuf>>,
-    visited: &mut HashSet<PathBuf>,
-    collected: &mut Vec<PathBuf>,
-) {
-    let mut stack = vec![start.to_path_buf()];
-    visited.insert(start.to_path_buf());
-
-    while let Some(node) = stack.pop() {
-        collected.push(node.clone());
-        if let Some(neighbors) = adjacency.get(&node) {
-            for neighbor in neighbors.iter().rev() {
-                if !visited.contains(neighbor) {
-                    visited.insert(neighbor.clone());
-                    stack.push(neighbor.clone());
-                }
-            }
-        }
-    }
-}
-
-fn reconstruct_cycle(
-    canonical: &PathBuf,
-    scc: &[PathBuf],
-    adjacency: &HashMap<PathBuf, Vec<PathBuf>>,
-) -> Vec<PathBuf> {
-    if scc.len() == 1 {
-        return vec![canonical.clone(), canonical.clone(), canonical.clone()];
-    }
-
-    let scc_set: HashSet<&PathBuf> = scc.iter().collect();
-    let mut path = vec![canonical.clone()];
-    let mut visited: HashSet<PathBuf> = HashSet::new();
-    visited.insert(canonical.clone());
-
-    if dfs_cycle(canonical, canonical, adjacency, &scc_set, &mut visited, &mut path) {
-        path
-    } else {
-        vec![canonical.clone(), canonical.clone()]
-    }
-}
-
-fn dfs_cycle(
-    start: &PathBuf,
-    current: &PathBuf,
-    adjacency: &HashMap<PathBuf, Vec<PathBuf>>,
-    scc_set: &HashSet<&PathBuf>,
-    visited: &mut HashSet<PathBuf>,
-    path: &mut Vec<PathBuf>,
-) -> bool {
-    let Some(neighbors) = adjacency.get(current) else {
-        return false;
-    };
-
-    for neighbor in neighbors {
-        if neighbor == start && path.len() > 1 {
-            path.push(neighbor.clone());
-            return true;
-        }
-        if !scc_set.contains(neighbor) || visited.contains(neighbor) {
-            continue;
-        }
-        visited.insert(neighbor.clone());
-        path.push(neighbor.clone());
-        if dfs_cycle(start, neighbor, adjacency, scc_set, visited, path) {
-            return true;
-        }
-        path.pop();
-    }
-
-    false
 }
 
 fn format_cycle(cycle: &[PathBuf]) -> String {

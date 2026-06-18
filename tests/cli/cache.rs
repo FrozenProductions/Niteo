@@ -15,7 +15,7 @@ fn cache_flag_creates_cache_file() -> Result<()> {
 
     let contents = std::fs::read_to_string(&cache_path)?;
     let parsed: serde_json::Value = serde_json::from_str(&contents)?;
-    assert_eq!(parsed["version"], 2);
+    assert_eq!(parsed["version"], 3);
     assert!(parsed["niteo_version"].is_string());
     assert!(parsed["files"].is_object());
     Ok(())

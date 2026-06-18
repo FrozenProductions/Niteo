@@ -1,8 +1,8 @@
-use std::collections::HashSet;
 use std::path::Path;
 
 use crate::config::NoOrphanFilesRuleConfig;
 use crate::import_graph::ImportGraph;
+use crate::import_graph::topology::compute_imported_files;
 use crate::rules::{NO_ORPHAN_FILES_RULE_ID, Violation};
 use crate::syntax::LineIndex;
 
@@ -26,11 +26,10 @@ pub fn check_file(
         return Vec::new();
     }
 
-    let imported_files: HashSet<&Path> = import_graph
-        .edges
-        .iter()
-        .filter_map(|edge| edge.resolved_target.as_deref())
-        .collect();
+    let imported_files = import_graph
+        .imported_files()
+        .cloned()
+        .unwrap_or_else(|| compute_imported_files(import_graph));
 
     if imported_files.contains(file) {
         return Vec::new();

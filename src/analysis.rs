@@ -115,7 +115,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         .map(|state| state.cached_violations.clone())
         .unwrap_or_default();
 
-    let graph = Arc::new(import_graph::build_import_graph_with_cache(
+    let mut graph = import_graph::build_import_graph_with_cache(
         &files,
         |file| {
             config_set
@@ -126,7 +126,28 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         },
         tsconfig.as_ref(),
         &cached_edges_map,
-    )?);
+    )?;
+
+    let cached_graph = cache_state.as_ref().and_then(|state| {
+        state.cached_topology.as_ref().filter(|cached_graph| {
+            !state.dirty || cached_graph.edge_hash == graph.compute_edge_hash()
+        })
+    });
+
+    if let Some(cached_graph) = cached_graph {
+        graph.set_cycles_by_file(crate::cache::lifecycle::cached_graph_to_cycles(
+            cached_graph,
+            &project_root,
+        ));
+        graph.set_imported_files(crate::cache::lifecycle::cached_graph_to_imported_files(
+            cached_graph,
+            &project_root,
+        ));
+    } else {
+        crate::cache::lifecycle::ensure_graph_topology(&mut graph);
+    }
+
+    let graph = Arc::new(graph);
 
     let workspace = crate::workspace::Workspace::discover(workspace_root)
         .ok()

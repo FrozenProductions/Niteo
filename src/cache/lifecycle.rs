@@ -1,15 +1,16 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
 use crate::cache::edges::{CachedImportEdge, cached_import_edges_to_import, import_edge_to_cached};
 use crate::cache::key::{
-    CACHE_SCHEMA_VERSION, hash_config_files, hash_content, hash_file_list, hash_tsconfig,
-    is_cache_valid, normalize_path_for_cache,
+    CACHE_SCHEMA_VERSION, denormalize_path_from_cache, hash_config_files, hash_content,
+    hash_file_list, hash_tsconfig, is_cache_valid, normalize_path_for_cache,
 };
 use crate::cache::store::{
-    CacheFile, CachedFileAnalysis, CachedParseFailure, read_cache, write_cache,
+    CacheFile, CachedCycle, CachedFileAnalysis, CachedGraph, CachedParseFailure, read_cache,
+    write_cache,
 };
 use crate::cache::violations::{
     StringInterner, build_rule_lookup, cached_violations_to_violations, violation_to_cached,
@@ -23,6 +24,7 @@ pub struct CacheState {
     pub cached_edges: HashMap<PathBuf, Vec<ImportEdge>>,
     pub cached_violations: HashMap<PathBuf, Vec<Violation>>,
     pub cached_parse_failures: HashMap<PathBuf, CachedParseFailure>,
+    pub cached_topology: Option<CachedGraph>,
     pub dirty: bool,
 }
 
@@ -61,6 +63,7 @@ pub fn prepare_cache(
     let mut cached_violations = HashMap::new();
     let mut cached_parse_failures = HashMap::new();
     let mut dirty = !cache_valid;
+    let cached_topology = cache.as_ref().and_then(|cache| cache.graph.clone());
 
     let rule_lookup = build_rule_lookup();
     let mut message_interner = StringInterner::new();
@@ -105,6 +108,7 @@ pub fn prepare_cache(
         cached_edges,
         cached_violations,
         cached_parse_failures,
+        cached_topology,
         dirty,
     }))
 }
@@ -136,6 +140,7 @@ pub fn finalize_cache(
         tsconfig_hash,
         file_list_hash,
         files: HashMap::new(),
+        graph: Some(graph_to_cached_graph(graph, project_root)),
     };
 
     let violations_by_file = group_violations_by_file(violations);
@@ -202,4 +207,86 @@ fn group_violations_by_file(violations: &[Violation]) -> HashMap<PathBuf, Vec<&V
             .push(violation);
     }
     grouped
+}
+
+pub fn cached_graph_to_cycles(
+    cached: &CachedGraph,
+    project_root: &Path,
+) -> HashMap<PathBuf, Vec<PathBuf>> {
+    cached
+        .cycles
+        .iter()
+        .map(|cycle| {
+            (
+                denormalize_path_from_cache(&cycle.canonical, project_root),
+                cycle
+                    .files
+                    .iter()
+                    .map(|path| denormalize_path_from_cache(path, project_root))
+                    .collect(),
+            )
+        })
+        .collect()
+}
+
+pub fn cached_graph_to_imported_files(
+    cached: &CachedGraph,
+    project_root: &Path,
+) -> HashSet<PathBuf> {
+    cached
+        .imported_files
+        .iter()
+        .map(|path| denormalize_path_from_cache(path, project_root))
+        .collect()
+}
+
+fn graph_to_cached_graph(graph: &ImportGraph, project_root: &Path) -> CachedGraph {
+    let mut cycles: Vec<CachedCycle> = graph
+        .cycles_by_file()
+        .map(|cycles| {
+            cycles
+                .iter()
+                .map(|(canonical, files)| {
+                    let mut files: Vec<String> = files
+                        .iter()
+                        .map(|path| normalize_path_for_cache(path, project_root))
+                        .collect();
+                    files.sort();
+                    CachedCycle {
+                        canonical: normalize_path_for_cache(canonical, project_root),
+                        files,
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    cycles.sort_by(|a, b| a.canonical.cmp(&b.canonical));
+
+    let mut imported_files = graph
+        .imported_files()
+        .map(|files| {
+            let mut paths: Vec<String> = files
+                .iter()
+                .map(|path| normalize_path_for_cache(path, project_root))
+                .collect();
+            paths.sort();
+            paths
+        })
+        .unwrap_or_default();
+    imported_files.sort();
+
+    CachedGraph {
+        edge_hash: graph.compute_edge_hash(),
+        cycles,
+        imported_files,
+    }
+}
+
+pub fn ensure_graph_topology(graph: &mut ImportGraph) {
+    if graph.cycles_by_file().is_none() {
+        graph.set_cycles_by_file(crate::import_graph::topology::compute_cycles(graph));
+    }
+    if graph.imported_files().is_none() {
+        graph.set_imported_files(crate::import_graph::topology::compute_imported_files(graph));
+    }
 }

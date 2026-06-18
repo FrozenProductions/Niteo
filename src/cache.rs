@@ -67,6 +67,7 @@ mod tests {
             tsconfig_hash: Some("def".to_string()),
             file_list_hash: "ghi".to_string(),
             files: HashMap::new(),
+            graph: None,
         };
         assert!(is_cache_valid(&cache, "0.2.0", "abc", Some("def"), "ghi"));
         assert!(!is_cache_valid(&cache, "0.2.1", "abc", Some("def"), "ghi"));
@@ -86,6 +87,7 @@ mod tests {
             tsconfig_hash: None,
             file_list_hash: "ghi".to_string(),
             files: HashMap::new(),
+            graph: None,
         };
         assert!(!is_cache_valid(
             &cache,
@@ -143,6 +145,7 @@ mod tests {
             tsconfig_hash: None,
             file_list_hash: "fl".to_string(),
             files,
+            graph: None,
         };
         write_cache(temp_dir.path(), &cache)?;
         let read = read_cache(temp_dir.path())?.context("missing cache")?;
@@ -168,6 +171,7 @@ mod tests {
             tsconfig_hash: None,
             file_list_hash: "fl".to_string(),
             files: HashMap::new(),
+            graph: None,
         };
         write_cache(temp_dir.path(), &cache)?;
         assert!(cache_path(temp_dir.path()).exists());
@@ -212,6 +216,7 @@ mod tests {
             tsconfig_hash: None,
             file_list_hash: hash_file_list(std::slice::from_ref(&file)),
             files: files_map,
+            graph: None,
         };
         write_cache(project_root, &cache)?;
 
@@ -263,6 +268,7 @@ mod tests {
             tsconfig_hash: None,
             file_list_hash: hash_file_list(std::slice::from_ref(&file)),
             files: files_map,
+            graph: None,
         };
         write_cache(project_root, &cache)?;
 
@@ -320,6 +326,7 @@ mod tests {
             tsconfig_hash: None,
             file_list_hash: hash_file_list(std::slice::from_ref(&file)),
             files: files_map,
+            graph: None,
         };
         write_cache(project_root, &cache)?;
 
@@ -358,6 +365,7 @@ mod tests {
             cached_edges: HashMap::new(),
             cached_violations: HashMap::new(),
             cached_parse_failures: HashMap::new(),
+            cached_topology: None,
             dirty: true,
         };
 
@@ -424,6 +432,7 @@ mod tests {
             cached_edges: HashMap::new(),
             cached_violations,
             cached_parse_failures: HashMap::new(),
+            cached_topology: None,
             dirty: true,
         };
 
@@ -488,6 +497,7 @@ mod tests {
             tsconfig_hash: None,
             file_list_hash: hash_file_list(std::slice::from_ref(&file)),
             files: files_map,
+            graph: None,
         };
         write_cache(project_root, &cache)?;
 
@@ -526,6 +536,7 @@ mod tests {
             tsconfig_hash: None,
             file_list_hash: hash_file_list(std::slice::from_ref(&file)),
             files: files_map,
+            graph: None,
         };
         write_cache(project_root, &cache)?;
 
@@ -571,6 +582,7 @@ mod tests {
             tsconfig_hash: None,
             file_list_hash: hash_file_list(std::slice::from_ref(&file_a)),
             files: files_map,
+            graph: None,
         };
         write_cache(project_root, &cache)?;
 
@@ -638,6 +650,7 @@ mod tests {
             cached_edges: HashMap::new(),
             cached_violations: HashMap::new(),
             cached_parse_failures: HashMap::new(),
+            cached_topology: None,
             dirty: true,
         };
 
@@ -657,6 +670,134 @@ mod tests {
         let entry_a = read.files.get("a.ts").context("missing a.ts cache entry")?;
         assert_eq!(entry_a.import_edges.len(), 1);
         assert_eq!(entry_a.import_edges[0].specifier, "./b");
+        Ok(())
+    }
+
+    #[test]
+    fn finalize_cache_writes_graph_topology() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let project_root = temp_dir.path();
+        let file_a = project_root.join("a.ts");
+        let file_b = project_root.join("b.ts");
+        std::fs::write(&file_a, "content a")?;
+        std::fs::write(&file_b, "content b")?;
+
+        let mut graph = ImportGraph::new();
+        graph.add_file(file_a.clone(), false, false);
+        graph.add_file(file_b.clone(), false, false);
+        graph.edges.push(ImportEdge {
+            source_file: file_a.clone(),
+            specifier: "./b".to_string(),
+            specifier_kind: SpecifierKind::Relative,
+            resolved_target: Some(file_b.clone()),
+            kind: ImportKind::Import,
+            span: Span::new(0, 10),
+        });
+        graph.edges.push(ImportEdge {
+            source_file: file_b.clone(),
+            specifier: "./a".to_string(),
+            specifier_kind: SpecifierKind::Relative,
+            resolved_target: Some(file_a.clone()),
+            kind: ImportKind::Import,
+            span: Span::new(0, 10),
+        });
+        graph.build_edges_by_source();
+        crate::cache::lifecycle::ensure_graph_topology(&mut graph);
+
+        let mut file_hashes = HashMap::new();
+        file_hashes.insert(file_a.clone(), hash_content(b"content a"));
+        file_hashes.insert(file_b.clone(), hash_content(b"content b"));
+
+        let state = CacheState {
+            file_hashes,
+            cached_edges: HashMap::new(),
+            cached_violations: HashMap::new(),
+            cached_parse_failures: HashMap::new(),
+            cached_topology: None,
+            dirty: true,
+        };
+
+        finalize_cache(
+            project_root,
+            &[file_a.clone(), file_b.clone()],
+            &[project_root.join("niteo.toml")],
+            None,
+            &state,
+            &graph,
+            &[],
+            &HashMap::new(),
+        )?;
+
+        let read = read_cache(project_root)?.context("missing cache")?;
+        let cached_graph = read.graph.context("missing graph topology")?;
+        assert!(!cached_graph.edge_hash.is_empty());
+        assert_eq!(cached_graph.cycles.len(), 1);
+        assert_eq!(cached_graph.imported_files.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn prepare_cache_restores_graph_topology_when_unchanged() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let project_root = temp_dir.path();
+        let file_a = project_root.join("a.ts");
+        let file_b = project_root.join("b.ts");
+        std::fs::write(&file_a, "content a")?;
+        std::fs::write(&file_b, "content b")?;
+
+        let mut graph = ImportGraph::new();
+        graph.add_file(file_a.clone(), false, false);
+        graph.add_file(file_b.clone(), false, false);
+        graph.edges.push(ImportEdge {
+            source_file: file_a.clone(),
+            specifier: "./b".to_string(),
+            specifier_kind: SpecifierKind::Relative,
+            resolved_target: Some(file_b.clone()),
+            kind: ImportKind::Import,
+            span: Span::new(0, 10),
+        });
+        graph.build_edges_by_source();
+        crate::cache::lifecycle::ensure_graph_topology(&mut graph);
+
+        let mut file_hashes = HashMap::new();
+        file_hashes.insert(file_a.clone(), hash_content(b"content a"));
+        file_hashes.insert(file_b.clone(), hash_content(b"content b"));
+
+        let state = CacheState {
+            file_hashes: file_hashes.clone(),
+            cached_edges: HashMap::new(),
+            cached_violations: HashMap::new(),
+            cached_parse_failures: HashMap::new(),
+            cached_topology: None,
+            dirty: true,
+        };
+
+        finalize_cache(
+            project_root,
+            &[file_a.clone(), file_b.clone()],
+            &[project_root.join("niteo.toml")],
+            None,
+            &state,
+            &graph,
+            &[],
+            &HashMap::new(),
+        )?;
+
+        let config_path = project_root.join("niteo.toml");
+        let state = prepare_cache(
+            project_root,
+            &[file_a.clone(), file_b.clone()],
+            &[config_path],
+            None,
+        )?
+        .context("missing cache")?;
+
+        let cached_graph = state.cached_topology.context("missing cached topology")?;
+        assert_eq!(cached_graph.edge_hash, graph.compute_edge_hash());
+        assert_eq!(
+            cached_graph.cycles.len(),
+            graph.cycles_by_file().unwrap().len()
+        );
         Ok(())
     }
 
