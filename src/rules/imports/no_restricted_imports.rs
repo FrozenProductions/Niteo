@@ -51,6 +51,7 @@ impl RestrictedImportsVisitor<'_, '_> {
         let pos = self.line_index.position_for(span);
         self.violations.push(Violation {
             file: self.file.to_path_buf(),
+            span: Some(span),
             line: Some(pos.line),
             column: Some(pos.column),
             rule: NO_RESTRICTED_IMPORTS_RULE_ID,

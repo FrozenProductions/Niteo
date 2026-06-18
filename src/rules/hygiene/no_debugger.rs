@@ -91,6 +91,7 @@ impl<'a, 'f> Visit<'a> for DebuggerVisitor<'a, 'f> {
         let pos = self.line_index.position_for(stmt.span);
         self.violations.push(Violation {
             file: self.file.to_path_buf(),
+            span: Some(stmt.span),
             line: Some(pos.line),
             column: Some(pos.column),
             rule: NO_DEBUGGER_RULE_ID,

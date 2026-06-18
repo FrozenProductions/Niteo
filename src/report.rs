@@ -23,6 +23,7 @@ mod tests {
     fn make_violation(severity: Severity) -> Violation {
         Violation {
             file: PathBuf::from("test.ts"),
+            span: None,
             line: Some(1),
             column: Some(1),
             rule: "test-rule",

@@ -30,6 +30,7 @@ pub fn check_inventory(
         if file_count > config.max_files {
             violations.push(Violation {
                 file: facts.path.clone(),
+                span: None,
                 line: None,
                 column: None,
                 rule: NO_GOD_DOMAIN_RULE_ID,

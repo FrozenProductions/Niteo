@@ -47,6 +47,7 @@ fn has_index_ts(facts: &DirectoryFacts) -> bool {
 fn directory_violation(dir: &Path, severity: Severity) -> Violation {
     Violation {
         file: dir.to_path_buf(),
+        span: None,
         line: None,
         column: None,
         rule: DIRECTORY_MUST_HAVE_BARREL_RULE_ID,

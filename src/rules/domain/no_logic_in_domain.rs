@@ -503,6 +503,7 @@ fn is_identifier_byte(byte: Option<u8>) -> bool {
 fn logic_violation(file: &Path, cursor: &Cursor, severity: Severity) -> Violation {
     Violation {
         file: file.to_path_buf(),
+        span: None,
         line: Some(cursor.line),
         column: Some(cursor.column),
         rule: NO_LOGIC_IN_DOMAIN_RULE_ID,

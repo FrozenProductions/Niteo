@@ -220,6 +220,7 @@ mod tests {
     fn violation(file: &str, line: Option<usize>, rule: &'static str) -> Violation {
         Violation {
             file: PathBuf::from(file),
+            span: None,
             line,
             column: Some(1),
             rule,

@@ -56,6 +56,7 @@ pub fn check_inventory(
 fn directory_violation(dir: &Path, severity: Severity) -> Violation {
     Violation {
         file: dir.to_path_buf(),
+        span: None,
         line: None,
         column: None,
         rule: NO_EMPTY_DIRECTORIES_RULE_ID,

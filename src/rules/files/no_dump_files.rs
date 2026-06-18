@@ -37,6 +37,7 @@ fn dump_violation(file: &Path, stem: &str, severity: Severity) -> Violation {
 
     Violation {
         file: file.to_path_buf(),
+        span: None,
         line: None,
         column: None,
         rule: NO_DUMP_FILES_RULE_ID,

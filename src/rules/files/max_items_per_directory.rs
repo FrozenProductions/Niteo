@@ -59,6 +59,7 @@ fn directory_violation(
     let kind = if count_folders { "items" } else { "files" };
     Violation {
         file: dir.to_path_buf(),
+        span: None,
         line: None,
         column: None,
         rule: MAX_ITEMS_PER_DIRECTORY_RULE_ID,

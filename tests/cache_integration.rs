@@ -287,6 +287,7 @@ fn finalize_cache_writes_violations() -> Result<()> {
 
     let violation = Violation {
         file: file.clone(),
+        span: None,
         line: Some(1),
         column: Some(2),
         rule: NO_CONSOLE_RULE_ID,
@@ -333,6 +334,7 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
         file_a.clone(),
         vec![Violation {
             file: file_a.clone(),
+            span: None,
             line: Some(1),
             column: Some(1),
             rule: NO_CONSOLE_RULE_ID,
@@ -354,6 +356,7 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
 
     let new_violation = Violation {
         file: file_b.clone(),
+        span: None,
         line: Some(2),
         column: Some(2),
         rule: NO_CONSOLE_RULE_ID,

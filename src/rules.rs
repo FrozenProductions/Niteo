@@ -10,6 +10,7 @@ macro_rules! declare_rules {
         use crate::config::Severity;
         use crate::import_graph::ImportGraph;
         use crate::syntax::LineIndex;
+        use oxc_span::Span;
 
         pub type RuleId = &'static str;
 
@@ -22,6 +23,7 @@ macro_rules! declare_rules {
         #[derive(Debug, Clone)]
         pub struct Violation {
             pub file: PathBuf,
+            pub span: Option<Span>,
             pub line: Option<usize>,
             pub column: Option<usize>,
             pub rule: RuleId,

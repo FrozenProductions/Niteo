@@ -41,6 +41,7 @@ pub fn check_file(
         let pos = line_index.position_for(edge.span);
         violations.push(Violation {
             file: file.to_path_buf(),
+            span: Some(edge.span),
             line: Some(pos.line),
             column: Some(pos.column),
             rule: NO_TEST_IMPORT_RULE_ID,

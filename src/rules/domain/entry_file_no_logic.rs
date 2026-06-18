@@ -87,6 +87,7 @@ impl<'a, 'f> EntryFileVisitor<'a, 'f> {
                 let pos = self.line_index.position_for(func.span);
                 self.violations.push(Violation {
                     file: self.file.to_path_buf(),
+                    span: Some(func.span),
                     line: Some(pos.line),
                     column: Some(pos.column),
                     rule: ENTRY_FILE_NO_LOGIC_RULE_ID,
@@ -100,6 +101,7 @@ impl<'a, 'f> EntryFileVisitor<'a, 'f> {
                 let pos = self.line_index.position_for(class.span);
                 self.violations.push(Violation {
                     file: self.file.to_path_buf(),
+                    span: Some(class.span),
                     line: Some(pos.line),
                     column: Some(pos.column),
                     rule: ENTRY_FILE_NO_LOGIC_RULE_ID,
@@ -131,6 +133,7 @@ impl<'a, 'f> EntryFileVisitor<'a, 'f> {
                 let pos = self.line_index.position_for(class.span);
                 self.violations.push(Violation {
                     file: self.file.to_path_buf(),
+                    span: Some(class.span),
                     line: Some(pos.line),
                     column: Some(pos.column),
                     rule: ENTRY_FILE_NO_LOGIC_RULE_ID,
@@ -157,6 +160,7 @@ impl<'a, 'f> EntryFileVisitor<'a, 'f> {
                 let name = declarator.id.get_identifier_name().map(|identifier| identifier.to_string());
                 self.violations.push(Violation {
                     file: self.file.to_path_buf(),
+                    span: Some(arrow.span),
                     line: Some(pos.line),
                     column: Some(pos.column),
                     rule: ENTRY_FILE_NO_LOGIC_RULE_ID,
@@ -174,6 +178,7 @@ impl<'a, 'f> EntryFileVisitor<'a, 'f> {
                 let name = declarator.id.get_identifier_name().map(|identifier| identifier.to_string());
                 self.violations.push(Violation {
                     file: self.file.to_path_buf(),
+                    span: Some(func.span),
                     line: Some(pos.line),
                     column: Some(pos.column),
                     rule: ENTRY_FILE_NO_LOGIC_RULE_ID,
@@ -194,6 +199,7 @@ impl<'a, 'f> EntryFileVisitor<'a, 'f> {
         let pos = self.line_index.position_for(span);
         self.violations.push(Violation {
             file: self.file.to_path_buf(),
+            span: Some(span),
             line: Some(pos.line),
             column: Some(pos.column),
             rule: ENTRY_FILE_NO_LOGIC_RULE_ID,

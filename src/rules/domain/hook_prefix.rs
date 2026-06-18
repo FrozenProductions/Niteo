@@ -68,6 +68,7 @@ impl<'a, 'f> Visit<'a> for HookPrefixVisitor<'a, 'f> {
                 ));
                 self.violations.push(Violation {
                     file: self.file.to_path_buf(),
+                    span: Some(id.span),
                     line: Some(pos.line),
                     column: Some(pos.column),
                     rule: HOOK_PREFIX_RULE_ID,
@@ -115,6 +116,7 @@ impl<'a, 'f> Visit<'a> for HookPrefixVisitor<'a, 'f> {
             ));
             self.violations.push(Violation {
                 file: self.file.to_path_buf(),
+                span: Some(binding_id.span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: HOOK_PREFIX_RULE_ID,

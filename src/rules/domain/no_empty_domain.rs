@@ -34,6 +34,7 @@ pub fn check_inventory(
         if has_any_source && !has_non_barrel_source {
             violations.push(Violation {
                 file: facts.path.clone(),
+                span: None,
                 line: None,
                 column: None,
                 rule: NO_EMPTY_DOMAIN_RULE_ID,

@@ -24,6 +24,7 @@ pub fn check_file(
             let pos = line_index.position_for(stmt.span());
             return vec![Violation {
                 file: file.to_path_buf(),
+                span: Some(stmt.span()),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: NO_LOGIC_IN_BARREL_RULE_ID,

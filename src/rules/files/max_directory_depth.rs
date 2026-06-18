@@ -58,6 +58,7 @@ pub fn check_inventory(
 fn depth_violation(path: &Path, severity: Severity, depth: usize, max_depth: usize) -> Violation {
     Violation {
         file: path.to_path_buf(),
+        span: None,
         line: None,
         column: None,
         rule: MAX_DIRECTORY_DEPTH_RULE_ID,

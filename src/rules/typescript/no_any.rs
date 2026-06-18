@@ -57,6 +57,7 @@ impl<'a, 'f> Visit<'a> for AnyKeywordVisitor<'a, 'f> {
         let pos = self.line_index.position_for(keyword.span);
         self.violations.push(Violation {
             file: self.file.to_path_buf(),
+            span: Some(keyword.span),
             line: Some(pos.line),
             column: Some(pos.column),
             rule: NO_ANY_RULE_ID,

@@ -48,6 +48,7 @@ impl<'a, 'f> PreferReadonlyVisitor<'a, 'f> {
         };
         self.violations.push(Violation {
             file: self.file.to_path_buf(),
+            span: Some(span),
             line: Some(pos.line),
             column: Some(pos.column),
             rule: PREFER_READONLY_RULE_ID,

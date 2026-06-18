@@ -44,6 +44,7 @@ impl<'a, 'f> Visit<'a> for MutableExportsVisitor<'a, 'f> {
             let pos = self.line_index.position_for(decl.span);
             self.violations.push(Violation {
                 file: self.file.to_path_buf(),
+                span: Some(decl.span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: NO_MUTABLE_EXPORTS_RULE_ID,

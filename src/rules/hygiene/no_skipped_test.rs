@@ -21,6 +21,7 @@ pub fn check_file(
             let subject = format!("{}.skip", call.function_name);
             Violation {
                 file: file.to_path_buf(),
+                span: Some(call.member_span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: NO_SKIPPED_TEST_RULE_ID,

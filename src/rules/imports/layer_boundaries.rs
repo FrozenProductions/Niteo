@@ -61,6 +61,7 @@ pub fn check_file(
 
             violations.push(Violation {
                 file: file.to_path_buf(),
+                span: Some(edge.span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: LAYER_BOUNDARIES_RULE_ID,

@@ -23,6 +23,7 @@ pub fn check_file(
     if has_re_export {
         vec![Violation {
             file: file.to_path_buf(),
+            span: None,
             line: None,
             column: None,
             rule: NO_BARREL_FILES_RULE_ID,

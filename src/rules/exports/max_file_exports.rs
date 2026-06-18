@@ -26,6 +26,7 @@ pub fn check_file(
 
     vec![Violation {
         file: file.to_path_buf(),
+        span: None,
         line: Some(1),
         column: Some(1),
         rule: MAX_FILE_EXPORTS_RULE_ID,

@@ -39,6 +39,7 @@ impl<'a, 'f> Visit<'a> for TypeAssertionVisitor<'a, 'f> {
         let pos = self.line_index.position_for(expr.span);
         self.violations.push(Violation {
             file: self.file.to_path_buf(),
+            span: Some(expr.span),
             line: Some(pos.line),
             column: Some(pos.column),
             rule: NO_TYPE_ASSERTION_RULE_ID,

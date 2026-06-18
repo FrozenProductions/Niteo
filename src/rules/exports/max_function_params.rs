@@ -52,6 +52,7 @@ impl<'a, 'f> MaxFunctionParamsVisitor<'a, 'f> {
             ));
             self.violations.push(Violation {
                 file: self.file.to_path_buf(),
+                span: Some(span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: MAX_FUNCTION_PARAMS_RULE_ID,

@@ -83,6 +83,7 @@ impl<'a, 'f> Visit<'a> for BooleanPrefixVisitor<'a, 'f> {
             ));
             self.violations.push(Violation {
                 file: self.file.to_path_buf(),
+                span: Some(binding_id.span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: BOOLEAN_PREFIX_RULE_ID,

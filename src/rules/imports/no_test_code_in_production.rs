@@ -74,6 +74,7 @@ impl<'a, 'f> Visit<'a> for TestCodeVisitor<'a, 'f> {
             let pos = self.line_index.position_for(id.span);
             self.violations.push(Violation {
                 file: self.file.to_path_buf(),
+                span: Some(id.span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: NO_TEST_CODE_IN_PRODUCTION_RULE_ID,
@@ -92,6 +93,7 @@ impl<'a, 'f> Visit<'a> for TestCodeVisitor<'a, 'f> {
             let pos = self.line_index.position_for(decl.source.span);
             self.violations.push(Violation {
                 file: self.file.to_path_buf(),
+                span: Some(decl.source.span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: NO_TEST_CODE_IN_PRODUCTION_RULE_ID,

@@ -72,6 +72,7 @@ fn make_violation(
     let pos = line_index.position_for(span);
     Violation {
         file: file.to_path_buf(),
+        span: Some(span),
         line: Some(pos.line),
         column: Some(pos.column),
         rule: NO_EVAL_RULE_ID,

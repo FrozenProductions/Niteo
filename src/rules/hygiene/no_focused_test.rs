@@ -21,6 +21,7 @@ pub fn check_file(
             let subject = format!("{}.only", call.function_name);
             Violation {
                 file: file.to_path_buf(),
+                span: Some(call.member_span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: NO_FOCUSED_TEST_RULE_ID,

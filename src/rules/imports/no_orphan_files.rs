@@ -37,6 +37,7 @@ pub fn check_file(
 
     vec![Violation {
         file: file.to_path_buf(),
+        span: None,
         line: Some(1),
         column: Some(1),
         rule: NO_ORPHAN_FILES_RULE_ID,

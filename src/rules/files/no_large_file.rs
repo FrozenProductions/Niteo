@@ -14,6 +14,7 @@ pub fn check_file(file: &Path, source: &str, config: &FileLengthRuleConfig) -> V
 
     vec![Violation {
         file: file.to_path_buf(),
+        span: None,
         line: Some(location.line),
         column: Some(location.column),
         rule: NO_LARGE_FILE_RULE_ID,

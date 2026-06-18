@@ -61,6 +61,7 @@ fn cached_violation_to_violation(
 
     Violation {
         file,
+        span: None,
         line: cached.line,
         column: cached.column,
         rule,
@@ -116,6 +117,7 @@ mod tests {
     fn violation_to_cached_roundtrip() {
         let violation = Violation {
             file: PathBuf::from("src/a.ts"),
+            span: None,
             line: Some(1),
             column: Some(2),
             rule: NO_CONSOLE_RULE_ID,

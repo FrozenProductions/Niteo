@@ -28,6 +28,7 @@ pub fn check_file(
         let pos = line_index.position_for(comment.span);
         violations.push(Violation {
             file: file.to_path_buf(),
+            span: Some(comment.span),
             line: Some(pos.line),
             column: Some(pos.column),
             rule: NO_COMMENTS_RULE_ID,

@@ -56,6 +56,7 @@ impl<'a, 'f> Visit<'a> for MagicNumberVisitor<'a, 'f> {
         let pos = self.line_index.position_for(literal.span);
         self.violations.push(Violation {
             file: self.file.to_path_buf(),
+            span: Some(literal.span),
             line: Some(pos.line),
             column: Some(pos.column),
             rule: NO_MAGIC_NUMBERS_RULE_ID,

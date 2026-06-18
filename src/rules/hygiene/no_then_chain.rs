@@ -42,6 +42,7 @@ impl<'a, 'f> Visit<'a> for ThenChainVisitor<'a, 'f> {
             let pos = self.line_index.position_for(member.span);
             self.violations.push(Violation {
                 file: self.file.to_path_buf(),
+                span: Some(member.span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: NO_THEN_CHAIN_RULE_ID,
