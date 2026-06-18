@@ -58,15 +58,18 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
     let files = if options.git_flag {
         resolve_changed_files(workspace_root)?
     } else {
-        // Always detect changed files for the optional prompt, even without --git
-        let changed_files = git::get_changed_typescript_files().unwrap_or_else(|err| {
-            eprintln!("warning: could not detect changed files via git: {err}");
+        let prompt_changed = if options.prompt_for_changed_files {
+            match git::get_changed_typescript_files() {
+                Ok(changed) => changed,
+                Err(err) => {
+                    eprintln!("warning: could not detect changed files via git: {err}");
+                    Vec::new()
+                }
+            }
+        } else {
             Vec::new()
-        });
-        if options.prompt_for_changed_files
-            && !changed_files.is_empty()
-            && git::prompt_scan_changed_files(&changed_files)?
-        {
+        };
+        if !prompt_changed.is_empty() && git::prompt_scan_changed_files(&prompt_changed)? {
             resolve_changed_files(workspace_root)?
         } else {
             discovery::discover_files(
@@ -149,9 +152,13 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
 
     let graph = Arc::new(graph);
 
-    let workspace = crate::workspace::Workspace::discover(workspace_root)
-        .ok()
-        .map(Arc::new);
+    let workspace = match crate::workspace::Workspace::discover(workspace_root) {
+        Ok(workspace) => Some(Arc::new(workspace)),
+        Err(error) => {
+            eprintln!("warning: failed to discover workspace: {error}");
+            None
+        }
+    };
 
     let (file_violations, suppression_report, parse_failures) = rules::check_files(
         &files,
