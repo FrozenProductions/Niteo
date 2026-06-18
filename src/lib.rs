@@ -13,7 +13,6 @@ mod git;
 mod ignore;
 pub mod import_graph;
 pub mod import_resolver;
-mod jsx;
 mod report;
 mod rule_adapters;
 mod rule_documentation;

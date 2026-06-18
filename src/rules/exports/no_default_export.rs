@@ -5,7 +5,6 @@ use oxc_ast_visit::Visit;
 
 use crate::config::structure::DomainConfig;
 use crate::config::NoDefaultExportRuleConfig;
-use crate::jsx::is_component_file;
 use crate::rules::{NO_DEFAULT_EXPORT_RULE_ID, Violation};
 use crate::syntax::LineIndex;
 
@@ -20,7 +19,7 @@ pub fn check_file(
     config: &NoDefaultExportRuleConfig,
     components: &DomainConfig,
 ) -> Vec<Violation> {
-    if config.components_only && !is_component_file(file, components) {
+    if config.components_only && !components.matches_file(file) {
         return Vec::new();
     }
 

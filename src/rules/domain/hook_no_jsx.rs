@@ -5,7 +5,6 @@ use oxc_ast_visit::Visit;
 
 use crate::config::RuleConfig;
 use crate::config::structure::DomainConfig;
-use crate::jsx::is_hook_file;
 use crate::rules::{HOOK_NO_JSX_RULE_ID, Violation};
 use crate::syntax::LineIndex;
 const MESSAGE: &str = "Hook files should not contain JSX. Extract UI into a separate component.";
@@ -17,7 +16,7 @@ pub fn check_file(
     config: &RuleConfig,
     hooks: &DomainConfig,
 ) -> Vec<Violation> {
-    if !is_hook_file(file, hooks) {
+    if !hooks.matches_file(file) {
         return Vec::new();
     }
 

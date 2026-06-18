@@ -9,7 +9,6 @@ use oxc_ast_visit::walk;
 
 use crate::config::RuleConfig;
 use crate::config::structure::DomainConfig;
-use crate::jsx::is_component_file;
 use crate::rules::{COMPONENT_FILE_ONLY_COMPONENTS_RULE_ID, Violation};
 use crate::syntax::LineIndex;
 
@@ -22,7 +21,7 @@ pub fn check_file(
     config: &RuleConfig,
     components: &DomainConfig,
 ) -> Vec<Violation> {
-    if !is_component_file(file, components) {
+    if !components.matches_file(file) {
         return Vec::new();
     }
 

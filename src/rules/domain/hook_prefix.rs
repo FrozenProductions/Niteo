@@ -5,7 +5,6 @@ use oxc_ast_visit::Visit;
 
 use crate::config::HookPrefixRuleConfig;
 use crate::config::structure::DomainConfig;
-use crate::jsx::is_hook_file;
 use crate::rules::{HOOK_PREFIX_RULE_ID, Violation};
 use crate::syntax::LineIndex;
 
@@ -20,7 +19,7 @@ pub fn check_file(
     config: &HookPrefixRuleConfig,
     hooks: &DomainConfig,
 ) -> Vec<Violation> {
-    if !is_hook_file(file, hooks) {
+    if !hooks.matches_file(file) {
         return Vec::new();
     }
 
