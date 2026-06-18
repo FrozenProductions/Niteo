@@ -1,7 +1,9 @@
 use anyhow::{Context, Result, bail};
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use crate::syntax;
 
 pub fn get_changed_typescript_files() -> Result<Vec<PathBuf>> {
     let output = Command::new("git")
@@ -70,57 +72,5 @@ pub fn prompt_scan_changed_files(changed_files: &[PathBuf]) -> Result<bool> {
 }
 
 fn is_typescript_file(path: &str) -> bool {
-    path.ends_with(".ts") || path.ends_with(".tsx")
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-    use anyhow::Result;
-
-    #[test]
-    fn recognizes_ts_files() -> Result<()> {
-        assert!(is_typescript_file("src/index.ts"));
-        assert!(is_typescript_file("foo.ts"));
-
-        Ok(())
-    }
-
-    #[test]
-    fn recognizes_tsx_files() -> Result<()> {
-        assert!(is_typescript_file("src/Component.tsx"));
-        assert!(is_typescript_file("App.tsx"));
-
-        Ok(())
-    }
-
-    #[test]
-    fn rejects_non_typescript_files() -> Result<()> {
-        assert!(!is_typescript_file("src/index.js"));
-        assert!(!is_typescript_file("src/index.jsx"));
-        assert!(!is_typescript_file("src/style.css"));
-        assert!(!is_typescript_file("README.md"));
-        assert!(!is_typescript_file("Cargo.toml"));
-
-        Ok(())
-    }
-
-    #[test]
-    fn rejects_partial_extensions() -> Result<()> {
-        assert!(!is_typescript_file("src/file.ats"));
-        assert!(!is_typescript_file("src/file.atsx"));
-        assert!(!is_typescript_file("src/file.d.ts.map"));
-
-        Ok(())
-    }
-
-    #[test]
-    fn handles_paths_with_directories() -> Result<()> {
-        assert!(is_typescript_file("a/b/c/deep.ts"));
-        assert!(is_typescript_file("a/b/c/deep.tsx"));
-        assert!(!is_typescript_file("a/b/c/deep.js"));
-
-        Ok(())
-    }
+    syntax::is_typescript_file(Path::new(path))
 }

@@ -3,6 +3,7 @@ use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
 use crate::config::GitignoreConfig;
+use crate::syntax;
 use crate::tsconfig::TsConfig;
 
 pub fn discover_files(
@@ -30,7 +31,7 @@ pub fn discover_files(
         let entry = entry?;
         let path = entry.path();
         if path.is_file()
-            && matches_typescript_file(path)
+            && syntax::is_typescript_file(path)
             && tsconfig.is_none_or(|config| config.is_included(path))
         {
             files.push(path.to_path_buf());
@@ -38,13 +39,6 @@ pub fn discover_files(
     }
 
     Ok(files)
-}
-
-fn matches_typescript_file(path: &Path) -> bool {
-    matches!(
-        path.extension().and_then(|ext| ext.to_str()),
-        Some("ts") | Some("tsx")
-    )
 }
 
 #[cfg(test)]

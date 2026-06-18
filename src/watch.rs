@@ -3,6 +3,8 @@ use notify::RecursiveMode;
 use notify_debouncer_full::{DebounceEventResult, new_debouncer};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+
+use crate::syntax;
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -64,8 +66,5 @@ fn is_relevant_path(path: &Path) -> bool {
 }
 
 fn is_typescript_file(path: &Path) -> bool {
-    matches!(
-        path.extension().and_then(|ext| ext.to_str()),
-        Some("ts") | Some("tsx")
-    )
+    syntax::is_typescript_file(path)
 }

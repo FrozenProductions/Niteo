@@ -42,6 +42,13 @@ impl LineIndex {
     }
 }
 
+pub fn is_typescript_file(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|ext| ext.to_str()),
+        Some("ts") | Some("tsx")
+    )
+}
+
 pub fn source_type_from_path(path: &Path) -> Option<SourceType> {
     let extension = path
         .extension()
@@ -105,6 +112,39 @@ mod tests {
     fn rejects_unknown_extension() -> Result<()> {
         assert!(source_type_from_path(Path::new("README.md")).is_none());
         Ok(())
+    }
+
+    #[test]
+    fn detects_ts_file() {
+        assert!(is_typescript_file(Path::new("foo.ts")));
+    }
+
+    #[test]
+    fn detects_tsx_file() {
+        assert!(is_typescript_file(Path::new("Component.tsx")));
+    }
+
+    #[test]
+    fn rejects_non_ts_extension() {
+        assert!(!is_typescript_file(Path::new("foo.js")));
+        assert!(!is_typescript_file(Path::new("foo.jsx")));
+        assert!(!is_typescript_file(Path::new("foo.css")));
+        assert!(!is_typescript_file(Path::new("Cargo.toml")));
+        assert!(!is_typescript_file(Path::new("README.md")));
+    }
+
+    #[test]
+    fn rejects_partial_matches() {
+        assert!(!is_typescript_file(Path::new("file.ats")));
+        assert!(!is_typescript_file(Path::new("file.atsx")));
+        assert!(!is_typescript_file(Path::new("file.d.ts.map")));
+    }
+
+    #[test]
+    fn handles_paths_with_directories() {
+        assert!(is_typescript_file(Path::new("a/b/c/deep.ts")));
+        assert!(is_typescript_file(Path::new("a/b/c/deep.tsx")));
+        assert!(!is_typescript_file(Path::new("a/b/c/deep.js")));
     }
 
     #[test]
