@@ -10,7 +10,7 @@ pub mod structure;
 pub mod validation;
 
 pub use configset::{ConfigSet, ConfigSetOptions};
-pub use resolve::{ProjectConfig, write_default_config};
+pub use resolve::{ProjectConfig, resolve_baseline_path, write_default_config};
 pub use rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
     FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,

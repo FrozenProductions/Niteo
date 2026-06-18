@@ -11,6 +11,8 @@ use crate::watch;
 pub fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
     let workspace = std::env::current_dir()?;
+    let baseline_path =
+        crate::config::resolve_baseline_path(&workspace, cli.options.baseline.clone())?;
 
     let exit_code = match cli.command.unwrap_or(Command::Lint { fix: false }) {
         Command::Init { preset } => {
@@ -28,7 +30,7 @@ pub fn run() -> Result<ExitCode> {
                     cli.options.root,
                     cli.options.scope,
                     cli.options.git,
-                    cli.options.baseline,
+                    baseline_path,
                     cli.options.report_suppressions,
                     cli.options.deny_child_configs,
                 )?;
@@ -40,7 +42,7 @@ pub fn run() -> Result<ExitCode> {
                     cli.options.root,
                     cli.options.scope,
                     cli.options.git,
-                    cli.options.baseline,
+                    baseline_path,
                     cli.options.deny_child_configs,
                 )?;
                 ExitCode::SUCCESS
@@ -108,7 +110,7 @@ pub fn run() -> Result<ExitCode> {
                 git_flag: cli.options.git,
                 output_format: cli.options.format,
                 output_path: cli.options.output,
-                baseline_path: cli.options.baseline.clone(),
+                baseline_path: baseline_path.clone(),
                 report_suppressions: cli.options.report_suppressions,
                 fail_on: cli.options.fail_on,
                 deny_child_configs: cli.options.deny_child_configs,
@@ -151,7 +153,7 @@ pub fn run() -> Result<ExitCode> {
                     commands::fix::FixOptions {
                         dry_run: false,
                         git_flag: cli.options.git,
-                        baseline_path: cli.options.baseline,
+                        baseline_path: baseline_path.clone(),
                         deny_child_configs: cli.options.deny_child_configs,
                     },
                 )?;
@@ -167,7 +169,7 @@ pub fn run() -> Result<ExitCode> {
                 commands::fix::FixOptions {
                     dry_run,
                     git_flag: cli.options.git,
-                    baseline_path: cli.options.baseline,
+                    baseline_path,
                     deny_child_configs: cli.options.deny_child_configs,
                 },
             )?;

@@ -18,6 +18,15 @@ Use a custom path:
 niteo baseline create --baseline config/niteo-baseline.json
 ```
 
+Or set it once in `niteo.toml` so every command picks it up:
+
+```toml
+[project]
+baseline = "config/niteo-baseline.json"
+```
+
+The `--baseline` flag still overrides the configured value when supplied.
+
 Commit the baseline file. After that, `niteo lint` filters out baseline entries and reports only new violations.
 
 ## Lint With A Baseline

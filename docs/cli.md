@@ -20,7 +20,7 @@ These options are accepted by every command.
 | `--git`                 |       | Scan changed TypeScript files only. Fails if git is unavailable.                                        |
 | `--format <format>`     |       | Output format. Supported values: `text`, `json`, `sarif`, `ndjson`.                                     |
 | `--output <path>`       | `-o`  | Write output to a file instead of stdout.                                                               |
-| `--baseline <path>`     |       | Baseline file path. Defaults to `niteo-baseline.json`.                                                  |
+| `--baseline <path>`     |       | Baseline file path. Overrides `[project] baseline` in `niteo.toml`. Defaults to `niteo-baseline.json`.  |
 | `--report-suppressions` |       | Include suppression counts and stale ignore directives.                                                 |
 | `--watch`               |       | Re-run lint on file changes.                                                                            |
 | `--watch-debounce-ms`   |       | Debounce duration for watch mode in milliseconds. Defaults to `300`.                                   |

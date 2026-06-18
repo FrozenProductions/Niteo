@@ -44,14 +44,16 @@ If `tsconfig.json` is not present or has no `paths` configuration, Niteo falls b
 [project]
 root = "src"
 respect-gitignore = true
+baseline = "niteo-baseline.json"
 ```
 
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
 | `root` | string | `src` when it exists, otherwise `.` | Project root to scan. |
 | `respect-gitignore` | boolean | `true` | Whether file discovery respects `.gitignore`. |
+| `baseline` | string | `niteo-baseline.json` | Baseline file path used by `lint`, `fix`, and `baseline` commands. |
 
-`--root` overrides `[project].root`.
+`--root` overrides `[project].root`. `--baseline` overrides `[project].baseline`.
 
 ## Workspace Packages
 
@@ -190,6 +192,7 @@ max-lines = 300
 [project]
 root = "src"
 respect-gitignore = true
+baseline = "niteo-baseline.json"
 
 [project.structure.hooks]
 folders = ["hooks"]

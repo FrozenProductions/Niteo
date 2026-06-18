@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::architecture::ArchitectureConfig;
-use super::defaults::{CONFIG_FILE_NAME, DEFAULT_CONFIG_SOURCE};
+use super::defaults::{CONFIG_FILE_NAME, DEFAULT_BASELINE_FILE, DEFAULT_CONFIG_SOURCE};
 use super::raw::RawConfig;
 use super::rules::GitignoreConfig;
 use super::structure::ProjectStructureConfig;
@@ -63,6 +63,20 @@ pub(crate) fn resolve_project_root(
     } else {
         workspace.to_path_buf()
     }
+}
+
+pub fn resolve_baseline_path(workspace: &Path, cli_override: Option<PathBuf>) -> Result<PathBuf> {
+    if let Some(path) = cli_override {
+        return Ok(path);
+    }
+
+    let raw_config = read_config_file(workspace)?;
+    let configured = raw_config
+        .project
+        .as_ref()
+        .and_then(|project| project.baseline.clone());
+
+    Ok(configured.unwrap_or_else(|| PathBuf::from(DEFAULT_BASELINE_FILE)))
 }
 
 pub fn write_default_config(workspace: &Path) -> Result<PathBuf> {

@@ -1,8 +1,11 @@
 pub const CONFIG_FILE_NAME: &str = "niteo.toml";
 
+pub const DEFAULT_BASELINE_FILE: &str = "niteo-baseline.json";
+
 pub const DEFAULT_CONFIG_SOURCE: &str = r#"[project]
 root = "src"
 respect-gitignore = true
+baseline = "niteo-baseline.json"
 
 [project.structure.hooks]
 folders = ["hooks"]

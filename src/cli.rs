@@ -42,8 +42,8 @@ pub struct CliOptions {
     pub output: Option<PathBuf>,
 
     /// Baseline file for suppressing existing violations.
-    #[arg(long, global = true, default_value = "niteo-baseline.json")]
-    pub baseline: PathBuf,
+    #[arg(long, global = true)]
+    pub baseline: Option<PathBuf>,
 
     /// Report suppressed violations and stale ignore directives.
     #[arg(long, global = true)]
