@@ -1,3 +1,4 @@
+mod allocator;
 mod analysis;
 pub mod app;
 mod baseline;

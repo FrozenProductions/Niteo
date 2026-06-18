@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use oxc_allocator::Allocator;
 use oxc_ast::ast::{
     ExportAllDeclaration, ExportNamedDeclaration, Expression, ImportDeclaration, ImportExpression,
 };
 use oxc_ast_visit::Visit;
 use oxc_span::Span;
 
+use crate::allocator::with_reusable_allocator;
 use crate::import_graph::model::{ImportEdge, ImportKind};
 use crate::import_resolver::ImportResolverIndex;
 
@@ -15,25 +15,26 @@ pub(crate) fn extract_imports(
     source: &str,
     resolver: &ImportResolverIndex,
 ) -> Vec<ImportEdge> {
-    let allocator = Allocator::default();
     let source_type = crate::syntax::source_type_from_path(source_file);
     let Some(source_type) = source_type else {
         return Vec::new();
     };
 
-    let parser_return = oxc_parser::Parser::new(&allocator, source, source_type).parse();
-    if parser_return.panicked {
-        return Vec::new();
-    }
+    with_reusable_allocator(|allocator| {
+        let parser_return = oxc_parser::Parser::new(allocator, source, source_type).parse();
+        if parser_return.panicked {
+            return Vec::new();
+        }
 
-    let mut visitor = ImportVisitor {
-        source_file: source_file.to_path_buf(),
-        resolver,
-        edges: Vec::new(),
-        _phantom: std::marker::PhantomData,
-    };
-    visitor.visit_program(&parser_return.program);
-    visitor.edges
+        let mut visitor = ImportVisitor {
+            source_file: source_file.to_path_buf(),
+            resolver,
+            edges: Vec::new(),
+            _phantom: std::marker::PhantomData,
+        };
+        visitor.visit_program(&parser_return.program);
+        visitor.edges
+    })
 }
 
 struct ImportVisitor<'a> {

@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use crate::allocator::with_reusable_allocator;
 use crate::analysis::{self, AnalysisOptions};
 use crate::baseline;
 use crate::config::rule_metadata::FixCapability;
@@ -87,29 +88,9 @@ pub fn fix_workspace(
         let source = std::fs::read_to_string(file)
             .with_context(|| format!("failed to read {}", file.display()))?;
 
-        let line_index = crate::syntax::LineIndex::new(&source);
-
         let needs_ast = rules
             .iter()
             .any(|rule| rule.severity().is_enabled() && rule.needs_ast() && rule.supports_fix());
-
-        let allocator = oxc_allocator::Allocator::default();
-        let parse_result = if needs_ast {
-            match crate::syntax::source_type_from_path(file) {
-                Some(source_type) => {
-                    let parser_return =
-                        oxc_parser::Parser::new(&allocator, &source, source_type).parse();
-                    if parser_return.panicked {
-                        None
-                    } else {
-                        Some(parser_return.program)
-                    }
-                }
-                None => None,
-            }
-        } else {
-            None
-        };
 
         let single_file = [file.clone()];
         let type_location_style = crate::rules::no_inline_types::TypeLocationStyle::detect(
@@ -117,16 +98,36 @@ pub fn fix_workspace(
             &config_for_file.structure.types,
         );
 
-        let ctx = crate::rules::FileContext {
-            file,
-            source: &source,
-            program: parse_result.as_ref(),
-            line_index: &line_index,
-            import_graph: collected.import_graph.clone(),
-            workspace: collected.workspace.clone(),
-            type_location_style,
-        };
-        let file_fixes = crate::fix::collect_fixes(&ctx, &rules);
+        let file_fixes = with_reusable_allocator(|allocator| {
+            let line_index = crate::syntax::LineIndex::new(&source);
+            let parse_result = if needs_ast {
+                match crate::syntax::source_type_from_path(file) {
+                    Some(source_type) => {
+                        let parser_return =
+                            oxc_parser::Parser::new(allocator, &source, source_type).parse();
+                        if parser_return.panicked {
+                            None
+                        } else {
+                            Some(parser_return.program)
+                        }
+                    }
+                    None => None,
+                }
+            } else {
+                None
+            };
+
+            let ctx = crate::rules::FileContext {
+                file,
+                source: &source,
+                program: parse_result.as_ref(),
+                line_index: &line_index,
+                import_graph: collected.import_graph.clone(),
+                workspace: collected.workspace.clone(),
+                type_location_style,
+            };
+            crate::fix::collect_fixes(&ctx, &rules)
+        });
 
         all_fixes.extend(file_fixes);
     }

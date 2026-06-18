@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 
+use crate::allocator::with_reusable_allocator;
 use crate::rules::{FileContext, FileRule, Fix, TextEdit};
 use crate::syntax::source_type_from_path;
 
@@ -99,9 +100,12 @@ pub fn apply_fixes(fixes: Vec<Fix>, options: ApplyFixOptions) -> Result<FixOutco
         if options.validate_parse
             && let Some(source_type) = source_type_from_path(&file_path)
         {
-            let allocator = oxc_allocator::Allocator::default();
-            let parser_return = oxc_parser::Parser::new(&allocator, &modified, source_type).parse();
-            if parser_return.panicked {
+            let parse_valid = with_reusable_allocator(|allocator| {
+                let parser_return =
+                    oxc_parser::Parser::new(allocator, &modified, source_type).parse();
+                !parser_return.panicked
+            });
+            if !parse_valid {
                 eprintln!(
                     "warning: rejected edits in {}: fixed source is not parseable",
                     file_path.display()

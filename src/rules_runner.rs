@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use oxc_allocator::Allocator;
 use oxc_parser::Parser;
 
+use crate::allocator::with_reusable_allocator;
 use crate::config::{self, ProjectConfig};
 use crate::ignore;
 use crate::import_graph::ImportGraph;
@@ -105,44 +105,51 @@ pub fn check_files_with_parallelism(
         let mut file_violations = if let Some(cached) = cached_violations.get(file) {
             cached.clone()
         } else {
-            let line_index = LineIndex::new(&source);
+            let (new_violations, parse_failure) = with_reusable_allocator(|allocator| {
+                let line_index = LineIndex::new(&source);
 
-            let allocator = Allocator::default();
-            let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
-                match crate::syntax::source_type_from_path(file) {
-                    Some(source_type) => {
-                        let parser_return = Parser::new(&allocator, &source, source_type).parse();
-                        if parser_return.panicked {
-                            return Ok((
-                                Vec::new(),
-                                None,
-                                Some((file.clone(), "parse error".to_string())),
-                            ));
+                let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
+                    match crate::syntax::source_type_from_path(file) {
+                        Some(source_type) => {
+                            let parser_return =
+                                Parser::new(allocator, &source, source_type).parse();
+                            if parser_return.panicked {
+                                return (
+                                    Vec::new(),
+                                    Some((file.clone(), "parse error".to_string())),
+                                );
+                            }
+                            Some(parser_return.program)
                         }
-                        Some(parser_return.program)
+                        None => None,
                     }
-                    None => None,
-                }
-            } else {
-                None
-            };
+                } else {
+                    None
+                };
 
-            let ctx = FileContext {
-                file,
-                source: &source,
-                program: parse_result.as_ref(),
-                line_index: &line_index,
-                type_location_style,
-                import_graph: import_graph.clone(),
-                workspace: workspace.clone(),
-            };
+                let ctx = FileContext {
+                    file,
+                    source: &source,
+                    program: parse_result.as_ref(),
+                    line_index: &line_index,
+                    type_location_style,
+                    import_graph: import_graph.clone(),
+                    workspace: workspace.clone(),
+                };
 
-            let mut new_violations = Vec::new();
-            for rule in rules.iter() {
-                if rule.severity().is_enabled() {
-                    new_violations.extend(rule.check(&ctx));
+                let mut violations = Vec::new();
+                for rule in rules.iter() {
+                    if rule.severity().is_enabled() {
+                        violations.extend(rule.check(&ctx));
+                    }
                 }
+                (violations, None)
+            });
+
+            if let Some(parse_failure) = parse_failure {
+                return Ok((Vec::new(), None, Some(parse_failure)));
             }
+
             new_violations
         };
 
