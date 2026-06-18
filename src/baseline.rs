@@ -31,32 +31,30 @@ pub struct PruneResult {
 
 impl Baseline {
     pub fn from_violations(root: &Path, violations: &[Violation]) -> Self {
-        let mut baseline_violations = violations
-            .iter()
-            .map(|violation| BaselineViolation::from_violation(root, violation))
-            .collect::<Vec<BaselineViolation>>();
-
-        baseline_violations.sort();
-        baseline_violations.dedup();
-
-        Self {
+        let mut baseline = Self {
             version: BASELINE_VERSION,
-            violations: baseline_violations,
-        }
+            violations: violations
+                .iter()
+                .map(|violation| BaselineViolation::from_violation(root, violation))
+                .collect(),
+        };
+
+        baseline.sort_and_dedup();
+        baseline
+    }
+
+    fn sort_and_dedup(&mut self) {
+        self.violations.sort();
+        self.violations.dedup();
     }
 
     // Baseline identity excludes `detail` and `severity` so rewording doesn't invalidate baselines
     pub fn filter_new_violations(&self, root: &Path, violations: Vec<Violation>) -> Vec<Violation> {
-        let known_violations = self
-            .violations
-            .iter()
-            .cloned()
-            .collect::<HashSet<BaselineViolation>>();
-
         violations
             .into_iter()
             .filter(|violation| {
-                !known_violations.contains(&BaselineViolation::from_violation(root, violation))
+                let candidate = BaselineViolation::from_violation(root, violation);
+                self.violations.binary_search(&candidate).is_err()
             })
             .collect()
     }
@@ -97,8 +95,9 @@ pub fn read_baseline(path: &Path) -> Result<Option<Baseline>> {
 
     let source =
         fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
-    let baseline = serde_json::from_str(&source)
+    let mut baseline: Baseline = serde_json::from_str(&source)
         .with_context(|| format!("failed to parse baseline from {}", path.display()))?;
+    baseline.sort_and_dedup();
 
     Ok(Some(baseline))
 }

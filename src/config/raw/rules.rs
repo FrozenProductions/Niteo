@@ -446,7 +446,6 @@ declare_raw_rules! {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::rules::Severity;
     use super::super::config::RawConfig;
 
     #[test]
