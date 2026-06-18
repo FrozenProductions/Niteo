@@ -20,6 +20,39 @@ type FileResult = (
     Option<(PathBuf, String)>,
 );
 
+fn compute_suppression_info(
+    file: &Path,
+    violations: &[Violation],
+    directives: &[ignore::IgnoreDirective],
+) -> Option<ignore::FileSuppressionInfo> {
+    if directives.is_empty() {
+        return None;
+    }
+
+    let suppressed_count = violations
+        .iter()
+        .filter(|violation| {
+            ignore::should_suppress_violation(directives, violation.line, violation.rule)
+        })
+        .count();
+
+    let stale_directives = directives
+        .iter()
+        .filter(|directive| {
+            !violations
+                .iter()
+                .any(|violation| directive.should_suppress(violation.line, violation.rule))
+        })
+        .cloned()
+        .collect();
+
+    Some(ignore::FileSuppressionInfo {
+        file: file.to_path_buf(),
+        suppressed_count,
+        stale_directives,
+    })
+}
+
 pub fn check_files_with_parallelism(
     files: &[PathBuf],
     config_set: &config::ConfigSet,
@@ -102,84 +135,61 @@ pub fn check_files_with_parallelism(
 
         let directives = ignore::parse_ignore_directives(&source);
 
-        let mut file_violations = if let Some(cached) = cached_violations.get(file) {
-            cached.clone()
-        } else {
-            let (new_violations, parse_failure) = with_reusable_allocator(|allocator| {
-                let line_index = LineIndex::new(&source);
+        if let Some(cached) = cached_violations.get(file) {
+            let suppression_info = compute_suppression_info(file, cached, &directives);
+            let kept: Vec<Violation> = cached
+                .iter()
+                .filter(|violation| {
+                    !ignore::should_suppress_violation(&directives, violation.line, violation.rule)
+                })
+                .cloned()
+                .collect();
+            return Ok((kept, suppression_info, None));
+        }
 
-                let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
-                    match crate::syntax::source_type_from_path(file) {
-                        Some(source_type) => {
-                            let parser_return =
-                                Parser::new(allocator, &source, source_type).parse();
-                            if parser_return.panicked {
-                                return (
-                                    Vec::new(),
-                                    Some((file.clone(), "parse error".to_string())),
-                                );
-                            }
-                            Some(parser_return.program)
+        let (new_violations, parse_failure) = with_reusable_allocator(|allocator| {
+            let line_index = LineIndex::new(&source);
+
+            let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
+                match crate::syntax::source_type_from_path(file) {
+                    Some(source_type) => {
+                        let parser_return = Parser::new(allocator, &source, source_type).parse();
+                        if parser_return.panicked {
+                            return (Vec::new(), Some((file.clone(), "parse error".to_string())));
                         }
-                        None => None,
+                        Some(parser_return.program)
                     }
-                } else {
-                    None
-                };
-
-                let ctx = FileContext {
-                    file,
-                    source: &source,
-                    program: parse_result.as_ref(),
-                    line_index: &line_index,
-                    type_location_style,
-                    import_graph: import_graph.clone(),
-                    workspace: workspace.clone(),
-                };
-
-                let mut violations = Vec::new();
-                for rule in rules.iter() {
-                    if rule.severity().is_enabled() {
-                        violations.extend(rule.check(&ctx));
-                    }
+                    None => None,
                 }
-                (violations, None)
-            });
+            } else {
+                None
+            };
 
-            if let Some(parse_failure) = parse_failure {
-                return Ok((Vec::new(), None, Some(parse_failure)));
+            let ctx = FileContext {
+                file,
+                source: &source,
+                program: parse_result.as_ref(),
+                line_index: &line_index,
+                type_location_style,
+                import_graph: import_graph.clone(),
+                workspace: workspace.clone(),
+            };
+
+            let mut violations = Vec::new();
+            for rule in rules.iter() {
+                if rule.severity().is_enabled() {
+                    violations.extend(rule.check(&ctx));
+                }
             }
+            (violations, None)
+        });
 
-            new_violations
-        };
+        if let Some(parse_failure) = parse_failure {
+            return Ok((Vec::new(), None, Some(parse_failure)));
+        }
 
-        let suppressed_count = file_violations
-            .iter()
-            .filter(|violation| {
-                ignore::should_suppress_violation(&directives, violation.line, violation.rule)
-            })
-            .count();
-
-        let stale_directives: Vec<ignore::IgnoreDirective> = directives
-            .iter()
-            .filter(|directive| {
-                !file_violations
-                    .iter()
-                    .any(|violation| directive.should_suppress(violation.line, violation.rule))
-            })
-            .cloned()
-            .collect();
-
-        let suppression_info = if directives.is_empty() {
-            None
-        } else {
-            Some(ignore::FileSuppressionInfo {
-                file: file.clone(),
-                suppressed_count,
-                stale_directives,
-            })
-        };
-
+        let suppression_info = compute_suppression_info(file, &new_violations, &directives);
+        let mut file_violations = new_violations;
         file_violations.retain(|violation| {
             !ignore::should_suppress_violation(&directives, violation.line, violation.rule)
         });
