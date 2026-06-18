@@ -8,6 +8,7 @@ performance measurement.
 ```sh
 cargo bench
 cargo bench --bench cli_benchmarks
+cargo bench --bench parallelism_benchmark
 ```
 
 Criterion stores results in `target/criterion/`. Open
@@ -81,6 +82,31 @@ file. This stresses import graph construction and resolver index size.
 | `cli_lint_import_heavy_100_files_json_cache_cold` | 100   | cold        |
 | `cli_lint_import_heavy_200_files_json_cache_warm` | 200   | warm        |
 | `cli_lint_import_heavy_200_files_json_cache_cold` | 200   | cold        |
+
+### `check_files_parallelism`
+
+In-process benchmarks in `benches/parallelism_benchmark.rs` that measure the
+`check_files_for_benchmark` function from `src/rules_runner.rs`. Each benchmark
+builds a full project scaffold (files, config, import graph, workspace) once,
+then times the linting pass with parallelism toggled on or off. This isolates
+the Rayon parallelization overhead from CLI startup and reporting.
+
+| Benchmark                          | Files | Mode           |
+| ---------------------------------- | ----- | -------------- |
+| `single_threaded_100`              | 100   | single-threaded|
+| `multi_threaded_100`               | 100   | multi-threaded |
+| `single_threaded_500`              | 500   | single-threaded|
+| `multi_threaded_500`               | 500   | multi-threaded |
+| `single_threaded_1000`             | 1000  | single-threaded|
+| `multi_threaded_1000`              | 1000  | multi-threaded |
+| `single_threaded_2000`             | 2000  | single-threaded|
+| `multi_threaded_2000`              | 2000  | multi-threaded |
+
+Run with:
+
+```sh
+cargo bench --bench parallelism_benchmark
+```
 
 ## Fixture Design
 
