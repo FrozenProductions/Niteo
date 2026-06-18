@@ -29,13 +29,13 @@ macro_rules! declare_option_converters {
                 match self {
                     Self::Severity(severity) => {
                         let mut cfg = <$config_type>::default();
-                        cfg.severity = Severity::from_str(severity)?;
+                        cfg.severity = severity.parse::<Severity>()?;
                         Ok(cfg)
                     }
                     Self::Options(options) => {
                         let mut cfg = <$config_type>::default();
                         cfg.severity = match options.severity.as_deref() {
-                            Some(severity) => Severity::from_str(severity)?,
+                            Some(severity) => severity.parse::<Severity>()?,
                             None => Severity::Warn,
                         };
                         $( cfg.$field = options.$field.unwrap_or($default); )*
@@ -145,11 +145,11 @@ impl RawRuleConfig {
     ) -> Result<RuleConfig, String> {
         match self {
             Self::Severity(severity) => Ok(RuleConfig {
-                severity: Severity::from_str(severity)?,
+                severity: severity.parse::<Severity>()?,
             }),
             Self::Options(options) => Ok(RuleConfig {
                 severity: match options.severity.as_deref() {
-                    Some(severity) => Severity::from_str(severity)?,
+                    Some(severity) => severity.parse::<Severity>()?,
                     None => default_severity,
                 },
             }),

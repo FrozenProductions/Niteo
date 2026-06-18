@@ -6,8 +6,10 @@ pub enum Severity {
     Error,
 }
 
-impl Severity {
-    pub fn from_str(value: &str) -> Result<Self, String> {
+impl std::str::FromStr for Severity {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "off" => Ok(Self::Off),
             "info" => Ok(Self::Info),
@@ -18,7 +20,9 @@ impl Severity {
             )),
         }
     }
+}
 
+impl Severity {
     pub fn is_enabled(self) -> bool {
         self != Self::Off
     }
@@ -479,15 +483,15 @@ mod tests {
 
     #[test]
     fn from_str_parses_valid_severities() {
-        assert_eq!(Severity::from_str("off").unwrap(), Severity::Off);
-        assert_eq!(Severity::from_str("info").unwrap(), Severity::Info);
-        assert_eq!(Severity::from_str("warn").unwrap(), Severity::Warn);
-        assert_eq!(Severity::from_str("error").unwrap(), Severity::Error);
+        assert_eq!("off".parse::<Severity>().unwrap(), Severity::Off);
+        assert_eq!("info".parse::<Severity>().unwrap(), Severity::Info);
+        assert_eq!("warn".parse::<Severity>().unwrap(), Severity::Warn);
+        assert_eq!("error".parse::<Severity>().unwrap(), Severity::Error);
     }
 
     #[test]
     fn from_str_rejects_invalid_severity() {
-        let error = Severity::from_str("warning").unwrap_err();
+        let error = "warning".parse::<Severity>().unwrap_err();
         assert!(error.contains("'warning'"));
         assert!(error.contains("off, info, warn, error"));
     }

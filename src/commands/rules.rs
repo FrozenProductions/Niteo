@@ -63,7 +63,7 @@ pub fn list_with_preset(
     output_format: OutputFormat,
     output_path: Option<PathBuf>,
 ) -> Result<()> {
-    let name = match preset_name {
+    let name: &str = match preset_name {
         PresetName::Balanced => "balanced",
         PresetName::Strict => "strict",
         PresetName::Migration => "migration",
@@ -72,8 +72,9 @@ pub fn list_with_preset(
         PresetName::NoBarrels => "no-barrels",
     };
 
-    let preset = config::presets::PresetName::from_str(name)
-        .ok_or_else(|| anyhow::anyhow!("unknown preset: {name}"))?;
+    let preset = name
+        .parse::<config::presets::PresetName>()
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     let source = config::presets::default_config_for_preset(preset);
     let raw: config::raw::RawConfig = toml::from_str(source)?;
     let project_config = raw.into_project_config(std::env::current_dir()?)?;

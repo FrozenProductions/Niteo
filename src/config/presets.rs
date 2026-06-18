@@ -8,16 +8,18 @@ pub enum PresetName {
     NoBarrels,
 }
 
-impl PresetName {
-    pub fn from_str(value: &str) -> Option<Self> {
+impl std::str::FromStr for PresetName {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
-            "balanced" => Some(Self::Balanced),
-            "strict" => Some(Self::Strict),
-            "migration" => Some(Self::Migration),
-            "react" => Some(Self::React),
-            "library" => Some(Self::Library),
-            "no-barrels" => Some(Self::NoBarrels),
-            _ => None,
+            "balanced" => Ok(Self::Balanced),
+            "strict" => Ok(Self::Strict),
+            "migration" => Ok(Self::Migration),
+            "react" => Ok(Self::React),
+            "library" => Ok(Self::Library),
+            "no-barrels" => Ok(Self::NoBarrels),
+            _ => Err(format!("unknown preset: {value}")),
         }
     }
 }

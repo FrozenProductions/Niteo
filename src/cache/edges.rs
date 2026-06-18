@@ -17,7 +17,7 @@ pub struct CachedImportEdge {
     pub span_end: u32,
 }
 
-pub(crate) fn import_edge_to_cached(edge: &ImportEdge, project_root: &Path) -> CachedImportEdge {
+pub fn import_edge_to_cached(edge: &ImportEdge, project_root: &Path) -> CachedImportEdge {
     CachedImportEdge {
         specifier: edge.specifier.clone(),
         resolved_target: edge

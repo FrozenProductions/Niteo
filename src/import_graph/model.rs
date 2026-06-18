@@ -95,7 +95,7 @@ impl ImportGraph {
         self.file_index.insert(path, index);
     }
 
-    pub(crate) fn build_edges_by_source(&mut self) {
+    pub fn build_edges_by_source(&mut self) {
         self.edges_by_source = vec![Vec::new(); self.files.len()];
         for (edge_index, edge) in self.edges.iter().enumerate() {
             if let Some(&file_index) = self.file_index.get(&edge.source_file) {

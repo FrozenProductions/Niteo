@@ -54,7 +54,10 @@ fn cached_violation_to_violation(
         .copied()
         .unwrap_or_else(|| message_interner.intern(&cached.rule));
     let message = message_interner.intern(&cached.message);
-    let severity = Severity::from_str(&cached.severity).unwrap_or(Severity::Warn);
+    let severity = cached
+        .severity
+        .parse::<Severity>()
+        .unwrap_or(Severity::Warn);
 
     Violation {
         file,
@@ -73,15 +76,14 @@ fn cached_violation_to_violation(
 /// This is used only when restoring violations from the cache. The number of
 /// unique strings is bounded by the rule/message space of a single project,
 /// and the leaked memory lives for the remainder of the CLI process.
+#[derive(Default)]
 pub struct StringInterner {
     strings: HashMap<&'static str, &'static str>,
 }
 
 impl StringInterner {
     pub fn new() -> Self {
-        Self {
-            strings: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn intern(&mut self, value: &str) -> &'static str {
