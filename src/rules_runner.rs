@@ -14,6 +14,12 @@ use crate::rule_adapters::*;
 use crate::rules::{FileContext, FileRule, RulesConfig, Violation};
 use crate::syntax::LineIndex;
 
+type FileResult = (
+    Vec<Violation>,
+    Option<ignore::FileSuppressionInfo>,
+    Option<(PathBuf, String)>,
+);
+
 pub fn check_files_with_parallelism(
     files: &[PathBuf],
     config_set: &config::ConfigSet,
@@ -77,15 +83,11 @@ pub fn check_files_with_parallelism(
         type_styles_by_config.insert(*config_ptr, type_location_style);
     }
 
-    let process_file = |file: &PathBuf| -> Result<(
-        Vec<Violation>,
-        Option<ignore::FileSuppressionInfo>,
-        Option<(PathBuf, String)>,
-    )> {
+    let process_file = |file: &PathBuf| -> Result<FileResult> {
         let config = config_set.config_for_file(file);
         let config_ptr = config as *const ProjectConfig as usize;
         let Some(rules) = rules_by_config.get(&config_ptr) else {
-            return Ok((Vec::new(), None, None::<(PathBuf, String)>));
+            return Ok((Vec::new(), None, None));
         };
         let rules = rules.clone();
         let needs_ast = *needs_ast_by_config
@@ -175,7 +177,7 @@ pub fn check_files_with_parallelism(
             !ignore::should_suppress_violation(&directives, violation.line, violation.rule)
         });
 
-        Ok((file_violations, suppression_info, None::<(PathBuf, String)>))
+        Ok((file_violations, suppression_info, None))
     };
 
     let file_results: Vec<Result<_>> = if parallel {
