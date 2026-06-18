@@ -3,20 +3,6 @@ pub mod key;
 pub mod lifecycle;
 pub mod store;
 pub mod violations;
-#[allow(unused_imports)]
-pub use edges::{CachedImportEdge, cached_import_edges_to_import};
-#[allow(unused_imports)]
-pub use key::{
-    CACHE_SCHEMA_VERSION, denormalize_path_from_cache, hash_config_files, hash_content,
-    hash_file_list, hash_string, hash_tsconfig, is_cache_valid, normalize_path_for_cache,
-};
-#[allow(unused_imports)]
-pub use lifecycle::{CacheState, finalize_cache, prepare_cache};
-#[allow(unused_imports)]
-pub use store::{
-    CacheFile, CachedFileAnalysis, CachedParseFailure, CachedViolation, cache_path, clear_cache,
-    read_cache, write_cache,
-};
 #[cfg(test)]
 mod tests {
 
@@ -26,13 +12,22 @@ mod tests {
     use anyhow::{Context, Result};
     use oxc_span::Span;
 
-    use crate::cache::edges::import_edge_to_cached;
+    use crate::cache::edges::{
+        CachedImportEdge, cached_import_edges_to_import, import_edge_to_cached,
+    };
+    use crate::cache::key::{
+        CACHE_SCHEMA_VERSION, denormalize_path_from_cache, hash_config_files, hash_content,
+        hash_file_list, is_cache_valid, normalize_path_for_cache,
+    };
+    use crate::cache::lifecycle::{CacheState, finalize_cache, prepare_cache};
+    use crate::cache::store::{
+        CacheFile, CachedFileAnalysis, CachedViolation, cache_path, clear_cache, read_cache,
+        write_cache,
+    };
     use crate::config::Severity;
     use crate::import_graph::{ImportEdge, ImportGraph, ImportKind};
     use crate::import_resolver::SpecifierKind;
     use crate::rules::{NO_CONSOLE_RULE_ID, Violation};
-
-    use super::*;
 
     #[test]
     fn hash_content_is_stable() -> Result<()> {

@@ -48,7 +48,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
     let scan_root = scan_scope.as_deref().unwrap_or(&project_root);
 
     if options.clear_cache
-        && let Err(error) = crate::cache::clear_cache(workspace_root)
+        && let Err(error) = crate::cache::store::clear_cache(workspace_root)
     {
         eprintln!("warning: failed to clear cache: {error}");
     }
@@ -90,7 +90,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
     };
 
     let cache_state = if options.cache_enabled {
-        match crate::cache::prepare_cache(
+        match crate::cache::lifecycle::prepare_cache(
             workspace_root,
             &files,
             &config_paths,
@@ -162,7 +162,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
     )?;
 
     if let Some(ref cache_state) = cache_state
-        && let Err(error) = crate::cache::finalize_cache(
+        && let Err(error) = crate::cache::lifecycle::finalize_cache(
             workspace_root,
             &files,
             &config_paths,
