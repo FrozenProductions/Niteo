@@ -23,6 +23,7 @@ These options are accepted by every command.
 | `--baseline <path>`     |       | Baseline file path. Defaults to `niteo-baseline.json`.                                                  |
 | `--report-suppressions` |       | Include suppression counts and stale ignore directives.                                                 |
 | `--watch`               |       | Re-run lint on file changes.                                                                            |
+| `--watch-debounce-ms`   |       | Debounce duration for watch mode in milliseconds. Defaults to `300`.                                   |
 | `--cache`               |       | Enable caching of analysis results, parsed ASTs, and rule violations.                                   |
 | `--no-cache`            |       | Disable caching even when it would otherwise be enabled.                                                |
 | `--clear-cache`         |       | Clear the cache file before running.                                                                    |
@@ -80,7 +81,7 @@ niteo lint --watch --root src
 niteo lint --watch --scope src/components
 ```
 
-Niteo runs a full lint pass on startup, then watches for changes to `.ts`, `.tsx`, and `niteo.toml` files. Each detected change triggers a re-lint after a short debounce. Press Ctrl+C to stop.
+Niteo runs a full lint pass on startup, then watches for changes to `.ts`, `.tsx`, and `niteo.toml` files. Each detected change triggers a re-lint after the debounce configured via `--watch-debounce-ms` (default: 300ms). Press Ctrl+C to stop.
 
 Watch mode disables the interactive changed-files prompt and always performs a full scan.
 

@@ -53,6 +53,10 @@ pub struct CliOptions {
     #[arg(long, global = true)]
     pub watch: bool,
 
+    /// Watch debounce duration in milliseconds.
+    #[arg(long, global = true, default_value_t = 300)]
+    pub watch_debounce_ms: u64,
+
     /// Enable caching of analysis results.
     #[arg(long, global = true)]
     pub cache: bool,

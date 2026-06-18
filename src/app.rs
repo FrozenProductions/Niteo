@@ -123,7 +123,7 @@ pub fn run() -> Result<ExitCode> {
                 let root = cli.options.root.clone();
                 let scope = cli.options.scope.clone();
 
-                watch::run(&watch_root, move || {
+                watch::run(&watch_root, cli.options.watch_debounce_ms, move || {
                     commands::lint::lint_workspace(
                         &workspace_clone,
                         root.clone(),

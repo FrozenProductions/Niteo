@@ -8,9 +8,11 @@ use crate::syntax;
 use std::sync::mpsc;
 use std::time::Duration;
 
-const DEBOUNCE_MS: u64 = 300;
-
-pub fn run(watch_root: &Path, mut lint_fn: impl FnMut() -> Result<ExitCode>) -> Result<()> {
+pub fn run(
+    watch_root: &Path,
+    debounce_ms: u64,
+    mut lint_fn: impl FnMut() -> Result<ExitCode>,
+) -> Result<()> {
     println!(
         "Watching {} for changes... (press Ctrl+C to stop)\n",
         watch_root.display()
@@ -22,7 +24,7 @@ pub fn run(watch_root: &Path, mut lint_fn: impl FnMut() -> Result<ExitCode>) -> 
 
     let (tx, rx) = mpsc::channel::<DebounceEventResult>();
 
-    let mut debouncer = new_debouncer(Duration::from_millis(DEBOUNCE_MS), None, tx)
+    let mut debouncer = new_debouncer(Duration::from_millis(debounce_ms), None, tx)
         .context("failed to start filesystem watcher")?;
 
     debouncer
