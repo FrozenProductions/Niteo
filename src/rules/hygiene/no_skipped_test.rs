@@ -1,12 +1,11 @@
 use std::path::Path;
 
 use crate::config::RuleConfig;
-use crate::rules::{
-    Fix, NO_FOCUSED_TEST_RULE_ID, TextEdit, Violation, test_call_utils,
-};
+use crate::rules::{Fix, NO_SKIPPED_TEST_RULE_ID, TextEdit, Violation};
+use crate::test_call_utils;
 use crate::syntax::LineIndex;
 
-const MESSAGE: &str = "Disallow focused tests (describe.only, it.only, test.only).";
+const MESSAGE: &str = "Disallow skipped tests (describe.skip, it.skip, test.skip).";
 
 pub fn check_file(
     file: &Path,
@@ -14,17 +13,17 @@ pub fn check_file(
     line_index: &LineIndex,
     config: &RuleConfig,
 ) -> Vec<Violation> {
-    let calls = test_call_utils::collect_test_property_calls(program, "only");
+    let calls = test_call_utils::collect_test_property_calls(program, "skip");
     calls
         .into_iter()
         .map(|call| {
             let pos = line_index.position_for(call.member_span);
-            let subject = format!("{}.only", call.function_name);
+            let subject = format!("{}.skip", call.function_name);
             Violation {
                 file: file.to_path_buf(),
                 line: Some(pos.line),
                 column: Some(pos.column),
-                rule: NO_FOCUSED_TEST_RULE_ID,
+                rule: NO_SKIPPED_TEST_RULE_ID,
                 message: MESSAGE,
                 severity: config.severity,
                 detail: None,
@@ -44,7 +43,7 @@ pub fn fix_file(
         return Vec::new();
     }
 
-    let calls = test_call_utils::collect_test_property_calls(program, "only");
+    let calls = test_call_utils::collect_test_property_calls(program, "skip");
     let edits: Vec<TextEdit> = calls
         .iter()
         .map(|call| {
@@ -60,7 +59,7 @@ pub fn fix_file(
     } else {
         vec![Fix {
             file: file.to_path_buf(),
-            rule: NO_FOCUSED_TEST_RULE_ID,
+            rule: NO_SKIPPED_TEST_RULE_ID,
             edits,
         }]
     }
@@ -110,32 +109,32 @@ mod tests {
     }
 
     #[test]
-    fn reports_describe_only() -> Result<()> {
-        let violations = run_check("describe.only('suite', () => {});");
+    fn reports_describe_skip() -> Result<()> {
+        let violations = run_check("describe.skip('suite', () => {});");
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("describe.only"));
+        assert_eq!(violations[0].subject.as_deref(), Some("describe.skip"));
     
         Ok(())}
 
     #[test]
-    fn reports_it_only() -> Result<()> {
-        let violations = run_check("it.only('works', () => {});");
+    fn reports_it_skip() -> Result<()> {
+        let violations = run_check("it.skip('works', () => {});");
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("it.only"));
+        assert_eq!(violations[0].subject.as_deref(), Some("it.skip"));
     
         Ok(())}
 
     #[test]
-    fn reports_test_only() -> Result<()> {
-        let violations = run_check("test.only('works', () => {});");
+    fn reports_test_skip() -> Result<()> {
+        let violations = run_check("test.skip('works', () => {});");
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].subject.as_deref(), Some("test.only"));
+        assert_eq!(violations[0].subject.as_deref(), Some("test.skip"));
     
         Ok(())}
 
     #[test]
-    fn reports_multiple_focused_tests() -> Result<()> {
-        let source = "describe.only('suite', () => { it.only('works', () => {}); });";
+    fn reports_multiple_skipped_tests() -> Result<()> {
+        let source = "describe.skip('suite', () => { it.skip('works', () => {}); });";
         let violations = run_check(source);
         assert_eq!(violations.len(), 2);
     
@@ -163,29 +162,29 @@ mod tests {
         Ok(())}
 
     #[test]
-    fn ignores_describe_skip() -> Result<()> {
-        let violations = run_check("describe.skip('suite', () => {});");
+    fn ignores_describe_only() -> Result<()> {
+        let violations = run_check("describe.only('suite', () => {});");
         assert!(violations.is_empty());
     
         Ok(())}
 
     #[test]
-    fn ignores_it_skip() -> Result<()> {
-        let violations = run_check("it.skip('works', () => {});");
+    fn ignores_it_only() -> Result<()> {
+        let violations = run_check("it.only('works', () => {});");
         assert!(violations.is_empty());
     
         Ok(())}
 
     #[test]
     fn ignores_other_member_calls() -> Result<()> {
-        let violations = run_check("foo.only('something');");
+        let violations = run_check("foo.skip('something');");
         assert!(violations.is_empty());
     
         Ok(())}
 
     #[test]
     fn ignores_in_comments() -> Result<()> {
-        let source = "// describe.only('suite', () => {});";
+        let source = "// describe.skip('suite', () => {});";
         let violations = run_check(source);
         assert!(violations.is_empty());
     
@@ -193,7 +192,7 @@ mod tests {
 
     #[test]
     fn ignores_in_strings() -> Result<()> {
-        let source = r#"const text = "it.only('works', () => {})";"#;
+        let source = r#"const text = "it.skip('works', () => {})";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
     
@@ -201,7 +200,7 @@ mod tests {
 
     #[test]
     fn reports_correct_line() -> Result<()> {
-        let source = "const x = 1;\nit.only('works', () => {});\n";
+        let source = "const x = 1;\nit.skip('works', () => {});\n";
         let violations = run_check(source);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, Some(2));
@@ -209,8 +208,8 @@ mod tests {
         Ok(())}
 
     #[test]
-    fn fix_removes_describe_only() -> Result<()> {
-        let source = "describe.only('suite', () => {});";
+    fn fix_removes_describe_skip() -> Result<()> {
+        let source = "describe.skip('suite', () => {});";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "describe('suite', () => {});");
@@ -218,8 +217,8 @@ mod tests {
         Ok(())}
 
     #[test]
-    fn fix_removes_it_only() -> Result<()> {
-        let source = "it.only('works', () => {});";
+    fn fix_removes_it_skip() -> Result<()> {
+        let source = "it.skip('works', () => {});";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "it('works', () => {});");
@@ -227,8 +226,8 @@ mod tests {
         Ok(())}
 
     #[test]
-    fn fix_removes_test_only() -> Result<()> {
-        let source = "test.only('works', () => {});";
+    fn fix_removes_test_skip() -> Result<()> {
+        let source = "test.skip('works', () => {});";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "test('works', () => {});");
@@ -236,8 +235,8 @@ mod tests {
         Ok(())}
 
     #[test]
-    fn fix_removes_multiple_focused_tests() -> Result<()> {
-        let source = "describe.only('suite', () => { it.only('works', () => {}); });";
+    fn fix_removes_multiple_skipped_tests() -> Result<()> {
+        let source = "describe.skip('suite', () => { it.skip('works', () => {}); });";
         let edits = run_fix(source);
         let fixed = apply_fix_edits(source, &edits);
         assert_eq!(fixed, "describe('suite', () => { it('works', () => {}); });");
@@ -245,15 +244,15 @@ mod tests {
         Ok(())}
 
     #[test]
-    fn fix_leaves_non_test_only() -> Result<()> {
-        let source = "foo.only('something');";
+    fn fix_leaves_non_test_skip() -> Result<()> {
+        let source = "foo.skip('something');";
         let edits = run_fix(source);
         assert!(edits.is_empty());
     
         Ok(())}
 
     #[test]
-    fn fix_no_focused_test_returns_empty() -> Result<()> {
+    fn fix_no_skipped_test_returns_empty() -> Result<()> {
         let source = "describe('suite', () => {});";
         let edits = run_fix(source);
         assert!(edits.is_empty());
@@ -262,7 +261,7 @@ mod tests {
 
     #[test]
     fn fix_disabled_returns_empty() -> Result<()> {
-        let source = "it.only('works', () => {});";
+        let source = "it.skip('works', () => {});";
         let allocator = Allocator::default();
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
         let program = parser_return.program;

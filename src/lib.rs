@@ -19,6 +19,7 @@ mod rule_documentation;
 pub mod rules;
 mod rules_runner;
 mod syntax;
+mod test_call_utils;
 mod tsconfig;
 mod watch;
 mod workspace;

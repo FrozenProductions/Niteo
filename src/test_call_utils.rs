@@ -6,7 +6,6 @@ const TEST_FUNCTION_NAMES: &[&str] = &["describe", "it", "test"];
 
 pub struct TestPropertyCall {
     pub function_name: String,
-    pub property_name: String,
     pub member_span: Span,
     pub object_span: Span,
     pub property_span: Span,
@@ -27,7 +26,6 @@ impl<'a, 'b> Visit<'a> for TestPropertyCollector<'a, 'b> {
         {
             self.calls.push(TestPropertyCall {
                 function_name: object.name.to_string(),
-                property_name: self.property_name.to_string(),
                 member_span: member.span,
                 object_span: object.span,
                 property_span: member.property.span,
