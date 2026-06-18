@@ -4,7 +4,7 @@ macro_rules! declare_rules {
     ) => {
         $( #[path = $path] pub mod $mod_name; )*
 
-        use std::path::{Path, PathBuf};
+        use std::path::{Component, Path, PathBuf};
 
         use crate::config::rule_metadata::FixCapability;
         use crate::config::Severity;
@@ -56,6 +56,8 @@ macro_rules! declare_rules {
 }
 
 use std::sync::Arc;
+
+use crate::config::structure::DomainConfig;
 
 declare_rules! {
     boolean_prefix => { id: BOOLEAN_PREFIX_RULE_ID, value: "boolean-prefix", path: "rules/domain/boolean_prefix.rs", config: crate::config::BooleanPrefixRuleConfig },
@@ -154,9 +156,60 @@ pub struct FileContext<'a> {
     pub source: &'a str,
     pub program: Option<&'a oxc_ast::ast::Program<'a>>,
     pub line_index: &'a LineIndex,
-    pub type_location_style: no_inline_types::TypeLocationStyle,
+    pub type_location_style: TypeLocationStyle,
     pub import_graph: Arc<ImportGraph>,
     pub workspace: Option<Arc<crate::workspace::Workspace>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TypeLocationStyle {
+    allows_type_files: bool,
+    allows_types_directories: bool,
+}
+
+impl TypeLocationStyle {
+    pub fn detect(files: &[PathBuf], types: &DomainConfig) -> Self {
+        let allows_type_files = files.iter().any(|file| is_type_file(file, types));
+        let allows_types_directories = files.iter().any(|file| is_in_types_directory(file, types));
+
+        // Fallback: default to type-file mode when no type directories exist (conservative default)
+        Self {
+            allows_type_files: allows_type_files || !allows_types_directories,
+            allows_types_directories,
+        }
+    }
+
+    fn allows_file(self, file: &Path, types: &DomainConfig) -> bool {
+        is_declaration_file(file)
+            || (self.allows_type_files && is_type_file(file, types))
+            || (self.allows_types_directories && is_in_types_directory(file, types))
+    }
+}
+
+fn is_type_file(file: &Path, types: &DomainConfig) -> bool {
+    file.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| {
+            types
+                .file_suffixes
+                .iter()
+                .any(|suffix| name.ends_with(suffix.as_str()))
+        })
+}
+
+fn is_declaration_file(file: &Path) -> bool {
+    file.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.ends_with(".d.ts"))
+}
+
+fn is_in_types_directory(file: &Path, types: &DomainConfig) -> bool {
+    file.components().any(|component| {
+        matches!(
+            component,
+            Component::Normal(name) if types.folders.iter().any(|folder| name.to_str() == Some(folder))
+        )
+    })
 }
 
 pub use crate::rules_runner::{

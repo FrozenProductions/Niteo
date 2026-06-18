@@ -86,7 +86,7 @@ pub fn check_files_with_parallelism(
         std::collections::HashMap::new();
     let mut type_styles_by_config: std::collections::HashMap<
         usize,
-        crate::rules::no_inline_types::TypeLocationStyle,
+        crate::rules::TypeLocationStyle,
     > = std::collections::HashMap::new();
 
     for (config_ptr, group_files) in &grouped {
@@ -107,10 +107,8 @@ pub fn check_files_with_parallelism(
             .iter()
             .any(|rule| rule.severity().is_enabled() && rule.needs_ast());
         let file_refs: Vec<PathBuf> = group_files.iter().map(|file| (*file).clone()).collect();
-        let type_location_style = crate::rules::no_inline_types::TypeLocationStyle::detect(
-            &file_refs,
-            &config.structure.types,
-        );
+        let type_location_style =
+            crate::rules::TypeLocationStyle::detect(&file_refs, &config.structure.types);
         rules_by_config.insert(*config_ptr, rules);
         needs_ast_by_config.insert(*config_ptr, needs_ast);
         type_styles_by_config.insert(*config_ptr, type_location_style);

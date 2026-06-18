@@ -93,10 +93,8 @@ pub fn fix_workspace(
             .any(|rule| rule.severity().is_enabled() && rule.needs_ast() && rule.supports_fix());
 
         let single_file = [file.clone()];
-        let type_location_style = crate::rules::no_inline_types::TypeLocationStyle::detect(
-            &single_file,
-            &config_for_file.structure.types,
-        );
+        let type_location_style =
+            crate::rules::TypeLocationStyle::detect(&single_file, &config_for_file.structure.types);
 
         let file_fixes = with_reusable_allocator(|allocator| {
             let line_index = crate::syntax::LineIndex::new(&source);

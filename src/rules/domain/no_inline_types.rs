@@ -1,39 +1,13 @@
-use std::path::{Component, Path, PathBuf};
+use std::path::Path;
 
 use oxc_ast::ast::{TSInterfaceDeclaration, TSTypeAliasDeclaration};
 use oxc_ast_visit::Visit;
 
 use crate::config::RuleConfig;
 use crate::config::structure::DomainConfig;
-use crate::rules::{NO_INLINE_TYPES_RULE_ID, Violation};
+use crate::rules::{NO_INLINE_TYPES_RULE_ID, TypeLocationStyle, Violation};
 use crate::syntax::LineIndex;
 const MESSAGE: &str = "Move exported contracts to a colocated type file or accepted types folder.";
-const DECLARATION_FILE_SUFFIX: &str = ".d.ts";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TypeLocationStyle {
-    allows_type_files: bool,
-    allows_types_directories: bool,
-}
-
-impl TypeLocationStyle {
-    pub fn detect(files: &[PathBuf], types: &DomainConfig) -> Self {
-        let allows_type_files = files.iter().any(|file| is_type_file(file, types));
-        let allows_types_directories = files.iter().any(|file| is_in_types_directory(file, types));
-
-        // Fallback: default to type-file mode when no type directories exist (conservative default)
-        Self {
-            allows_type_files: allows_type_files || !allows_types_directories,
-            allows_types_directories,
-        }
-    }
-
-    fn allows_file(self, file: &Path, types: &DomainConfig) -> bool {
-        is_declaration_file(file)
-            || (self.allows_type_files && is_type_file(file, types))
-            || (self.allows_types_directories && is_in_types_directory(file, types))
-    }
-}
 
 pub fn check_file(
     file: &Path,
@@ -96,32 +70,6 @@ impl<'a, 'f> Visit<'a> for InlineTypesVisitor<'a, 'f> {
         });
         oxc_ast_visit::walk::walk_ts_interface_declaration(self, decl);
     }
-}
-
-fn is_type_file(file: &Path, types: &DomainConfig) -> bool {
-    file.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| {
-            types
-                .file_suffixes
-                .iter()
-                .any(|suffix| name.ends_with(suffix.as_str()))
-        })
-}
-
-fn is_declaration_file(file: &Path) -> bool {
-    file.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name.ends_with(DECLARATION_FILE_SUFFIX))
-}
-
-fn is_in_types_directory(file: &Path, types: &DomainConfig) -> bool {
-    file.components().any(|component| {
-        matches!(
-            component,
-            Component::Normal(name) if types.folders.iter().any(|folder| name.to_str() == Some(folder))
-        )
-    })
 }
 
 #[cfg(test)]
