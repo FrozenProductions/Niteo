@@ -8,7 +8,7 @@ mod commands;
 mod config;
 mod directory_inventory;
 mod discovery;
-pub mod fix;
+mod fix;
 mod git;
 mod ignore;
 mod import_graph;

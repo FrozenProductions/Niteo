@@ -299,22 +299,6 @@ pub fn extend_end_through_optional_semicolon(source: &str, end: usize) -> usize 
     }
 }
 
-pub fn extend_end_through_line_trivia(source: &str, end: usize) -> usize {
-    let after = source.get(end..).unwrap_or("");
-    let mut new_end = end;
-    for (index, byte) in after.bytes().enumerate() {
-        match byte {
-            b' ' | b'\t' => new_end = end + index + 1,
-            b'\n' => {
-                new_end = end + index + 1;
-                break;
-            }
-            _ => break,
-        }
-    }
-    new_end
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -486,22 +470,6 @@ mod tests {
         let source = "debugger more";
         let end = 8;
         assert_eq!(extend_end_through_optional_semicolon(source, end), 8);
-        Ok(())
-    }
-
-    #[test]
-    fn extend_end_through_line_trivia_stops_after_newline() -> Result<()> {
-        let source = "abc   \nmore";
-        let end = 3;
-        assert_eq!(extend_end_through_line_trivia(source, end), 7);
-        Ok(())
-    }
-
-    #[test]
-    fn extend_end_through_line_trivia_stops_at_non_whitespace() -> Result<()> {
-        let source = "abc   more";
-        let end = 3;
-        assert_eq!(extend_end_through_line_trivia(source, end), 6);
         Ok(())
     }
 
