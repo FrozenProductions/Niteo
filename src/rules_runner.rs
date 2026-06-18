@@ -69,26 +69,27 @@ pub fn check_files_with_parallelism(
     let mut suppression_files = Vec::new();
     let mut parse_failures: HashMap<PathBuf, String> = HashMap::new();
 
-    // Group files by stable config id so rules are built once per unique config
-    let mut grouped: std::collections::HashMap<usize, Vec<&PathBuf>> =
-        std::collections::HashMap::new();
+    // Group files by stable config id so rules are built once per unique config.
+    // Config ids are dense (0..config_count), so a Vec indexed by id beats a HashMap.
+    let config_count = config_set.configs().count();
+    let mut grouped: Vec<Vec<&PathBuf>> = vec![Vec::new(); config_count];
     for file in files {
         let (config_id, _) = config_set.config_with_id_for_file(file);
-        grouped.entry(config_id).or_default().push(file);
+        grouped[config_id].push(file);
     }
 
-    let mut rules_by_config: std::collections::HashMap<
-        usize,
-        Arc<Vec<Box<dyn FileRule + Send + Sync>>>,
-    > = std::collections::HashMap::new();
-    let mut needs_ast_by_config: std::collections::HashMap<usize, bool> =
-        std::collections::HashMap::new();
-    let mut type_styles_by_config: std::collections::HashMap<
-        usize,
-        crate::rules::TypeLocationStyle,
-    > = std::collections::HashMap::new();
+    struct ConfigRuntime {
+        rules: Arc<Vec<Box<dyn FileRule + Send + Sync>>>,
+        needs_ast: bool,
+        type_location_style: crate::rules::TypeLocationStyle,
+    }
+    let mut runtime_by_config: Vec<Option<ConfigRuntime>> =
+        (0..config_count).map(|_| None).collect();
 
-    for (config_id, group_files) in &grouped {
+    for (config_id, group_files) in grouped.iter().enumerate() {
+        if group_files.is_empty() {
+            continue;
+        }
         let first_file = group_files.first().context("empty config group")?;
         let (_, config) = config_set.config_with_id_for_file(first_file);
         let rules = Arc::new(build_file_rules(
@@ -108,23 +109,21 @@ pub fn check_files_with_parallelism(
         let file_refs: Vec<PathBuf> = group_files.iter().map(|file| (*file).clone()).collect();
         let type_location_style =
             crate::rules::TypeLocationStyle::detect(&file_refs, &config.structure.types);
-        rules_by_config.insert(*config_id, rules);
-        needs_ast_by_config.insert(*config_id, needs_ast);
-        type_styles_by_config.insert(*config_id, type_location_style);
+        runtime_by_config[config_id] = Some(ConfigRuntime {
+            rules,
+            needs_ast,
+            type_location_style,
+        });
     }
 
     let process_file = |file: &PathBuf| -> Result<FileResult> {
         let (config_id, _) = config_set.config_with_id_for_file(file);
-        let Some(rules) = rules_by_config.get(&config_id) else {
+        let Some(runtime) = runtime_by_config.get(config_id).and_then(Option::as_ref) else {
             return Ok((Vec::new(), None, None));
         };
-        let rules = rules.clone();
-        let needs_ast = *needs_ast_by_config
-            .get(&config_id)
-            .context("missing needs_ast for config")?;
-        let type_location_style = *type_styles_by_config
-            .get(&config_id)
-            .context("missing type style for config")?;
+        let rules = runtime.rules.clone();
+        let needs_ast = runtime.needs_ast;
+        let type_location_style = runtime.type_location_style;
 
         let source = std::fs::read_to_string(file)
             .with_context(|| format!("failed to read {}", file.display()))?;
