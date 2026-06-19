@@ -48,6 +48,8 @@ niteo explain no-console --format json
 | `no-barrel-files`                | `warn`           | Avoid `index.ts` barrel files.                                                       | `severity`                                               |
 | `no-circular-import`             | `warn`           | Detect circular import chains between modules.                                       | `severity`                                               |
 | `no-comments`                    | `warn`           | Discourage implementation comments that duplicate code.                              | `allow-doc-comments`                                     |
+| `no-console`                     | `warn`           | Keep debugging output out of application code.                                      | `severity`, `allow-patterns`                             |
+| `no-debugger`                    | `warn`           | Prevent committed `debugger` statements from stopping runtime execution.             | `severity`                                               |
 | `no-default-export`              | `warn`           | Prefer named exports. Set `components-only = true` to scope to component files only. | `components-only`, `project.structure.components`        |
 | `no-duplicate-file-names`        | `warn`           | Avoid repeated file names that make editor tabs and stack traces ambiguous.          | `ignore-names`                                           |
 | `no-dump-files`                  | `warn`           | Disallow generic file names such as `utils.ts`, `helpers.ts`, and `types.ts`.        | `extra-names`                                            |
@@ -71,6 +73,8 @@ niteo explain no-console --format json
 | `no-namespace`                   | `warn`           | Prefer ES modules over TypeScript namespaces.                                        | `severity`                                               |
 | `no-non-null-assertion`          | `warn`           | Disallow the non-null assertion operator.                                            | `severity`                                               |
 | `no-magic-numbers`               | `warn`           | Disallow numeric literals outside constants.                                         | `allowed-numbers`                                        |
+| `no-package-cycle`               | `warn`           | Detect circular dependencies between workspace packages.                             | `severity`                                               |
+| `no-private-package-import`      | `warn`           | Prevent importing internal files from other packages.                                | `severity`                                               |
 | `no-process-env`                 | `warn`           | Prevent direct access to `process.env`.                                              | `severity`                                               |
 | `no-restricted-imports`          | `warn`           | Block imports from a configurable deny-list of packages or paths.                    | `restricted`                                             |
 | `no-side-effect-imports`         | `warn`           | Disallow bare side-effect imports like `import "./styles.css"`.                      | `severity`                                               |
