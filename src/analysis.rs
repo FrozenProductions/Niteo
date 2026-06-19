@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::config::{self, ConfigSet};
 use crate::discovery;
-use crate::git;
+use crate::git::{self, GitSelection};
 use crate::ignore::SuppressionReport;
 use crate::import_graph::{self, ImportGraph};
 use crate::rules;
@@ -22,7 +22,7 @@ pub struct AnalysisResult {
 pub struct AnalysisOptions {
     pub root_override: Option<PathBuf>,
     pub scope_override: Option<PathBuf>,
-    pub git_flag: bool,
+    pub git_selection: Option<GitSelection>,
     pub prompt_for_changed_files: bool,
     pub deny_child_configs: bool,
     pub cache_enabled: bool,
@@ -55,11 +55,11 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
 
     let tsconfig = crate::tsconfig::discover_and_parse(workspace_root)?;
 
-    let files = if options.git_flag {
-        resolve_changed_files(workspace_root)?
+    let files = if let Some(selection) = options.git_selection.as_ref() {
+        resolve_changed_files(workspace_root, selection)?
     } else {
         let prompt_changed = if options.prompt_for_changed_files {
-            match git::get_changed_typescript_files() {
+            match git::get_changed_typescript_files(&GitSelection::WorkingTree) {
                 Ok(changed) => changed,
                 Err(err) => {
                     eprintln!("warning: could not detect changed files via git: {err}");
@@ -70,7 +70,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
             Vec::new()
         };
         if !prompt_changed.is_empty() && git::prompt_scan_changed_files(&prompt_changed)? {
-            resolve_changed_files(workspace_root)?
+            resolve_changed_files(workspace_root, &GitSelection::WorkingTree)?
         } else {
             discovery::discover_files(
                 &project_root,
@@ -219,8 +219,8 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
     })
 }
 
-pub fn resolve_changed_files(workspace: &Path) -> Result<Vec<PathBuf>> {
-    git::get_changed_typescript_files().map(|files| {
+pub fn resolve_changed_files(workspace: &Path, selection: &GitSelection) -> Result<Vec<PathBuf>> {
+    git::get_changed_typescript_files(selection).map(|files| {
         files
             .into_iter()
             .map(|f: PathBuf| {

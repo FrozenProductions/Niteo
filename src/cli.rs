@@ -1,6 +1,8 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
+use crate::git::GitSelection;
+
 #[derive(Debug, Parser)]
 #[command(
     name = "niteo",
@@ -29,9 +31,24 @@ pub struct CliOptions {
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
-    /// Scan changed TypeScript files only.
+    /// Scan changed TypeScript files only. Optionally pass a revision range like `main..HEAD`.
+    #[arg(
+        long,
+        global = true,
+        value_name = "RANGE",
+        num_args = 0..=1,
+        default_missing_value = "",
+        conflicts_with_all = ["git_staged", "git_unstaged"],
+    )]
+    pub git: Option<String>,
+
+    /// Scan only staged TypeScript changes (index vs HEAD).
+    #[arg(long, global = true, conflicts_with = "git_unstaged")]
+    pub git_staged: bool,
+
+    /// Scan only unstaged TypeScript changes (working tree vs index).
     #[arg(long, global = true)]
-    pub git: bool,
+    pub git_unstaged: bool,
 
     /// Output format.
     #[arg(long, global = true, value_enum, default_value_t = OutputFormat::Text)]
@@ -76,6 +93,22 @@ pub struct CliOptions {
     /// Fail when nested niteo.toml files are found inside the scan scope.
     #[arg(long, global = true)]
     pub deny_child_configs: bool,
+}
+
+impl CliOptions {
+    pub fn git_selection(&self) -> Option<GitSelection> {
+        if self.git_staged {
+            return Some(GitSelection::Staged);
+        }
+        if self.git_unstaged {
+            return Some(GitSelection::Unstaged);
+        }
+        match self.git.as_deref() {
+            None => None,
+            Some("") => Some(GitSelection::WorkingTree),
+            Some(range) => Some(GitSelection::Range(range.to_string())),
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]

@@ -10,7 +10,7 @@ use crate::fix;
 
 pub struct FixOptions {
     pub dry_run: bool,
-    pub git_flag: bool,
+    pub git_selection: Option<crate::git::GitSelection>,
     pub baseline_path: PathBuf,
     pub deny_child_configs: bool,
 }
@@ -26,7 +26,7 @@ pub fn fix_workspace(
         AnalysisOptions {
             root_override: root_override.clone(),
             scope_override,
-            git_flag: options.git_flag,
+            git_selection: options.git_selection,
             prompt_for_changed_files: false,
             deny_child_configs: options.deny_child_configs,
             cache_enabled: false,

@@ -41,7 +41,7 @@ Niteo complements ESLint and Knip rather than replacing them. Where ESLint check
 - **Watch mode** — `niteo lint --watch` re-lints on every file change during development.
 - **Cache** — `niteo lint --cache` caches import graph analysis, parsed AST results, and rule violations for faster repeated runs. Automatically invalidated when files, config, or Niteo version changes.
 - **Health score** — every run produces a 0–100 score so you can track structural health over time.
-- **Git-aware scanning** — `--git` limits analysis to changed files, keeping feedback fast on large codebases. Interactive mode auto-detects changed files with best-effort fallback.
+- **Git-aware scanning** — `--git` limits analysis to changed files, with `--git BASE..HEAD` for revision ranges and `--git-staged` / `--git-unstaged` for pre-commit and working-tree workflows. Interactive mode auto-detects changed files with best-effort fallback.
 
 ## Installation
 
@@ -94,6 +94,8 @@ niteo lint --format json --output report.json
 niteo lint --format sarif --output report.sarif
 niteo lint --watch
 niteo lint --git
+niteo lint --git origin/main..HEAD
+niteo lint --git-staged
 niteo lint --fail-on error
 niteo lint --cache
 niteo lint --cache --watch

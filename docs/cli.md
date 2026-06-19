@@ -17,7 +17,9 @@ These options are accepted by every command.
 | `--root <path>`         |       | Project root to scan. Overrides `[project].root`.                                                       |
 | `--scope <path>`        |       | Limit scanning to a path inside the project root.                                                       |
 | `--verbose`             | `-v`  | Show every violation in text reports.                                                                   |
-| `--git`                 |       | Scan changed TypeScript files only. Fails if git is unavailable.                                        |
+| `--git [RANGE]`         |       | Scan changed TypeScript files only. Optionally pass a revision range like `main..HEAD`. Fails if git is unavailable. |
+| `--git-staged`          |       | Scan only staged TypeScript changes (index vs HEAD). Mutually exclusive with `--git` and `--git-unstaged`. |
+| `--git-unstaged`        |       | Scan only unstaged TypeScript changes (working tree vs index, plus untracked files). Mutually exclusive with `--git` and `--git-staged`. |
 | `--format <format>`     |       | Output format. Supported values: `text`, `json`, `sarif`, `ndjson`.                                     |
 | `--output <path>`       | `-o`  | Write output to a file instead of stdout.                                                               |
 | `--baseline <path>`     |       | Baseline file path. Overrides `[project] baseline` in `niteo.toml`. Defaults to `niteo-baseline.json`.  |
@@ -58,6 +60,15 @@ Scan only changed files? [Y/n]
 If git is unavailable or the detection fails, Niteo prints a warning and falls back to a full project scan. This makes interactive use resilient outside git repositories.
 
 Use `--git` in scripts and CI when you want changed-file scanning without an interactive prompt. The `--git` flag is strict: it fails immediately if git is unavailable or returns an error.
+
+Pass a revision range to `--git` to scope to commits in that range — useful for pull request CI:
+
+```sh
+niteo lint --git origin/main..HEAD
+niteo lint --git "$BASE_SHA..HEAD"
+```
+
+Use `--git-staged` to scan only files staged for commit (ideal for pre-commit hooks), or `--git-unstaged` to scan only working-tree changes (including untracked files). These three flags are mutually exclusive.
 
 For full protection on main branches, prefer scanning the whole configured root. See [CI Usage](./ci.md#changed-files) for a comparison of full scan vs. `--git`.
 
@@ -127,6 +138,8 @@ niteo fix --dry-run           # Preview without writing
 niteo fix --root src           # Fix only src/
 niteo fix --scope src/components
 niteo fix --git                # Fix only changed files
+niteo fix --git-staged         # Fix only staged files
+niteo fix --git main..HEAD     # Fix files changed in a revision range
 niteo fix --baseline niteo-baseline.json
 ```
 

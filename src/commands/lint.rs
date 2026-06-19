@@ -9,7 +9,7 @@ use crate::report;
 #[derive(Clone)]
 pub struct LintOptions {
     pub verbose: bool,
-    pub git_flag: bool,
+    pub git_selection: Option<crate::git::GitSelection>,
     pub output_format: OutputFormat,
     pub output_path: Option<PathBuf>,
     pub baseline_path: PathBuf,
@@ -33,7 +33,7 @@ pub fn lint_workspace(
         AnalysisOptions {
             root_override: root_override.clone(),
             scope_override,
-            git_flag: opts.git_flag,
+            git_selection: opts.git_selection.clone(),
             prompt_for_changed_files,
             deny_child_configs: opts.deny_child_configs,
             cache_enabled: opts.cache_enabled,

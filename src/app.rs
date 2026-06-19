@@ -13,6 +13,7 @@ pub fn run() -> Result<ExitCode> {
     let workspace = std::env::current_dir()?;
     let baseline_path =
         crate::config::resolve_baseline_path(&workspace, cli.options.baseline.clone())?;
+    let git_selection = cli.options.git_selection();
 
     let exit_code = match cli.command.unwrap_or(Command::Lint { fix: false }) {
         Command::Init { preset } => {
@@ -29,7 +30,7 @@ pub fn run() -> Result<ExitCode> {
                     &workspace,
                     cli.options.root,
                     cli.options.scope,
-                    cli.options.git,
+                    git_selection.clone(),
                     baseline_path,
                     cli.options.report_suppressions,
                     cli.options.deny_child_configs,
@@ -41,7 +42,7 @@ pub fn run() -> Result<ExitCode> {
                     &workspace,
                     cli.options.root,
                     cli.options.scope,
-                    cli.options.git,
+                    git_selection.clone(),
                     baseline_path,
                     cli.options.deny_child_configs,
                 )?;
@@ -81,7 +82,7 @@ pub fn run() -> Result<ExitCode> {
                 &workspace,
                 cli.options.root,
                 cli.options.scope,
-                cli.options.git,
+                git_selection.clone(),
                 cli.options.format,
                 cli.options.output,
             )?;
@@ -92,7 +93,7 @@ pub fn run() -> Result<ExitCode> {
                 &workspace,
                 cli.options.root,
                 cli.options.scope,
-                cli.options.git,
+                git_selection.clone(),
                 cli.options.format,
                 cli.options.output,
             )?;
@@ -107,7 +108,7 @@ pub fn run() -> Result<ExitCode> {
 
             let opts = commands::lint::LintOptions {
                 verbose: cli.options.verbose,
-                git_flag: cli.options.git,
+                git_selection: git_selection.clone(),
                 output_format: cli.options.format,
                 output_path: cli.options.output,
                 baseline_path: baseline_path.clone(),
@@ -152,7 +153,7 @@ pub fn run() -> Result<ExitCode> {
                     cli.options.scope,
                     commands::fix::FixOptions {
                         dry_run: false,
-                        git_flag: cli.options.git,
+                        git_selection: git_selection.clone(),
                         baseline_path: baseline_path.clone(),
                         deny_child_configs: cli.options.deny_child_configs,
                     },
@@ -168,7 +169,7 @@ pub fn run() -> Result<ExitCode> {
                 cli.options.scope,
                 commands::fix::FixOptions {
                     dry_run,
-                    git_flag: cli.options.git,
+                    git_selection,
                     baseline_path,
                     deny_child_configs: cli.options.deny_child_configs,
                 },

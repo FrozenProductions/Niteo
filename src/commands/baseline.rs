@@ -9,7 +9,7 @@ pub fn create(
     workspace: &Path,
     root_override: Option<PathBuf>,
     scope_override: Option<PathBuf>,
-    git_flag: bool,
+    git_selection: Option<crate::git::GitSelection>,
     baseline_path: PathBuf,
     report_suppressions: bool,
     deny_child_configs: bool,
@@ -19,7 +19,7 @@ pub fn create(
         AnalysisOptions {
             root_override: root_override.clone(),
             scope_override,
-            git_flag,
+            git_selection: git_selection.clone(),
             prompt_for_changed_files: false,
             deny_child_configs,
             cache_enabled: false,
@@ -53,7 +53,7 @@ pub fn prune(
     workspace: &Path,
     root_override: Option<PathBuf>,
     scope_override: Option<PathBuf>,
-    git_flag: bool,
+    git_selection: Option<crate::git::GitSelection>,
     baseline_path: PathBuf,
     deny_child_configs: bool,
 ) -> Result<()> {
@@ -67,7 +67,7 @@ pub fn prune(
         AnalysisOptions {
             root_override,
             scope_override,
-            git_flag,
+            git_selection: git_selection.clone(),
             prompt_for_changed_files: false,
             deny_child_configs,
             cache_enabled: false,

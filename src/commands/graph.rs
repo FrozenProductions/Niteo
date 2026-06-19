@@ -12,7 +12,7 @@ pub fn show(
     workspace: &Path,
     root_override: Option<PathBuf>,
     scope_override: Option<PathBuf>,
-    git_flag: bool,
+    git_selection: Option<crate::git::GitSelection>,
     output_format: OutputFormat,
     output_path: Option<PathBuf>,
 ) -> Result<()> {
@@ -22,8 +22,8 @@ pub fn show(
 
     let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
 
-    let files = if git_flag {
-        crate::analysis::resolve_changed_files(workspace)?
+    let files = if let Some(selection) = git_selection.as_ref() {
+        crate::analysis::resolve_changed_files(workspace, selection)?
     } else {
         discovery::discover_files(
             &project_config.root,

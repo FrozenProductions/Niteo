@@ -126,22 +126,29 @@ Scans every TypeScript file under the configured root. Best for main branch CI w
 
 ```sh
 npx niteo-cli lint --git
+npx niteo-cli lint --git origin/main..HEAD
+npx niteo-cli lint --git-staged
+npx niteo-cli lint --git-unstaged
 ```
 
-Scans TypeScript files changed on this branch. `--git` uses:
+Scans TypeScript files changed on this branch. Only `.ts` and `.tsx` files are included.
 
-```sh
-git diff --name-only HEAD
-git diff --name-only --cached
-```
+| Flag                  | Files included                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------------- |
+| `--git`               | Working-tree diff vs HEAD, staged diff vs HEAD, and untracked files.                      |
+| `--git RANGE`         | `git diff --name-only RANGE` (e.g. `main..HEAD`, `$BASE_SHA..HEAD`).                      |
+| `--git-staged`        | Staged diff only (`git diff --name-only --cached`). Ideal for pre-commit hooks.           |
+| `--git-unstaged`      | Working-tree diff vs index plus untracked files. Excludes staged changes.                 |
 
-Only `.ts` and `.tsx` files are included.
+`--git`, `--git-staged`, and `--git-unstaged` are mutually exclusive.
 
 **When to use full scan:** main branch CI, release pipelines, scheduled audits.
 
-**When to use `--git`:** pull request CI for fast feedback, local development runs.
+**When to use `--git RANGE`:** pull request CI — scope to commits in the PR (e.g. `${{ github.event.pull_request.base.sha }}..HEAD`).
 
-The `--git` flag is strict: it fails immediately if git is unavailable or returns an error. This ensures CI pipelines fail visibly when git context is missing rather than silently scanning the wrong files.
+**When to use `--git-staged`:** pre-commit hooks (e.g. lint-staged, husky).
+
+The `--git*` flags are strict: they fail immediately if git is unavailable or returns an error. This ensures CI pipelines fail visibly when git context is missing rather than silently scanning the wrong files.
 
 ### Changed file detection without `--git`
 

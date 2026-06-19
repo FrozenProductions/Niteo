@@ -5,45 +5,83 @@ use std::process::Command;
 
 use crate::syntax;
 
-pub fn get_changed_typescript_files() -> Result<Vec<PathBuf>> {
+#[derive(Debug, Clone)]
+pub enum GitSelection {
+    /// Working-tree changes plus staged changes (diff against HEAD plus index).
+    WorkingTree,
+    /// Only staged changes (index vs HEAD).
+    Staged,
+    /// Only unstaged working-tree changes (working tree vs index).
+    Unstaged,
+    /// Files changed in a revision range, e.g. `main..HEAD`.
+    Range(String),
+}
+
+pub fn get_changed_typescript_files(selection: &GitSelection) -> Result<Vec<PathBuf>> {
+    match selection {
+        GitSelection::WorkingTree => {
+            let mut files = run_git_paths(&["diff", "--name-only", "HEAD"])?;
+            merge_unique(
+                &mut files,
+                run_git_paths(&["diff", "--name-only", "--cached"])?,
+            );
+            merge_unique(&mut files, run_git_paths(&untracked_args())?);
+            Ok(files)
+        }
+        GitSelection::Staged => run_git_paths(&["diff", "--name-only", "--cached"]),
+        GitSelection::Unstaged => {
+            let mut files = run_git_paths(&["diff", "--name-only"])?;
+            merge_unique(&mut files, run_git_paths(&untracked_args())?);
+            Ok(files)
+        }
+        GitSelection::Range(range) => {
+            validate_range(range)?;
+            run_git_paths(&["diff", "--name-only", range])
+        }
+    }
+}
+
+fn untracked_args() -> [&'static str; 3] {
+    ["ls-files", "--others", "--exclude-standard"]
+}
+
+fn merge_unique(target: &mut Vec<PathBuf>, additions: Vec<PathBuf>) {
+    for path in additions {
+        if !target.contains(&path) {
+            target.push(path);
+        }
+    }
+}
+
+fn run_git_paths(args: &[&str]) -> Result<Vec<PathBuf>> {
     let output = Command::new("git")
-        .args(["diff", "--name-only", "HEAD"])
+        .args(args)
         .output()
-        .with_context(|| "failed to execute git diff HEAD")?;
-
-    let staged_output = Command::new("git")
-        .args(["diff", "--name-only", "--cached"])
-        .output()
-        .with_context(|| "failed to execute git diff --cached")?;
-
-    let mut files: Vec<PathBuf> = Vec::new();
+        .with_context(|| format!("failed to execute git {}", args.join(" ")))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("git diff HEAD failed: {}", stderr.trim());
+        bail!("git {} failed: {}", args.join(" "), stderr.trim());
     }
+
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut files = Vec::new();
     for line in stdout.lines() {
         if is_typescript_file(line) {
             files.push(PathBuf::from(line));
         }
     }
-
-    if !staged_output.status.success() {
-        let stderr = String::from_utf8_lossy(&staged_output.stderr);
-        bail!("git diff --cached failed: {}", stderr.trim());
-    }
-    let stdout = String::from_utf8_lossy(&staged_output.stdout);
-    for line in stdout.lines() {
-        if is_typescript_file(line) {
-            let path = PathBuf::from(line);
-            if !files.contains(&path) {
-                files.push(path);
-            }
-        }
-    }
-
     Ok(files)
+}
+
+fn validate_range(range: &str) -> Result<()> {
+    if range.is_empty() {
+        bail!("git range cannot be empty");
+    }
+    if range.starts_with('-') {
+        bail!("git range cannot start with '-': {range}");
+    }
+    Ok(())
 }
 
 pub fn prompt_scan_changed_files(changed_files: &[PathBuf]) -> Result<bool> {
