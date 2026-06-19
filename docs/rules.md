@@ -73,6 +73,7 @@ niteo explain no-console --format json
 | `no-magic-numbers`               | `warn`           | Disallow numeric literals outside constants.                                         | `allowed-numbers`                                        |
 | `no-process-env`                 | `warn`           | Prevent direct access to `process.env`.                                              | `severity`                                               |
 | `no-restricted-imports`          | `warn`           | Block imports from a configurable deny-list of packages or paths.                    | `restricted`                                             |
+| `no-side-effect-imports`         | `warn`           | Disallow bare side-effect imports like `import "./styles.css"`.                      | `severity`                                               |
 | `no-silent-catch`                | `warn`           | Require catch blocks to log, rethrow, or return a fallback.                          | `severity`                                               |
 | `no-skipped-test`                | `warn`           | Disallow skipped tests (`describe.skip`, `it.skip`, `test.skip`).                    | `severity`                                               |
 | `no-test-code-in-production`     | `warn`           | Disallow test globals and test library imports outside test files.                   | `project.structure.tests`                                |

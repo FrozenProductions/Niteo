@@ -201,6 +201,12 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_eval
 );
+ast_rule_adapter!(
+    NoSideEffectImportsAdapter,
+    NO_SIDE_EFFECT_IMPORTS_RULE_ID,
+    crate::config::RuleConfig,
+    no_side_effect_imports
+);
 fixable_ast_rule_adapter!(
     NoEmptyInterfaceAdapter,
     NO_EMPTY_INTERFACE_RULE_ID,

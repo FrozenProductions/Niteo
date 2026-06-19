@@ -387,6 +387,7 @@ declare_raw_rules! {
         no_circular_import => "no-circular-import",
         no_barrel_files => "no-barrel-files",
         no_debugger => "no-debugger",
+        no_side_effect_imports => "no-side-effect-imports",
         no_enums => "no-enums",
         explicit_return_type => "explicit-return-type",
         no_eval => "no-eval",

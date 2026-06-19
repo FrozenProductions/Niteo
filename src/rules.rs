@@ -101,6 +101,7 @@ declare_rules! {
     no_logic_in_domain => { id: NO_LOGIC_IN_DOMAIN_RULE_ID, value: "no-logic-in-domain", path: "rules/domain/no_logic_in_domain.rs", config: crate::config::RuleConfig },
     no_abbreviations => { id: NO_ABBREVIATIONS_RULE_ID, value: "no-abbreviations", path: "rules/hygiene/no_abbreviations.rs", config: crate::config::NoAbbreviationsRuleConfig },
     no_restricted_imports => { id: NO_RESTRICTED_IMPORTS_RULE_ID, value: "no-restricted-imports", path: "rules/imports/no_restricted_imports.rs", config: crate::config::NoRestrictedImportsRuleConfig },
+    no_side_effect_imports => { id: NO_SIDE_EFFECT_IMPORTS_RULE_ID, value: "no-side-effect-imports", path: "rules/imports/no_side_effect_imports.rs", config: crate::config::RuleConfig },
     no_mutable_exports => { id: NO_MUTABLE_EXPORTS_RULE_ID, value: "no-mutable-exports", path: "rules/exports/no_mutable_exports.rs", config: crate::config::RuleConfig },
     no_namespace => { id: NO_NAMESPACE_RULE_ID, value: "no-namespace", path: "rules/typescript/no_namespace.rs", config: crate::config::RuleConfig },
     no_nested_functions => { id: NO_NESTED_FUNCTIONS_RULE_ID, value: "no-nested-functions", path: "rules/hygiene/no_nested_functions.rs", config: crate::config::NoNestedFunctionsRuleConfig },

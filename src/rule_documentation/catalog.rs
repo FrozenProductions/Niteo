@@ -68,6 +68,7 @@ define_rule_kinds! {
     NoProcessEnv,
     NoNamespace,
     NoRestrictedImports,
+    NoSideEffectImports,
     NoSilentCatch,
     NoSkippedTest,
     NoTestCodeInProduction,
@@ -443,6 +444,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             },
         ],
         kind: RuleKind::NoConsole,
+    },
+    RuleDocumentation {
+        name: "no-side-effect-imports",
+        intent: "Disallow bare side-effect imports such as `import \"./styles.css\"`; prefer importing named bindings or types.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "import \"./styles.css\";",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "import { styles } from \"./styles\";",
+            },
+        ],
+        options: NO_OPTIONS,
+        kind: RuleKind::NoSideEffectImports,
     },
     RuleDocumentation {
         name: "no-debugger",

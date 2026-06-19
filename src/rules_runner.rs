@@ -327,6 +327,9 @@ pub fn build_file_rules(
         Box::new(NoEvalAdapter {
             config: config.no_eval.clone(),
         }),
+        Box::new(NoSideEffectImportsAdapter {
+            config: config.no_side_effect_imports.clone(),
+        }),
         Box::new(NoEmptyInterfaceAdapter {
             config: config.no_empty_interface.clone(),
         }),

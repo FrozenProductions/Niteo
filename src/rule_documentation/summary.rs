@@ -128,6 +128,9 @@ pub(crate) fn summarize_rule(config: &ProjectConfig, kind: RuleKind) -> RuleConf
             )],
         },
         RuleKind::NoDebugger => simple_summary(config.rules.no_debugger.severity),
+        RuleKind::NoSideEffectImports => {
+            simple_summary(config.rules.no_side_effect_imports.severity)
+        }
         RuleKind::NoDefaultExport => RuleConfigSummary {
             severity: config.rules.no_default_export.severity,
             options: vec![format!(

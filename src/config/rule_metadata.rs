@@ -278,6 +278,16 @@ const RULE_METADATA: &[RuleMetadata] = &[
         analysis_kind: RuleAnalysisKind::Ast,
     },
     RuleMetadata {
+        id: "no-side-effect-imports",
+        title: "No side-effect imports",
+        category: RuleCategory::Import,
+        default_severity: Severity::Warn,
+        known_options: &["severity"],
+        conflicts: &[],
+        fix_capability: FixCapability::None,
+        analysis_kind: RuleAnalysisKind::Ast,
+    },
+    RuleMetadata {
         id: "no-debugger",
         title: "No debugger",
         category: RuleCategory::SourceHygiene,
