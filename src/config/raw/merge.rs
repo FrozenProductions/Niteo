@@ -13,6 +13,23 @@ impl RawConfig {
                 child.architecture.as_ref(),
             ),
             rules: Self::merge_rules(parent.rules.as_ref(), child.rules.as_ref()),
+            fix: Self::merge_fix(parent.fix.as_ref(), child.fix.as_ref()),
+        }
+    }
+
+    fn merge_fix(
+        parent: Option<&HashMap<String, bool>>,
+        child: Option<&HashMap<String, bool>>,
+    ) -> Option<HashMap<String, bool>> {
+        match (parent, child) {
+            (None, None) => None,
+            (Some(parent), None) => Some(parent.clone()),
+            (None, Some(child)) => Some(child.clone()),
+            (Some(parent), Some(child)) => {
+                let mut merged = parent.clone();
+                merged.extend(child.iter().map(|(k, v)| (k.clone(), *v)));
+                Some(merged)
+            }
         }
     }
 
@@ -226,6 +243,29 @@ respect-gitignore = false
         let project = merged.project.as_ref().context("expected project")?;
         assert_eq!(project.root, Some(PathBuf::from("src")));
         assert_eq!(project.respect_gitignore, Some(false));
+        Ok(())
+    }
+
+    #[test]
+    fn merge_fix_child_overrides_parent() -> Result<()> {
+        let parent: RawConfig = toml::from_str(
+            r#"
+[fix]
+no-debugger = false
+no-focused-test = true
+"#,
+        )?;
+        let child: RawConfig = toml::from_str(
+            r#"
+[fix]
+no-debugger = true
+"#,
+        )?;
+
+        let merged = RawConfig::merge(&parent, &child);
+        let fix = merged.fix.context("expected fix")?;
+        assert_eq!(fix.get("no-debugger"), Some(&true));
+        assert_eq!(fix.get("no-focused-test"), Some(&true));
         Ok(())
     }
 }

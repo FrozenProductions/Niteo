@@ -70,6 +70,41 @@ fn fix_dry_run_does_not_write_files() -> Result<()> {
 }
 
 #[test]
+fn fix_respects_per_rule_config_gate() -> Result<()> {
+    let project = harness::copy_fixture("fix")?;
+    let config_path = project.path().join("niteo.toml");
+    let mut config = fs::read_to_string(&config_path)?;
+    config.push_str(
+        r#"
+[fix]
+no-debugger = false
+"#,
+    );
+    fs::write(&config_path, config)?;
+
+    let mut command = harness::niteo_in_project(project.path());
+    command.arg("fix");
+    let output = command.output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        output.status.success(),
+        "fix command failed:\nstdout: {stdout}\nstderr: {stderr}"
+    );
+
+    assert!(!stdout.contains("debugger.ts"), "stdout: {stdout}");
+    assert!(stdout.contains("focused.ts"), "stdout: {stdout}");
+
+    let debugger = fs::read_to_string(project.path().join("src/debugger.ts"))?;
+    assert!(debugger.contains("debugger;"));
+
+    let focused = fs::read_to_string(project.path().join("src/focused.ts"))?;
+    assert!(!focused.contains(".only"));
+    Ok(())
+}
+
+#[test]
 fn fix_is_idempotent() -> Result<()> {
     let project = harness::copy_fixture("fix")?;
 

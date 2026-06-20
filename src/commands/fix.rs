@@ -21,6 +21,7 @@ pub fn fix_workspace(
     scope_override: Option<PathBuf>,
     options: FixOptions,
 ) -> Result<()> {
+    let scan_scope = scope_override.clone();
     let collected = analysis::collect(
         workspace,
         AnalysisOptions {
@@ -42,11 +43,24 @@ pub fn fix_workspace(
         None => collected.violations,
     };
 
+    let config_set = crate::config::ConfigSet::resolve(
+        workspace,
+        crate::config::ConfigSetOptions {
+            root_override: root_override.clone(),
+            scan_scope: scan_scope.as_deref(),
+            deny_child_configs: options.deny_child_configs,
+        },
+    )?;
+
     let fixable_files: HashSet<PathBuf> = violations
         .iter()
         .filter(|violation| {
-            crate::config::rule_metadata::rule_by_id(violation.rule)
-                .is_some_and(|metadata| metadata.fix_capability != FixCapability::None)
+            let has_capability = crate::config::rule_metadata::rule_by_id(violation.rule)
+                .is_some_and(|metadata| metadata.fix_capability != FixCapability::None);
+            has_capability
+                && config_set
+                    .config_for_file(&violation.file)
+                    .fix_allowed(violation.rule)
         })
         .map(|violation| violation.file.clone())
         .collect();
@@ -55,15 +69,6 @@ pub fn fix_workspace(
         println!("No fixable violations found.");
         return Ok(());
     }
-
-    let config_set = crate::config::ConfigSet::resolve(
-        workspace,
-        crate::config::ConfigSetOptions {
-            root_override: root_override.clone(),
-            scan_scope: None,
-            deny_child_configs: options.deny_child_configs,
-        },
-    )?;
 
     let mut all_fixes = Vec::new();
 
@@ -127,7 +132,11 @@ pub fn fix_workspace(
             crate::fix::collect_fixes(&ctx, &rules)
         });
 
-        all_fixes.extend(file_fixes);
+        all_fixes.extend(
+            file_fixes
+                .into_iter()
+                .filter(|fix| config_for_file.fix_allowed(fix.rule)),
+        );
     }
 
     if all_fixes.is_empty() {

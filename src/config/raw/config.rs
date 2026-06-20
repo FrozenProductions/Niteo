@@ -15,6 +15,7 @@ pub struct RawConfig {
     pub project: Option<RawProjectConfig>,
     pub architecture: Option<RawArchitectureConfig>,
     pub rules: Option<HashMap<String, RawRuleConfig>>,
+    pub fix: Option<HashMap<String, bool>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

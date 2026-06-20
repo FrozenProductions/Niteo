@@ -110,7 +110,68 @@ pub fn validate_config_source(source: &str) -> ConfigValidationReport {
         validate_contradictions(rules, &mut diagnostics);
     }
 
+    if let Some(fix_value) = value.get("fix") {
+        if let Some(fix) = fix_value.as_table() {
+            validate_fix_table(fix, &mut diagnostics);
+        } else {
+            diagnostics.push(ConfigDiagnostic {
+                severity: ConfigDiagnosticSeverity::Error,
+                message: "[fix] must be a table of rule booleans".to_string(),
+                path: None,
+                rule: None,
+            });
+        }
+    }
+
     ConfigValidationReport { diagnostics }
+}
+
+fn validate_fix_table(fix: &toml::Table, diagnostics: &mut Vec<ConfigDiagnostic>) {
+    use crate::config::rule_metadata::{FixCapability, rule_by_id};
+
+    let known = known_rule_ids();
+    let known_set: std::collections::HashSet<_> = known.iter().copied().collect();
+
+    for (name, value) in fix {
+        if !value.is_bool() {
+            diagnostics.push(ConfigDiagnostic {
+                severity: ConfigDiagnosticSeverity::Error,
+                message: format!("[fix] \"{name}\" must be a boolean"),
+                path: None,
+                rule: None,
+            });
+            continue;
+        }
+
+        if !known_set.contains(name.as_str()) {
+            let closest = find_closest(name, &known_set);
+            let mut message = format!("unknown rule \"{name}\" in [fix]");
+            if let Some(hint) = closest {
+                message.push_str(&format!(". Did you mean \"{hint}\"?"));
+            }
+            diagnostics.push(ConfigDiagnostic {
+                severity: ConfigDiagnosticSeverity::Error,
+                message,
+                path: None,
+                rule: None,
+            });
+            continue;
+        }
+
+        let capability = rule_by_id(name)
+            .map(|meta| meta.fix_capability)
+            .unwrap_or(FixCapability::None);
+        if capability == FixCapability::None {
+            diagnostics.push(ConfigDiagnostic {
+                severity: ConfigDiagnosticSeverity::Warn,
+                message: format!(
+                    "rule \"{name}\" does not support autofix; [fix] entry has no effect"
+                ),
+                path: None,
+                rule: None,
+            });
+        }
+    }
 }
 
 fn validate_rule_names(rules: &toml::Table, diagnostics: &mut Vec<ConfigDiagnostic>) {
@@ -407,6 +468,70 @@ no-console = "warnign"
             .iter()
             .any(|d| d.message.contains("unknown severity") && d.message.contains("warnign"));
         assert!(has_severity_error);
+
+        Ok(())
+    }
+
+    #[test]
+    fn valid_fix_table_passes() -> Result<()> {
+        let source = r#"
+[fix]
+no-debugger = false
+no-focused-test = true
+"#;
+        let report = validate_config_source(source);
+        assert!(!report.has_errors());
+
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_fix_rule_reports_error() -> Result<()> {
+        let source = r#"
+[fix]
+no-debuggr = false
+"#;
+        let report = validate_config_source(source);
+        let has_unknown_fix_rule = report
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("unknown rule") && d.message.contains("[fix]"));
+        assert!(has_unknown_fix_rule);
+        assert!(report.has_errors());
+
+        Ok(())
+    }
+
+    #[test]
+    fn non_boolean_fix_value_reports_error() -> Result<()> {
+        let source = r#"
+[fix]
+no-debugger = "false"
+"#;
+        let report = validate_config_source(source);
+        let has_boolean_error = report
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("must be a boolean"));
+        assert!(has_boolean_error);
+        assert!(report.has_errors());
+
+        Ok(())
+    }
+
+    #[test]
+    fn non_fixable_rule_reports_warning() -> Result<()> {
+        let source = r#"
+[fix]
+no-console = false
+"#;
+        let report = validate_config_source(source);
+        let has_non_fixable_warning = report
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("does not support autofix"));
+        assert!(has_non_fixable_warning);
+        assert!(!report.has_errors());
 
         Ok(())
     }

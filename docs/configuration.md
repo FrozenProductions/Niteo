@@ -186,6 +186,35 @@ severity = "warn"
 max-lines = 300
 ```
 
+## Autofix Settings
+
+The optional `[fix]` table controls whether each rule may apply autofixes when you run `niteo fix` or `niteo lint --fix`.
+
+```toml
+[fix]
+no-debugger = true
+no-empty-interface = false
+```
+
+Each value must be a boolean. Rules default to `true`, so omitting a rule keeps autofix enabled for rules that support it. Set a rule to `false` to keep reporting its diagnostics while blocking its edits.
+
+Only rules with autofix support use this table. `niteo config check` reports unknown rule names, non-boolean values, and entries for rules that do not currently support autofix.
+
+In cascading configs, child `[fix]` entries merge with the parent table and override only the rules they declare:
+
+```toml
+# niteo.toml
+[fix]
+no-debugger = false
+no-focused-test = true
+```
+
+```toml
+# packages/app/niteo.toml
+[fix]
+no-debugger = true
+```
+
 ## Complete Example
 
 ```toml
@@ -238,6 +267,12 @@ ignore-constants = true
 [rules.no-any]
 severity = "warn"
 allowed-folders = ["legacy"]
+
+[fix]
+no-debugger = true
+no-focused-test = true
+no-skipped-test = true
+no-empty-interface = false
 ```
 
 ## Rule Options

@@ -158,6 +158,7 @@ fn raw_to_project_config(raw: &RawConfig, root: PathBuf) -> Result<ProjectConfig
         structure: raw.structure(),
         architecture: raw.architecture(),
         rules: raw.rules_config().map_err(anyhow::Error::msg)?,
+        fix_overrides: raw.fix.clone().unwrap_or_default(),
     })
 }
 
@@ -272,6 +273,7 @@ mod tests {
             structure: ProjectStructureConfig::default(),
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
+            fix_overrides: std::collections::HashMap::new(),
         };
 
         let child_config = ProjectConfig {
@@ -280,6 +282,7 @@ mod tests {
             structure: ProjectStructureConfig::default(),
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
+            fix_overrides: std::collections::HashMap::new(),
         };
 
         let root = ResolvedConfigNode {
@@ -320,6 +323,7 @@ mod tests {
             structure: ProjectStructureConfig::default(),
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
+            fix_overrides: std::collections::HashMap::new(),
         };
 
         let root = ResolvedConfigNode {
@@ -417,6 +421,7 @@ mod tests {
             structure: ProjectStructureConfig::default(),
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
+            fix_overrides: std::collections::HashMap::new(),
         };
 
         let root = ResolvedConfigNode {

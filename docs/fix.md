@@ -15,7 +15,7 @@ niteo lint --fix           # Lint, then apply fixes
 `niteo fix` runs the following pipeline:
 
 1. **Analyze.** Calls `analysis::collect()` — the same full analysis pass used by `niteo lint` — to gather violations across the project. Discovery, config resolution, baseline loading, and suppression handling are all shared.
-2. **Filter fixable files.** Collects the set of files that have violations from rules whose metadata has a non-`None` `fix_capability` (`Safe` or `Conditional`). Files without fixable violations are skipped entirely.
+2. **Filter fixable files.** Collects the set of files that have violations from rules whose metadata has a non-`None` `fix_capability` (`Safe` or `Conditional`) and whose `[fix]` gate allows the rule. Files without allowed fixable violations are skipped entirely.
 3. **Build rules per file.** For each fixable file, resolves the effective config and builds rule adapters. Only rules that are both enabled (severity not `off`) and support fix are invoked.
 4. **Parse AST if needed.** If any fixable rule for the file requires an AST, the file is parsed once with oxc. The parsed program is shared across all rules for that file.
 5. **Collect fixes.** Calls `fix::collect_fixes()`, which iterates the enabled fixable rules and calls `rule.fix(&ctx)`. Each rule returns `Vec<Fix>`; these are collected into one flat list.
@@ -48,7 +48,36 @@ app.rs → commands::fix::fix_workspace()
 
 ## How It Works
 
-`niteo fix` runs a full analysis pass to collect violations, then filters to rules that support autofix. For each fixable violation, the rule produces one or more `TextEdit` values — byte offsets and replacement text. Niteo applies these edits to the source file and writes the result back to disk.
+`niteo fix` runs a full analysis pass to collect violations, then filters to rules that support autofix and are allowed by `niteo.toml`. For each fixable violation, the rule produces one or more `TextEdit` values — byte offsets and replacement text. Niteo applies these edits to the source file and writes the result back to disk.
+
+## Per-rule Gates
+
+Use the `[fix]` table in `niteo.toml` to allow or block autofix per rule:
+
+```toml
+[fix]
+no-debugger = true
+no-empty-interface = false
+```
+
+Rules default to `true`, so existing projects keep the same behavior until a rule is explicitly set to `false`. A `false` entry disables only the autofix for that rule; diagnostics still run according to the rule's `[rules.<rule>]` severity.
+
+The gate applies to both `niteo fix` and `niteo lint --fix`. In monorepos, child `niteo.toml` files inherit the parent `[fix]` table and can override individual rule entries:
+
+```toml
+# root niteo.toml
+[fix]
+no-debugger = false
+no-focused-test = true
+```
+
+```toml
+# packages/app/niteo.toml
+[fix]
+no-debugger = true
+```
+
+With this setup, `no-debugger` autofix is disabled by default but re-enabled inside `packages/app`.
 
 ### Edit Model
 
@@ -58,7 +87,7 @@ The core edit engine in `src/fix.rs` provides:
 
 | Function | Purpose |
 |---|---|
-| `apply_fixes(fixes, dry_run)` | Groups edits by file, sorts by start offset, checks for overlap, applies edits, validates source freshness, writes files. Returns `FixOutcome`. |
+| `apply_fixes(fixes, options)` | Groups edits by file, sorts by start offset, checks for overlap, applies edits, validates source freshness and parseability, writes files. Returns `FixOutcome`. |
 | `apply_edits(source, edits)` | Pure function that applies `TextEdit` values in reverse order to a source string. |
 | `collect_fixes(ctx, rules)` | Iterates rules, calling `rule.fix()` only on enabled fixable rules. |
 | `has_overlap(edits)` | Checks if any adjacent edits in sorted-by-start order overlap. |

@@ -236,4 +236,10 @@ ignore-dirs = []
 
 [rules.layer-boundaries]
 severity = "off"
+
+[fix]
+no-debugger = true
+no-focused-test = true
+no-empty-interface = true
+no-skipped-test = true
 "#;

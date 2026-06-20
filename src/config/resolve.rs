@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -16,6 +17,13 @@ pub struct ProjectConfig {
     pub structure: ProjectStructureConfig,
     pub architecture: ArchitectureConfig,
     pub rules: RulesConfig,
+    pub fix_overrides: HashMap<String, bool>,
+}
+
+impl ProjectConfig {
+    pub fn fix_allowed(&self, rule_id: &str) -> bool {
+        self.fix_overrides.get(rule_id).copied().unwrap_or(true)
+    }
 }
 
 impl Default for ProjectConfig {
@@ -26,6 +34,7 @@ impl Default for ProjectConfig {
             structure: ProjectStructureConfig::default(),
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
+            fix_overrides: HashMap::new(),
         }
     }
 }
@@ -122,6 +131,7 @@ impl RawConfig {
             structure: self.structure(),
             architecture: self.architecture(),
             rules: self.rules_config().map_err(anyhow::Error::msg)?,
+            fix_overrides: self.fix.clone().unwrap_or_default(),
         })
     }
 }
