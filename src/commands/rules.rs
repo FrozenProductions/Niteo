@@ -63,19 +63,7 @@ pub fn list_with_preset(
     output_format: OutputFormat,
     output_path: Option<PathBuf>,
 ) -> Result<()> {
-    let name: &str = match preset_name {
-        PresetName::Balanced => "balanced",
-        PresetName::Strict => "strict",
-        PresetName::Migration => "migration",
-        PresetName::React => "react",
-        PresetName::Library => "library",
-        PresetName::NoBarrels => "no-barrels",
-    };
-
-    let preset = name
-        .parse::<config::presets::PresetName>()
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    let source = config::presets::default_config_for_preset(preset);
+    let source = config::presets::default_config_for_preset(preset_name);
     let raw: config::raw::RawConfig = toml::from_str(source)?;
     let project_config = raw.into_project_config(std::env::current_dir()?)?;
     let rows = rule_documentation::configured_rules(&project_config);

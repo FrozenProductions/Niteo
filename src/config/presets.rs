@@ -1,28 +1,4 @@
-#[derive(Debug, Clone, Copy)]
-pub enum PresetName {
-    Balanced,
-    Strict,
-    Migration,
-    React,
-    Library,
-    NoBarrels,
-}
-
-impl std::str::FromStr for PresetName {
-    type Err = String;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "balanced" => Ok(Self::Balanced),
-            "strict" => Ok(Self::Strict),
-            "migration" => Ok(Self::Migration),
-            "react" => Ok(Self::React),
-            "library" => Ok(Self::Library),
-            "no-barrels" => Ok(Self::NoBarrels),
-            _ => Err(format!("unknown preset: {value}")),
-        }
-    }
-}
+use crate::cli::PresetName;
 
 pub fn default_config_for_preset(preset: PresetName) -> &'static str {
     match preset {

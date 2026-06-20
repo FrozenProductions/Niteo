@@ -14,7 +14,6 @@ pub struct ConfigSet {
 
 #[derive(Debug)]
 pub struct ResolvedConfigNode {
-    #[allow(dead_code)]
     pub config_path: Option<PathBuf>,
     pub directory: PathBuf,
     pub config: ProjectConfig,
@@ -293,7 +292,7 @@ mod tests {
         };
 
         let children = vec![ResolvedConfigNode {
-            config_path: Some(PathBuf::from("/project/src/admin/niteo.toml")),
+            config_path: None,
             directory: PathBuf::from("/project/src/admin"),
             config: child_config,
             parent_index: Some(0),
@@ -335,19 +334,19 @@ mod tests {
 
         let children = vec![
             ResolvedConfigNode {
-                config_path: Some(PathBuf::from("/project/a/niteo.toml")),
+                config_path: None,
                 directory: PathBuf::from("/project/a"),
                 config: make_config(),
                 parent_index: Some(0),
             },
             ResolvedConfigNode {
-                config_path: Some(PathBuf::from("/project/b/niteo.toml")),
+                config_path: None,
                 directory: PathBuf::from("/project/b"),
                 config: make_config(),
                 parent_index: Some(0),
             },
             ResolvedConfigNode {
-                config_path: Some(PathBuf::from("/project/a/sub/niteo.toml")),
+                config_path: None,
                 directory: PathBuf::from("/project/a/sub"),
                 config: make_config(),
                 parent_index: Some(1),

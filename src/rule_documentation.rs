@@ -1,4 +1,4 @@
-mod catalog;
+pub(crate) mod catalog;
 mod model;
 mod render_json;
 mod render_text;
@@ -16,12 +16,10 @@ pub fn configured_rules(config: &ProjectConfig) -> Vec<ConfiguredRule> {
     catalog::all_rules()
         .iter()
         .map(|documentation| {
-            let category = crate::config::rule_metadata::rule_by_id(documentation.name)
-                .map(|m| m.category.as_str())
-                .unwrap_or("");
+            let category = documentation.category.as_str();
             ConfiguredRule {
                 name: documentation.name,
-                severity: summary::summarize_rule(config, documentation.kind).severity,
+                severity: (documentation.summarize)(config).severity,
                 category,
             }
         })
@@ -34,7 +32,7 @@ pub fn explain_rule(rule_name: &str, config: &ProjectConfig) -> Result<RuleExpla
         bail!("unknown rule '{rule_name}'. Available rules: {names}");
     };
 
-    let summary = summary::summarize_rule(config, documentation.kind);
+    let summary = (documentation.summarize)(config);
 
     Ok(RuleExplanation {
         name: documentation.name,

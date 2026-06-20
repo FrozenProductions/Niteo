@@ -1,5 +1,4 @@
 use crate::config::Severity;
-use crate::config::rule_metadata::FixCapability;
 use crate::rules::*;
 
 macro_rules! ast_rule_adapter {
@@ -25,7 +24,7 @@ macro_rules! ast_rule_adapter {
 }
 
 macro_rules! fixable_ast_rule_adapter {
-    ($name:ident, $id:expr, $config_ty:ty, $module:ident, $capability:expr) => {
+    ($name:ident, $id:expr, $config_ty:ty, $module:ident) => {
         pub struct $name {
             pub config: $config_ty,
         }
@@ -43,8 +42,8 @@ macro_rules! fixable_ast_rule_adapter {
                 $module::check_file(ctx.file, program, ctx.line_index, &self.config)
             }
 
-            fn fix_capability(&self) -> FixCapability {
-                $capability
+            fn supports_fix(&self) -> bool {
+                true
             }
 
             fn fix(&self, ctx: &FileContext<'_>) -> Vec<Fix> {
@@ -52,25 +51,6 @@ macro_rules! fixable_ast_rule_adapter {
                     return vec![];
                 };
                 $module::fix_file(ctx.file, program, ctx.source, &self.config)
-            }
-        }
-    };
-}
-
-macro_rules! text_rule_adapter {
-    ($name:ident, $id:expr, $config_ty:ty, $module:ident) => {
-        pub struct $name {
-            pub config: $config_ty,
-        }
-        impl FileRule for $name {
-            fn severity(&self) -> Severity {
-                self.config.severity
-            }
-            fn needs_ast(&self) -> bool {
-                false
-            }
-            fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-                $module::check_file(ctx.file, ctx.source, &self.config)
             }
         }
     };
@@ -124,8 +104,7 @@ fixable_ast_rule_adapter!(
     NoFocusedTestAdapter,
     NO_FOCUSED_TEST_RULE_ID,
     crate::config::RuleConfig,
-    no_focused_test,
-    FixCapability::Safe
+    no_focused_test
 );
 ast_rule_adapter!(
     MaxFileExportsAdapter,
@@ -192,8 +171,7 @@ fixable_ast_rule_adapter!(
     NoDebuggerAdapter,
     NO_DEBUGGER_RULE_ID,
     crate::config::RuleConfig,
-    no_debugger,
-    FixCapability::Safe
+    no_debugger
 );
 ast_rule_adapter!(
     NoEvalAdapter,
@@ -211,8 +189,7 @@ fixable_ast_rule_adapter!(
     NoEmptyInterfaceAdapter,
     NO_EMPTY_INTERFACE_RULE_ID,
     crate::config::RuleConfig,
-    no_empty_interface,
-    FixCapability::Conditional
+    no_empty_interface
 );
 ast_rule_adapter!(
     NoInterfaceAdapter,
@@ -242,8 +219,7 @@ fixable_ast_rule_adapter!(
     NoSkippedTestAdapter,
     NO_SKIPPED_TEST_RULE_ID,
     crate::config::RuleConfig,
-    no_skipped_test,
-    FixCapability::Safe
+    no_skipped_test
 );
 ast_rule_adapter!(
     NoThenChainAdapter,
@@ -317,12 +293,20 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_logic_in_barrel
 );
-text_rule_adapter!(
-    NoLargeFileAdapter,
-    NO_LARGE_FILE_RULE_ID,
-    crate::config::FileLengthRuleConfig,
-    no_large_file
-);
+pub struct NoLargeFileAdapter {
+    pub config: crate::config::FileLengthRuleConfig,
+}
+impl FileRule for NoLargeFileAdapter {
+    fn severity(&self) -> Severity {
+        self.config.severity
+    }
+    fn needs_ast(&self) -> bool {
+        false
+    }
+    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+        no_large_file::check_file(ctx.file, ctx.source, &self.config)
+    }
+}
 ast_rule_adapter!(
     NoBarrelFilesAdapter,
     NO_BARREL_FILES_RULE_ID,

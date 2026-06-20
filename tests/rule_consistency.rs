@@ -7,26 +7,33 @@ use std::collections::{HashMap, HashSet};
 fn rule_ids_from_catalog_source() -> HashSet<String> {
     let raw = include_str!("../src/rule_documentation/catalog.rs");
     let mut ids = HashSet::new();
-    let mut in_rule_doc = false;
-    for line in raw.lines() {
-        let trimmed = line.trim();
-        if trimmed == "RuleDocumentation {" {
-            in_rule_doc = true;
-            continue;
-        }
-        if in_rule_doc {
-            if trimmed == "}," || trimmed == "}" {
-                in_rule_doc = false;
-                continue;
-            }
-            if let Some(name) = trimmed.strip_prefix("name: \"") {
-                if let Some(end) = name.find('"') {
-                    ids.insert(name[..end].to_string());
-                }
-            }
+    for block in catalog_rule_blocks(raw) {
+        if let Some(id) = rule_id_from_catalog_block(block) {
+            ids.insert(id);
         }
     }
     ids
+}
+
+fn catalog_rule_blocks(raw: &str) -> impl Iterator<Item = &str> {
+    raw.split("const RULE_DOCUMENTATION")
+        .nth(1)
+        .unwrap_or("")
+        .split("RuleDocumentation {")
+        .skip(1)
+        .filter_map(|block| block.split("\n    },").next())
+}
+
+fn rule_id_from_catalog_block(block: &str) -> Option<String> {
+    for line in block.lines() {
+        let trimmed = line.trim();
+        let Some(name) = trimmed.strip_prefix("name: \"") else {
+            continue;
+        };
+        let end = name.find('"')?;
+        return Some(name[..end].to_string());
+    }
+    None
 }
 
 fn rule_ids_from_preset_source() -> Vec<String> {
@@ -107,13 +114,12 @@ fn docs_rules_md_mentions_every_known_rule() -> Result<()> {
 #[test]
 fn every_configurable_rule_has_metadata_entry() -> Result<()> {
     let known = known_rule_set();
-    let raw = include_str!("../src/config/rule_metadata.rs");
+    let catalog_ids = rule_ids_from_catalog_source();
 
     for id in &known {
-        let quoted = format!("id: \"{id}\"");
         assert!(
-            raw.contains(&quoted),
-            "rule '{id}' missing from rule_metadata.rs"
+            catalog_ids.contains(id),
+            "rule '{id}' missing from merged rule catalog"
         );
     }
     Ok(())
@@ -121,53 +127,26 @@ fn every_configurable_rule_has_metadata_entry() -> Result<()> {
 
 #[test]
 fn every_metadata_entry_has_catalog_entry() -> Result<()> {
+    let known = known_rule_set();
     let catalog_ids = rule_ids_from_catalog_source();
-    let raw = include_str!("../src/config/rule_metadata.rs");
 
-    let mut metadata_ids = std::collections::HashSet::new();
-    for line in raw.lines() {
-        let trimmed = line.trim();
-        if let Some(id_val) = trimmed.strip_prefix("id: \"") {
-            if let Some(end) = id_val.find('"') {
-                metadata_ids.insert(id_val[..end].to_string());
-            }
-        }
-    }
-
-    for id in &metadata_ids {
+    for id in &catalog_ids {
         assert!(
-            catalog_ids.contains(id),
-            "rule '{id}' is in rule_metadata.rs but missing from catalog.rs"
+            known.contains(id),
+            "rule '{id}' is in merged rule catalog but missing from known_rule_ids()"
         );
     }
     Ok(())
 }
 
-fn fixable_rule_ids_from_metadata() -> HashSet<String> {
-    let raw = include_str!("../src/config/rule_metadata.rs");
+fn fixable_rule_ids_from_catalog() -> HashSet<String> {
+    let raw = include_str!("../src/rule_documentation/catalog.rs");
     let mut ids = HashSet::new();
-    let mut current_id: Option<String> = None;
-    let mut current_fix_capability: Option<String> = None;
-
-    for line in raw.lines() {
-        let trimmed = line.trim();
-        if let Some(id_val) = trimmed.strip_prefix("id: \"") {
-            if let Some(end) = id_val.find('"') {
-                current_id = Some(id_val[..end].to_string());
+    for block in catalog_rule_blocks(raw) {
+        if block.contains("fixable: true,") {
+            if let Some(id) = rule_id_from_catalog_block(block) {
+                ids.insert(id);
             }
-        }
-        if let Some(capability) = trimmed.strip_prefix("fix_capability: FixCapability::") {
-            current_fix_capability = Some(capability.trim_end_matches(',').to_string());
-        }
-        if trimmed == "}," || trimmed == "}" {
-            if let Some(capability) = current_fix_capability.take() {
-                if capability != "None" {
-                    if let Some(id) = current_id.take() {
-                        ids.insert(id);
-                    }
-                }
-            }
-            current_id = None;
         }
     }
     ids
@@ -247,12 +226,12 @@ fn fixable_rule_ids_from_adapters() -> HashSet<String> {
 
 #[test]
 fn every_fixable_metadata_rule_has_fixable_adapter() -> Result<()> {
-    let metadata_ids = fixable_rule_ids_from_metadata();
+    let metadata_ids = fixable_rule_ids_from_catalog();
     let adapter_ids = fixable_rule_ids_from_adapters();
     for id in &metadata_ids {
         assert!(
             adapter_ids.contains(id),
-            "rule '{id}' has a non-None fix_capability in metadata but no fixable adapter"
+            "rule '{id}' is marked fixable in the catalog but has no fixable adapter"
         );
     }
     Ok(())
@@ -260,12 +239,12 @@ fn every_fixable_metadata_rule_has_fixable_adapter() -> Result<()> {
 
 #[test]
 fn every_fixable_adapter_rule_has_fixable_metadata() -> Result<()> {
-    let metadata_ids = fixable_rule_ids_from_metadata();
+    let metadata_ids = fixable_rule_ids_from_catalog();
     let adapter_ids = fixable_rule_ids_from_adapters();
     for id in &adapter_ids {
         assert!(
             metadata_ids.contains(id),
-            "rule '{id}' has a fixable adapter but None fix_capability in metadata"
+            "rule '{id}' has a fixable adapter but is not marked fixable in the catalog"
         );
     }
     Ok(())
@@ -273,7 +252,7 @@ fn every_fixable_adapter_rule_has_fixable_metadata() -> Result<()> {
 
 #[test]
 fn fix_docs_mentions_every_fixable_rule() -> Result<()> {
-    let fixable_ids = fixable_rule_ids_from_metadata();
+    let fixable_ids = fixable_rule_ids_from_catalog();
     let docs = include_str!("../docs/fix.md");
     for id in &fixable_ids {
         assert!(
@@ -284,48 +263,20 @@ fn fix_docs_mentions_every_fixable_rule() -> Result<()> {
     Ok(())
 }
 
-fn rule_capabilities_from_metadata() -> HashMap<String, String> {
-    let raw = include_str!("../src/config/rule_metadata.rs");
-    let mut map = HashMap::new();
-    let mut current_id: Option<String> = None;
-
-    for line in raw.lines() {
-        let trimmed = line.trim();
-        if let Some(id_val) = trimmed.strip_prefix("id: \"") {
-            if let Some(end) = id_val.find('"') {
-                current_id = Some(id_val[..end].to_string());
-            }
-        }
-        if let Some(capability) = trimmed.strip_prefix("fix_capability: FixCapability::") {
-            let capability = capability.trim_end_matches(',').to_string();
-            if let Some(id) = current_id.take() {
-                map.insert(id, capability);
-            }
-        }
-        if trimmed == "}," || trimmed == "}" {
-            current_id = None;
-        }
-    }
-    map
-}
-
 #[test]
 fn fix_capability_classifications_match_plan() -> Result<()> {
-    let capabilities = rule_capabilities_from_metadata();
+    let fixable_ids = fixable_rule_ids_from_catalog();
     let expected = [
-        ("no-debugger", "Safe"),
-        ("no-focused-test", "Safe"),
-        ("no-skipped-test", "Safe"),
-        ("no-empty-interface", "Conditional"),
+        "no-debugger",
+        "no-focused-test",
+        "no-skipped-test",
+        "no-empty-interface",
     ];
 
-    for (id, expected_capability) in expected {
-        let actual = capabilities
-            .get(id)
-            .unwrap_or_else(|| panic!("rule '{id}' missing fix_capability"));
-        assert_eq!(
-            actual, expected_capability,
-            "rule '{id}' has unexpected fix capability"
+    for id in expected {
+        assert!(
+            fixable_ids.contains(id),
+            "rule '{id}' missing fixable catalog entry"
         );
     }
     Ok(())

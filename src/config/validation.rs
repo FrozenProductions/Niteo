@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::report::{BOLD, DIM, GREEN, RED, RESET, YELLOW};
 use crate::rules::known_rule_ids;
 
@@ -8,13 +6,6 @@ pub struct ConfigValidationReport {
 }
 
 impl ConfigValidationReport {
-    #[allow(dead_code)]
-    pub fn has_errors(&self) -> bool {
-        self.diagnostics
-            .iter()
-            .any(|d| d.severity == ConfigDiagnosticSeverity::Error)
-    }
-
     pub fn render_text(&self) -> String {
         let mut output = String::new();
 
@@ -70,8 +61,6 @@ impl ConfigValidationReport {
 pub struct ConfigDiagnostic {
     pub severity: ConfigDiagnosticSeverity,
     pub message: String,
-    #[allow(dead_code)]
-    pub path: Option<PathBuf>,
     pub rule: Option<String>,
 }
 
@@ -81,7 +70,7 @@ pub enum ConfigDiagnosticSeverity {
     Warn,
 }
 
-fn known_option_names_for_rule(rule_name: &str) -> Option<&'static [&'static str]> {
+fn known_option_names_for_rule(rule_name: &str) -> Option<Vec<&'static str>> {
     crate::config::rule_metadata::known_option_names_for_rule(rule_name)
 }
 
@@ -94,7 +83,6 @@ pub fn validate_config_source(source: &str) -> ConfigValidationReport {
             diagnostics.push(ConfigDiagnostic {
                 severity: ConfigDiagnosticSeverity::Error,
                 message: format!("failed to parse TOML: {error}"),
-                path: None,
                 rule: None,
             });
             return ConfigValidationReport { diagnostics };
@@ -117,7 +105,6 @@ pub fn validate_config_source(source: &str) -> ConfigValidationReport {
             diagnostics.push(ConfigDiagnostic {
                 severity: ConfigDiagnosticSeverity::Error,
                 message: "[fix] must be a table of rule booleans".to_string(),
-                path: None,
                 rule: None,
             });
         }
@@ -127,7 +114,7 @@ pub fn validate_config_source(source: &str) -> ConfigValidationReport {
 }
 
 fn validate_fix_table(fix: &toml::Table, diagnostics: &mut Vec<ConfigDiagnostic>) {
-    use crate::config::rule_metadata::{FixCapability, rule_by_id};
+    use crate::config::rule_metadata::rule_by_id;
 
     let known = known_rule_ids();
     let known_set: std::collections::HashSet<_> = known.iter().copied().collect();
@@ -137,7 +124,6 @@ fn validate_fix_table(fix: &toml::Table, diagnostics: &mut Vec<ConfigDiagnostic>
             diagnostics.push(ConfigDiagnostic {
                 severity: ConfigDiagnosticSeverity::Error,
                 message: format!("[fix] \"{name}\" must be a boolean"),
-                path: None,
                 rule: None,
             });
             continue;
@@ -152,22 +138,18 @@ fn validate_fix_table(fix: &toml::Table, diagnostics: &mut Vec<ConfigDiagnostic>
             diagnostics.push(ConfigDiagnostic {
                 severity: ConfigDiagnosticSeverity::Error,
                 message,
-                path: None,
                 rule: None,
             });
             continue;
         }
 
-        let capability = rule_by_id(name)
-            .map(|meta| meta.fix_capability)
-            .unwrap_or(FixCapability::None);
-        if capability == FixCapability::None {
+        let fixable = rule_by_id(name).is_some_and(|meta| meta.fixable);
+        if !fixable {
             diagnostics.push(ConfigDiagnostic {
                 severity: ConfigDiagnosticSeverity::Warn,
                 message: format!(
                     "rule \"{name}\" does not support autofix; [fix] entry has no effect"
                 ),
-                path: None,
                 rule: None,
             });
         }
@@ -188,7 +170,6 @@ fn validate_rule_names(rules: &toml::Table, diagnostics: &mut Vec<ConfigDiagnost
             diagnostics.push(ConfigDiagnostic {
                 severity: ConfigDiagnosticSeverity::Error,
                 message,
-                path: None,
                 rule: Some(name.clone()),
             });
         }
@@ -209,7 +190,6 @@ fn validate_rule_options(rules: &toml::Table, diagnostics: &mut Vec<ConfigDiagno
                     diagnostics.push(ConfigDiagnostic {
                         severity: ConfigDiagnosticSeverity::Warn,
                         message: format!("unknown option \"{key}\" for rule \"{rule_name}\""),
-                        path: None,
                         rule: Some(rule_name.clone()),
                     });
                 }
@@ -236,7 +216,6 @@ fn validate_rule_severities(rules: &toml::Table, diagnostics: &mut Vec<ConfigDia
                 message: format!(
                     "unknown severity \"{sev}\" for rule \"{rule_name}\"; use \"off\", \"info\", \"warn\", or \"error\""
                 ),
-                path: None,
                 rule: Some(rule_name.clone()),
             });
         }
@@ -247,14 +226,13 @@ fn validate_contradictions(rules: &toml::Table, diagnostics: &mut Vec<ConfigDiag
     let metadata = crate::config::rule_metadata::all_rule_metadata();
     for meta in metadata {
         for conflict_id in meta.conflicts {
-            let a_enabled = is_rule_enabled(rules, meta.id);
+            let a_enabled = is_rule_enabled(rules, meta.name);
             let b_enabled = is_rule_enabled(rules, conflict_id);
             if a_enabled && b_enabled {
                 diagnostics.push(ConfigDiagnostic {
                     severity: ConfigDiagnosticSeverity::Warn,
-                    message: format!("\"{id}\" conflicts with \"{conflict_id}\"", id = meta.id),
-                    path: None,
-                    rule: Some(meta.id.to_string()),
+                    message: format!("\"{id}\" conflicts with \"{conflict_id}\"", id = meta.name),
+                    rule: Some(meta.name.to_string()),
                 });
             }
         }
@@ -356,11 +334,18 @@ mod tests {
     use super::*;
     use anyhow::Result;
 
+    fn has_errors(report: &ConfigValidationReport) -> bool {
+        report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == ConfigDiagnosticSeverity::Error)
+    }
+
     #[test]
     fn valid_default_config_passes() -> Result<()> {
         let source = crate::config::defaults::DEFAULT_CONFIG_SOURCE;
         let report = validate_config_source(source);
-        assert!(!report.has_errors());
+        assert!(!has_errors(&report));
 
         Ok(())
     }
@@ -372,7 +357,7 @@ mod tests {
 severity = "warn"
 "#;
         let report = validate_config_source(source);
-        assert!(report.has_errors());
+        assert!(has_errors(&report));
 
         Ok(())
     }
@@ -401,7 +386,7 @@ bogus-option = true
 severity = "warning"
 "#;
         let report = validate_config_source(source);
-        assert!(report.has_errors());
+        assert!(has_errors(&report));
 
         Ok(())
     }
@@ -451,7 +436,7 @@ severity = "warn"
 severity = "warn"
 "#;
         let report = validate_config_source(source);
-        assert!(!report.has_errors());
+        assert!(!has_errors(&report));
 
         Ok(())
     }
@@ -480,7 +465,7 @@ no-debugger = false
 no-focused-test = true
 "#;
         let report = validate_config_source(source);
-        assert!(!report.has_errors());
+        assert!(!has_errors(&report));
 
         Ok(())
     }
@@ -497,7 +482,7 @@ no-debuggr = false
             .iter()
             .any(|d| d.message.contains("unknown rule") && d.message.contains("[fix]"));
         assert!(has_unknown_fix_rule);
-        assert!(report.has_errors());
+        assert!(has_errors(&report));
 
         Ok(())
     }
@@ -514,7 +499,7 @@ no-debugger = "false"
             .iter()
             .any(|d| d.message.contains("must be a boolean"));
         assert!(has_boolean_error);
-        assert!(report.has_errors());
+        assert!(has_errors(&report));
 
         Ok(())
     }
@@ -531,7 +516,7 @@ no-console = false
             .iter()
             .any(|d| d.message.contains("does not support autofix"));
         assert!(has_non_fixable_warning);
-        assert!(!report.has_errors());
+        assert!(!has_errors(&report));
 
         Ok(())
     }

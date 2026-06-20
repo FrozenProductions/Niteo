@@ -3,13 +3,19 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 
+use crate::config::validation::ConfigDiagnosticSeverity;
+
 pub fn check(workspace: &Path) -> Result<ExitCode> {
     let source = read_config_source(workspace);
     let report = crate::config::validation::validate_config_source(&source);
 
     println!("{}", report.render_text());
 
-    if report.has_errors() {
+    if report
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == ConfigDiagnosticSeverity::Error)
+    {
         return Ok(ExitCode::FAILURE);
     }
     Ok(ExitCode::SUCCESS)

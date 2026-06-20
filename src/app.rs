@@ -182,16 +182,7 @@ pub fn run() -> Result<ExitCode> {
 }
 
 fn create_config(workspace: &Path, preset: Option<crate::cli::PresetName>) -> Result<()> {
-    let preset_name = preset.map(|name| match name {
-        crate::cli::PresetName::Balanced => crate::config::presets::PresetName::Balanced,
-        crate::cli::PresetName::Strict => crate::config::presets::PresetName::Strict,
-        crate::cli::PresetName::Migration => crate::config::presets::PresetName::Migration,
-        crate::cli::PresetName::React => crate::config::presets::PresetName::React,
-        crate::cli::PresetName::Library => crate::config::presets::PresetName::Library,
-        crate::cli::PresetName::NoBarrels => crate::config::presets::PresetName::NoBarrels,
-    });
-
-    match preset_name {
+    match preset {
         Some(preset) => {
             let source = crate::config::presets::default_config_for_preset(preset);
             let config_path = workspace.join(crate::config::defaults::CONFIG_FILE_NAME);
