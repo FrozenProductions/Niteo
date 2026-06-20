@@ -48,7 +48,7 @@ impl Baseline {
         self.violations.dedup();
     }
 
-    // Baseline identity excludes `detail` and `severity` so rewording doesn't invalidate baselines
+    // Copy edits and severity tuning should not invalidate an existing baseline.
     pub fn filter_new_violations(&self, root: &Path, violations: Vec<Violation>) -> Vec<Violation> {
         violations
             .into_iter()

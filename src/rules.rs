@@ -170,7 +170,7 @@ impl TypeLocationStyle {
         let allows_type_files = files.iter().any(|file| is_type_file(file, types));
         let allows_types_directories = files.iter().any(|file| is_in_types_directory(file, types));
 
-        // Fallback: default to type-file mode when no type directories exist (conservative default)
+        // Without a types directory convention, keep colocated type files valid.
         Self {
             allows_type_files: allows_type_files || !allows_types_directories,
             allows_types_directories,

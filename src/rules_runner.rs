@@ -69,8 +69,7 @@ pub fn check_files_with_parallelism(
     let mut suppression_files = Vec::new();
     let mut parse_failures: HashMap<PathBuf, String> = HashMap::new();
 
-    // Group files by stable config id so rules are built once per unique config.
-    // Config ids are dense (0..config_count), so a Vec indexed by id beats a HashMap.
+    // Build rule sets once per config; dense ids keep dispatch allocation-free.
     let config_count = config_set.configs().count();
     let mut grouped: Vec<Vec<&PathBuf>> = vec![Vec::new(); config_count];
     for file in files {

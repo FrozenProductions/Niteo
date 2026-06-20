@@ -9,8 +9,8 @@ thread_local! {
 pub(crate) fn with_reusable_allocator<R>(f: impl FnOnce(&Allocator) -> R) -> R {
     REUSE.with(|cell| {
         let mut allocator = cell.replace(None).unwrap_or_else(Allocator::new);
+        // If `f` panics, the allocator is dropped during unwinding instead of being reused.
         let result = f(&allocator);
-        // On panic, drop this allocator instead of restoring it; callers already handle parser panics.
         allocator.reset();
         cell.set(Some(allocator));
         result

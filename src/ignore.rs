@@ -66,7 +66,7 @@ pub fn parse_ignore_directives(source: &str) -> Vec<IgnoreDirective> {
     directives
 }
 
-// Byte-level scanning detects directives only in actual comments, not inside string literals
+// Scan bytes so directive markers inside string literals are ignored.
 fn find_directive(line: &str, line_number: usize) -> Option<IgnoreDirective> {
     let bytes = line.as_bytes();
     let mut index = 0;

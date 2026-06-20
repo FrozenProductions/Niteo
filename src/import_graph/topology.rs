@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use crate::import_graph::model::ImportGraph;
 
-/// Compute the set of files that are targeted by at least one resolved edge in
-/// the import graph. This is used by rules such as orphan-file detection.
+/// Only resolved edges count as imports; unresolved specifiers must not satisfy
+/// orphan-file checks.
 pub fn compute_imported_files(graph: &ImportGraph) -> HashSet<PathBuf> {
     graph
         .edges
@@ -13,9 +13,8 @@ pub fn compute_imported_files(graph: &ImportGraph) -> HashSet<PathBuf> {
         .collect()
 }
 
-/// Compute a map from each canonical file in a cycle to the cycle path.
-/// Only the canonical (lexicographically smallest) file in a strongly connected
-/// component reports the cycle, which keeps violation reporting deterministic.
+/// Only the canonical file in each strongly connected component reports the
+/// cycle, which keeps violation reporting deterministic.
 pub fn compute_cycles(graph: &ImportGraph) -> HashMap<PathBuf, Vec<PathBuf>> {
     let adjacency = build_adjacency(graph);
     let sccs = find_strongly_connected_components(&adjacency);
