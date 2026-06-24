@@ -23,6 +23,7 @@ pub(crate) struct RawProjectConfig {
     pub root: Option<PathBuf>,
     #[serde(rename = "respect-gitignore")]
     pub respect_gitignore: Option<bool>,
+    pub history: Option<bool>,
     pub baseline: Option<PathBuf>,
     pub structure: Option<RawProjectStructure>,
 }

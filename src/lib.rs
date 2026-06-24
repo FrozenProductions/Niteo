@@ -10,6 +10,7 @@ mod directory_inventory;
 mod discovery;
 pub mod fix;
 mod git;
+mod history;
 mod ignore;
 pub mod import_graph;
 pub mod import_resolver;

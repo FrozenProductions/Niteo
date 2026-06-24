@@ -45,9 +45,12 @@ niteo lint --scope src/components
 niteo lint --verbose
 niteo lint --format json --output niteo-report.json
 niteo lint --format sarif --output niteo.sarif
+niteo lint --history
 ```
 
 `lint` reads `niteo.toml`, discovers `.ts` and `.tsx` files, applies enabled rules, applies ignore directives, filters known baseline violations, renders a report, and exits with a non-zero status if new violations meet the failure threshold.
+
+By default, each lint run appends one JSON Lines record to `.niteo/history.jsonl` with the run timestamp, file count, violation counts, and health score. Set `[project].history = false` to disable automatic writes. Use `niteo lint --history` to force a history write for one run, and `niteo stats --history` to inspect this trend data locally or in CI.
 
 Use `--fail-on error` to surface warnings without blocking CI. Use `--fail-on any` for strict mode.
 
@@ -234,6 +237,8 @@ Show import graph statistics.
 niteo stats
 niteo stats --format json
 niteo stats --scope src/features/billing
+niteo stats --history
+niteo stats --history --format json
 ```
 
 Text output includes:
@@ -245,6 +250,8 @@ Text output includes:
 - highest fan-out files
 
 JSON output contains the same information in a machine-readable shape.
+
+With `--history`, `stats` reads `.niteo/history.jsonl` instead of rebuilding import graph statistics. Text output shows one row per lint run. JSON output returns the stored history entries as an array for CI trend graphs.
 
 ## `graph`
 

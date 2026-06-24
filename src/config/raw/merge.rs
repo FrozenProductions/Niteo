@@ -44,6 +44,7 @@ impl RawConfig {
             (Some(parent), Some(child)) => Some(RawProjectConfig {
                 root: parent.root.clone(),
                 respect_gitignore: child.respect_gitignore.or(parent.respect_gitignore),
+                history: child.history.or(parent.history),
                 baseline: child.baseline.clone().or_else(|| parent.baseline.clone()),
                 structure: Self::merge_structure(
                     parent.structure.as_ref(),

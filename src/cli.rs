@@ -129,6 +129,9 @@ pub enum Command {
         /// Apply fixes after linting.
         #[arg(long)]
         fix: bool,
+        /// Write a history entry for this lint run, even when disabled in config.
+        #[arg(long)]
+        history: bool,
     },
     /// Apply autofixes for rules that support them.
     Fix {
@@ -145,7 +148,11 @@ pub enum Command {
     /// Explain a rule.
     Explain { rule: String },
     /// Show project statistics.
-    Stats,
+    Stats {
+        /// Show health score history.
+        #[arg(long)]
+        history: bool,
+    },
     /// Visualize import graph.
     Graph,
     /// Validate and inspect configuration.

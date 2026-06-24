@@ -14,6 +14,7 @@ use crate::rules::RulesConfig;
 pub struct ProjectConfig {
     pub root: PathBuf,
     pub gitignore: GitignoreConfig,
+    pub history: bool,
     pub structure: ProjectStructureConfig,
     pub architecture: ArchitectureConfig,
     pub rules: RulesConfig,
@@ -31,6 +32,7 @@ impl Default for ProjectConfig {
         Self {
             root: PathBuf::from("."),
             gitignore: GitignoreConfig::default(),
+            history: true,
             structure: ProjectStructureConfig::default(),
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
@@ -128,6 +130,11 @@ impl RawConfig {
         Ok(ProjectConfig {
             root,
             gitignore: self.gitignore(),
+            history: self
+                .project
+                .as_ref()
+                .and_then(|project| project.history)
+                .unwrap_or(true),
             structure: self.structure(),
             architecture: self.architecture(),
             rules: self.rules_config().map_err(anyhow::Error::msg)?,

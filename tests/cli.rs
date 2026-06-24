@@ -10,6 +10,8 @@ mod cache;
 mod config_resolution;
 #[path = "cli/git.rs"]
 mod git;
+#[path = "cli/history.rs"]
+mod history;
 #[path = "cli/report_contracts.rs"]
 mod report_contracts;
 #[path = "cli/report_output.rs"]

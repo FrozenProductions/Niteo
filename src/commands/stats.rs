@@ -6,6 +6,7 @@ use crate::cli::OutputFormat;
 use crate::commands::write_report;
 use crate::config;
 use crate::discovery;
+use crate::history::{self, HistoryEntry};
 use crate::import_graph;
 
 pub fn show(
@@ -15,7 +16,21 @@ pub fn show(
     git_selection: Option<crate::git::GitSelection>,
     output_format: OutputFormat,
     output_path: Option<PathBuf>,
+    show_history: bool,
 ) -> Result<()> {
+    if show_history {
+        let entries = history::read_entries(workspace)?;
+        let rendered = match output_format {
+            OutputFormat::Text => render_history_text(&entries),
+            OutputFormat::Json => render_history_json(&entries)?,
+            OutputFormat::Sarif => bail!("SARIF format is not supported for the 'stats' command"),
+            OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'stats' command"),
+        };
+
+        write_report(workspace, output_path, &rendered)?;
+        return Ok(());
+    }
+
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
     let scan_scope =
         scope_override.map(|scope| crate::analysis::resolve_path(&project_config.root, scope));
@@ -50,6 +65,39 @@ pub fn show(
     write_report(workspace, output_path, &rendered)?;
 
     Ok(())
+}
+
+fn render_history_text(entries: &[HistoryEntry]) -> String {
+    let mut output = String::new();
+    output.push_str("Health Score History\n");
+    output.push_str("====================\n\n");
+
+    if entries.is_empty() {
+        output.push_str("No history entries found.\n");
+        return output;
+    }
+
+    output.push_str(
+        "Timestamp                    Score  Files  Violations  Errors  Warnings  Infos\n",
+    );
+    for entry in entries {
+        output.push_str(&format!(
+            "{:<28} {:>5} {:>6} {:>11} {:>7} {:>9} {:>6}\n",
+            entry.timestamp,
+            entry.health_score,
+            entry.files,
+            entry.violations,
+            entry.errors,
+            entry.warnings,
+            entry.infos
+        ));
+    }
+
+    output
+}
+
+fn render_history_json(entries: &[HistoryEntry]) -> Result<String> {
+    Ok(serde_json::to_string_pretty(entries)?)
 }
 
 fn render_text(graph: &import_graph::ImportGraph) -> String {

@@ -154,6 +154,11 @@ fn raw_to_project_config(raw: &RawConfig, root: PathBuf) -> Result<ProjectConfig
     Ok(ProjectConfig {
         root,
         gitignore: raw.gitignore(),
+        history: raw
+            .project
+            .as_ref()
+            .and_then(|project| project.history)
+            .unwrap_or(true),
         structure: raw.structure(),
         architecture: raw.architecture(),
         rules: raw.rules_config().map_err(anyhow::Error::msg)?,
@@ -269,6 +274,7 @@ mod tests {
         let root_config = ProjectConfig {
             root: PathBuf::from("/project/src"),
             gitignore: GitignoreConfig::default(),
+            history: true,
             structure: ProjectStructureConfig::default(),
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
@@ -278,6 +284,7 @@ mod tests {
         let child_config = ProjectConfig {
             root: PathBuf::from("/project/src"),
             gitignore: GitignoreConfig::default(),
+            history: true,
             structure: ProjectStructureConfig::default(),
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
@@ -319,6 +326,7 @@ mod tests {
         let make_config = || ProjectConfig {
             root: PathBuf::from("/project"),
             gitignore: GitignoreConfig::default(),
+            history: true,
             structure: ProjectStructureConfig::default(),
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
@@ -417,6 +425,7 @@ mod tests {
         let root_config = ProjectConfig {
             root: PathBuf::from("/project"),
             gitignore: GitignoreConfig::default(),
+            history: true,
             structure: ProjectStructureConfig::default(),
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),

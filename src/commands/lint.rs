@@ -5,6 +5,7 @@ use std::time::Instant;
 use crate::analysis::{self, AnalysisOptions};
 use crate::baseline;
 use crate::cli::{FailOn, OutputFormat};
+use crate::history;
 use crate::report;
 #[derive(Clone)]
 pub struct LintOptions {
@@ -18,6 +19,7 @@ pub struct LintOptions {
     pub deny_child_configs: bool,
     pub cache_enabled: bool,
     pub clear_cache: bool,
+    pub force_history: bool,
 }
 
 pub fn lint_workspace(
@@ -66,6 +68,9 @@ pub fn lint_workspace(
     };
 
     super::write_report(workspace, opts.output_path, &rendered_report)?;
+    if collected.history_enabled || opts.force_history {
+        history::append_to_workspace(workspace, &report)?;
+    }
 
     if opts.verbose && matches!(opts.output_format, OutputFormat::Text) {
         let elapsed = start.elapsed();

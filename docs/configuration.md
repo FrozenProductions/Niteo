@@ -44,6 +44,7 @@ If `tsconfig.json` is not present or has no `paths` configuration, Niteo falls b
 [project]
 root = "src"
 respect-gitignore = true
+history = true
 baseline = "niteo-baseline.json"
 ```
 
@@ -51,9 +52,10 @@ baseline = "niteo-baseline.json"
 | --- | --- | --- | --- |
 | `root` | string | `src` when it exists, otherwise `.` | Project root to scan. |
 | `respect-gitignore` | boolean | `true` | Whether file discovery respects `.gitignore`. |
+| `history` | boolean | `true` | Whether `lint` appends `.niteo/history.jsonl` by default. |
 | `baseline` | string | `niteo-baseline.json` | Baseline file path used by `lint`, `fix`, and `baseline` commands. |
 
-`--root` overrides `[project].root`. `--baseline` overrides `[project].baseline`.
+`--root` overrides `[project].root`. `--baseline` overrides `[project].baseline`. `niteo lint --history` writes a history entry even when `[project].history` is `false`.
 
 ## Workspace Packages
 

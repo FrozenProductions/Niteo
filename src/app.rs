@@ -15,7 +15,10 @@ pub fn run() -> Result<ExitCode> {
         crate::config::resolve_baseline_path(&workspace, cli.options.baseline.clone())?;
     let git_selection = cli.options.git_selection();
 
-    let exit_code = match cli.command.unwrap_or(Command::Lint { fix: false }) {
+    let exit_code = match cli.command.unwrap_or(Command::Lint {
+        fix: false,
+        history: false,
+    }) {
         Command::Init { preset } => {
             create_config(&workspace, preset)?;
             ExitCode::SUCCESS
@@ -77,7 +80,7 @@ pub fn run() -> Result<ExitCode> {
             )?;
             ExitCode::SUCCESS
         }
-        Command::Stats => {
+        Command::Stats { history } => {
             commands::stats::show(
                 &workspace,
                 cli.options.root,
@@ -85,6 +88,7 @@ pub fn run() -> Result<ExitCode> {
                 git_selection.clone(),
                 cli.options.format,
                 cli.options.output,
+                history,
             )?;
             ExitCode::SUCCESS
         }
@@ -99,7 +103,7 @@ pub fn run() -> Result<ExitCode> {
             )?;
             ExitCode::SUCCESS
         }
-        Command::Lint { fix } => {
+        Command::Lint { fix, history } => {
             if fix && cli.options.watch {
                 anyhow::bail!("--fix cannot be used with --watch");
             }
@@ -117,6 +121,7 @@ pub fn run() -> Result<ExitCode> {
                 deny_child_configs: cli.options.deny_child_configs,
                 cache_enabled,
                 clear_cache: cli.options.clear_cache,
+                force_history: history,
             };
 
             let exit_code = if cli.options.watch {

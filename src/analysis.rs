@@ -12,6 +12,7 @@ use crate::workspace::Workspace;
 
 pub struct AnalysisResult {
     pub project_root: PathBuf,
+    pub history_enabled: bool,
     pub files: Vec<PathBuf>,
     pub violations: Vec<rules::Violation>,
     pub suppression_report: SuppressionReport,
@@ -211,6 +212,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
 
     Ok(AnalysisResult {
         project_root,
+        history_enabled: config_set.root().history,
         files,
         violations: all_violations,
         suppression_report,

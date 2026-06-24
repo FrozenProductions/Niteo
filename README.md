@@ -97,9 +97,11 @@ niteo lint --git
 niteo lint --git origin/main..HEAD
 niteo lint --git-staged
 niteo lint --fail-on error
+niteo lint --history
 niteo lint --cache
 niteo lint --cache --watch
 niteo stats
+niteo stats --history
 niteo graph
 ```
 
