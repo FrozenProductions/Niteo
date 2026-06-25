@@ -27,9 +27,9 @@ niteo explain no-console --format json
 
 ## Rule Reference
 
-| Rule                             | Default severity | Purpose                                                                              | Fix                                                      | Options |
-| -------------------------------- | ---------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------- | ------- | ------------------------------ |
-| `boolean-prefix`                 | `warn`           | Boolean variables should be prefixed with names such as `is`, `has`, or `can`.       | —                                                        | —       | `prefixes`, `ignore-constants` |
+| Rule                             | Default severity | Purpose                                                                              | Fix                                                      | Options                        |
+| -------------------------------- | ---------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------- | ------------------------------ |
+| `boolean-prefix`                 | `warn`           | Boolean variables should be prefixed with names such as `is`, `has`, or `can`.       | —                                                        | `prefixes`, `ignore-constants` |
 | `component-file-only-components` | `warn`           | Component files should export components only.                                       | `project.structure.components`                           |
 | `directory-must-have-barrel`     | `warn`           | Non-leaf directories must expose an `index.ts` barrel file.                          | `severity`                                               |
 | `entry-file-no-logic`            | `warn`           | Entry files should delegate implementation logic to dedicated modules.               | `entry-files`                                            |
@@ -48,7 +48,7 @@ niteo explain no-console --format json
 | `no-barrel-files`                | `warn`           | Avoid `index.ts` barrel files.                                                       | `severity`                                               |
 | `no-circular-import`             | `warn`           | Detect circular import chains between modules.                                       | `severity`                                               |
 | `no-comments`                    | `warn`           | Discourage implementation comments that duplicate code.                              | `allow-doc-comments`                                     |
-| `no-console`                     | `warn`           | Keep debugging output out of application code.                                      | `severity`, `allow-patterns`                             |
+| `no-console`                     | `warn`           | Keep debugging output out of application code.                                       | `severity`, `allow-patterns`                             |
 | `no-debugger`                    | `warn`           | Prevent committed `debugger` statements from stopping runtime execution.             | `severity`                                               |
 | `no-default-export`              | `warn`           | Prefer named exports. Set `components-only = true` to scope to component files only. | `components-only`, `project.structure.components`        |
 | `no-duplicate-file-names`        | `warn`           | Avoid repeated file names that make editor tabs and stack traces ambiguous.          | `ignore-names`                                           |
