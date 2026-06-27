@@ -511,28 +511,6 @@ pub fn build_file_rules(
     }
 }
 
-pub fn check_duplicate_file_names(
-    files: &[PathBuf],
-    no_duplicate_file_names: crate::config::NoDuplicateFileNamesRuleConfig,
-) -> Vec<Violation> {
-    if !no_duplicate_file_names.severity.is_enabled() {
-        return Vec::new();
-    }
-
-    crate::rules::no_duplicate_file_names::check_files(files, &no_duplicate_file_names)
-}
-
-pub fn check_dump_files(
-    files: &[PathBuf],
-    config: crate::config::NoDumpFilesRuleConfig,
-) -> Vec<Violation> {
-    if !config.severity.is_enabled() {
-        return Vec::new();
-    }
-
-    crate::rules::no_dump_files::check_files(files, &config)
-}
-
 pub fn check_directory_rules(
     root: &Path,
     rules: &RulesConfig,

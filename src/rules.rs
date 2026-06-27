@@ -239,6 +239,5 @@ fn is_in_types_directory(file: &Path, types: &DomainConfig) -> bool {
 }
 
 pub use crate::rules_runner::{
-    check_directory_rules, check_dump_files, check_duplicate_file_names, check_files,
-    check_files_for_benchmark, check_files_with_parallelism,
+    check_directory_rules, check_files, check_files_for_benchmark, check_files_with_parallelism,
 };

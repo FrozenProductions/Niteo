@@ -32,6 +32,33 @@ pub struct AnalysisOptions {
     pub clear_cache: bool,
 }
 
+/// A set of discovered files for the project, after discovery and before graph construction.
+/// This is a typed pipeline stage that holds all metadata needed for file-set-level checks.
+pub struct FileSet {
+    pub files: Vec<PathBuf>,
+    pub project_root: PathBuf,
+    pub config_set: ConfigSet,
+    pub tsconfig: Option<crate::tsconfig::TsConfig>,
+}
+
+impl FileSet {
+    pub fn check_duplicate_file_names(&self) -> Vec<rules::Violation> {
+        let config = &self.config_set.root().rules.no_duplicate_file_names;
+        if !config.severity.is_enabled() {
+            return Vec::new();
+        }
+        crate::rules::no_duplicate_file_names::check_files(&self.files, config)
+    }
+
+    pub fn check_dump_files(&self) -> Vec<rules::Violation> {
+        let config = &self.config_set.root().rules.no_dump_files;
+        if !config.severity.is_enabled() {
+            return Vec::new();
+        }
+        crate::rules::no_dump_files::check_files(&self.files, config)
+    }
+}
+
 pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<AnalysisResult> {
     let mut diagnostics = Diagnostics::new();
     let root_config =
@@ -217,20 +244,21 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         all_violations.append(&mut dir_violations);
     }
 
-    let root_config_ref = config_set.root();
-    let mut name_violations = rules::check_duplicate_file_names(
-        &files,
-        root_config_ref.rules.no_duplicate_file_names.clone(),
-    );
-    all_violations.append(&mut name_violations);
+    let history = config_set.root().history;
 
-    let mut dump_violations =
-        rules::check_dump_files(&files, root_config_ref.rules.no_dump_files.clone());
-    all_violations.append(&mut dump_violations);
+    let file_set = FileSet {
+        files: files.clone(),
+        project_root: project_root.clone(),
+        config_set,
+        tsconfig,
+    };
+
+    all_violations.extend(file_set.check_duplicate_file_names());
+    all_violations.extend(file_set.check_dump_files());
 
     Ok(AnalysisResult {
         project_root,
-        history_enabled: config_set.root().history,
+        history_enabled: history,
         files,
         violations: all_violations,
         suppression_report,
