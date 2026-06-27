@@ -36,9 +36,7 @@ pub struct AnalysisOptions {
 /// This is a typed pipeline stage that holds all metadata needed for file-set-level checks.
 pub struct FileSet {
     pub files: Vec<PathBuf>,
-    pub project_root: PathBuf,
     pub config_set: ConfigSet,
-    pub tsconfig: Option<crate::tsconfig::TsConfig>,
 }
 
 impl FileSet {
@@ -248,9 +246,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
 
     let file_set = FileSet {
         files: files.clone(),
-        project_root: project_root.clone(),
         config_set,
-        tsconfig,
     };
 
     all_violations.extend(file_set.check_duplicate_file_names());
