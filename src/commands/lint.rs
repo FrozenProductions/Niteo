@@ -54,6 +54,7 @@ pub fn lint_workspace(
     if opts.report_suppressions {
         report = report.with_suppression_report(collected.suppression_report);
     }
+    report = report.with_diagnostics(collected.diagnostics);
     let threshold = match opts.fail_on {
         FailOn::Error => report::FailureThreshold::Error,
         FailOn::Warn => report::FailureThreshold::Warn,

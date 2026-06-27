@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde_json::{Value, json};
 
+use crate::diagnostics::Diagnostic;
 use crate::report::model::{Report, path_to_string, severity_label};
 use crate::report::summary::score as calc_score;
 use crate::report::suppressions::suppression_report_json;
@@ -25,6 +26,16 @@ impl Report {
                 self.violations
                     .iter()
                     .map(violation_json)
+                    .collect::<Vec<Value>>()
+            ),
+        );
+
+        report.insert(
+            "diagnostics".to_string(),
+            json!(
+                self.diagnostics
+                    .iter()
+                    .map(diagnostic_json)
                     .collect::<Vec<Value>>()
             ),
         );
@@ -83,4 +94,34 @@ fn violation_json(violation: &Violation) -> Value {
         "detail": violation.detail,
         "subject": violation.subject,
     })
+}
+
+fn diagnostic_json(diagnostic: &Diagnostic) -> Value {
+    json!({
+        "category": diagnostic.category.as_str(),
+        "message": diagnostic.message,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::diagnostics::{Diagnostic, DiagnosticCategory};
+    use crate::report::model::Report;
+    use serde_json::Value;
+
+    #[test]
+    fn json_report_renders_diagnostics() {
+        let report = Report::new(vec![], vec![]).with_diagnostics(vec![Diagnostic::new(
+            DiagnosticCategory::Cache,
+            "failed to clear cache",
+        )]);
+
+        let rendered = report.render_json().unwrap();
+        let parsed: Value = serde_json::from_str(&rendered).unwrap();
+        let diagnostics = parsed["diagnostics"].as_array().unwrap();
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0]["category"], "cache");
+        assert_eq!(diagnostics[0]["message"], "failed to clear cache");
+    }
 }

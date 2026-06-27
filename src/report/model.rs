@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::config::Severity;
+use crate::diagnostics::Diagnostic;
 use crate::ignore::SuppressionReport;
 use crate::rules::Violation;
 
@@ -51,6 +52,7 @@ pub struct Report {
     pub files: Vec<PathBuf>,
     pub violations: Vec<Violation>,
     pub suppression_report: Option<SuppressionReport>,
+    pub diagnostics: Vec<Diagnostic>,
 }
 
 impl Report {
@@ -59,11 +61,17 @@ impl Report {
             files,
             violations,
             suppression_report: None,
+            diagnostics: Vec::new(),
         }
     }
 
     pub fn with_suppression_report(mut self, report: SuppressionReport) -> Self {
         self.suppression_report = Some(report);
+        self
+    }
+
+    pub fn with_diagnostics(mut self, diagnostics: Vec<Diagnostic>) -> Self {
+        self.diagnostics = diagnostics;
         self
     }
 

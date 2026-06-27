@@ -23,6 +23,7 @@ niteo lint
 The text report contains:
 
 - a `Niteo Structure Health` header
+- a `Diagnostics` section when operational warnings occur
 - findings grouped by rule
 - per-file locations
 - a health score from 0 to 100
@@ -93,11 +94,14 @@ The JSON report contains:
       "detail": null,
       "subject": null
     }
-  ]
+  ],
+  "diagnostics": []
 }
 ```
 
 When `--report-suppressions` is used, JSON output also includes `suppressions`.
+
+Operational warnings (for example, cache or workspace discovery failures) are collected in `diagnostics` rather than printed to `stderr`. Each diagnostic has a `category` (`cache`, `git`, or `workspace`) and a `message`.
 
 ## SARIF Reports
 
@@ -118,6 +122,8 @@ Severity mapping:
 | `info`         | `note`      |
 | `off`          | `none`      |
 
+Operational diagnostics are emitted under `runs[0].invocations[0].toolExecutionNotifications` with level `warning` and a `descriptor.id` matching the diagnostic category.
+
 ## NDJSON Reports
 
 NDJSON output is machine-readable and designed for streaming consumers. Each line is independently parseable.
@@ -130,7 +136,7 @@ niteo lint --format ndjson --output report.ndjson
 NDJSON (newline-delimited JSON) outputs one valid JSON object per line.
 Each line is independently parseable by streaming consumers.
 
-NDJSON record order is: `summary` first, then `file` records, then `violation` records, then optionally a `suppressions` record. Consumers should not rely on any other ordering.
+NDJSON record order is: `summary` first, then `file` records, then `diagnostic` records, then `violation` records, then optionally a `suppressions` record. Consumers should not rely on any other ordering.
 
 Every record has a `type` field:
 
@@ -138,6 +144,7 @@ Every record has a `type` field:
 | -------------- | ------------------------------------------------------- |
 | `summary`      | Overall run statistics (always first).                  |
 | `file`         | One record per scanned file.                            |
+| `diagnostic`   | One record per operational warning.                     |
 | `violation`    | One record per lint violation.                          |
 | `suppressions` | Suppression report (only with `--report-suppressions`). |
 

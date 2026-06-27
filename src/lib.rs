@@ -6,6 +6,7 @@ pub mod cache;
 mod cli;
 mod commands;
 pub mod config;
+pub mod diagnostics;
 mod directory_inventory;
 mod discovery;
 pub mod fix;

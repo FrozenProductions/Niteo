@@ -1,9 +1,9 @@
 use crate::config::Severity;
 use crate::report::model::Report;
 use crate::report::summary::{
-    BOLD, CYAN, DIM, GREEN, RESET, TextSummary, group_by_file, group_by_rule, pluralized_header,
-    pluralized_label, score, score_color, severity_color, status_color, status_label,
-    visible_file_count, visible_line_count, visible_rule_group_count,
+    BOLD, CYAN, DIM, GREEN, RESET, TextSummary, YELLOW, group_by_file, group_by_rule,
+    pluralized_header, pluralized_label, score, score_color, severity_color, status_color,
+    status_label, visible_file_count, visible_line_count, visible_rule_group_count,
 };
 use crate::report::suppressions::render_suppression_report_text;
 
@@ -16,6 +16,7 @@ impl Report {
         let mut output = String::new();
 
         output.push_str(&render_header());
+        output.push_str(&render_diagnostics(&self.diagnostics));
 
         if self.violations.is_empty() {
             output.push_str(&format!(
@@ -52,6 +53,47 @@ impl Report {
 
 fn render_header() -> String {
     format!("{BOLD}Niteo Structure Health{RESET}\n\n")
+}
+
+fn render_diagnostics(diagnostics: &[crate::diagnostics::Diagnostic]) -> String {
+    if diagnostics.is_empty() {
+        return String::new();
+    }
+
+    let mut output = format!("{BOLD}Diagnostics{RESET}\n");
+    for diagnostic in diagnostics {
+        output.push_str(&format!(
+            "  {YELLOW}warning{RESET}: {message}\n",
+            message = diagnostic.message
+        ));
+    }
+    output.push('\n');
+    output
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::diagnostics::{Diagnostic, DiagnosticCategory};
+    use crate::report::model::Report;
+
+    #[test]
+    fn text_report_renders_diagnostics_section() {
+        let report = Report::new(vec![], vec![]).with_diagnostics(vec![Diagnostic::new(
+            DiagnosticCategory::Cache,
+            "failed to prepare cache",
+        )]);
+
+        let rendered = report.render_text(false);
+        assert!(rendered.contains("Diagnostics"));
+        assert!(rendered.contains("failed to prepare cache"));
+    }
+
+    #[test]
+    fn text_report_omits_diagnostics_when_empty() {
+        let report = Report::new(vec![], vec![]);
+        let rendered = report.render_text(false);
+        assert!(!rendered.contains("Diagnostics"));
+    }
 }
 
 fn render_end_summary(

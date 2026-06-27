@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::config::{self, ConfigSet};
+use crate::diagnostics::{DiagnosticCategory, Diagnostics};
 use crate::discovery;
 use crate::git::{self, GitSelection};
 use crate::ignore::SuppressionReport;
@@ -18,6 +19,7 @@ pub struct AnalysisResult {
     pub suppression_report: SuppressionReport,
     pub import_graph: Arc<ImportGraph>,
     pub workspace: Option<Arc<Workspace>>,
+    pub diagnostics: Vec<crate::diagnostics::Diagnostic>,
 }
 
 pub struct AnalysisOptions {
@@ -31,6 +33,7 @@ pub struct AnalysisOptions {
 }
 
 pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<AnalysisResult> {
+    let mut diagnostics = Diagnostics::new();
     let root_config =
         config::ProjectConfig::resolve(workspace_root, options.root_override.clone())?;
     let scan_scope = options
@@ -51,7 +54,10 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
     if options.clear_cache
         && let Err(error) = crate::cache::store::clear_cache(workspace_root)
     {
-        eprintln!("warning: failed to clear cache: {error}");
+        diagnostics.warn(
+            DiagnosticCategory::Cache,
+            format!("failed to clear cache: {error}"),
+        );
     }
 
     let tsconfig = crate::tsconfig::discover_and_parse(workspace_root)?;
@@ -63,7 +69,10 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
             match git::get_changed_typescript_files(&GitSelection::WorkingTree) {
                 Ok(changed) => changed,
                 Err(err) => {
-                    eprintln!("warning: could not detect changed files via git: {err}");
+                    diagnostics.warn(
+                        DiagnosticCategory::Git,
+                        format!("could not detect changed files via git: {err}"),
+                    );
                     Vec::new()
                 }
             }
@@ -102,7 +111,10 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         ) {
             Ok(state) => state,
             Err(error) => {
-                eprintln!("warning: failed to prepare cache: {error}");
+                diagnostics.warn(
+                    DiagnosticCategory::Cache,
+                    format!("failed to prepare cache: {error}"),
+                );
                 None
             }
         }
@@ -156,7 +168,10 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
     let workspace = match crate::workspace::Workspace::discover(workspace_root) {
         Ok(workspace) => Some(Arc::new(workspace)),
         Err(error) => {
-            eprintln!("warning: failed to discover workspace: {error}");
+            diagnostics.warn(
+                DiagnosticCategory::Workspace,
+                format!("failed to discover workspace: {error}"),
+            );
             None
         }
     };
@@ -181,7 +196,10 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
             &parse_failures,
         )
     {
-        eprintln!("warning: failed to write cache: {error}");
+        diagnostics.warn(
+            DiagnosticCategory::Cache,
+            format!("failed to write cache: {error}"),
+        );
     }
 
     let mut all_violations = file_violations;
@@ -218,6 +236,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         suppression_report,
         import_graph: graph,
         workspace,
+        diagnostics: diagnostics.into_entries(),
     })
 }
 
