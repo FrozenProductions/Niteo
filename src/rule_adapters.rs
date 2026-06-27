@@ -559,12 +559,16 @@ impl FileRule for NoLogicInDomainAdapter {
         self.config.severity
     }
     fn needs_ast(&self) -> bool {
-        false
+        true
     }
     fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+        let Some(program) = ctx.program else {
+            return vec![];
+        };
         no_logic_in_domain::check_file(
             ctx.file,
-            ctx.source,
+            program,
+            ctx.line_index,
             &self.config,
             &self.types,
             &self.constants,
