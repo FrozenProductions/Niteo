@@ -222,6 +222,8 @@ fn has_overlap(edits: &[TextEdit]) -> bool {
     false
 }
 
+/// Apply edits from end to start so that earlier source offsets remain valid
+/// after later replacements are applied.
 pub fn apply_edits(source: &str, edits: &[TextEdit]) -> String {
     let mut sorted_edits: Vec<&TextEdit> = edits.iter().collect();
     sorted_edits.sort_by_key(|edit| edit.start);
