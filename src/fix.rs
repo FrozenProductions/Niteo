@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::allocator::with_reusable_allocator;
-use crate::rules::{FileContext, FileRule, Fix, TextEdit};
+use crate::rules::{AstContext, AstRule, Fix, TextEdit};
 use crate::syntax::source_type_from_path;
 
 pub struct ApplyFixOptions {
@@ -243,7 +243,7 @@ pub fn apply_edits(source: &str, edits: &[TextEdit]) -> String {
     result
 }
 
-pub fn collect_fixes(ctx: &FileContext<'_>, rules: &[Box<dyn FileRule + Send + Sync>]) -> Vec<Fix> {
+pub fn collect_fixes(ctx: &AstContext<'_>, rules: &[Box<dyn AstRule + Send + Sync>]) -> Vec<Fix> {
     let mut all_fixes = Vec::new();
     for rule in rules {
         if rule.severity().is_enabled() && rule.supports_fix() {

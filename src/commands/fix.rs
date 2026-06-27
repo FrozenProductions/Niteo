@@ -82,6 +82,7 @@ pub fn fix_workspace(
         );
 
         let any_fixable = rules
+            .ast_rules
             .iter()
             .any(|rule| rule.severity().is_enabled() && rule.supports_fix());
 
@@ -93,8 +94,9 @@ pub fn fix_workspace(
             .with_context(|| format!("failed to read {}", file.display()))?;
 
         let needs_ast = rules
+            .ast_rules
             .iter()
-            .any(|rule| rule.severity().is_enabled() && rule.needs_ast() && rule.supports_fix());
+            .any(|rule| rule.severity().is_enabled() && rule.supports_fix());
 
         let single_file = [file.clone()];
         let type_location_style =
@@ -119,16 +121,18 @@ pub fn fix_workspace(
                 None
             };
 
-            let ctx = crate::rules::FileContext {
+            let Some(program) = parse_result.as_ref() else {
+                return Vec::new();
+            };
+
+            let ctx = crate::rules::AstContext {
                 file,
                 source: &source,
-                program: parse_result.as_ref(),
+                program,
                 line_index: &line_index,
-                import_graph: collected.import_graph.clone(),
-                workspace: collected.workspace.clone(),
                 type_location_style,
             };
-            crate::fix::collect_fixes(&ctx, &rules)
+            crate::fix::collect_fixes(&ctx, &rules.ast_rules)
         });
 
         all_fixes.extend(

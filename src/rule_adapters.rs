@@ -6,18 +6,12 @@ macro_rules! ast_rule_adapter {
         pub struct $name {
             pub config: $config_ty,
         }
-        impl FileRule for $name {
+        impl AstRule for $name {
             fn severity(&self) -> Severity {
                 self.config.severity
             }
-            fn needs_ast(&self) -> bool {
-                true
-            }
-            fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-                let Some(program) = ctx.program else {
-                    return vec![];
-                };
-                $module::check_file(ctx.file, program, ctx.line_index, &self.config)
+            fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
+                $module::check_file(ctx.file, ctx.program, ctx.line_index, &self.config)
             }
         }
     };
@@ -28,29 +22,20 @@ macro_rules! fixable_ast_rule_adapter {
         pub struct $name {
             pub config: $config_ty,
         }
-        impl FileRule for $name {
+        impl AstRule for $name {
             fn severity(&self) -> Severity {
                 self.config.severity
             }
-            fn needs_ast(&self) -> bool {
-                true
-            }
-            fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-                let Some(program) = ctx.program else {
-                    return vec![];
-                };
-                $module::check_file(ctx.file, program, ctx.line_index, &self.config)
+            fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
+                $module::check_file(ctx.file, ctx.program, ctx.line_index, &self.config)
             }
 
             fn supports_fix(&self) -> bool {
                 true
             }
 
-            fn fix(&self, ctx: &FileContext<'_>) -> Vec<Fix> {
-                let Some(program) = ctx.program else {
-                    return vec![];
-                };
-                $module::fix_file(ctx.file, program, ctx.source, &self.config)
+            fn fix(&self, ctx: &AstContext<'_>) -> Vec<Fix> {
+                $module::fix_file(ctx.file, ctx.program, ctx.source, &self.config)
             }
         }
     };
@@ -73,20 +58,14 @@ pub struct NoDefaultExportAdapter {
     pub config: crate::config::NoDefaultExportRuleConfig,
     pub components: crate::config::structure::DomainConfig,
 }
-impl FileRule for NoDefaultExportAdapter {
+impl AstRule for NoDefaultExportAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        true
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        let Some(program) = ctx.program else {
-            return vec![];
-        };
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
         no_default_export::check_file(
             ctx.file,
-            program,
+            ctx.program,
             ctx.line_index,
             &self.config,
             &self.components,
@@ -122,14 +101,11 @@ ast_rule_adapter!(
 pub struct NoUpwardImportAdapter {
     pub config: crate::config::UpwardImportRuleConfig,
 }
-impl FileRule for NoUpwardImportAdapter {
+impl GraphRule for NoUpwardImportAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        false
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
         no_upward_import::check_file(
             ctx.file,
             ctx.line_index,
@@ -143,14 +119,11 @@ pub struct LayerBoundariesAdapter {
     pub config: crate::config::RuleConfig,
     pub layers: crate::config::architecture::LayerBoundaryConfig,
 }
-impl FileRule for LayerBoundariesAdapter {
+impl GraphRule for LayerBoundariesAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        false
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
         layer_boundaries::check_file(
             ctx.file,
             ctx.line_index,
@@ -293,20 +266,19 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_logic_in_barrel
 );
+
 pub struct NoLargeFileAdapter {
     pub config: crate::config::FileLengthRuleConfig,
 }
-impl FileRule for NoLargeFileAdapter {
+impl TextRule for NoLargeFileAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        false
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+    fn check(&self, ctx: &TextContext<'_>) -> Vec<Violation> {
         no_large_file::check_file(ctx.file, ctx.source, &self.config)
     }
 }
+
 ast_rule_adapter!(
     NoBarrelFilesAdapter,
     NO_BARREL_FILES_RULE_ID,
@@ -330,20 +302,14 @@ pub struct NoInlineTypesAdapter {
     pub config: crate::config::RuleConfig,
     pub types: crate::config::structure::DomainConfig,
 }
-impl FileRule for NoInlineTypesAdapter {
+impl AstRule for NoInlineTypesAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        true
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        let Some(program) = ctx.program else {
-            return vec![];
-        };
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
         no_inline_types::check_file(
             ctx.file,
-            program,
+            ctx.program,
             ctx.line_index,
             &self.config,
             ctx.type_location_style,
@@ -356,18 +322,18 @@ pub struct HookNoJsxAdapter {
     pub config: crate::config::RuleConfig,
     pub hooks: crate::config::structure::DomainConfig,
 }
-impl FileRule for HookNoJsxAdapter {
+impl AstRule for HookNoJsxAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        true
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        let Some(program) = ctx.program else {
-            return vec![];
-        };
-        hook_no_jsx::check_file(ctx.file, program, ctx.line_index, &self.config, &self.hooks)
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
+        hook_no_jsx::check_file(
+            ctx.file,
+            ctx.program,
+            ctx.line_index,
+            &self.config,
+            &self.hooks,
+        )
     }
 }
 
@@ -375,18 +341,18 @@ pub struct HookPrefixAdapter {
     pub config: crate::config::HookPrefixRuleConfig,
     pub hooks: crate::config::structure::DomainConfig,
 }
-impl FileRule for HookPrefixAdapter {
+impl AstRule for HookPrefixAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        true
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        let Some(program) = ctx.program else {
-            return vec![];
-        };
-        hook_prefix::check_file(ctx.file, program, ctx.line_index, &self.config, &self.hooks)
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
+        hook_prefix::check_file(
+            ctx.file,
+            ctx.program,
+            ctx.line_index,
+            &self.config,
+            &self.hooks,
+        )
     }
 }
 
@@ -394,20 +360,14 @@ pub struct ComponentFileOnlyComponentsAdapter {
     pub config: crate::config::RuleConfig,
     pub components: crate::config::structure::DomainConfig,
 }
-impl FileRule for ComponentFileOnlyComponentsAdapter {
+impl AstRule for ComponentFileOnlyComponentsAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        true
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        let Some(program) = ctx.program else {
-            return vec![];
-        };
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
         component_file_only_components::check_file(
             ctx.file,
-            program,
+            ctx.program,
             ctx.line_index,
             &self.config,
             &self.components,
@@ -419,20 +379,14 @@ pub struct NoTestCodeInProductionAdapter {
     pub config: crate::config::RuleConfig,
     pub tests: crate::config::structure::DomainConfig,
 }
-impl FileRule for NoTestCodeInProductionAdapter {
+impl AstRule for NoTestCodeInProductionAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        true
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        let Some(program) = ctx.program else {
-            return vec![];
-        };
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
         no_test_code_in_production::check_file(
             ctx.file,
-            program,
+            ctx.program,
             ctx.line_index,
             &self.config,
             &self.tests,
@@ -444,14 +398,11 @@ pub struct NoTestImportAdapter {
     pub config: crate::config::RuleConfig,
     pub tests: crate::config::structure::DomainConfig,
 }
-impl FileRule for NoTestImportAdapter {
+impl GraphRule for NoTestImportAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        false
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
         no_test_import::check_file(
             ctx.file,
             ctx.line_index,
@@ -466,20 +417,14 @@ pub struct NoAnyAdapter {
     pub config: crate::config::NoAnyRuleConfig,
     pub generated: crate::config::structure::DomainConfig,
 }
-impl FileRule for NoAnyAdapter {
+impl AstRule for NoAnyAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        true
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        let Some(program) = ctx.program else {
-            return vec![];
-        };
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
         no_any::check_file(
             ctx.file,
-            program,
+            ctx.program,
             ctx.line_index,
             &self.config,
             &self.generated,
@@ -490,14 +435,11 @@ impl FileRule for NoAnyAdapter {
 pub struct NoBarrelChainAdapter {
     pub config: crate::config::RuleConfig,
 }
-impl FileRule for NoBarrelChainAdapter {
+impl GraphRule for NoBarrelChainAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        false
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
         no_barrel_chain::check_file(
             ctx.file,
             ctx.line_index,
@@ -511,14 +453,11 @@ pub struct NoCircularImportAdapter {
     pub config: crate::config::RuleConfig,
     pub context: no_circular_import::CircularImportContext,
 }
-impl FileRule for NoCircularImportAdapter {
+impl GraphRule for NoCircularImportAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        false
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
         no_circular_import::check_file(
             ctx.file,
             ctx.line_index,
@@ -532,14 +471,11 @@ impl FileRule for NoCircularImportAdapter {
 pub struct NoOrphanFilesAdapter {
     pub config: crate::config::NoOrphanFilesRuleConfig,
 }
-impl FileRule for NoOrphanFilesAdapter {
+impl GraphRule for NoOrphanFilesAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        false
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
         no_orphan_files::check_file(
             ctx.file,
             ctx.line_index,
@@ -554,20 +490,14 @@ pub struct NoLogicInDomainAdapter {
     pub types: crate::config::structure::DomainConfig,
     pub constants: crate::config::structure::DomainConfig,
 }
-impl FileRule for NoLogicInDomainAdapter {
+impl AstRule for NoLogicInDomainAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        true
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
-        let Some(program) = ctx.program else {
-            return vec![];
-        };
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
         no_logic_in_domain::check_file(
             ctx.file,
-            program,
+            ctx.program,
             ctx.line_index,
             &self.config,
             &self.types,
@@ -579,14 +509,11 @@ impl FileRule for NoLogicInDomainAdapter {
 pub struct NoPrivatePackageImportAdapter {
     pub config: crate::config::RuleConfig,
 }
-impl FileRule for NoPrivatePackageImportAdapter {
+impl GraphRule for NoPrivatePackageImportAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        false
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
         no_private_package_import::check_file(
             ctx.file,
             ctx.line_index,
@@ -601,14 +528,11 @@ pub struct NoPackageCycleAdapter {
     pub config: crate::config::RuleConfig,
     pub context: no_package_cycle::PackageCycleContext,
 }
-impl FileRule for NoPackageCycleAdapter {
+impl GraphRule for NoPackageCycleAdapter {
     fn severity(&self) -> Severity {
         self.config.severity
     }
-    fn needs_ast(&self) -> bool {
-        false
-    }
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation> {
+    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
         no_package_cycle::check_file(
             ctx.file,
             ctx.line_index,

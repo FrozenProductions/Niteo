@@ -135,28 +135,56 @@ pub struct TextEdit {
     pub replacement: String,
 }
 
-pub trait FileRule: Send + Sync {
+pub trait AstRule: Send + Sync {
     fn severity(&self) -> Severity;
-    fn needs_ast(&self) -> bool;
-    fn check(&self, ctx: &FileContext<'_>) -> Vec<Violation>;
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation>;
 
     fn supports_fix(&self) -> bool {
         false
     }
 
-    fn fix(&self, _ctx: &FileContext<'_>) -> Vec<Fix> {
+    fn fix(&self, _ctx: &AstContext<'_>) -> Vec<Fix> {
         Vec::new()
     }
 }
 
-pub struct FileContext<'a> {
+pub trait TextRule: Send + Sync {
+    fn severity(&self) -> Severity;
+    fn check(&self, ctx: &TextContext<'_>) -> Vec<Violation>;
+}
+
+pub trait GraphRule: Send + Sync {
+    fn severity(&self) -> Severity;
+    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation>;
+}
+
+pub struct AstContext<'a> {
     pub file: &'a Path,
     pub source: &'a str,
-    pub program: Option<&'a oxc_ast::ast::Program<'a>>,
+    pub program: &'a oxc_ast::ast::Program<'a>,
+    pub line_index: &'a LineIndex,
+    pub type_location_style: TypeLocationStyle,
+}
+
+pub struct TextContext<'a> {
+    pub file: &'a Path,
+    pub source: &'a str,
+    pub line_index: &'a LineIndex,
+    pub type_location_style: TypeLocationStyle,
+}
+
+pub struct GraphContext<'a> {
+    pub file: &'a Path,
     pub line_index: &'a LineIndex,
     pub type_location_style: TypeLocationStyle,
     pub import_graph: Arc<ImportGraph>,
     pub workspace: Option<Arc<crate::workspace::Workspace>>,
+}
+
+pub struct FileRuleSet {
+    pub ast_rules: Vec<Box<dyn AstRule + Send + Sync>>,
+    pub text_rules: Vec<Box<dyn TextRule + Send + Sync>>,
+    pub graph_rules: Vec<Box<dyn GraphRule + Send + Sync>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

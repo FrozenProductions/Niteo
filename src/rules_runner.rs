@@ -11,7 +11,7 @@ use crate::config;
 use crate::ignore;
 use crate::import_graph::ImportGraph;
 use crate::rule_adapters::*;
-use crate::rules::{FileContext, FileRule, RulesConfig, Violation};
+use crate::rules::{AstContext, FileRuleSet, GraphContext, RulesConfig, TextContext, Violation};
 use crate::syntax::LineIndex;
 
 type FileResult = (
@@ -78,8 +78,7 @@ pub fn check_files_with_parallelism(
     }
 
     struct ConfigRuntime {
-        rules: Arc<Vec<Box<dyn FileRule + Send + Sync>>>,
-        needs_ast: bool,
+        rules: Arc<FileRuleSet>,
         type_location_style: crate::rules::TypeLocationStyle,
     }
     let mut runtime_by_config: Vec<Option<ConfigRuntime>> =
@@ -98,19 +97,15 @@ pub fn check_files_with_parallelism(
             import_graph.clone(),
             workspace.clone(),
         ));
-        let any_enabled = rules.iter().any(|rule| rule.severity().is_enabled());
+        let any_enabled = any_rule_enabled(&rules);
         if !any_enabled {
             continue;
         }
-        let needs_ast = rules
-            .iter()
-            .any(|rule| rule.severity().is_enabled() && rule.needs_ast());
         let file_refs: Vec<PathBuf> = group_files.iter().map(|file| (*file).clone()).collect();
         let type_location_style =
             crate::rules::TypeLocationStyle::detect(&file_refs, &config.structure.types);
         runtime_by_config[config_id] = Some(ConfigRuntime {
             rules,
-            needs_ast,
             type_location_style,
         });
     }
@@ -121,7 +116,6 @@ pub fn check_files_with_parallelism(
             return Ok((Vec::new(), None, None));
         };
         let rules = runtime.rules.clone();
-        let needs_ast = runtime.needs_ast;
         let type_location_style = runtime.type_location_style;
 
         let source = std::fs::read_to_string(file)
@@ -143,6 +137,10 @@ pub fn check_files_with_parallelism(
 
         let (new_violations, parse_failure) = with_reusable_allocator(|allocator| {
             let line_index = LineIndex::new(&source);
+            let needs_ast = rules
+                .ast_rules
+                .iter()
+                .any(|rule| rule.severity().is_enabled());
 
             let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
                 match crate::syntax::source_type_from_path(file) {
@@ -159,22 +157,48 @@ pub fn check_files_with_parallelism(
                 None
             };
 
-            let ctx = FileContext {
+            let mut violations = Vec::new();
+
+            let text_ctx = TextContext {
                 file,
                 source: &source,
-                program: parse_result.as_ref(),
+                line_index: &line_index,
+                type_location_style,
+            };
+            for rule in rules.text_rules.iter() {
+                if rule.severity().is_enabled() {
+                    violations.extend(rule.check(&text_ctx));
+                }
+            }
+
+            let graph_ctx = GraphContext {
+                file,
                 line_index: &line_index,
                 type_location_style,
                 import_graph: import_graph.clone(),
                 workspace: workspace.clone(),
             };
-
-            let mut violations = Vec::new();
-            for rule in rules.iter() {
+            for rule in rules.graph_rules.iter() {
                 if rule.severity().is_enabled() {
-                    violations.extend(rule.check(&ctx));
+                    violations.extend(rule.check(&graph_ctx));
                 }
             }
+
+            if let Some(program) = parse_result.as_ref() {
+                let ast_ctx = AstContext {
+                    file,
+                    source: &source,
+                    program,
+                    line_index: &line_index,
+                    type_location_style,
+                };
+                for rule in rules.ast_rules.iter() {
+                    if rule.severity().is_enabled() {
+                        violations.extend(rule.check(&ast_ctx));
+                    }
+                }
+            }
+
             (violations, None)
         });
 
@@ -215,6 +239,21 @@ pub fn check_files_with_parallelism(
         },
         parse_failures,
     ))
+}
+
+fn any_rule_enabled(rules: &FileRuleSet) -> bool {
+    rules
+        .ast_rules
+        .iter()
+        .any(|rule| rule.severity().is_enabled())
+        || rules
+            .text_rules
+            .iter()
+            .any(|rule| rule.severity().is_enabled())
+        || rules
+            .graph_rules
+            .iter()
+            .any(|rule| rule.severity().is_enabled())
 }
 
 pub fn check_files(
@@ -290,8 +329,8 @@ pub fn build_file_rules(
     architecture: &config::architecture::ArchitectureConfig,
     import_graph: Arc<ImportGraph>,
     workspace: Option<Arc<crate::workspace::Workspace>>,
-) -> Vec<Box<dyn FileRule + Send + Sync>> {
-    let mut rules: Vec<Box<dyn FileRule + Send + Sync>> = vec![
+) -> FileRuleSet {
+    let mut ast_rules: Vec<Box<dyn crate::rules::AstRule + Send + Sync>> = vec![
         Box::new(BooleanPrefixAdapter {
             config: config.boolean_prefix.clone(),
         }),
@@ -313,9 +352,6 @@ pub fn build_file_rules(
         }),
         Box::new(MaxFunctionParamsAdapter {
             config: config.max_function_params.clone(),
-        }),
-        Box::new(NoUpwardImportAdapter {
-            config: config.no_upward_import.clone(),
         }),
         Box::new(NoEnumsAdapter {
             config: config.no_enums.clone(),
@@ -394,10 +430,6 @@ pub fn build_file_rules(
             config: config.no_test_code_in_production.clone(),
             tests: structure.tests.clone(),
         }),
-        Box::new(NoTestImportAdapter {
-            config: config.no_test_import.clone(),
-            tests: structure.tests.clone(),
-        }),
         Box::new(NoAnyAdapter {
             config: config.no_any.clone(),
             generated: structure.generated.clone(),
@@ -411,9 +443,6 @@ pub fn build_file_rules(
         Box::new(NoLogicInBarrelAdapter {
             config: config.no_logic_in_barrel.clone(),
         }),
-        Box::new(NoLargeFileAdapter {
-            config: config.no_large_file.clone(),
-        }),
         Box::new(NoBarrelFilesAdapter {
             config: config.no_barrel_files.clone(),
         }),
@@ -422,6 +451,31 @@ pub fn build_file_rules(
         }),
         Box::new(PreferReadonlyAdapter {
             config: config.prefer_readonly.clone(),
+        }),
+    ];
+
+    ast_rules.push(Box::new(NoLogicInDomainAdapter {
+        config: config.no_logic_in_domain.clone(),
+        types: structure.types.clone(),
+        constants: structure.constants.clone(),
+    }));
+
+    let text_rules: Vec<Box<dyn crate::rules::TextRule + Send + Sync>> =
+        vec![Box::new(NoLargeFileAdapter {
+            config: config.no_large_file.clone(),
+        })];
+
+    let mut graph_rules: Vec<Box<dyn crate::rules::GraphRule + Send + Sync>> = vec![
+        Box::new(NoUpwardImportAdapter {
+            config: config.no_upward_import.clone(),
+        }),
+        Box::new(LayerBoundariesAdapter {
+            config: config.layer_boundaries.clone(),
+            layers: architecture.layers.clone(),
+        }),
+        Box::new(NoTestImportAdapter {
+            config: config.no_test_import.clone(),
+            tests: structure.tests.clone(),
         }),
         Box::new(NoBarrelChainAdapter {
             config: config.no_barrel_chain.clone(),
@@ -441,7 +495,7 @@ pub fn build_file_rules(
     ];
 
     if let Some(workspace) = workspace {
-        rules.push(Box::new(NoPackageCycleAdapter {
+        graph_rules.push(Box::new(NoPackageCycleAdapter {
             config: config.no_package_cycle.clone(),
             context: crate::rules::no_package_cycle::PackageCycleContext::new(
                 workspace.as_ref(),
@@ -450,17 +504,11 @@ pub fn build_file_rules(
         }));
     }
 
-    rules.push(Box::new(NoLogicInDomainAdapter {
-        config: config.no_logic_in_domain.clone(),
-        types: structure.types.clone(),
-        constants: structure.constants.clone(),
-    }));
-    rules.push(Box::new(LayerBoundariesAdapter {
-        config: config.layer_boundaries.clone(),
-        layers: architecture.layers.clone(),
-    }));
-
-    rules
+    FileRuleSet {
+        ast_rules,
+        text_rules,
+        graph_rules,
+    }
 }
 
 pub fn check_duplicate_file_names(
