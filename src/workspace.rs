@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use ignore::WalkBuilder;
 use ignore::overrides::OverrideBuilder;
+use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -16,6 +17,28 @@ pub struct Package {
     pub name: String,
     pub directory: PathBuf,
     pub public_entrypoints: Vec<PathBuf>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PackageJson {
+    name: Option<String>,
+    main: Option<String>,
+    module: Option<String>,
+    #[serde(default)]
+    exports: Option<serde_json::Value>,
+    workspaces: Option<Workspaces>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum Workspaces {
+    Array(Vec<String>),
+    Object { packages: Vec<String> },
+}
+
+#[derive(Debug, Deserialize)]
+struct PnpmWorkspace {
+    packages: Vec<String>,
 }
 
 impl Workspace {
@@ -46,29 +69,14 @@ impl Workspace {
 
         let source = std::fs::read_to_string(&package_json_path)
             .with_context(|| "failed to read package.json")?;
-        let package_json: serde_json::Value =
+        let package_json: PackageJson =
             serde_json::from_str(&source).with_context(|| "failed to parse package.json")?;
 
-        let workspaces =
-            if let Some(workspaces) = package_json.get("workspaces").and_then(|w| w.as_array()) {
-                workspaces
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect()
-            } else if let Some(workspaces) = package_json
-                .get("workspaces")
-                .and_then(|w| w.get("packages"))
-                .and_then(|p| p.as_array())
-            {
-                workspaces
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect()
-            } else {
-                Vec::new()
-            };
+        let workspaces = match package_json.workspaces {
+            Some(Workspaces::Array(workspaces)) => workspaces,
+            Some(Workspaces::Object { packages }) => packages,
+            None => Vec::new(),
+        };
 
         Self::collect_packages_from_globs(workspace_root, &workspaces)
     }
@@ -80,26 +88,8 @@ impl Workspace {
         }
 
         let source = std::fs::read_to_string(&pnpm_workspace_path)?;
-        let mut pnpm_packages = Vec::new();
-        let mut in_packages = false;
-        for line in source.lines() {
-            if line.trim() == "packages:" {
-                in_packages = true;
-                continue;
-            }
-            if in_packages {
-                let trimmed = line.trim();
-                if trimmed.starts_with("- ") {
-                    let pkg = trimmed.trim_start_matches("- ").trim().trim_matches('\'');
-                    pnpm_packages.push(pkg.to_string());
-                } else if !trimmed.is_empty() && !trimmed.starts_with('#') {
-                    break;
-                }
-            }
-        }
-        let pnpm_workspace = PnpmWorkspace {
-            packages: pnpm_packages,
-        };
+        let pnpm_workspace: PnpmWorkspace =
+            serde_yaml::from_str(&source).with_context(|| "failed to parse pnpm-workspace.yaml")?;
 
         Self::collect_packages_from_globs(workspace_root, &pnpm_workspace.packages)
     }
@@ -192,13 +182,18 @@ impl Workspace {
     fn load_package(directory: &Path) -> Option<Package> {
         let package_json_path = directory.join("package.json");
         let source = std::fs::read_to_string(&package_json_path).ok()?;
-        let package_json: serde_json::Value = serde_json::from_str(&source).ok()?;
+        let package_json: PackageJson = serde_json::from_str(&source).ok()?;
 
         let name = package_json
-            .get("name")
-            .and_then(|n| n.as_str())
-            .unwrap_or(directory.file_name()?.to_str()?)
-            .to_string();
+            .name
+            .as_ref()
+            .map(|name| name.to_string())
+            .or_else(|| {
+                directory
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|s| s.to_string())
+            })?;
 
         let public_entrypoints = Self::resolve_public_entrypoints(directory, &package_json);
 
@@ -209,13 +204,10 @@ impl Workspace {
         })
     }
 
-    fn resolve_public_entrypoints(
-        directory: &Path,
-        package_json: &serde_json::Value,
-    ) -> Vec<PathBuf> {
+    fn resolve_public_entrypoints(directory: &Path, package_json: &PackageJson) -> Vec<PathBuf> {
         let mut entrypoints = Vec::new();
 
-        if let Some(exports) = package_json.get("exports") {
+        if let Some(exports) = &package_json.exports {
             if let Some(exports_obj) = exports.as_object() {
                 for (key, value) in exports_obj {
                     if !key.starts_with('.') {
@@ -229,10 +221,11 @@ impl Workspace {
         }
 
         if entrypoints.is_empty() {
-            for field in ["main", "module"] {
-                if let Some(entrypoint) = package_json.get(field).and_then(|v| v.as_str()) {
-                    entrypoints.push(directory.join(entrypoint));
-                }
+            for entrypoint in [package_json.main.as_ref(), package_json.module.as_ref()]
+                .into_iter()
+                .flatten()
+            {
+                entrypoints.push(directory.join(entrypoint));
             }
         }
 
@@ -271,11 +264,6 @@ impl Workspace {
             .iter()
             .find(|package| path.starts_with(&package.directory))
     }
-}
-
-#[derive(Debug)]
-struct PnpmWorkspace {
-    packages: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default)]
