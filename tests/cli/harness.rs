@@ -111,5 +111,3 @@ pub fn git_add_commit(project: &Path, message: &str) -> Result<()> {
 
     Ok(())
 }
-
-
