@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::FailurePolicy;
 use super::architecture::ArchitectureConfig;
 use super::defaults::{CONFIG_FILE_NAME, DEFAULT_BASELINE_FILE, DEFAULT_CONFIG_SOURCE};
 use super::raw::RawConfig;
@@ -19,6 +20,7 @@ pub struct ProjectConfig {
     pub architecture: ArchitectureConfig,
     pub rules: RulesConfig,
     pub fix_overrides: HashMap<String, bool>,
+    pub fail_on: FailurePolicy,
 }
 
 impl ProjectConfig {
@@ -37,6 +39,7 @@ impl Default for ProjectConfig {
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
             fix_overrides: HashMap::new(),
+            fail_on: FailurePolicy::default(),
         }
     }
 }
@@ -139,6 +142,7 @@ impl RawConfig {
             architecture: self.architecture(),
             rules: self.rules_config().map_err(anyhow::Error::msg)?,
             fix_overrides: self.fix.clone().unwrap_or_default(),
+            fail_on: self.fail_on_policy().map_err(anyhow::Error::msg)?,
         })
     }
 }

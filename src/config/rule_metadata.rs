@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RuleCategory {
     LanguageTypescript,
     SourceHygiene,
@@ -17,6 +17,24 @@ impl RuleCategory {
             RuleCategory::FileDirectory => "files",
             RuleCategory::Domain => "domain",
             RuleCategory::Import => "imports",
+        }
+    }
+}
+
+impl std::str::FromStr for RuleCategory {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "typescript" => Ok(Self::LanguageTypescript),
+            "hygiene" => Ok(Self::SourceHygiene),
+            "exports" => Ok(Self::ExportModuleShape),
+            "files" => Ok(Self::FileDirectory),
+            "domain" => Ok(Self::Domain),
+            "imports" => Ok(Self::Import),
+            _ => Err(format!(
+                "unknown category '{value}'; must be one of: typescript, hygiene, exports, files, domain, imports"
+            )),
         }
     }
 }

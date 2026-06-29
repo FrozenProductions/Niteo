@@ -29,7 +29,9 @@ These options are accepted by every command.
 | `--cache`               |       | Enable caching of analysis results, parsed ASTs, and rule violations.                                   |
 | `--no-cache`            |       | Disable caching even when it would otherwise be enabled.                                                |
 | `--clear-cache`         |       | Clear the cache file before running.                                                                    |
-| `--fail-on <threshold>` |       | Minimum severity that causes lint to fail. Supported values: `error`, `warn`, `any`. Defaults to `any`. |
+| `--fail-on <threshold>` |       | Minimum severity that causes lint to fail. Supported values: `error`, `warn`, `any`. Defaults to `any`, or to `[fail-on].default` from config when present. |
+| `--fail-on-rule <rule>=<severity>` | | Override the failure threshold for one rule. Repeatable. |
+| `--fail-on-category <category>=<severity>` | | Override the failure threshold for one rule category. Repeatable. Categories: `typescript`, `hygiene`, `exports`, `files`, `domain`, `imports`. |
 | `--deny-child-configs`  |       | Fail when nested `niteo.toml` files are found inside the scan scope.                                    |
 
 Not every command supports every output format. `rules`, `explain`, `stats`, `graph`, and `config` support `text` and `json`; they reject `sarif` and `ndjson`. `lint` supports `text`, `json`, `sarif`, and `ndjson`.

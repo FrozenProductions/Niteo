@@ -163,6 +163,7 @@ fn raw_to_project_config(raw: &RawConfig, root: PathBuf) -> Result<ProjectConfig
         architecture: raw.architecture(),
         rules: raw.rules_config().map_err(anyhow::Error::msg)?,
         fix_overrides: raw.fix.clone().unwrap_or_default(),
+        fail_on: raw.fail_on_policy().map_err(anyhow::Error::msg)?,
     })
 }
 
@@ -279,6 +280,7 @@ mod tests {
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
             fix_overrides: std::collections::HashMap::new(),
+            fail_on: crate::config::FailurePolicy::default(),
         };
 
         let child_config = ProjectConfig {
@@ -289,6 +291,7 @@ mod tests {
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
             fix_overrides: std::collections::HashMap::new(),
+            fail_on: crate::config::FailurePolicy::default(),
         };
 
         let root = ResolvedConfigNode {
@@ -331,6 +334,7 @@ mod tests {
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
             fix_overrides: std::collections::HashMap::new(),
+            fail_on: crate::config::FailurePolicy::default(),
         };
 
         let root = ResolvedConfigNode {
@@ -430,6 +434,7 @@ mod tests {
             architecture: ArchitectureConfig::default(),
             rules: RulesConfig::default(),
             fix_overrides: std::collections::HashMap::new(),
+            fail_on: crate::config::FailurePolicy::default(),
         };
 
         let root = ResolvedConfigNode {

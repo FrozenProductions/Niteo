@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -6,6 +7,7 @@ use clap::Parser;
 
 use crate::cli::{BaselineCommand, Cli, Command, ConfigCommand};
 use crate::commands;
+use crate::config::{FailureThreshold, RuleCategory};
 use crate::watch;
 
 pub fn run() -> Result<ExitCode> {
@@ -110,6 +112,9 @@ pub fn run() -> Result<ExitCode> {
 
             let cache_enabled = cli.options.cache && !cli.options.no_cache;
 
+            let (fail_on_rules, fail_on_categories) =
+                parse_fail_on_overrides(&cli.options.fail_on_rule, &cli.options.fail_on_category)?;
+
             let opts = commands::lint::LintOptions {
                 verbose: cli.options.verbose,
                 git_selection: git_selection.clone(),
@@ -117,7 +122,9 @@ pub fn run() -> Result<ExitCode> {
                 output_path: cli.options.output,
                 baseline_path: baseline_path.clone(),
                 report_suppressions: cli.options.report_suppressions,
-                fail_on: cli.options.fail_on,
+                fail_on: cli.options.fail_on.map(FailureThreshold::from),
+                fail_on_rules,
+                fail_on_categories,
                 deny_child_configs: cli.options.deny_child_configs,
                 cache_enabled,
                 clear_cache: cli.options.clear_cache,
@@ -203,4 +210,31 @@ fn create_config(workspace: &Path, preset: Option<crate::cli::PresetName>) -> Re
         }
     }
     Ok(())
+}
+
+fn parse_fail_on_overrides(
+    rule_overrides: &[crate::cli::FailOnOverride],
+    category_overrides: &[crate::cli::FailOnOverride],
+) -> Result<(
+    HashMap<String, FailureThreshold>,
+    HashMap<RuleCategory, FailureThreshold>,
+)> {
+    let mut fail_on_rules = HashMap::new();
+    for override_value in rule_overrides {
+        fail_on_rules.insert(
+            override_value.target.clone(),
+            FailureThreshold::from(override_value.threshold),
+        );
+    }
+
+    let mut fail_on_categories = HashMap::new();
+    for override_value in category_overrides {
+        let category = override_value
+            .target
+            .parse::<RuleCategory>()
+            .map_err(anyhow::Error::msg)?;
+        fail_on_categories.insert(category, FailureThreshold::from(override_value.threshold));
+    }
+
+    Ok((fail_on_rules, fail_on_categories))
 }

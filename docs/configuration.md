@@ -188,6 +188,29 @@ severity = "warn"
 max-lines = 300
 ```
 
+## Failure Thresholds
+
+By default, `lint` exits with a non-zero status when any enabled rule reports a violation. You can change this with the `[fail-on]` section.
+
+```toml
+[fail-on]
+default = "error"
+
+[fail-on.rules]
+no-console = "warn"
+
+[fail-on.categories]
+hygiene = "warn"
+```
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `default` | string | `any` | Minimum severity that causes lint to fail. Values: `error`, `warn`, `any`. |
+| `rules.<rule>` | string | — | Override the default threshold for a specific rule. |
+| `categories.<category>` | string | — | Override the default threshold for every rule in a category. |
+
+Category names are: `typescript`, `hygiene`, `exports`, `files`, `domain`, `imports`. A rule override takes precedence over a category override, and both take precedence over `default`.
+
 ## Autofix Settings
 
 The optional `[fix]` table controls whether each rule may apply autofixes when you run `niteo fix` or `niteo lint --fix`.

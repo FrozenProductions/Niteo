@@ -6,15 +6,14 @@ pub mod summary;
 pub mod suppressions;
 pub mod text;
 
-pub use model::{FailureThreshold, Report};
+pub use model::Report;
 pub use summary::{BOLD, DIM, GREEN, RED, RESET, YELLOW};
 pub use suppressions::render_suppression_report_text;
 
 #[cfg(test)]
 mod tests {
 
-    use crate::config::Severity;
-    use crate::report::model::FailureThreshold;
+    use crate::config::{FailurePolicy, FailureThreshold, Severity};
     use crate::report::model::Report;
     use crate::rules::Violation;
     use anyhow::Result;
@@ -34,16 +33,24 @@ mod tests {
         }
     }
 
+    fn policy_with_default(threshold: FailureThreshold) -> FailurePolicy {
+        FailurePolicy {
+            default: threshold,
+            rules: std::collections::HashMap::new(),
+            categories: std::collections::HashMap::new(),
+        }
+    }
+
     #[test]
     fn test_failure_threshold_error() -> Result<()> {
         let report = Report::new(vec![], vec![make_violation(Severity::Error)]);
-        assert!(report.has_findings_at_or_above(FailureThreshold::Error));
+        assert!(report.has_findings_matching(&policy_with_default(FailureThreshold::Error)));
 
         let report_warn = Report::new(vec![], vec![make_violation(Severity::Warn)]);
-        assert!(!report_warn.has_findings_at_or_above(FailureThreshold::Error));
+        assert!(!report_warn.has_findings_matching(&policy_with_default(FailureThreshold::Error)));
 
         let report_info = Report::new(vec![], vec![make_violation(Severity::Info)]);
-        assert!(!report_info.has_findings_at_or_above(FailureThreshold::Error));
+        assert!(!report_info.has_findings_matching(&policy_with_default(FailureThreshold::Error)));
 
         Ok(())
     }
@@ -51,13 +58,13 @@ mod tests {
     #[test]
     fn test_failure_threshold_warn() -> Result<()> {
         let report_error = Report::new(vec![], vec![make_violation(Severity::Error)]);
-        assert!(report_error.has_findings_at_or_above(FailureThreshold::Warn));
+        assert!(report_error.has_findings_matching(&policy_with_default(FailureThreshold::Warn)));
 
         let report_warn = Report::new(vec![], vec![make_violation(Severity::Warn)]);
-        assert!(report_warn.has_findings_at_or_above(FailureThreshold::Warn));
+        assert!(report_warn.has_findings_matching(&policy_with_default(FailureThreshold::Warn)));
 
         let report_info = Report::new(vec![], vec![make_violation(Severity::Info)]);
-        assert!(!report_info.has_findings_at_or_above(FailureThreshold::Warn));
+        assert!(!report_info.has_findings_matching(&policy_with_default(FailureThreshold::Warn)));
 
         Ok(())
     }
@@ -65,16 +72,16 @@ mod tests {
     #[test]
     fn test_failure_threshold_any() -> Result<()> {
         let report_error = Report::new(vec![], vec![make_violation(Severity::Error)]);
-        assert!(report_error.has_findings_at_or_above(FailureThreshold::Any));
+        assert!(report_error.has_findings_matching(&policy_with_default(FailureThreshold::Any)));
 
         let report_warn = Report::new(vec![], vec![make_violation(Severity::Warn)]);
-        assert!(report_warn.has_findings_at_or_above(FailureThreshold::Any));
+        assert!(report_warn.has_findings_matching(&policy_with_default(FailureThreshold::Any)));
 
         let report_info = Report::new(vec![], vec![make_violation(Severity::Info)]);
-        assert!(report_info.has_findings_at_or_above(FailureThreshold::Any));
+        assert!(report_info.has_findings_matching(&policy_with_default(FailureThreshold::Any)));
 
         let report_off = Report::new(vec![], vec![make_violation(Severity::Off)]);
-        assert!(!report_off.has_findings_at_or_above(FailureThreshold::Any));
+        assert!(!report_off.has_findings_matching(&policy_with_default(FailureThreshold::Any)));
 
         Ok(())
     }

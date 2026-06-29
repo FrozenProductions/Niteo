@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use serde::Deserialize;
 
 use super::super::architecture::ArchitectureConfig;
+use super::super::fail_on::{FailurePolicy, FailureThreshold};
 use super::super::rules::GitignoreConfig;
 use super::super::structure::ProjectStructureConfig;
 use super::architecture::RawArchitectureConfig;
@@ -16,6 +18,15 @@ pub struct RawConfig {
     pub architecture: Option<RawArchitectureConfig>,
     pub rules: Option<HashMap<String, RawRuleConfig>>,
     pub fix: Option<HashMap<String, bool>>,
+    #[serde(rename = "fail-on")]
+    pub fail_on: Option<RawFailOnConfig>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct RawFailOnConfig {
+    pub default: Option<String>,
+    pub rules: Option<HashMap<String, String>>,
+    pub categories: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -93,6 +104,65 @@ impl RawConfig {
                 .unwrap_or(defaults.generated),
         }
     }
+
+    pub fn fail_on_policy(&self) -> Result<FailurePolicy, String> {
+        let Some(config) = self.fail_on.as_ref() else {
+            return Ok(FailurePolicy::default());
+        };
+
+        let default = config
+            .default
+            .as_deref()
+            .map(|value| value.parse::<FailureThreshold>())
+            .transpose()?;
+
+        let rules = parse_fail_on_thresholds(config.rules.as_ref())?;
+        let categories = parse_fail_on_categories(config.categories.as_ref())?;
+
+        Ok(FailurePolicy {
+            default: default.unwrap_or_default(),
+            rules,
+            categories,
+        })
+    }
+}
+
+fn parse_fail_on_thresholds(
+    raw: Option<&HashMap<String, String>>,
+) -> Result<HashMap<String, FailureThreshold>, String> {
+    let Some(raw) = raw else {
+        return Ok(HashMap::new());
+    };
+
+    let mut thresholds = HashMap::with_capacity(raw.len());
+    for (rule, value) in raw {
+        let threshold = value
+            .parse::<FailureThreshold>()
+            .map_err(|error| format!("in fail-on rule '{rule}': {error}"))?;
+        thresholds.insert(rule.clone(), threshold);
+    }
+
+    Ok(thresholds)
+}
+
+fn parse_fail_on_categories(
+    raw: Option<&HashMap<String, String>>,
+) -> Result<HashMap<crate::config::rule_metadata::RuleCategory, FailureThreshold>, String> {
+    let Some(raw) = raw else {
+        return Ok(HashMap::new());
+    };
+
+    let mut thresholds = HashMap::with_capacity(raw.len());
+    for (category, value) in raw {
+        let parsed_category = crate::config::rule_metadata::RuleCategory::from_str(category)
+            .map_err(|error| format!("in fail-on category '{category}': {error}"))?;
+        let threshold = value
+            .parse::<FailureThreshold>()
+            .map_err(|error| format!("in fail-on category '{category}': {error}"))?;
+        thresholds.insert(parsed_category, threshold);
+    }
+
+    Ok(thresholds)
 }
 
 #[cfg(test)]
@@ -186,6 +256,65 @@ folders = ["typings"]
         assert_eq!(structure.types.folders, vec!["typings"]);
         let defaults = ProjectStructureConfig::default();
         assert_eq!(structure.types.file_suffixes, defaults.types.file_suffixes);
+        Ok(())
+    }
+
+    #[test]
+    fn fail_on_policy_parses_defaults_rules_and_categories() -> Result<()> {
+        use crate::config::{FailureThreshold, RuleCategory};
+
+        let source = r#"
+[fail-on]
+default = "error"
+
+[fail-on.rules]
+no-console = "warn"
+
+[fail-on.categories]
+hygiene = "warn"
+"#;
+        let raw: RawConfig = toml::from_str(source)?;
+        let policy = raw.fail_on_policy().map_err(anyhow::Error::msg)?;
+
+        assert_eq!(policy.default, FailureThreshold::Error);
+        assert_eq!(
+            policy.rules.get("no-console"),
+            Some(&FailureThreshold::Warn)
+        );
+        assert_eq!(
+            policy.categories.get(&RuleCategory::SourceHygiene),
+            Some(&FailureThreshold::Warn)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn fail_on_policy_rejects_invalid_threshold() -> Result<()> {
+        let source = r#"
+[fail-on]
+default = "warning"
+"#;
+        let raw: RawConfig = toml::from_str(source)?;
+        let error = raw
+            .fail_on_policy()
+            .expect_err("invalid threshold should fail");
+        assert!(error.contains("warning"));
+        assert!(error.contains("error, warn, any"));
+        Ok(())
+    }
+
+    #[test]
+    fn fail_on_policy_rejects_invalid_category() -> Result<()> {
+        let source = r#"
+[fail-on.categories]
+unknown = "warn"
+"#;
+        let raw: RawConfig = toml::from_str(source)?;
+        let error = raw
+            .fail_on_policy()
+            .expect_err("invalid category should fail");
+        assert!(error.contains("unknown"));
+        assert!(error.contains("domain"));
         Ok(())
     }
 }

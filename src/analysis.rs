@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
-use crate::config::{ConfigSet, ConfigSetOptions, ProjectConfig};
+use crate::config::{ConfigSet, ConfigSetOptions, FailurePolicy, ProjectConfig};
 use crate::diagnostics::{DiagnosticCategory, Diagnostics};
 use crate::discovery;
 use crate::git::{self, GitSelection};
@@ -22,6 +22,7 @@ pub struct AnalysisResult {
     pub import_graph: Arc<ImportGraph>,
     pub workspace: Option<Arc<Workspace>>,
     pub diagnostics: Vec<crate::diagnostics::Diagnostic>,
+    pub fail_on: FailurePolicy,
 }
 
 pub struct AnalysisOptions {
@@ -120,7 +121,7 @@ impl FileList {
             } else {
                 discovery::discover_files(
                     project_root,
-                    scan_scope.as_deref().map(|p| p.as_path()),
+                    scan_scope.as_ref().map(|p| p.as_path()),
                     &config.root().gitignore,
                     tsconfig.as_ref(),
                 )?
@@ -148,13 +149,13 @@ impl CacheResult {
         options: &AnalysisOptions,
         diagnostics: &mut Diagnostics,
     ) -> Result<Self> {
-        if options.clear_cache {
-            if let Err(error) = crate::cache::store::clear_cache(workspace_root) {
-                diagnostics.warn(
-                    DiagnosticCategory::Cache,
-                    format!("failed to clear cache: {error}"),
-                );
-            }
+        if options.clear_cache
+            && let Err(error) = crate::cache::store::clear_cache(workspace_root)
+        {
+            diagnostics.warn(
+                DiagnosticCategory::Cache,
+                format!("failed to clear cache: {error}"),
+            );
         }
 
         let config_paths: Vec<PathBuf> = config_set
@@ -409,8 +410,8 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
     all_violations.extend(file_set.check_duplicate_file_names());
     all_violations.extend(file_set.check_dump_files());
 
-    if let Some(ref state) = cache.state {
-        if let Err(error) = crate::cache::lifecycle::finalize_cache(
+    if let Some(ref state) = cache.state
+        && let Err(error) = crate::cache::lifecycle::finalize_cache(
             workspace_root,
             file_list.as_slice(),
             &cache.config_paths,
@@ -419,12 +420,12 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
             graph_result.graph.as_ref(),
             &all_violations,
             &file_lint.parse_failures,
-        ) {
-            diagnostics.warn(
-                DiagnosticCategory::Cache,
-                format!("failed to write cache: {error}"),
-            );
-        }
+        )
+    {
+        diagnostics.warn(
+            DiagnosticCategory::Cache,
+            format!("failed to write cache: {error}"),
+        );
     }
 
     Ok(AnalysisResult {
@@ -436,6 +437,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         import_graph: graph_result.graph,
         workspace,
         diagnostics: diagnostics.into_entries(),
+        fail_on: file_set.config_set.root().fail_on.clone(),
     })
 }
 

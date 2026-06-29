@@ -1,6 +1,8 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
+use std::str::FromStr;
 
+use crate::config::FailureThreshold;
 use crate::git::GitSelection;
 
 #[derive(Debug, Parser)]
@@ -86,9 +88,21 @@ pub struct CliOptions {
     #[arg(long, global = true)]
     pub clear_cache: bool,
 
-    /// Minimum severity that causes lint to fail.
-    #[arg(long, global = true, value_enum, default_value_t = FailOn::Any)]
-    pub fail_on: FailOn,
+    /// Minimum severity that causes lint to fail. Defaults to `any`, or to the
+    /// `[fail-on].default` value from config when present.
+    #[arg(long, global = true, value_enum)]
+    pub fail_on: Option<FailOn>,
+
+    /// Override the failure threshold for one rule. Repeatable.
+    /// Format: `--fail-on-rule <rule>=<severity>` where severity is `error`, `warn`, or `any`.
+    #[arg(long, global = true, value_name = "RULE=SEVERITY")]
+    pub fail_on_rule: Vec<FailOnOverride>,
+
+    /// Override the failure threshold for one rule category. Repeatable.
+    /// Format: `--fail-on-category <category>=<severity>` where category is one of
+    /// `typescript`, `hygiene`, `exports`, `files`, `domain`, or `imports`.
+    #[arg(long, global = true, value_name = "CATEGORY=SEVERITY")]
+    pub fail_on_category: Vec<FailOnOverride>,
 
     /// Fail when nested niteo.toml files are found inside the scan scope.
     #[arg(long, global = true)]
@@ -208,4 +222,54 @@ pub enum OutputFormat {
     Json,
     Sarif,
     Ndjson,
+}
+
+#[derive(Debug, Clone)]
+pub struct FailOnOverride {
+    pub target: String,
+    pub threshold: FailOn,
+}
+
+impl FromStr for FailOnOverride {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let (target, threshold) = value
+            .split_once('=')
+            .ok_or_else(|| format!("expected <target>=<severity>, got '{value}'"))?;
+
+        let threshold = threshold
+            .parse::<FailOn>()
+            .map_err(|error| format!("invalid severity '{threshold}': {error}"))?;
+
+        Ok(Self {
+            target: target.to_string(),
+            threshold,
+        })
+    }
+}
+
+impl FromStr for FailOn {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "error" => Ok(Self::Error),
+            "warn" => Ok(Self::Warn),
+            "any" => Ok(Self::Any),
+            _ => Err(format!(
+                "unknown fail-on threshold '{value}'; use 'error', 'warn', or 'any'"
+            )),
+        }
+    }
+}
+
+impl From<FailOn> for FailureThreshold {
+    fn from(fail_on: FailOn) -> Self {
+        match fail_on {
+            FailOn::Error => FailureThreshold::Error,
+            FailOn::Warn => FailureThreshold::Warn,
+            FailOn::Any => FailureThreshold::Any,
+        }
+    }
 }

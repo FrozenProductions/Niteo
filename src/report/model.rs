@@ -1,15 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use crate::config::Severity;
+use crate::config::{FailurePolicy, Severity};
 use crate::diagnostics::Diagnostic;
 use crate::ignore::SuppressionReport;
 use crate::rules::Violation;
-
-pub enum FailureThreshold {
-    Error,
-    Warn,
-    Any,
-}
 
 pub fn count_by_severity(violations: &[Violation], severity: Severity) -> usize {
     violations
@@ -75,13 +69,11 @@ impl Report {
         self
     }
 
-    pub fn has_findings_at_or_above(&self, threshold: FailureThreshold) -> bool {
-        self.violations.iter().any(|violation| match threshold {
-            FailureThreshold::Error => violation.severity == Severity::Error,
-            FailureThreshold::Warn => {
-                matches!(violation.severity, Severity::Warn | Severity::Error)
-            }
-            FailureThreshold::Any => violation.severity.is_enabled(),
+    pub fn has_findings_matching(&self, policy: &FailurePolicy) -> bool {
+        self.violations.iter().any(|violation| {
+            policy
+                .threshold_for(violation.rule)
+                .includes(violation.severity)
         })
     }
 

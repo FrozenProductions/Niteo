@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::architecture::RawLayerBoundaryConfig;
-use super::config::{RawConfig, RawProjectConfig, RawProjectStructure};
+use super::config::{RawConfig, RawFailOnConfig, RawProjectConfig, RawProjectStructure};
 use super::rules::RawRuleConfig;
 
 impl RawConfig {
@@ -14,6 +14,7 @@ impl RawConfig {
             ),
             rules: Self::merge_rules(parent.rules.as_ref(), child.rules.as_ref()),
             fix: Self::merge_fix(parent.fix.as_ref(), child.fix.as_ref()),
+            fail_on: Self::merge_fail_on(parent.fail_on.as_ref(), child.fail_on.as_ref()),
         }
     }
 
@@ -120,8 +121,46 @@ impl RawConfig {
             }
         }
     }
+
+    fn merge_fail_on(
+        parent: Option<&RawFailOnConfig>,
+        child: Option<&RawFailOnConfig>,
+    ) -> Option<RawFailOnConfig> {
+        match (parent, child) {
+            (None, None) => None,
+            (Some(parent), None) => Some(parent.clone()),
+            (None, Some(child)) => Some(child.clone()),
+            (Some(parent), Some(child)) => Some(RawFailOnConfig {
+                default: child.default.clone().or_else(|| parent.default.clone()),
+                rules: merge_optional_string_maps(parent.rules.as_ref(), child.rules.as_ref()),
+                categories: merge_optional_string_maps(
+                    parent.categories.as_ref(),
+                    child.categories.as_ref(),
+                ),
+            }),
+        }
+    }
 }
 
+fn merge_optional_string_maps(
+    parent: Option<&HashMap<String, String>>,
+    child: Option<&HashMap<String, String>>,
+) -> Option<HashMap<String, String>> {
+    match (parent, child) {
+        (None, None) => None,
+        (Some(parent), None) => Some(parent.clone()),
+        (None, Some(child)) => Some(child.clone()),
+        (Some(parent), Some(child)) => {
+            let mut merged = parent.clone();
+            merged.extend(
+                child
+                    .iter()
+                    .map(|(key, value)| (key.clone(), value.clone())),
+            );
+            Some(merged)
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;

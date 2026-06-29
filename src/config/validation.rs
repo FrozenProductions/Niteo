@@ -110,7 +110,131 @@ pub fn validate_config_source(source: &str) -> ConfigValidationReport {
         }
     }
 
+    if let Some(fail_on_value) = value.get("fail-on") {
+        if let Some(fail_on) = fail_on_value.as_table() {
+            validate_fail_on_table(fail_on, &mut diagnostics);
+        } else {
+            diagnostics.push(ConfigDiagnostic {
+                severity: ConfigDiagnosticSeverity::Error,
+                message: "[fail-on] must be a table".to_string(),
+                rule: None,
+            });
+        }
+    }
+
     ConfigValidationReport { diagnostics }
+}
+
+fn validate_fail_on_table(fail_on: &toml::Table, diagnostics: &mut Vec<ConfigDiagnostic>) {
+    use crate::config::rule_metadata::RuleCategory;
+    use std::str::FromStr;
+
+    let valid_thresholds: [&str; 3] = ["error", "warn", "any"];
+
+    if let Some(default) = fail_on.get("default") {
+        if let Some(value) = default.as_str() {
+            if !valid_thresholds.contains(&value) {
+                diagnostics.push(ConfigDiagnostic {
+                    severity: ConfigDiagnosticSeverity::Error,
+                    message: format!(
+                        "unknown default threshold '{value}' in [fail-on]; use 'error', 'warn', or 'any'"
+                    ),
+                    rule: None,
+                });
+            }
+        } else {
+            diagnostics.push(ConfigDiagnostic {
+                severity: ConfigDiagnosticSeverity::Error,
+                message: "[fail-on].default must be a string".to_string(),
+                rule: None,
+            });
+        }
+    }
+
+    let known_rules: std::collections::HashSet<_> = known_rule_ids().iter().copied().collect();
+
+    if let Some(rules_value) = fail_on.get("rules") {
+        if let Some(rules) = rules_value.as_table() {
+            for (rule, value) in rules {
+                if !known_rules.contains(rule.as_str()) {
+                    let closest = find_closest(rule, &known_rules);
+                    let mut message = format!("unknown rule \"{rule}\" in [fail-on.rules]");
+                    if let Some(hint) = closest {
+                        message.push_str(&format!(". Did you mean \"{hint}\"?"));
+                    }
+                    diagnostics.push(ConfigDiagnostic {
+                        severity: ConfigDiagnosticSeverity::Error,
+                        message,
+                        rule: None,
+                    });
+                }
+
+                if let Some(value) = value.as_str() {
+                    if !valid_thresholds.contains(&value) {
+                        diagnostics.push(ConfigDiagnostic {
+                            severity: ConfigDiagnosticSeverity::Error,
+                            message: format!(
+                                "unknown threshold '{value}' for rule \"{rule}\" in [fail-on.rules]; use 'error', 'warn', or 'any'"
+                            ),
+                            rule: None,
+                        });
+                    }
+                } else {
+                    diagnostics.push(ConfigDiagnostic {
+                        severity: ConfigDiagnosticSeverity::Error,
+                        message: format!("[fail-on.rules].\"{rule}\" must be a string"),
+                        rule: None,
+                    });
+                }
+            }
+        } else {
+            diagnostics.push(ConfigDiagnostic {
+                severity: ConfigDiagnosticSeverity::Error,
+                message: "[fail-on.rules] must be a table".to_string(),
+                rule: None,
+            });
+        }
+    }
+
+    if let Some(categories_value) = fail_on.get("categories") {
+        if let Some(categories) = categories_value.as_table() {
+            for (category, value) in categories {
+                if RuleCategory::from_str(category).is_err() {
+                    diagnostics.push(ConfigDiagnostic {
+                        severity: ConfigDiagnosticSeverity::Error,
+                        message: format!(
+                            "unknown category \"{category}\" in [fail-on.categories]; use 'typescript', 'hygiene', 'exports', 'files', 'domain', or 'imports'"
+                        ),
+                        rule: None,
+                    });
+                }
+
+                if let Some(value) = value.as_str() {
+                    if !valid_thresholds.contains(&value) {
+                        diagnostics.push(ConfigDiagnostic {
+                            severity: ConfigDiagnosticSeverity::Error,
+                            message: format!(
+                                "unknown threshold '{value}' for category \"{category}\" in [fail-on.categories]; use 'error', 'warn', or 'any'"
+                            ),
+                            rule: None,
+                        });
+                    }
+                } else {
+                    diagnostics.push(ConfigDiagnostic {
+                        severity: ConfigDiagnosticSeverity::Error,
+                        message: format!("[fail-on.categories].\"{category}\" must be a string"),
+                        rule: None,
+                    });
+                }
+            }
+        } else {
+            diagnostics.push(ConfigDiagnostic {
+                severity: ConfigDiagnosticSeverity::Error,
+                message: "[fail-on.categories] must be a table".to_string(),
+                rule: None,
+            });
+        }
+    }
 }
 
 fn validate_fix_table(fix: &toml::Table, diagnostics: &mut Vec<ConfigDiagnostic>) {
@@ -505,18 +629,65 @@ no-debugger = "false"
     }
 
     #[test]
-    fn non_fixable_rule_reports_warning() -> Result<()> {
+    fn valid_fail_on_table_passes() -> Result<()> {
         let source = r#"
-[fix]
-no-console = false
+[fail-on]
+default = "error"
+
+[fail-on.rules]
+no-console = "warn"
+
+[fail-on.categories]
+hygiene = "warn"
 "#;
         let report = validate_config_source(source);
-        let has_non_fixable_warning = report
+        assert!(!has_errors(&report));
+
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_fail_on_rule_reports_error() -> Result<()> {
+        let source = r#"
+[fail-on.rules]
+no-consoel = "warn"
+"#;
+        let report = validate_config_source(source);
+        let has_unknown = report
             .diagnostics
             .iter()
-            .any(|d| d.message.contains("does not support autofix"));
-        assert!(has_non_fixable_warning);
-        assert!(!has_errors(&report));
+            .any(|d| d.message.contains("unknown rule") && d.message.contains("no-consoel"));
+        assert!(has_unknown);
+        assert!(has_errors(&report));
+
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_fail_on_category_reports_error() -> Result<()> {
+        let source = r#"
+[fail-on.categories]
+hygene = "warn"
+"#;
+        let report = validate_config_source(source);
+        let has_unknown = report
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("unknown category") && d.message.contains("hygene"));
+        assert!(has_unknown);
+        assert!(has_errors(&report));
+
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_fail_on_threshold_reports_error() -> Result<()> {
+        let source = r#"
+[fail-on.rules]
+no-console = "warning"
+"#;
+        let report = validate_config_source(source);
+        assert!(has_errors(&report));
 
         Ok(())
     }

@@ -1,6 +1,8 @@
 use crate::harness;
 use anyhow::{Context, Result};
 use predicates::prelude::*;
+use std::fs;
+use std::io::Write;
 
 #[test]
 fn clean_project_exits_zero() -> Result<()> {
@@ -128,6 +130,52 @@ fn fail_on_any_exits_nonzero_for_info_violations() -> Result<()> {
         .args(["lint", "--fail-on", "any"])
         .assert()
         .failure();
+    Ok(())
+}
+
+#[test]
+fn fail_on_rule_overrides_default_for_specific_rule() -> Result<()> {
+    let project = harness::copy_fixture("reports/warnings_only")?;
+
+    harness::niteo_in_project(project.path())
+        .args(["lint", "--fail-on", "error"])
+        .assert()
+        .success();
+
+    harness::niteo_in_project(project.path())
+        .args([
+            "lint",
+            "--fail-on",
+            "error",
+            "--fail-on-rule",
+            "no-console=warn",
+        ])
+        .assert()
+        .failure();
+
+    Ok(())
+}
+
+#[test]
+fn fail_on_category_overrides_default_for_category() -> Result<()> {
+    let project = harness::copy_fixture("reports/warnings_only")?;
+
+    harness::niteo_in_project(project.path())
+        .args(["lint", "--fail-on", "error"])
+        .assert()
+        .success();
+
+    harness::niteo_in_project(project.path())
+        .args([
+            "lint",
+            "--fail-on",
+            "error",
+            "--fail-on-category",
+            "hygiene=warn",
+        ])
+        .assert()
+        .failure();
+
     Ok(())
 }
 
@@ -273,5 +321,27 @@ fn output_flag_writes_ndjson_to_file() -> Result<()> {
         let parsed: serde_json::Value = serde_json::from_str(line)?;
         assert!(parsed["type"].is_string());
     }
+    Ok(())
+}
+
+#[test]
+fn fail_on_config_rule_override_makes_warning_fail() -> Result<()> {
+    let project = harness::copy_fixture("reports/warnings_only")?;
+    let config_path = project.path().join("niteo.toml");
+
+    let mut config = fs::read_to_string(&config_path)?;
+    config.push_str("\n[fail-on]\ndefault = \"error\"\n\n[fail-on.rules]\nno-console = \"warn\"\n");
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&config_path)?;
+    file.write_all(config.as_bytes())?;
+    drop(file);
+
+    harness::niteo_in_project(project.path())
+        .args(["lint", "--fail-on", "error"])
+        .assert()
+        .failure();
+
     Ok(())
 }

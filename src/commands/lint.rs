@@ -1,10 +1,12 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Instant;
 
 use crate::analysis::{self, AnalysisOptions};
 use crate::baseline;
-use crate::cli::{FailOn, OutputFormat};
+use crate::cli::OutputFormat;
+use crate::config::{FailurePolicy, FailureThreshold, RuleCategory};
 use crate::history;
 use crate::report;
 #[derive(Clone)]
@@ -15,7 +17,9 @@ pub struct LintOptions {
     pub output_path: Option<PathBuf>,
     pub baseline_path: PathBuf,
     pub report_suppressions: bool,
-    pub fail_on: FailOn,
+    pub fail_on: Option<FailureThreshold>,
+    pub fail_on_rules: HashMap<String, FailureThreshold>,
+    pub fail_on_categories: HashMap<RuleCategory, FailureThreshold>,
     pub deny_child_configs: bool,
     pub cache_enabled: bool,
     pub clear_cache: bool,
@@ -56,11 +60,17 @@ pub fn lint_workspace(
     }
     report = report.with_diagnostics(collected.diagnostics);
     let threshold = match opts.fail_on {
-        FailOn::Error => report::FailureThreshold::Error,
-        FailOn::Warn => report::FailureThreshold::Warn,
-        FailOn::Any => report::FailureThreshold::Any,
+        Some(threshold) => threshold,
+        None => collected.fail_on.default,
     };
-    let has_violations = report.has_findings_at_or_above(threshold);
+    let mut policy = FailurePolicy {
+        default: threshold,
+        rules: collected.fail_on.rules.clone(),
+        categories: collected.fail_on.categories.clone(),
+    };
+    policy.rules.extend(opts.fail_on_rules);
+    policy.categories.extend(opts.fail_on_categories);
+    let has_violations = report.has_findings_matching(&policy);
     let rendered_report = match opts.output_format {
         OutputFormat::Text => report.render_text(opts.verbose),
         OutputFormat::Json => report.render_json()?,
