@@ -1,16 +1,11 @@
 use anyhow::Result;
 use assert_cmd::Command;
-use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
 use tempfile::TempDir;
 
 const FIXTURES_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
-
-pub fn niteo_cmd() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_niteo"))
-}
 
 pub fn niteo_in_project(project: &Path) -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_niteo"));
@@ -47,39 +42,6 @@ fn copy_dir_recursive(source: &Path, destination: &Path) -> Result<()> {
     }
 
     Ok(())
-}
-
-pub fn normalize_path(output: &str, root: &Path) -> String {
-    let root_string = root.display().to_string();
-    output.replace(&root_string, "<ROOT>")
-}
-
-pub fn strip_ansi(input: &str) -> String {
-    let mut result = String::with_capacity(input.len());
-    let mut chars = input.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        if ch == '\x1b' {
-            if chars.peek() == Some(&'[') {
-                chars.next();
-                while let Some(&next) = chars.peek() {
-                    chars.next();
-                    if next.is_ascii_alphabetic() {
-                        break;
-                    }
-                }
-            }
-        } else {
-            result.push(ch);
-        }
-    }
-
-    result
-}
-
-pub fn parse_json_output(output: &str) -> Result<Value> {
-    let value: Value = serde_json::from_str(output)?;
-    Ok(value)
 }
 
 pub fn init_git_repo(project: &Path) -> Result<()> {
@@ -150,6 +112,4 @@ pub fn git_add_commit(project: &Path, message: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn assert_exit_code(command: &mut Command, expected: i32) -> assert_cmd::assert::Assert {
-    command.assert().code(expected)
-}
+

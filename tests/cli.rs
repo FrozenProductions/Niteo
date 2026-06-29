@@ -1,5 +1,4 @@
 #[path = "cli/harness.rs"]
-#[allow(dead_code)]
 mod harness;
 
 #[path = "cli/baseline.rs"]
