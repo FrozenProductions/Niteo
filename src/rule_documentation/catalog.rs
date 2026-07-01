@@ -1216,7 +1216,7 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
     },
     RuleDocumentation {
         name: "no-magic-numbers",
-        intent: "Disallow numeric literals outside constants. Extract numeric literals to named constants for clarity and maintainability.",
+        intent: "Disallow numeric and string literals outside constants. Extract literals to named constants for clarity and maintainability.",
         examples: &[
             RuleExample {
                 label: "Reports",
@@ -1226,12 +1226,24 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
                 label: "Prefer",
                 code: "const TIMEOUT_MS = 3000;\nsetTimeout(callback, TIMEOUT_MS);",
             },
+            RuleExample {
+                label: "With enforce-strings",
+                code: "fetch(\"/api/users\");",
+            },
+            RuleExample {
+                label: "With enforce-strings, prefer",
+                code: "const API_URL = \"/api/users\";\nfetch(API_URL);",
+            },
         ],
         options: &[
             SEVERITY_OPTION,
             RuleOption {
                 name: "allowed-numbers",
                 description: "List of numeric literals to allow (e.g., [\"0\", \"1\", \"-1\"]).",
+            },
+            RuleOption {
+                name: "enforce-strings",
+                description: "When true, also flag inline string literals that should be named constants (default false).",
             },
         ],
         category: RuleCategory::SourceHygiene,

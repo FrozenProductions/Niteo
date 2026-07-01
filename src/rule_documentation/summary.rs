@@ -409,12 +409,16 @@ pub(crate) fn no_non_null_assertion_summary(config: &ProjectConfig) -> RuleConfi
 }
 
 pub(crate) fn no_magic_numbers_summary(config: &ProjectConfig) -> RuleConfigSummary {
+    let mut options = vec![format!(
+        "allowed-numbers: {:?}",
+        config.rules.no_magic_numbers.allowed_numbers
+    )];
+    if config.rules.no_magic_numbers.enforce_strings {
+        options.push("enforce-strings: true".to_string());
+    }
     RuleConfigSummary {
         severity: config.rules.no_magic_numbers.severity,
-        options: vec![format!(
-            "allowed-numbers: {:?}",
-            config.rules.no_magic_numbers.allowed_numbers
-        )],
+        options,
     }
 }
 

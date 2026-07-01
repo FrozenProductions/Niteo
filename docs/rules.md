@@ -72,7 +72,7 @@ niteo explain no-console --format json
 | `no-orphan-files`                | `warn`           | Detect files not imported by any other file in the project.                          | `entry-files`                                            |
 | `no-namespace`                   | `warn`           | Prefer ES modules over TypeScript namespaces.                                        | `severity`                                               |
 | `no-non-null-assertion`          | `warn`           | Disallow the non-null assertion operator.                                            | `severity`                                               |
-| `no-magic-numbers`               | `warn`           | Disallow numeric literals outside constants.                                         | `allowed-numbers`                                        |
+| `no-magic-numbers`               | `warn`           | Disallow numeric and string literals outside constants.                              | `allowed-numbers`, `enforce-strings`                     |
 | `no-package-cycle`               | `warn`           | Detect circular dependencies between workspace packages.                             | `severity`                                               |
 | `no-private-package-import`      | `warn`           | Prevent importing internal files from other packages.                                | `severity`                                               |
 | `no-process-env`                 | `warn`           | Prevent direct access to `process.env`.                                              | `severity`                                               |

@@ -140,6 +140,7 @@ allow-declaration-merging = true
 [rules.no-magic-numbers]
 severity = "warn"
 allowed-numbers = []
+enforce-strings = false
 
 [rules.no-mutable-exports]
 severity = "warn"

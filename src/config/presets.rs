@@ -148,6 +148,7 @@ severity = "error"
 [rules.no-magic-numbers]
 severity = "warn"
 allowed-numbers = ["0", "1", "-1"]
+enforce-strings = false
 
 [rules.no-any]
 severity = "error"
@@ -458,6 +459,7 @@ severity = "off"
 [rules.no-magic-numbers]
 severity = "warn"
 allowed-numbers = ["0", "1", "-1"]
+enforce-strings = false
 
 [rules.no-any]
 severity = "warn"

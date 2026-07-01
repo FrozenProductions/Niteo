@@ -248,6 +248,7 @@ impl RawRuleConfig {
             restricted: clone_default
         },
         to_no_magic_numbers_config => (NoMagicNumbersRuleConfig) {
+            enforce_strings: default(false)
             ;
             allowed_numbers: clone_default
         },
@@ -315,6 +316,8 @@ pub(crate) struct RawRuleOptions {
     pub restricted: Option<Vec<String>>,
     #[serde(rename = "allowed-numbers")]
     pub allowed_numbers: Option<Vec<String>>,
+    #[serde(rename = "enforce-strings")]
+    pub enforce_strings: Option<bool>,
     #[serde(rename = "max-files")]
     pub max_files: Option<usize>,
 }
@@ -373,6 +376,7 @@ impl RawRuleOptions {
                 .allowed_numbers
                 .clone()
                 .or_else(|| parent.allowed_numbers.clone()),
+            enforce_strings: child.enforce_strings.or(parent.enforce_strings),
             max_files: child.max_files.or(parent.max_files),
         }
     }
