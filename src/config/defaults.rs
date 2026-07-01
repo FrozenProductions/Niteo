@@ -244,6 +244,11 @@ severity = "off"
 [fix]
 no-debugger = true
 no-focused-test = true
-no-empty-interface = true
 no-skipped-test = true
+no-empty-interface = true
+no-any = true
+no-process-env = true
+no-non-null-assertion = true
+prefer-satisfies = true
+prefer-readonly = true
 "#;

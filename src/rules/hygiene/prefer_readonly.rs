@@ -7,8 +7,9 @@ use oxc_ast::ast::{
 use oxc_ast_visit::Visit;
 
 use crate::config::RuleConfig;
-use crate::rules::{PREFER_READONLY_RULE_ID, Violation};
+use crate::rules::{Fix, PREFER_READONLY_RULE_ID, TextEdit, Violation};
 use crate::syntax::LineIndex;
+use oxc_span::GetSpan;
 
 const MESSAGE: &str = "Array parameter in exported function should use `readonly` to prevent accidental mutation.";
 
@@ -27,6 +28,113 @@ pub fn check_file(
     };
     visitor.visit_program(program);
     visitor.violations
+}
+
+pub fn fix_file(
+    file: &Path,
+    program: &oxc_ast::ast::Program,
+    _source: &str,
+    config: &RuleConfig,
+) -> Vec<Fix> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    let mut collector = ReadonlyCollector {
+        insert_positions: Vec::new(),
+        _phantom: std::marker::PhantomData,
+    };
+    collector.visit_program(program);
+
+    if collector.insert_positions.is_empty() {
+        return Vec::new();
+    }
+
+    let edits: Vec<TextEdit> = collector
+        .insert_positions
+        .iter()
+        .map(|pos| TextEdit {
+            start: *pos,
+            end: *pos,
+            replacement: "readonly ".to_string(),
+        })
+        .collect();
+
+    vec![Fix {
+        file: file.to_path_buf(),
+        rule: PREFER_READONLY_RULE_ID,
+        edits,
+    }]
+}
+
+struct ReadonlyCollector<'a> {
+    insert_positions: Vec<usize>,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a> Visit<'a> for ReadonlyCollector<'a> {
+    fn visit_export_named_declaration(&mut self, decl: &ExportNamedDeclaration<'a>) {
+        match &decl.declaration {
+            Some(Declaration::FunctionDeclaration(func)) => {
+                collect_mutable_array_params(&func.params, &mut self.insert_positions);
+            }
+            Some(Declaration::VariableDeclaration(var_decl)) => {
+                for declarator in &var_decl.declarations {
+                    if let Some(init) = &declarator.init {
+                        match init {
+                            Expression::ArrowFunctionExpression(arrow) => {
+                                collect_mutable_array_params(
+                                    &arrow.params,
+                                    &mut self.insert_positions,
+                                );
+                            }
+                            Expression::FunctionExpression(func) => {
+                                collect_mutable_array_params(
+                                    &func.params,
+                                    &mut self.insert_positions,
+                                );
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        oxc_ast_visit::walk::walk_export_named_declaration(self, decl);
+    }
+
+    fn visit_export_default_declaration(&mut self, decl: &ExportDefaultDeclaration<'a>) {
+        match &decl.declaration {
+            ExportDefaultDeclarationKind::FunctionDeclaration(func) => {
+                collect_mutable_array_params(&func.params, &mut self.insert_positions);
+            }
+            ExportDefaultDeclarationKind::ArrowFunctionExpression(arrow) => {
+                collect_mutable_array_params(&arrow.params, &mut self.insert_positions);
+            }
+            _ => {}
+        }
+        oxc_ast_visit::walk::walk_export_default_declaration(self, decl);
+    }
+}
+
+fn collect_mutable_array_params(
+    params: &oxc_ast::ast::FormalParameters<'_>,
+    positions: &mut Vec<usize>,
+) {
+    for param in &params.items {
+        if let Some(type_annotation) = &param.type_annotation
+            && is_mutable_array_type(&type_annotation.type_annotation)
+        {
+            positions.push(type_annotation.type_annotation.span().start as usize);
+        }
+    }
+    if let Some(rest) = &params.rest
+        && let Some(type_annotation) = &rest.type_annotation
+        && is_mutable_array_type(&type_annotation.type_annotation)
+    {
+        positions.push(type_annotation.type_annotation.span().start as usize);
+    }
 }
 
 struct PreferReadonlyVisitor<'a, 'f> {
@@ -308,6 +416,120 @@ mod tests {
     fn allows_tuple_param() -> Result<()> {
         let violations = run_check("export function process(items: [string, number]) {}");
         assert!(violations.is_empty());
+    
+        Ok(())}
+
+    fn run_fix(source: &str) -> Vec<Fix> {
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
+        let program = parser_return.program;
+        fix_file(Path::new("utils.ts"), &program, source, &test_config())
+    }
+
+    fn apply_fix_edits(source: &str, fixes: &[Fix]) -> String {
+        let edits: Vec<TextEdit> = fixes.iter().flat_map(|fix| fix.edits.clone()).collect();
+        crate::fix::apply_edits(source, &edits)
+    }
+
+    fn test_config() -> RuleConfig {
+        RuleConfig {
+            severity: Severity::Warn,
+        }
+    }
+
+    #[test]
+    fn fix_adds_readonly_to_array_param() -> Result<()> {
+        let source = "export function process(items: string[]) {}";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "export function process(items: readonly string[]) {}");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_adds_readonly_to_array_type_ref_param() -> Result<()> {
+        let source = "export function process(items: Array<string>) {}";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "export function process(items: readonly Array<string>) {}");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_adds_readonly_in_arrow_function() -> Result<()> {
+        let source = "export const process = (items: number[]) => {};";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "export const process = (items: readonly number[]) => {};");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_adds_readonly_in_default_export() -> Result<()> {
+        let source = "export default function process(items: string[]) {}";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "export default function process(items: readonly string[]) {}");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_adds_readonly_to_multiple_params() -> Result<()> {
+        let source = "export function merge(a: string[], b: number[]) {}";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "export function merge(a: readonly string[], b: readonly number[]) {}");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_does_not_modify_readonly_array() -> Result<()> {
+        let source = "export function process(items: readonly string[]) {}";
+        let fixes = run_fix(source);
+        assert!(fixes.is_empty());
+    
+        Ok(())}
+
+    #[test]
+    fn fix_does_not_modify_readonly_array_type_ref() -> Result<()> {
+        let source = "export function process(items: ReadonlyArray<string>) {}";
+        let fixes = run_fix(source);
+        assert!(fixes.is_empty());
+    
+        Ok(())}
+
+    #[test]
+    fn fix_skips_non_exported_function() -> Result<()> {
+        let source = "function process(items: string[]) {}";
+        let fixes = run_fix(source);
+        assert!(fixes.is_empty());
+    
+        Ok(())}
+
+    #[test]
+    fn fix_disabled_returns_empty() -> Result<()> {
+        let source = "export function process(items: string[]) {}";
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
+        let program = parser_return.program;
+        let config = RuleConfig {
+            severity: Severity::Off,
+        };
+        let fixes = fix_file(Path::new("utils.ts"), &program, source, &config);
+        assert!(fixes.is_empty());
+    
+        Ok(())}
+
+    #[test]
+    fn fixed_source_parses() -> Result<()> {
+        let source = "export function process(items: string[]) {}";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        let allocator = Allocator::default();
+        let parser_return = Parser::new(&allocator, &fixed, SourceType::ts()).parse();
+        assert!(!parser_return.panicked);
     
         Ok(())}
 }

@@ -1108,7 +1108,7 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         options: NO_OPTIONS,
         category: RuleCategory::LanguageTypescript,
         conflicts: &[],
-        fixable: false,
+        fixable: true,
         summarize: crate::rule_documentation::summary::prefer_satisfies_summary,
     },
     RuleDocumentation {
@@ -1127,7 +1127,7 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         options: NO_OPTIONS,
         category: RuleCategory::ExportModuleShape,
         conflicts: &[],
-        fixable: false,
+        fixable: true,
         summarize: crate::rule_documentation::summary::prefer_readonly_summary,
     },
     RuleDocumentation {
@@ -1215,7 +1215,7 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         options: NO_OPTIONS,
         category: RuleCategory::LanguageTypescript,
         conflicts: &[],
-        fixable: false,
+        fixable: true,
         summarize: crate::rule_documentation::summary::no_non_null_assertion_summary,
     },
     RuleDocumentation {
@@ -1271,7 +1271,7 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         options: NO_OPTIONS,
         category: RuleCategory::SourceHygiene,
         conflicts: &[],
-        fixable: false,
+        fixable: true,
         summarize: crate::rule_documentation::summary::no_process_env_summary,
     },
     RuleDocumentation {
@@ -1300,7 +1300,7 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         ],
         category: RuleCategory::LanguageTypescript,
         conflicts: &[],
-        fixable: false,
+        fixable: true,
         summarize: crate::rule_documentation::summary::no_any_summary,
     },
     RuleDocumentation {

@@ -212,7 +212,7 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     explicit_return_type
 );
-ast_rule_adapter!(
+fixable_ast_rule_adapter!(
     NoNonNullAssertionAdapter,
     NO_NON_NULL_ASSERTION_RULE_ID,
     crate::config::RuleConfig,
@@ -230,7 +230,7 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_type_assertion
 );
-ast_rule_adapter!(
+fixable_ast_rule_adapter!(
     NoProcessEnvAdapter,
     NO_PROCESS_ENV_RULE_ID,
     crate::config::RuleConfig,
@@ -285,13 +285,13 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_barrel_files
 );
-ast_rule_adapter!(
+fixable_ast_rule_adapter!(
     PreferSatisfiesAdapter,
     PREFER_SATISFIES_RULE_ID,
     crate::config::RuleConfig,
     prefer_satisfies
 );
-ast_rule_adapter!(
+fixable_ast_rule_adapter!(
     PreferReadonlyAdapter,
     PREFER_READONLY_RULE_ID,
     crate::config::RuleConfig,
@@ -426,6 +426,20 @@ impl AstRule for NoAnyAdapter {
             ctx.file,
             ctx.program,
             ctx.line_index,
+            &self.config,
+            &self.generated,
+        )
+    }
+
+    fn supports_fix(&self) -> bool {
+        true
+    }
+
+    fn fix(&self, ctx: &AstContext<'_>) -> Vec<Fix> {
+        no_any::fix_file(
+            ctx.file,
+            ctx.program,
+            ctx.source,
             &self.config,
             &self.generated,
         )

@@ -5,7 +5,7 @@ use oxc_ast_visit::Visit;
 
 use crate::config::NoAnyRuleConfig;
 use crate::config::structure::DomainConfig;
-use crate::rules::{NO_ANY_RULE_ID, Violation};
+use crate::rules::{Fix, NO_ANY_RULE_ID, TextEdit, Violation};
 use crate::syntax::LineIndex;
 
 const MESSAGE: &str = "Avoid using `any`. Use a more specific type or `unknown` instead.";
@@ -30,6 +30,56 @@ pub fn check_file(
     };
     visitor.visit_program(program);
     visitor.violations
+}
+
+pub fn fix_file(
+    file: &Path,
+    program: &oxc_ast::ast::Program,
+    _source: &str,
+    config: &NoAnyRuleConfig,
+    generated: &DomainConfig,
+) -> Vec<Fix> {
+    if !config.severity.is_enabled() || is_file_allowed(file, config, generated) {
+        return Vec::new();
+    }
+
+    let mut collector = AnyKeywordCollector {
+        spans: Vec::new(),
+        _phantom: std::marker::PhantomData,
+    };
+    collector.visit_program(program);
+
+    let edits: Vec<TextEdit> = collector
+        .spans
+        .iter()
+        .map(|span| TextEdit {
+            start: span.start as usize,
+            end: span.end as usize,
+            replacement: "unknown".to_string(),
+        })
+        .collect();
+
+    if edits.is_empty() {
+        Vec::new()
+    } else {
+        vec![Fix {
+            file: file.to_path_buf(),
+            rule: NO_ANY_RULE_ID,
+            edits,
+        }]
+    }
+}
+
+struct AnyKeywordCollector<'a> {
+    spans: Vec<oxc_span::Span>,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a> Visit<'a> for AnyKeywordCollector<'a> {
+    fn visit_ts_any_keyword(&mut self, keyword: &TSAnyKeyword) {
+        self.spans.push(keyword.span);
+        oxc_ast_visit::walk::walk_ts_any_keyword(self, keyword);
+    }
 }
 
 fn is_file_allowed(file: &Path, config: &NoAnyRuleConfig, generated: &DomainConfig) -> bool {
@@ -289,6 +339,121 @@ mod tests {
     fn reports_any_in_conditional_type() -> Result<()> {
         let violations = run_check("type Foo<T> = T extends any ? T : never;\n");
         assert_eq!(violations.len(), 1);
+    
+        Ok(())}
+
+    fn run_fix(source: &str) -> Vec<Fix> {
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        fix_file(
+            Path::new("Component.tsx"),
+            &program,
+            source,
+            &test_config(),
+            &default_generated(),
+        )
+    }
+
+    fn apply_fix_edits(source: &str, fixes: &[Fix]) -> String {
+        let edits: Vec<TextEdit> = fixes.iter().flat_map(|fix| fix.edits.clone()).collect();
+        crate::fix::apply_edits(source, &edits)
+    }
+
+    #[test]
+    fn fix_replaces_any_with_unknown() -> Result<()> {
+        let source = "const value: any = 'test';\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "const value: unknown = 'test';\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_replaces_multiple_any_usages() -> Result<()> {
+        let source = "const a: any = 1; const b: any = 2;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "const a: unknown = 1; const b: unknown = 2;\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_replaces_any_in_function_param() -> Result<()> {
+        let source = "function foo(arg: any) {}\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "function foo(arg: unknown) {}\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_replaces_any_in_generic() -> Result<()> {
+        let source = "const arr: Array<any> = [];\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "const arr: Array<unknown> = [];\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_replaces_any_in_type_alias() -> Result<()> {
+        let source = "type Foo = any;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "type Foo = unknown;\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_disabled_returns_empty() -> Result<()> {
+        let source = "const value: any = 'test';\n";
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        let disabled_config = NoAnyRuleConfig {
+            severity: Severity::Off,
+            allowed_folders: vec![],
+        };
+        let fixes = fix_file(
+            Path::new("Component.tsx"),
+            &program,
+            source,
+            &disabled_config,
+            &default_generated(),
+        );
+        assert!(fixes.is_empty());
+    
+        Ok(())}
+
+    #[test]
+    fn fix_skips_generated_files() -> Result<()> {
+        let allocator = Allocator::default();
+        let source = "const value: any = 'test';\n";
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        let fixes = fix_file(
+            Path::new("src/generated/types.ts"),
+            &program,
+            source,
+            &test_config(),
+            &default_generated(),
+        );
+        assert!(fixes.is_empty());
+    
+        Ok(())}
+
+    #[test]
+    fn fixed_source_parses() -> Result<()> {
+        let source = "const value: any = 'test';\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        let allocator = Allocator::default();
+        let parser_return = Parser::new(&allocator, &fixed, SourceType::tsx()).parse();
+        assert!(!parser_return.panicked);
     
         Ok(())}
 }

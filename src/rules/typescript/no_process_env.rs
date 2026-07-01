@@ -1,10 +1,11 @@
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use oxc_ast::ast::{ComputedMemberExpression, Expression, StaticMemberExpression};
 use oxc_ast_visit::Visit;
 
 use crate::config::RuleConfig;
-use crate::rules::{NO_PROCESS_ENV_RULE_ID, Violation};
+use crate::rules::{Fix, NO_PROCESS_ENV_RULE_ID, TextEdit, Violation};
 use crate::syntax::LineIndex;
 const MESSAGE: &str = "Use the config module instead of direct process.env access.";
 
@@ -23,6 +24,80 @@ pub fn check_file(
     };
     visitor.visit_program(program);
     visitor.violations
+}
+
+pub fn fix_file(
+    file: &Path,
+    program: &oxc_ast::ast::Program,
+    source: &str,
+    config: &RuleConfig,
+) -> Vec<Fix> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    let mut collector = ProcessEnvCollector {
+        expression_ends: Vec::new(),
+        _phantom: std::marker::PhantomData,
+    };
+    collector.visit_program(program);
+
+    if collector.expression_ends.is_empty() {
+        return Vec::new();
+    }
+
+    let comment = " // niteo-ignore-line: no-process-env";
+    let mut line_ends: BTreeSet<usize> = BTreeSet::new();
+
+    for end in &collector.expression_ends {
+        let pos = *end as usize;
+        let line_end = source
+            .get(pos..)
+            .and_then(|rest| rest.find('\n'))
+            .map(|newline| pos + newline)
+            .unwrap_or(source.len());
+        line_ends.insert(line_end);
+    }
+
+    let edits: Vec<TextEdit> = line_ends
+        .iter()
+        .map(|line_end| TextEdit {
+            start: *line_end,
+            end: *line_end,
+            replacement: comment.to_string(),
+        })
+        .collect();
+
+    vec![Fix {
+        file: file.to_path_buf(),
+        rule: NO_PROCESS_ENV_RULE_ID,
+        edits,
+    }]
+}
+
+struct ProcessEnvCollector<'a> {
+    expression_ends: Vec<u32>,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a> Visit<'a> for ProcessEnvCollector<'a> {
+    fn visit_static_member_expression(&mut self, expr: &StaticMemberExpression<'a>) {
+        if matches_process_env(expr) {
+            self.expression_ends.push(expr.span.end);
+            return;
+        }
+        oxc_ast_visit::walk::walk_static_member_expression(self, expr);
+    }
+
+    fn visit_computed_member_expression(&mut self, expr: &ComputedMemberExpression<'a>) {
+        if let Expression::StaticMemberExpression(inner) = &expr.object
+            && matches_process_env(inner)
+        {
+            self.expression_ends.push(expr.span.end);
+            return;
+        }
+        oxc_ast_visit::walk::walk_computed_member_expression(self, expr);
+    }
 }
 
 struct ProcessEnvVisitor<'a, 'f> {
@@ -173,6 +248,104 @@ mod tests {
         let source = r#"const text = "process.env.API_KEY";"#;
         let violations = run_check(source);
         assert!(violations.is_empty());
+    
+        Ok(())}
+
+    fn run_fix(source: &str) -> Vec<Fix> {
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        fix_file(
+            Path::new("Component.tsx"),
+            &program,
+            source,
+            &test_config(),
+        )
+    }
+
+    fn apply_fix_edits(source: &str, fixes: &[Fix]) -> String {
+        let edits: Vec<TextEdit> = fixes.iter().flat_map(|fix| fix.edits.clone()).collect();
+        crate::fix::apply_edits(source, &edits)
+    }
+
+    #[test]
+    fn fix_adds_ignore_comment_for_process_env() -> Result<()> {
+        let source = "const env = process.env;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "const env = process.env; // niteo-ignore-line: no-process-env\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_adds_ignore_comment_for_process_env_property() -> Result<()> {
+        let source = "const key = process.env.API_KEY;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "const key = process.env.API_KEY; // niteo-ignore-line: no-process-env\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_adds_ignore_comment_for_computed_access() -> Result<()> {
+        let source = "const key = process.env[\"API_KEY\"];\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "const key = process.env[\"API_KEY\"]; // niteo-ignore-line: no-process-env\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_adds_single_comment_per_line() -> Result<()> {
+        let source = "const a = process.env.KEY1, b = process.env.KEY2;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        let comment_count = fixed.matches("niteo-ignore-line").count();
+        assert_eq!(comment_count, 1, "should only add one comment per line");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_adds_comment_per_line() -> Result<()> {
+        let source = "const a = process.env.KEY1;\nconst b = process.env.KEY2;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(
+            fixed,
+            "const a = process.env.KEY1; // niteo-ignore-line: no-process-env\nconst b = process.env.KEY2; // niteo-ignore-line: no-process-env\n"
+        );
+    
+        Ok(())}
+
+    #[test]
+    fn fix_disabled_returns_empty() -> Result<()> {
+        let source = "const key = process.env.API_KEY;\n";
+        let allocator = Allocator::default();
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        let disabled_config = RuleConfig {
+            severity: Severity::Off,
+        };
+        let fixes = fix_file(
+            Path::new("Component.tsx"),
+            &program,
+            source,
+            &disabled_config,
+        );
+        assert!(fixes.is_empty());
+    
+        Ok(())}
+
+    #[test]
+    fn fix_preserves_surrounding_code() -> Result<()> {
+        let source = "const x = 1;\nconst key = process.env.API_KEY;\nconst y = 2;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert!(fixed.contains("const x = 1;"));
+        assert!(fixed.contains("const y = 2;"));
+        assert!(fixed.contains("niteo-ignore-line: no-process-env"));
     
         Ok(())}
 

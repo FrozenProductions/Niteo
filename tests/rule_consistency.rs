@@ -184,43 +184,49 @@ fn fixable_rule_ids_from_adapters() -> HashSet<String> {
 
     while let Some(line) = lines.next() {
         let trimmed = line.trim();
-        if !trimmed.starts_with("fixable_ast_rule_adapter!(")
-            && !trimmed.starts_with("fixable_text_rule_adapter!(")
+        if trimmed.starts_with("fixable_ast_rule_adapter!(")
+            || trimmed.starts_with("fixable_text_rule_adapter!(")
         {
-            continue;
-        }
-        let mut macro_lines = vec![trimmed.to_string()];
-        while let Some(next) = lines.next() {
-            let next_trimmed = next.trim();
-            macro_lines.push(next_trimmed.to_string());
-            if next_trimmed.ends_with(");") {
-                break;
+            let mut macro_lines = vec![trimmed.to_string()];
+            while let Some(next) = lines.next() {
+                let next_trimmed = next.trim();
+                macro_lines.push(next_trimmed.to_string());
+                if next_trimmed.ends_with(");") {
+                    break;
+                }
             }
-        }
-        let full = macro_lines.join(" ");
-        if let Some(args) = full.strip_prefix("fixable_ast_rule_adapter!(") {
-            if let Some(end) = args.rfind(");") {
-                let parts: Vec<&str> = args[..end].split(',').collect();
-                if parts.len() >= 2 {
-                    let id = parts[1].trim();
-                    if let Some(value) = constants.get(id) {
-                        ids.insert(value.clone());
+            let full = macro_lines.join(" ");
+            if let Some(args) = full.strip_prefix("fixable_ast_rule_adapter!(") {
+                if let Some(end) = args.rfind(");") {
+                    let parts: Vec<&str> = args[..end].split(',').collect();
+                    if parts.len() >= 2 {
+                        let id = parts[1].trim();
+                        if let Some(value) = constants.get(id) {
+                            ids.insert(value.clone());
+                        }
                     }
                 }
             }
-        }
-        if let Some(args) = full.strip_prefix("fixable_text_rule_adapter!(") {
-            if let Some(end) = args.rfind(");") {
-                let parts: Vec<&str> = args[..end].split(',').collect();
-                if parts.len() >= 2 {
-                    let id = parts[1].trim();
-                    if let Some(value) = constants.get(id) {
-                        ids.insert(value.clone());
+            if let Some(args) = full.strip_prefix("fixable_text_rule_adapter!(") {
+                if let Some(end) = args.rfind(");") {
+                    let parts: Vec<&str> = args[..end].split(',').collect();
+                    if parts.len() >= 2 {
+                        let id = parts[1].trim();
+                        if let Some(value) = constants.get(id) {
+                            ids.insert(value.clone());
+                        }
                     }
                 }
             }
         }
     }
+
+    // `NoAnyAdapter` uses a manual `supports_fix`/`fix` impl (custom `check` signature
+    // with `generated` field), so it is not detected by the macro scan above.
+    if let Some(any) = constants.get("NO_ANY_RULE_ID") {
+        ids.insert(any.clone());
+    }
+
     ids
 }
 

@@ -4,8 +4,9 @@ use oxc_ast::ast::{Expression, TSAsExpression, TSType};
 use oxc_ast_visit::Visit;
 
 use crate::config::{RuleConfig, Severity};
-use crate::rules::{PREFER_SATISFIES_RULE_ID, Violation};
+use crate::rules::{Fix, PREFER_SATISFIES_RULE_ID, TextEdit, Violation};
 use crate::syntax::LineIndex;
+use oxc_span::GetSpan;
 const MESSAGE: &str =
     "Prefer 'satisfies' over 'as' for type validation without changing the inferred type.";
 
@@ -25,6 +26,59 @@ pub fn check_file(
     };
     visitor.visit_program(program);
     visitor.violations
+}
+
+pub fn fix_file(
+    file: &Path,
+    program: &oxc_ast::ast::Program,
+    source: &str,
+    config: &RuleConfig,
+) -> Vec<Fix> {
+    if !config.severity.is_enabled() {
+        return Vec::new();
+    }
+
+    let mut collector = AsExpressionCollector {
+        ranges: Vec::new(),
+        source,
+        _phantom: std::marker::PhantomData,
+    };
+    collector.visit_program(program);
+
+    let mut edits = Vec::new();
+    for (expr_end, type_start) in &collector.ranges {
+        edits.push(TextEdit {
+            start: *expr_end as usize,
+            end: *type_start as usize,
+            replacement: " satisfies ".to_string(),
+        });
+    }
+
+    if edits.is_empty() {
+        Vec::new()
+    } else {
+        vec![Fix {
+            file: file.to_path_buf(),
+            rule: PREFER_SATISFIES_RULE_ID,
+            edits,
+        }]
+    }
+}
+
+struct AsExpressionCollector<'a> {
+    ranges: Vec<(u32, u32)>,
+    source: &'a str,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a> Visit<'a> for AsExpressionCollector<'a> {
+    fn visit_ts_as_expression(&mut self, expr: &TSAsExpression<'a>) {
+        if should_prefer_satisfies(expr, self.source) {
+            self.ranges
+                .push((expr.expression.span().end, expr.type_annotation.span().start));
+        }
+        oxc_ast_visit::walk::walk_ts_as_expression(self, expr);
+    }
 }
 
 struct PreferSatisfiesVisitor<'a, 'f> {
@@ -93,9 +147,9 @@ fn is_literal_expression(expr: &Expression<'_>) -> bool {
 mod tests {
 
     use anyhow::Result;
-    use super::check_file;
+    use super::{check_file, fix_file};
     use crate::config::{RuleConfig, Severity};
-    use crate::rules::Violation;
+    use crate::rules::{Fix, TextEdit, Violation};
     use crate::syntax::LineIndex;
     use oxc_allocator::Allocator;
     use oxc_parser::Parser;
@@ -183,6 +237,87 @@ const text = "as Config";
         let violations = run_check(source);
 
         assert!(violations.is_empty());
+    
+        Ok(())}
+
+    fn run_fix(source: &str) -> Vec<Fix> {
+        let allocator = Allocator::default();
+        let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
+        let program = parser_return.program;
+        fix_file(Path::new("value.ts"), &program, source, &test_config())
+    }
+
+    fn apply_fix_edits(source: &str, fixes: &[Fix]) -> String {
+        let edits: Vec<TextEdit> = fixes.iter().flat_map(|fix| fix.edits.clone()).collect();
+        crate::fix::apply_edits(source, &edits)
+    }
+
+    #[test]
+    fn fix_converts_as_to_satisfies() -> Result<()> {
+        let source = "const config = { port: 3000 } as Config;\n";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        assert_eq!(fixed, "const config = { port: 3000 } satisfies Config;\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_does_not_change_as_const() -> Result<()> {
+        let source = "const config = { port: 3000 } as const;\n";
+        let edits = run_fix(source);
+        assert!(edits.is_empty());
+    
+        Ok(())}
+
+    #[test]
+    fn fix_converts_array_as_cast() -> Result<()> {
+        let source = "const items = [1, 2, 3] as number[];\n";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        assert_eq!(fixed, "const items = [1, 2, 3] satisfies number[];\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_converts_string_literal_as_cast() -> Result<()> {
+        let source = "const event = \"click\" as EventName;\n";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        assert_eq!(fixed, "const event = \"click\" satisfies EventName;\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_converts_multiple_as_casts() -> Result<()> {
+        let source = "const a = { x: 1 } as A;\nconst b = { y: 2 } as B;\n";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        assert_eq!(fixed, "const a = { x: 1 } satisfies A;\nconst b = { y: 2 } satisfies B;\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_disabled_returns_empty() -> Result<()> {
+        let source = "const config = { port: 3000 } as Config;\n";
+        let allocator = Allocator::default();
+        let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
+        let program = parser_return.program;
+        let config = RuleConfig {
+            severity: Severity::Off,
+        };
+        let edits = fix_file(Path::new("value.ts"), &program, source, &config);
+        assert!(edits.is_empty());
+    
+        Ok(())}
+
+    #[test]
+    fn fixed_source_parses() -> Result<()> {
+        let source = "const config = { port: 3000 } as Config;\n";
+        let edits = run_fix(source);
+        let fixed = apply_fix_edits(source, &edits);
+        let allocator = Allocator::default();
+        let parser_return = Parser::new(&allocator, &fixed, SourceType::ts()).parse();
+        assert!(!parser_return.panicked);
     
         Ok(())}
 

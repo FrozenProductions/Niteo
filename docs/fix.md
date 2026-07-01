@@ -56,8 +56,8 @@ Use the `[fix]` table in `niteo.toml` to allow or block autofix per rule:
 
 ```toml
 [fix]
-no-debugger = true
-no-empty-interface = false
+no-any = false
+no-non-null-assertion = false
 ```
 
 Rules default to `true`, so existing projects keep the same behavior until a rule is explicitly set to `false`. A `false` entry disables only the autofix for that rule; diagnostics still run according to the rule's `[rules.<rule>]` severity.
@@ -67,17 +67,17 @@ The gate applies to both `niteo fix` and `niteo lint --fix`. In monorepos, child
 ```toml
 # root niteo.toml
 [fix]
-no-debugger = false
-no-focused-test = true
+no-any = false
+no-non-null-assertion = false
 ```
 
 ```toml
 # packages/app/niteo.toml
 [fix]
-no-debugger = true
+no-any = true
 ```
 
-With this setup, `no-debugger` autofix is disabled by default but re-enabled inside `packages/app`.
+With this setup, `no-any` autofix is disabled by default but re-enabled inside `packages/app`.
 
 ### Edit Model
 
@@ -85,13 +85,13 @@ Edits are applied in reverse byte order (from end of file to beginning) so that 
 
 The core edit engine in `src/fix.rs` provides:
 
-| Function | Purpose |
-|---|---|
+| Function                      | Purpose                                                                                                                                                          |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `apply_fixes(fixes, options)` | Groups edits by file, sorts by start offset, checks for overlap, applies edits, validates source freshness and parseability, writes files. Returns `FixOutcome`. |
-| `apply_edits(source, edits)` | Pure function that applies `TextEdit` values in reverse order to a source string. |
-| `collect_fixes(ctx, rules)` | Iterates rules, calling `rule.fix()` only on enabled fixable rules. |
-| `has_overlap(edits)` | Checks if any adjacent edits in sorted-by-start order overlap. |
-| `report_dry_run(fixes)` | Prints each edit as `file: rule\n  would replace bytes N-M with "replacement"`. |
+| `apply_edits(source, edits)`  | Pure function that applies `TextEdit` values in reverse order to a source string.                                                                                |
+| `collect_fixes(ctx, rules)`   | Iterates rules, calling `rule.fix()` only on enabled fixable rules.                                                                                              |
+| `has_overlap(edits)`          | Checks if any adjacent edits in sorted-by-start order overlap.                                                                                                   |
+| `report_dry_run(fixes)`       | Prints each edit as `file: rule\n  would replace bytes N-M with "replacement"`.                                                                                  |
 
 ### Data Types
 
@@ -177,14 +177,19 @@ The following rules support autofix. Each rule is classified by a capability lev
 - **Safe.** The fix is a local, mechanical removal that is unlikely to change semantics. These fixes are applied automatically.
 - **Conditional.** The fix may change semantics in edge cases, so it is only applied when the rule can prove the narrow safe subset applies. The user should still review the result.
 
-| Rule | Capability | Fix behavior |
-| --- | --- | --- |
-| `no-debugger` | Safe | Removes the `debugger` statement, plus its trailing semicolon if present and any trailing whitespace up to the next line. Surrounding code stays parseable. |
-| `no-focused-test` | Safe | Removes `.only` from `describe.only`, `it.only`, and `test.only` calls. Aliases and non-test calls are not modified. |
-| `no-skipped-test` | Safe | Removes `.skip` from `describe.skip`, `it.skip`, and `test.skip` calls. The test body is preserved; aliases and non-test calls are not modified. |
-| `no-empty-interface` | Conditional | Converts a simple empty interface into a `type` alias using `Record<string, never>`. Exported interfaces keep their `export` keyword. Does not fix interfaces with `extends`, `.d.ts` files, ambient declarations, merged declarations, or bodies that contain comments. |
+| Rule                    | Capability  | Fix behavior                                                                                                                                                                                                                                                             |
+| ----------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `no-debugger`           | Safe        | Removes the `debugger` statement, plus its trailing semicolon if present and any trailing whitespace up to the next line. Surrounding code stays parseable.                                                                                                              |
+| `no-focused-test`       | Safe        | Removes `.only` from `describe.only`, `it.only`, and `test.only` calls. Aliases and non-test calls are not modified.                                                                                                                                                     |
+| `no-skipped-test`       | Safe        | Removes `.skip` from `describe.skip`, `it.skip`, and `test.skip` calls. The test body is preserved; aliases and non-test calls are not modified.                                                                                                                         |
+| `no-empty-interface`    | Conditional | Converts a simple empty interface into a `type` alias using `Record<string, never>`. Exported interfaces keep their `export` keyword. Does not fix interfaces with `extends`, `.d.ts` files, ambient declarations, merged declarations, or bodies that contain comments. |
+| `prefer-satisfies`      | Conditional | Replaces `as` with `satisfies` for literal expressions cast with `as`. Preserves the type annotation. Does not modify `as const`, `as any`, or `as unknown` casts.                                                                                                       |
+| `no-any`                | Conditional | Replaces `any` type keyword with `unknown`. Applies to type annotations, generics, and type references. Skips generated files and configured allowed folders.                                                                                                            |
+| `no-process-env`        | Conditional | Adds `// niteo-ignore-line: no-process-env` to the end of each line with a `process.env` access. Deduplicates multiple accesses on the same line.                                                                                                                        |
+| `prefer-readonly`       | Safe        | Inserts `readonly` keyword before mutable array types (`string[]` → `readonly string[]`, `Array<T>` → `readonly Array<T>`) in exported function parameters and rest parameters.                                                                                          |
+| `no-non-null-assertion` | Conditional | Removes the `!` non-null assertion operator. Converts `obj!.prop` to `obj.prop` and `fn()!` to `fn()`. Removes each `!` independently for nested assertions.                                                                                                             |
 
-Rules that **do not** support autofix today include structural changes like import path rewrites, default export conversion, broad interface-to-type conversion, `as` assertion replacement, and file moves. These are harder to implement safely and may never have autofix support.
+Rules that **do not** support autofix today include structural changes like import path rewrites, default export conversion, broad interface-to-type conversion, and file moves. These are harder to implement safely and may never have autofix support.
 
 ## Baselines
 
