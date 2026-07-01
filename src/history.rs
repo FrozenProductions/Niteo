@@ -61,12 +61,9 @@ fn format_iso8601_now() -> String {
     let secs = since_epoch.as_secs();
     let nanos = since_epoch.subsec_nanos();
 
-    // Convert seconds to date components using integer arithmetic.
-    // This gives UTC.
     let days_since_epoch = secs / 86_400;
     let seconds_in_day = (secs % 86_400) as u32;
 
-    // Days from 1970-01-01 to the target date.
     let mut year = 1970;
     let mut remaining_days = days_since_epoch;
     loop {

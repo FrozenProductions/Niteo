@@ -124,7 +124,6 @@ impl<'a, 'f> Visit<'a> for MagicNumberVisitor<'a, 'f> {
 
         self.visit_property_key(&prop.key);
 
-        // Reset flag before visiting the value
         self.in_property_key = false;
 
         self.visit_expression(&prop.value);
@@ -325,8 +324,6 @@ mod tests {
 
         Ok(())
     }
-
-    // --- enforce_strings tests ---
 
     #[test]
     fn does_not_flag_strings_when_enforce_strings_is_false() -> Result<()> {
