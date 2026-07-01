@@ -84,7 +84,7 @@ niteo explain no-console --format json
 | `no-test-import`                 | `warn`           | Production code may not import test files.                                           | `project.structure.tests`                                |
 | `no-then-chain`                  | `warn`           | Prefer `async`/`await` over `.then()` chains.                                        | `severity`                                               |
 | `no-type-assertion`              | `warn`           | Disallow `as` casts. Prefer type narrowing or `satisfies`.                           | `severity`                                               |
-| `no-upward-import`               | `warn`           | Limit fragile `../` imports.                                                         | `max-depth`                                              |
+| `no-upward-import`               | `warn`           | Limit fragile `../` imports.                                                         | `max-depth`, `allow-patterns`                            |
 | `prefer-satisfies`               | `info`           | Prefer `satisfies` over `as` when validating a value against a type.                 | `severity`                                               |
 | `prefer-readonly`                | `warn`           | Prefer `readonly` for array parameters in exported functions.                        | `severity`                                               |
 
@@ -688,7 +688,10 @@ Reports imports with more upward `../` segments than `max-depth`.
 [rules.no-upward-import]
 severity = "warn"
 max-depth = 0
+allow-patterns = []
 ```
+
+To permit upward imports from generated directories: `allow-patterns = ["**/generated/**"]`.
 
 ### `layer-boundaries`
 

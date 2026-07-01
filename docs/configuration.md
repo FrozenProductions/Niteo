@@ -327,7 +327,7 @@ no-empty-interface = false
 | `no-interface`            | `allow-declaration-merging`                 |
 | `no-large-file`           | `max-lines`                                 |
 | `no-nested-functions`     | `max-depth`, `contexts`                     |
-| `no-upward-import`        | `max-depth`                                 |
+| `no-upward-import`        | `max-depth`, `allow-patterns`               |
 
 Every rule also supports `severity`.
 

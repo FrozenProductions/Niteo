@@ -253,6 +253,7 @@ impl RawRuleConfig {
         to_upward_import_config => (UpwardImportRuleConfig) {
             max_depth: default(0)
             ;
+            allow_patterns: clone_default
         },
         to_no_empty_domain_config => (NoEmptyDomainRuleConfig) {
             ;

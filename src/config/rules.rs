@@ -101,6 +101,7 @@ impl Default for FileExportsRuleConfig {
 pub struct UpwardImportRuleConfig {
     pub severity: Severity,
     pub max_depth: usize,
+    pub allow_patterns: Vec<String>,
 }
 
 impl Default for UpwardImportRuleConfig {
@@ -108,6 +109,7 @@ impl Default for UpwardImportRuleConfig {
         Self {
             severity: Severity::Warn,
             max_depth: 0,
+            allow_patterns: vec![],
         }
     }
 }

@@ -72,6 +72,7 @@ max-params = 3
 [rules.no-upward-import]
 severity = "warn"
 max-depth = 0
+allow-patterns = []
 
 [rules.no-large-file]
 severity = "warn"
