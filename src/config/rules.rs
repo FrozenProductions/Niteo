@@ -322,6 +322,7 @@ impl Default for EntryFileNoLogicRuleConfig {
 pub struct NoAbbreviationsRuleConfig {
     pub severity: Severity,
     pub extra_abbreviations: Vec<String>,
+    pub allow_abbreviations: Vec<String>,
 }
 
 impl Default for NoAbbreviationsRuleConfig {
@@ -329,6 +330,7 @@ impl Default for NoAbbreviationsRuleConfig {
         Self {
             severity: Severity::Warn,
             extra_abbreviations: vec![],
+            allow_abbreviations: vec![],
         }
     }
 }

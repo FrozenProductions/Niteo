@@ -20,6 +20,7 @@ pub fn check_file(
     let mut abbreviations: Vec<String> = DEFAULT_ABBREVIATIONS
         .iter()
         .map(|abbreviation| abbreviation.to_string())
+        .filter(|a| !config.allow_abbreviations.contains(a))
         .collect();
     abbreviations.extend(config.extra_abbreviations.clone());
 
@@ -197,6 +198,7 @@ mod tests {
         let config = NoAbbreviationsRuleConfig {
             severity: Severity::Warn,
             extra_abbreviations: vec!["req".to_string(), "res".to_string()],
+            allow_abbreviations: vec![],
         };
         let allocator = Allocator::default();
         let source = "const req = {};\nconst res = {};\n";
@@ -209,6 +211,28 @@ mod tests {
             &config,
         );
         assert_eq!(violations.len(), 2);
+    
+        Ok(())}
+
+    #[test]
+    fn allows_abbreviations_in_allow_list() -> Result<()> {
+        let config = NoAbbreviationsRuleConfig {
+            severity: Severity::Warn,
+            extra_abbreviations: vec![],
+            allow_abbreviations: vec!["btn".to_string()],
+        };
+        let allocator = Allocator::default();
+        let source = "const btn = document.querySelector('button');\nconst ctx = getContext();\n";
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let violations = check_file(
+            Path::new("Component.tsx"),
+            &parser_return.program,
+            &line_index,
+            &config,
+        );
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].subject.as_deref(), Some("ctx"));
     
         Ok(())}
 
@@ -232,6 +256,7 @@ mod tests {
         NoAbbreviationsRuleConfig {
             severity: Severity::Warn,
             extra_abbreviations: vec![],
+            allow_abbreviations: vec![],
         }
     }
 }

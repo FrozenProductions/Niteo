@@ -205,7 +205,8 @@ impl RawRuleConfig {
         },
         to_no_abbreviations_config => (NoAbbreviationsRuleConfig) {
             ;
-            extra_abbreviations: clone_default
+            extra_abbreviations: clone_default,
+            allow_abbreviations: clone_default
         },
         to_no_any_config => (NoAnyRuleConfig) {
             ;
@@ -338,6 +339,8 @@ pub(crate) struct RawRuleOptions {
     pub allowed_folders: Option<Vec<String>>,
     #[serde(rename = "extra-abbreviations")]
     pub extra_abbreviations: Option<Vec<String>>,
+    #[serde(rename = "allow-abbreviations")]
+    pub allow_abbreviations: Option<Vec<String>>,
     pub restricted: Option<Vec<String>>,
     #[serde(rename = "allowed-numbers")]
     pub allowed_numbers: Option<Vec<String>>,
@@ -394,6 +397,10 @@ impl RawRuleOptions {
                 .extra_abbreviations
                 .clone()
                 .or_else(|| parent.extra_abbreviations.clone()),
+            allow_abbreviations: child
+                .allow_abbreviations
+                .clone()
+                .or_else(|| parent.allow_abbreviations.clone()),
             restricted: child
                 .restricted
                 .clone()

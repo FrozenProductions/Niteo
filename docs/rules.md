@@ -42,7 +42,7 @@ niteo explain no-console --format json
 | `max-function-params`            | `warn`           | Limit function parameter count; prefer an object parameter.                          | `max-params`                                             |
 | `max-items-per-directory`        | `warn`           | Prevent directories from becoming oversized collections.                             | `max-items`, `ignore-dirs`, `count-folders`              |
 | `min-items-per-directory`        | `warn`           | Find tiny directories that add navigation cost without enough structure.             | `min-items`, `ignore-dirs`, `count-folders`              |
-| `no-abbreviations`               | `warn`           | Disallow abbreviated identifiers like `btn`, `ctx`, and `mgr`.                       | `extra-abbreviations`                                    |
+| `no-abbreviations`               | `warn`           | Disallow abbreviated identifiers like `btn`, `ctx`, and `mgr`.                       | `extra-abbreviations`, `allow-abbreviations`             |
 | `no-any`                         | `warn`           | Disallow explicit `any` type annotations outside generated or allowed folders.       | `allowed-folders`, `project.structure.generated`         |
 | `no-barrel-chain`                | `warn`           | Prevent `index.ts` barrel files from re-exporting through other barrels.             | `severity`                                               |
 | `no-barrel-files`                | `warn`           | Avoid `index.ts` barrel files.                                                       | `severity`                                               |
@@ -305,6 +305,14 @@ Add project-specific abbreviations:
 [rules.no-abbreviations]
 severity = "warn"
 extra-abbreviations = ["req", "res", "tmp"]
+```
+
+Remove built-in abbreviations that are valid in your project:
+
+```toml
+[rules.no-abbreviations]
+severity = "warn"
+allow-abbreviations = ["btn", "ctx"]
 ```
 
 ### `no-then-chain`
