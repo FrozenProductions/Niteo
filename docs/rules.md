@@ -38,7 +38,7 @@ niteo explain no-console --format json
 | `hook-prefix`                    | `warn`           | Hook functions in hook files should use an allowed prefix, usually `use`.            | `prefixes`, `project.structure.hooks`                    |
 | `layer-boundaries`               | `off`            | Enforce that imports respect ordered architectural layers.                           | `[architecture.layers]`                                  |
 | `max-directory-depth`            | `warn`           | Limit nested directories below the configured project root.                          | `max-depth`, `ignore-dirs`                               |
-| `max-file-exports`               | `warn`           | Limit the number of exports from one file.                                           | `max-exports`                                            |
+| `max-file-exports`               | `warn`           | Limit the number of exports from one file.                                           | `max-exports`, `count-default`                           |
 | `max-function-params`            | `warn`           | Limit function parameter count; prefer an object parameter.                          | `max-params`                                             |
 | `max-items-per-directory`        | `warn`           | Prevent directories from becoming oversized collections.                             | `max-items`, `ignore-dirs`, `count-folders`              |
 | `min-items-per-directory`        | `warn`           | Find tiny directories that add navigation cost without enough structure.             | `min-items`, `ignore-dirs`, `count-folders`              |
@@ -426,12 +426,14 @@ export let currentUser = null;
 
 ### `max-file-exports`
 
-Reports files with more exports than `max-exports`.
+Reports files with more exports than `max-exports`. When `count-default` is `false`,
+default exports are excluded from the count.
 
 ```toml
 [rules.max-file-exports]
 severity = "warn"
 max-exports = 10
+count-default = true
 ```
 
 ### `max-function-params`

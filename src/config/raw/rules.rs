@@ -171,7 +171,8 @@ impl RawRuleConfig {
             entry_files: clone_default
         },
         to_file_exports_config => (FileExportsRuleConfig) {
-            max_exports: default(10)
+            max_exports: default(10),
+            count_default: default(true)
             ;
         },
         to_max_function_params_config => (MaxFunctionParamsRuleConfig) {
@@ -308,6 +309,8 @@ pub(crate) struct RawRuleOptions {
     pub max_lines: Option<usize>,
     #[serde(rename = "max-exports")]
     pub max_exports: Option<usize>,
+    #[serde(rename = "count-default")]
+    pub count_default: Option<bool>,
     #[serde(rename = "max-params")]
     pub max_params: Option<usize>,
     #[serde(rename = "max-depth")]
@@ -358,6 +361,7 @@ impl RawRuleOptions {
             allow_doc_comments: child.allow_doc_comments.or(parent.allow_doc_comments),
             max_lines: child.max_lines.or(parent.max_lines),
             max_exports: child.max_exports.or(parent.max_exports),
+            count_default: child.count_default.or(parent.count_default),
             max_params: child.max_params.or(parent.max_params),
             max_depth: child.max_depth.or(parent.max_depth),
             allow_patterns: child

@@ -315,7 +315,7 @@ no-empty-interface = false
 | `hook-prefix`             | `prefixes`                                  |
 | `layer-boundaries`        | configured via `[architecture.layers]`      |
 | `max-directory-depth`     | `max-depth`, `ignore-dirs`                  |
-| `max-file-exports`        | `max-exports`                               |
+| `max-file-exports`        | `max-exports`, `count-default`              |
 | `max-items-per-directory` | `max-items`, `ignore-dirs`, `count-folders` |
 | `min-items-per-directory` | `min-items`, `ignore-dirs`, `count-folders` |
 | `no-any`                  | `allowed-folders`                           |

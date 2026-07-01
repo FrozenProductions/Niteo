@@ -84,6 +84,7 @@ impl Default for FileLengthRuleConfig {
 pub struct FileExportsRuleConfig {
     pub severity: Severity,
     pub max_exports: usize,
+    pub count_default: bool,
 }
 
 impl Default for FileExportsRuleConfig {
@@ -91,6 +92,7 @@ impl Default for FileExportsRuleConfig {
         Self {
             severity: Severity::Warn,
             max_exports: 10,
+            count_default: true,
         }
     }
 }
