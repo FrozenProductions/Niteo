@@ -50,6 +50,9 @@ pub fn list(
         OutputFormat::Json => rule_documentation::render_rules_json(&rows)?,
         OutputFormat::Sarif => bail!("SARIF format is not supported for the 'rules' command"),
         OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'rules' command"),
+        OutputFormat::Markdown => {
+            bail!("Markdown format is not supported for the 'rules' command")
+        }
     };
 
     write_report(workspace, output_path, &rendered)?;
@@ -103,6 +106,9 @@ pub fn list_with_preset(
         OutputFormat::Json => rule_documentation::render_rules_json(&rows)?,
         OutputFormat::Sarif => bail!("SARIF format is not supported for the 'rules' command"),
         OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'rules' command"),
+        OutputFormat::Markdown => {
+            bail!("Markdown format is not supported for the 'rules' command")
+        }
     };
 
     write_report(workspace, output_path, &rendered)?;
@@ -125,6 +131,9 @@ pub fn explain(
         OutputFormat::Json => rule_documentation::render_explanation_json(&explanation)?,
         OutputFormat::Sarif => bail!("SARIF format is not supported for the 'explain' command"),
         OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'explain' command"),
+        OutputFormat::Markdown => {
+            bail!("Markdown format is not supported for the 'explain' command")
+        }
     };
 
     write_report(workspace, output_path, &rendered)?;

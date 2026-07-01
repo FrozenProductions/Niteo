@@ -25,6 +25,9 @@ pub fn show(
             OutputFormat::Json => render_history_json(&entries)?,
             OutputFormat::Sarif => bail!("SARIF format is not supported for the 'stats' command"),
             OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'stats' command"),
+            OutputFormat::Markdown => {
+                bail!("Markdown format is not supported for the 'stats' command")
+            }
         };
 
         write_report(workspace, output_path, &rendered)?;
@@ -60,6 +63,9 @@ pub fn show(
         OutputFormat::Json => render_json(&graph)?,
         OutputFormat::Sarif => bail!("SARIF format is not supported for the 'stats' command"),
         OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'stats' command"),
+        OutputFormat::Markdown => {
+            bail!("Markdown format is not supported for the 'stats' command")
+        }
     };
 
     write_report(workspace, output_path, &rendered)?;

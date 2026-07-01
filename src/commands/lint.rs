@@ -76,6 +76,7 @@ pub fn lint_workspace(
         OutputFormat::Json => report.render_json()?,
         OutputFormat::Sarif => report.render_sarif()?,
         OutputFormat::Ndjson => report.render_ndjson()?,
+        OutputFormat::Markdown => report.render_markdown()?,
     };
 
     super::write_report(workspace, opts.output_path, &rendered_report)?;

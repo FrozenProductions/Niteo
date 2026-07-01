@@ -222,6 +222,7 @@ pub enum OutputFormat {
     Json,
     Sarif,
     Ndjson,
+    Markdown,
 }
 
 #[derive(Debug, Clone)]

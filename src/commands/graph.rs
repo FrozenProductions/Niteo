@@ -45,6 +45,9 @@ pub fn show(
         OutputFormat::Json => render_json(&graph)?,
         OutputFormat::Sarif => bail!("SARIF format is not supported for the 'graph' command"),
         OutputFormat::Ndjson => bail!("NDJSON format is not supported for the 'graph' command"),
+        OutputFormat::Markdown => {
+            bail!("Markdown format is not supported for the 'graph' command")
+        }
     };
 
     write_report(workspace, output_path, &rendered)?;

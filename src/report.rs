@@ -1,4 +1,5 @@
 pub mod json;
+pub mod markdown;
 pub mod model;
 pub mod ndjson;
 pub mod sarif;
