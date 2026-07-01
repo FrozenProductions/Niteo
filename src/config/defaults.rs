@@ -211,6 +211,7 @@ severity = "warn"
 [rules.no-nested-functions]
 severity = "warn"
 max-depth = 2
+contexts = ["function", "arrow", "class-method", "object-method"]
 
 [rules.no-orphan-files]
 severity = "warn"

@@ -68,7 +68,7 @@ niteo explain no-console --format json
 | `no-logic-in-barrel`             | `warn`           | Keep barrel files limited to import/export forwarding.                               | `severity`                                               |
 | `no-logic-in-domain`             | `warn`           | Keep type and constants domains free of runtime implementation logic.                | `project.structure.types`, `project.structure.constants` |
 | `no-mutable-exports`             | `warn`           | Avoid exported mutable bindings.                                                     | `severity`                                               |
-| `no-nested-functions`            | `warn`           | Disallow functions nested beyond a configured depth.                                 | `max-depth`                                              |
+| `no-nested-functions`            | `warn`           | Disallow functions nested beyond a configured depth.                                 | `max-depth`, `contexts`                                  |
 | `no-orphan-files`                | `warn`           | Detect files not imported by any other file in the project.                          | `entry-files`                                            |
 | `no-namespace`                   | `warn`           | Prefer ES modules over TypeScript namespaces.                                        | `severity`                                               |
 | `no-non-null-assertion`          | `warn`           | Disallow the non-null assertion operator.                                            | `severity`                                               |
@@ -371,13 +371,18 @@ function outer() {
 }
 ```
 
-Configure the allowed nesting depth:
+Configure the allowed nesting depth and which function-like constructs count toward it:
 
 ```toml
 [rules.no-nested-functions]
 severity = "warn"
 max-depth = 2
+contexts = ["function", "arrow", "class-method", "object-method"]
 ```
+
+The `contexts` option controls which constructs increment the nesting counter. Each construct type you include counts as one nesting level. Exclude a context to allow that construct without contributing to depth — useful in React codebases where arrow callbacks in `.map()` or methods in object/class literals shouldn't force refactors.
+
+Available contexts: `function`, `arrow`, `class-method`, `object-method`. Default is all four.
 
 ## Export And Module Shape Rules
 

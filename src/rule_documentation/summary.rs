@@ -299,12 +299,19 @@ pub(crate) fn no_mutable_exports_summary(config: &ProjectConfig) -> RuleConfigSu
 }
 
 pub(crate) fn no_nested_functions_summary(config: &ProjectConfig) -> RuleConfigSummary {
+    let contexts: Vec<String> = config
+        .rules
+        .no_nested_functions
+        .contexts
+        .iter()
+        .map(|c| c.to_string())
+        .collect();
     RuleConfigSummary {
         severity: config.rules.no_nested_functions.severity,
-        options: vec![format!(
-            "max-depth: {}",
-            config.rules.no_nested_functions.max_depth
-        )],
+        options: vec![
+            format!("max-depth: {}", config.rules.no_nested_functions.max_depth),
+            format!("contexts: [{}]", contexts.join(", ")),
+        ],
     }
 }
 

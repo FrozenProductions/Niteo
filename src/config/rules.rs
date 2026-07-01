@@ -378,10 +378,46 @@ impl Default for MaxFunctionParamsRuleConfig {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NestingContext {
+    Function,
+    Arrow,
+    ClassMethod,
+    ObjectMethod,
+}
+
+impl std::str::FromStr for NestingContext {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "function" => Ok(Self::Function),
+            "arrow" => Ok(Self::Arrow),
+            "class-method" => Ok(Self::ClassMethod),
+            "object-method" => Ok(Self::ObjectMethod),
+            _ => Err(format!(
+                "unknown nesting context '{s}', expected one of: function, arrow, class-method, object-method"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for NestingContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Function => write!(f, "function"),
+            Self::Arrow => write!(f, "arrow"),
+            Self::ClassMethod => write!(f, "class-method"),
+            Self::ObjectMethod => write!(f, "object-method"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NoNestedFunctionsRuleConfig {
     pub severity: Severity,
     pub max_depth: usize,
+    pub contexts: Vec<NestingContext>,
 }
 
 impl Default for NoNestedFunctionsRuleConfig {
@@ -389,6 +425,12 @@ impl Default for NoNestedFunctionsRuleConfig {
         Self {
             severity: Severity::Warn,
             max_depth: 2,
+            contexts: vec![
+                NestingContext::Function,
+                NestingContext::Arrow,
+                NestingContext::ClassMethod,
+                NestingContext::ObjectMethod,
+            ],
         }
     }
 }

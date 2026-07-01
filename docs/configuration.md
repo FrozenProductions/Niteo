@@ -48,12 +48,12 @@ history = true
 baseline = "niteo-baseline.json"
 ```
 
-| Setting | Type | Default | Description |
-| --- | --- | --- | --- |
-| `root` | string | `src` when it exists, otherwise `.` | Project root to scan. |
-| `respect-gitignore` | boolean | `true` | Whether file discovery respects `.gitignore`. |
-| `history` | boolean | `true` | Whether `lint` appends `.niteo/history.jsonl` by default. |
-| `baseline` | string | `niteo-baseline.json` | Baseline file path used by `lint`, `fix`, and `baseline` commands. |
+| Setting             | Type    | Default                             | Description                                                        |
+| ------------------- | ------- | ----------------------------------- | ------------------------------------------------------------------ |
+| `root`              | string  | `src` when it exists, otherwise `.` | Project root to scan.                                              |
+| `respect-gitignore` | boolean | `true`                              | Whether file discovery respects `.gitignore`.                      |
+| `history`           | boolean | `true`                              | Whether `lint` appends `.niteo/history.jsonl` by default.          |
+| `baseline`          | string  | `niteo-baseline.json`               | Baseline file path used by `lint`, `fix`, and `baseline` commands. |
 
 `--root` overrides `[project].root`. `--baseline` overrides `[project].baseline`. `niteo lint --history` writes a history entry even when `[project].history` is `false`.
 
@@ -70,7 +70,13 @@ Glob patterns use gitignore-style semantics:
 Examples:
 
 ```json
-["packages/*", "packages/*/*", "apps/*/packages/*", "packages/**", "!packages/excluded"]
+[
+  "packages/*",
+  "packages/*/*",
+  "apps/*/packages/*",
+  "packages/**",
+  "!packages/excluded"
+]
 ```
 
 Rules such as `no-package-cycle` and `no-private-package-import` rely on this discovery. They are disabled when no workspace is detected.
@@ -81,10 +87,10 @@ Project structure settings tell Niteo how to identify domain-specific files such
 
 Each domain supports:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `folders` | string array | Any file inside a matching folder belongs to the domain. |
-| `file-suffixes` | string array | Any file with a matching suffix belongs to the domain. |
+| Field           | Type         | Description                                              |
+| --------------- | ------------ | -------------------------------------------------------- |
+| `folders`       | string array | Any file inside a matching folder belongs to the domain. |
+| `file-suffixes` | string array | Any file with a matching suffix belongs to the domain.   |
 
 Matching is additive. A file matches a domain if it is inside one of the configured folders or its file name ends with one of the configured suffixes.
 
@@ -161,12 +167,12 @@ severity = "warn"
 
 Every rule has a severity:
 
-| Severity | Behavior |
-| --- | --- |
-| `off` | Disable the rule. |
-| `info` | Report as a suggestion. |
-| `warn` | Report as a warning. |
-| `error` | Report as an error. |
+| Severity | Behavior                |
+| -------- | ----------------------- |
+| `off`    | Disable the rule.       |
+| `info`   | Report as a suggestion. |
+| `warn`   | Report as a warning.    |
+| `error`  | Report as an error.     |
 
 Run `niteo config check` to validate the config file. It detects unknown rule names, unknown options, invalid severities, and conflicting rule combinations. See the [CLI reference](./cli.md#config-check) for details.
 
@@ -203,11 +209,11 @@ no-console = "warn"
 hygiene = "warn"
 ```
 
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `default` | string | `any` | Minimum severity that causes lint to fail. Values: `error`, `warn`, `any`. |
-| `rules.<rule>` | string | — | Override the default threshold for a specific rule. |
-| `categories.<category>` | string | — | Override the default threshold for every rule in a category. |
+| Field                   | Type   | Default | Description                                                                |
+| ----------------------- | ------ | ------- | -------------------------------------------------------------------------- |
+| `default`               | string | `any`   | Minimum severity that causes lint to fail. Values: `error`, `warn`, `any`. |
+| `rules.<rule>`          | string | —       | Override the default threshold for a specific rule.                        |
+| `categories.<category>` | string | —       | Override the default threshold for every rule in a category.               |
 
 Category names are: `typescript`, `hygiene`, `exports`, `files`, `domain`, `imports`. A rule override takes precedence over a category override, and both take precedence over `default`.
 
@@ -302,26 +308,26 @@ no-empty-interface = false
 
 ## Rule Options
 
-| Rule | Options |
-| --- | --- |
-| `boolean-prefix` | `prefixes`, `ignore-constants` |
-| `entry-file-no-logic` | `entry-files` |
-| `hook-prefix` | `prefixes` |
-| `layer-boundaries` | configured via `[architecture.layers]` |
-| `max-directory-depth` | `max-depth`, `ignore-dirs` |
-| `max-file-exports` | `max-exports` |
+| Rule                      | Options                                     |
+| ------------------------- | ------------------------------------------- |
+| `boolean-prefix`          | `prefixes`, `ignore-constants`              |
+| `entry-file-no-logic`     | `entry-files`                               |
+| `hook-prefix`             | `prefixes`                                  |
+| `layer-boundaries`        | configured via `[architecture.layers]`      |
+| `max-directory-depth`     | `max-depth`, `ignore-dirs`                  |
+| `max-file-exports`        | `max-exports`                               |
 | `max-items-per-directory` | `max-items`, `ignore-dirs`, `count-folders` |
 | `min-items-per-directory` | `min-items`, `ignore-dirs`, `count-folders` |
-| `no-any` | `allowed-folders` |
-| `no-comments` | `allow-doc-comments` |
-| `no-console` | `allow-patterns` |
-| `no-dump-files` | `extra-names` |
-| `no-duplicate-file-names` | `ignore-names` |
-| `no-empty-directories` | `ignore-dirs` |
-| `no-interface` | `allow-declaration-merging` |
-| `no-large-file` | `max-lines` |
-| `no-nested-functions` | `max-depth` |
-| `no-upward-import` | `max-depth` |
+| `no-any`                  | `allowed-folders`                           |
+| `no-comments`             | `allow-doc-comments`                        |
+| `no-console`              | `allow-patterns`                            |
+| `no-dump-files`           | `extra-names`                               |
+| `no-duplicate-file-names` | `ignore-names`                              |
+| `no-empty-directories`    | `ignore-dirs`                               |
+| `no-interface`            | `allow-declaration-merging`                 |
+| `no-large-file`           | `max-lines`                                 |
+| `no-nested-functions`     | `max-depth`, `contexts`                     |
+| `no-upward-import`        | `max-depth`                                 |
 
 Every rule also supports `severity`.
 
@@ -400,13 +406,13 @@ Use `niteo rules` to see the effective severity of every rule after config resol
 
 Presets provide focused rule profiles for common project types. Use them with `niteo init --preset <name>` to generate a `niteo.toml` scoped to the preset's rules.
 
-| Preset | Purpose |
-| --- | --- |
-| `balanced` | Recommended for most teams. Catches common issues without being overly strict. |
-| `strict` | Maximum coverage. Enables most rules at `warn` or `error`. |
-| `migration` | Lower-noise profile for legacy projects. Disables rules that produce many violations during initial adoption. |
-| `react` | React app conventions. Includes component and hook rules, entry-file checks, and barrel file policies. |
-| `library` | Package/library conventions. Focuses on public API hygiene, explicit types, and restricted imports. |
+| Preset       | Purpose                                                                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `balanced`   | Recommended for most teams. Catches common issues without being overly strict.                                                          |
+| `strict`     | Maximum coverage. Enables most rules at `warn` or `error`.                                                                              |
+| `migration`  | Lower-noise profile for legacy projects. Disables rules that produce many violations during initial adoption.                           |
+| `react`      | React app conventions. Includes component and hook rules, entry-file checks, and barrel file policies.                                  |
+| `library`    | Package/library conventions. Focuses on public API hygiene, explicit types, and restricted imports.                                     |
 | `no-barrels` | Prefers direct imports. Disables barrel-requiring rules (`directory-must-have-barrel`) and enables barrel-prohibiting rules at `error`. |
 
 See what a preset enables without writing a config file:

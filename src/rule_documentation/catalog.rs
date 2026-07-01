@@ -893,6 +893,10 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
                 name: "max-depth",
                 description: "Maximum allowed function nesting depth. Default is 2.",
             },
+            RuleOption {
+                name: "contexts",
+                description: "Which function-like constructs count as nesting levels. Each context represents a construct type: 'function', 'arrow', 'class-method', 'object-method'. Exclude a context to allow its construct without contributing to nesting depth. Default is all four.",
+            },
         ],
         category: RuleCategory::SourceHygiene,
         conflicts: &[],

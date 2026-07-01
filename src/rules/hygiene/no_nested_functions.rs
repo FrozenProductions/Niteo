@@ -1,8 +1,9 @@
 use std::path::Path;
 
+use oxc_ast::ast::{Function, MethodDefinition, ObjectProperty};
 use oxc_ast_visit::Visit;
 
-use crate::config::NoNestedFunctionsRuleConfig;
+use crate::config::{NestingContext, NoNestedFunctionsRuleConfig};
 use crate::rules::{NO_NESTED_FUNCTIONS_RULE_ID, Violation};
 use crate::syntax::LineIndex;
 
@@ -20,7 +21,10 @@ pub fn check_file(
         line_index,
         severity: config.severity,
         max_depth: config.max_depth,
+        contexts: &config.contexts,
         current_depth: 0,
+        in_class_method: false,
+        in_object_method: false,
         _phantom: std::marker::PhantomData,
     };
     visitor.visit_program(program);
@@ -33,17 +37,38 @@ struct NestedFunctionVisitor<'a, 'f> {
     line_index: &'f LineIndex,
     severity: crate::config::Severity,
     max_depth: usize,
+    contexts: &'a [NestingContext],
     current_depth: usize,
+    in_class_method: bool,
+    in_object_method: bool,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a, 'f> Visit<'a> for NestedFunctionVisitor<'a, 'f> {
-    fn visit_function(
+impl<'a, 'f> NestedFunctionVisitor<'a, 'f> {
+    fn should_count_context(&self, context: NestingContext) -> bool {
+        self.contexts.contains(&context)
+    }
+
+    fn function_context(&self) -> NestingContext {
+        if self.in_class_method {
+            NestingContext::ClassMethod
+        } else if self.in_object_method {
+            NestingContext::ObjectMethod
+        } else {
+            NestingContext::Function
+        }
+    }
+
+    fn check_and_visit_function(
         &mut self,
-        func: &oxc_ast::ast::Function<'a>,
+        func: &Function<'a>,
+        context: NestingContext,
         flags: oxc_syntax::scope::ScopeFlags,
     ) {
-        self.current_depth += 1;
+        let counts = self.should_count_context(context);
+        if counts {
+            self.current_depth += 1;
+        }
 
         if self.current_depth > self.max_depth {
             let span = func.id.as_ref().map(|id| id.span).unwrap_or(func.span);
@@ -71,14 +96,31 @@ impl<'a, 'f> Visit<'a> for NestedFunctionVisitor<'a, 'f> {
         }
 
         oxc_ast_visit::walk::walk_function(self, func, flags);
-        self.current_depth -= 1;
+
+        if counts {
+            self.current_depth -= 1;
+        }
+    }
+}
+
+impl<'a, 'f> Visit<'a> for NestedFunctionVisitor<'a, 'f> {
+    fn visit_function(
+        &mut self,
+        func: &oxc_ast::ast::Function<'a>,
+        flags: oxc_syntax::scope::ScopeFlags,
+    ) {
+        let context = self.function_context();
+        self.check_and_visit_function(func, context, flags);
     }
 
     fn visit_arrow_function_expression(
         &mut self,
         arrow: &oxc_ast::ast::ArrowFunctionExpression<'a>,
     ) {
-        self.current_depth += 1;
+        let counts = self.should_count_context(NestingContext::Arrow);
+        if counts {
+            self.current_depth += 1;
+        }
 
         if self.current_depth > self.max_depth {
             let pos = self.line_index.position_for(arrow.span);
@@ -100,7 +142,24 @@ impl<'a, 'f> Visit<'a> for NestedFunctionVisitor<'a, 'f> {
         }
 
         oxc_ast_visit::walk::walk_arrow_function_expression(self, arrow);
-        self.current_depth -= 1;
+
+        if counts {
+            self.current_depth -= 1;
+        }
+    }
+
+    fn visit_method_definition(&mut self, method: &MethodDefinition<'a>) {
+        let saved = self.in_class_method;
+        self.in_class_method = true;
+        oxc_ast_visit::walk::walk_method_definition(self, method);
+        self.in_class_method = saved;
+    }
+
+    fn visit_object_property(&mut self, prop: &ObjectProperty<'a>) {
+        let saved = self.in_object_method;
+        self.in_object_method = prop.method;
+        oxc_ast_visit::walk::walk_object_property(self, prop);
+        self.in_object_method = saved;
     }
 }
 
@@ -109,7 +168,7 @@ mod tests {
 
     use anyhow::Result;
     use super::*;
-    use crate::config::{NoNestedFunctionsRuleConfig, Severity};
+    use crate::config::{NestingContext, NoNestedFunctionsRuleConfig, Severity};
     use crate::syntax::LineIndex;
     use oxc_allocator::Allocator;
     use oxc_parser::Parser;
@@ -117,6 +176,14 @@ mod tests {
     use std::path::Path;
 
     fn run_check(source: &str, max_depth: usize) -> Vec<Violation> {
+        run_check_with_contexts(source, max_depth, &[])
+    }
+
+    fn run_check_with_contexts(
+        source: &str,
+        max_depth: usize,
+        contexts: &[NestingContext],
+    ) -> Vec<Violation> {
         let allocator = Allocator::default();
         let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
@@ -125,14 +192,25 @@ mod tests {
             Path::new("test.ts"),
             &program,
             &line_index,
-            &test_config(max_depth),
+            &test_config(max_depth, contexts),
         )
     }
 
-    fn test_config(max_depth: usize) -> NoNestedFunctionsRuleConfig {
+    fn test_config(max_depth: usize, contexts: &[NestingContext]) -> NoNestedFunctionsRuleConfig {
+        let contexts = if contexts.is_empty() {
+            vec![
+                NestingContext::Function,
+                NestingContext::Arrow,
+                NestingContext::ClassMethod,
+                NestingContext::ObjectMethod,
+            ]
+        } else {
+            contexts.to_vec()
+        };
         NoNestedFunctionsRuleConfig {
             severity: Severity::Warn,
             max_depth,
+            contexts,
         }
     }
 
@@ -233,5 +311,125 @@ function second() {
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].subject.as_deref(), Some("deep"));
     
+        Ok(())}
+
+    #[test]
+    fn context_arrow_excluded_does_not_count_arrows() -> Result<()> {
+        let source = r#"function outer() {
+  [1, 2].map(x => {
+    return function inner() {};
+  });
+}
+"#;
+        let violations = run_check_with_contexts(
+            source,
+            2,
+            &[NestingContext::Function, NestingContext::ClassMethod, NestingContext::ObjectMethod],
+        );
+        assert!(violations.is_empty(), "arrow should not count as nesting level");
+
+        Ok(())}
+
+    #[test]
+    fn context_arrow_excluded_arrow_inside_function_at_depth_2() -> Result<()> {
+        let source = r#"function a() {
+  function b() {
+    const x = () => {};
+  }
+}
+"#;
+        let violations = run_check_with_contexts(
+            source,
+            2,
+            &[NestingContext::Function],
+        );
+        assert!(violations.is_empty(), "arrow at depth 2 should not trigger when arrow is excluded");
+
+        Ok(())}
+
+    #[test]
+    fn context_only_function_counts_class_methods() -> Result<()> {
+        // class-method not in contexts, so method should not count as nesting level
+        let source = r#"
+function outer() {
+  class Foo {
+    bar() {
+      function deeply() {}
+    }
+  }
+}
+"#;
+        let violations = run_check_with_contexts(
+            source,
+            2,
+            &[NestingContext::Function, NestingContext::Arrow, NestingContext::ObjectMethod],
+        );
+        assert!(violations.is_empty(), "class method should not count when class-method context is excluded");
+
+        Ok(())}
+
+    #[test]
+    fn context_only_function_counts_object_methods() -> Result<()> {
+        let source = r#"
+function outer() {
+  const obj = {
+    method() {
+      function deeply() {}
+    },
+  };
+}
+"#;
+        let violations = run_check_with_contexts(
+            source,
+            2,
+            &[NestingContext::Function, NestingContext::Arrow, NestingContext::ClassMethod],
+        );
+        assert!(violations.is_empty(), "object method should not count when object-method context is excluded");
+
+        Ok(())}
+
+    #[test]
+    fn context_class_method_counts_as_nesting() -> Result<()> {
+        let source = r#"
+function outer() {
+  class Foo {
+    methodA() {
+      class Bar {
+        methodB() {}
+      }
+    }
+  }
+}
+"#;
+        let violations = run_check_with_contexts(source, 2, &[
+            NestingContext::Function,
+            NestingContext::ClassMethod,
+            NestingContext::Arrow,
+            NestingContext::ObjectMethod,
+        ]);
+        // function(outer) -> class-method(methodA) -> class-method(methodB) = depth 3, exceeds 2
+        assert_eq!(violations.len(), 1);
+
+        Ok(())}
+
+    #[test]
+    fn context_object_method_counts_as_nesting() -> Result<()> {
+        let source = r#"
+function outer() {
+  const obj = {
+    middle() {
+      return function inner() {};
+    },
+  };
+}
+"#;
+        let violations = run_check_with_contexts(source, 2, &[
+            NestingContext::Function,
+            NestingContext::ObjectMethod,
+            NestingContext::Arrow,
+            NestingContext::ClassMethod,
+        ]);
+        assert_eq!(violations.len(), 1);
+
         Ok(())}
 }

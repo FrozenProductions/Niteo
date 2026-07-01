@@ -4,12 +4,12 @@ use super::super::rules::{
     BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
     FileLengthRuleConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
     MaxFunctionParamsRuleConfig, MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig,
-    NoAbbreviationsRuleConfig, NoAnemicDomainRuleConfig, NoAnyRuleConfig, NoConsoleRuleConfig,
-    NoDefaultExportRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
-    NoEmptyDirectoriesRuleConfig, NoEmptyDomainRuleConfig, NoGodDomainRuleConfig,
-    NoInterfaceRuleConfig, NoMagicNumbersRuleConfig, NoNestedFunctionsRuleConfig,
-    NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig, RuleConfig, Severity,
-    UpwardImportRuleConfig,
+    NestingContext, NoAbbreviationsRuleConfig, NoAnemicDomainRuleConfig, NoAnyRuleConfig,
+    NoConsoleRuleConfig, NoDefaultExportRuleConfig, NoDumpFilesRuleConfig,
+    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoEmptyDomainRuleConfig,
+    NoGodDomainRuleConfig, NoInterfaceRuleConfig, NoMagicNumbersRuleConfig,
+    NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig,
+    RuleConfig, Severity, UpwardImportRuleConfig,
 };
 use super::config::RawConfig;
 use crate::rules::RulesConfig;
@@ -235,10 +235,6 @@ impl RawRuleConfig {
             allow_declaration_merging: default(true)
             ;
         },
-        to_no_nested_functions_config => (NoNestedFunctionsRuleConfig) {
-            max_depth: default(2)
-            ;
-        },
         to_no_orphan_files_config => (NoOrphanFilesRuleConfig) {
             ;
             entry_files: clone_default
@@ -269,6 +265,35 @@ impl RawRuleConfig {
             max_files: default(20)
             ;
             ignore_dirs: clone_default
+        }
+    }
+
+    pub fn to_no_nested_functions_config(&self) -> Result<NoNestedFunctionsRuleConfig, String> {
+        match self {
+            Self::Severity(severity) => Ok(NoNestedFunctionsRuleConfig {
+                severity: severity.parse::<Severity>()?,
+                ..NoNestedFunctionsRuleConfig::default()
+            }),
+            Self::Options(options) => {
+                let contexts = match &options.contexts {
+                    Some(contexts) => contexts
+                        .iter()
+                        .map(|c| {
+                            c.parse::<NestingContext>()
+                                .map_err(|e| format!("in field 'contexts': {e}"))
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                    None => NoNestedFunctionsRuleConfig::default().contexts,
+                };
+                Ok(NoNestedFunctionsRuleConfig {
+                    severity: match options.severity.as_deref() {
+                        Some(severity) => severity.parse::<Severity>()?,
+                        None => Severity::Warn,
+                    },
+                    max_depth: options.max_depth.unwrap_or(2),
+                    contexts,
+                })
+            }
         }
     }
 }
@@ -320,6 +345,7 @@ pub(crate) struct RawRuleOptions {
     pub enforce_strings: Option<bool>,
     #[serde(rename = "max-files")]
     pub max_files: Option<usize>,
+    pub contexts: Option<Vec<String>>,
 }
 
 impl RawRuleOptions {
@@ -378,6 +404,7 @@ impl RawRuleOptions {
                 .or_else(|| parent.allowed_numbers.clone()),
             enforce_strings: child.enforce_strings.or(parent.enforce_strings),
             max_files: child.max_files.or(parent.max_files),
+            contexts: child.contexts.clone().or_else(|| parent.contexts.clone()),
         }
     }
 }
