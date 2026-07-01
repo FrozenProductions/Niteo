@@ -4,7 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog], and this project adheres to [Semantic Versioning].
 
-## Unreleased
+## 0.4.0 - 2026-07-01
+
+### Added
+
+- `enforce-strings` option to `no-magic-numbers` rule to also flag string literals.
+- `contexts` option to `no-nested-functions` rule to control which constructs (function, arrow, class-method, object-method) count as nesting levels.
+- `allow-abbreviations` option to `no-abbreviations` rule to remove built-in abbreviations from the check.
+- `count-default` option to `max-file-exports` rule to exclude default exports from the export count.
+- `allow-patterns` option to `no-upward-import` rule to permit upward imports from matching glob patterns (e.g. generated directories).
+- Autofix for `prefer-satisfies`, `prefer-readonly`, `no-any`, `no-process-env`, and `no-non-null-assertion` rules.
+- Markdown output format (`--format markdown`) for lint reports.
 
 ## 0.3.0 - 2026-06-15
 
