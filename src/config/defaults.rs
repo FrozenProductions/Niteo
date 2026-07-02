@@ -188,6 +188,9 @@ severity = "warn"
 [rules.no-non-null-assertion]
 severity = "warn"
 
+[rules.no-await-in-loop]
+severity = "warn"
+
 [rules.no-unsafe-optional-chaining]
 severity = "warn"
 

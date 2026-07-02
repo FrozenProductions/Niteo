@@ -419,6 +419,10 @@ pub(crate) fn no_unsafe_optional_chaining_summary(config: &ProjectConfig) -> Rul
     simple_summary(config.rules.no_unsafe_optional_chaining.severity)
 }
 
+pub(crate) fn no_await_in_loop_summary(config: &ProjectConfig) -> RuleConfigSummary {
+    simple_summary(config.rules.no_await_in_loop.severity)
+}
+
 pub(crate) fn no_magic_numbers_summary(config: &ProjectConfig) -> RuleConfigSummary {
     let mut options = vec![format!(
         "allowed-numbers: {:?}",

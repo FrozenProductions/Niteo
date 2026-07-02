@@ -442,6 +442,7 @@ declare_raw_rules! {
         no_mutable_exports => "no-mutable-exports",
         no_namespace => "no-namespace",
         no_non_null_assertion => "no-non-null-assertion",
+        no_await_in_loop => "no-await-in-loop",
         no_unsafe_optional_chaining => "no-unsafe-optional-chaining",
         no_process_env => "no-process-env",
         no_silent_catch => "no-silent-catch",

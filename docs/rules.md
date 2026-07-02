@@ -44,6 +44,7 @@ niteo explain no-console --format json
 | `min-items-per-directory`        | `warn`           | Find tiny directories that add navigation cost without enough structure.             | `min-items`, `ignore-dirs`, `count-folders`              |
 | `no-abbreviations`               | `warn`           | Disallow abbreviated identifiers like `btn`, `ctx`, and `mgr`.                       | `extra-abbreviations`, `allow-abbreviations`             |
 | `no-any`                         | `warn`           | Disallow explicit `any` type annotations outside generated or allowed folders.       | `allowed-folders`, `project.structure.generated`         |
+| `no-await-in-loop`               | `warn`           | Forbid `await` inside loops — a common performance trap.                             | —                                                        | `severity`                     |
 | `no-barrel-chain`                | `warn`           | Prevent `index.ts` barrel files from re-exporting through other barrels.             | `severity`                                               |
 | `no-barrel-files`                | `warn`           | Avoid `index.ts` barrel files.                                                       | `severity`                                               |
 | `no-circular-import`             | `warn`           | Detect circular import chains between modules.                                       | `severity`                                               |
@@ -90,6 +91,26 @@ niteo explain no-console --format json
 | `prefer-readonly`                | `warn`           | Prefer `readonly` for array parameters in exported functions.                        | `severity`                                               |
 
 ## Language And TypeScript Rules
+
+### `no-await-in-loop`
+
+Reports `await` inside loop bodies (`for`, `for...of`, `for...in`, `while`, `do...while`). Await inside a loop serializes operations that could often be parallelized, which is a common performance trap.
+
+```ts
+async function process(items: Item[]) {
+  for (const item of items) {
+    await save(item);
+  }
+}
+```
+
+Prefer extracting to a separate function or using `Promise.all`:
+
+```ts
+async function process(items: Item[]) {
+  await Promise.all(items.map(item => save(item)));
+}
+```
 
 ### `no-any`
 

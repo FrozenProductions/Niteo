@@ -1219,6 +1219,25 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         summarize: crate::rule_documentation::summary::no_non_null_assertion_summary,
     },
     RuleDocumentation {
+        name: "no-await-in-loop",
+        intent: "Disallow await inside loop bodies. Extract to a separate async function or use Promise.all.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "for (const item of items) { await process(item); }",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "await Promise.all(items.map(item => process(item)));",
+            },
+        ],
+        options: NO_OPTIONS,
+        category: RuleCategory::SourceHygiene,
+        conflicts: &[],
+        fixable: false,
+        summarize: crate::rule_documentation::summary::no_await_in_loop_summary,
+    },
+    RuleDocumentation {
         name: "no-unsafe-optional-chaining",
         intent: "Disallow optional chaining (`?.`) on expressions that are never null or undefined, such as literals, constructors, and assertions.",
         examples: &[

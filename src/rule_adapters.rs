@@ -219,6 +219,12 @@ fixable_ast_rule_adapter!(
     no_non_null_assertion
 );
 ast_rule_adapter!(
+    NoAwaitInLoopAdapter,
+    NO_AWAIT_IN_LOOP_RULE_ID,
+    crate::config::RuleConfig,
+    no_await_in_loop
+);
+ast_rule_adapter!(
     NoUnsafeOptionalChainingAdapter,
     NO_UNSAFE_OPTIONAL_CHAINING_RULE_ID,
     crate::config::RuleConfig,
