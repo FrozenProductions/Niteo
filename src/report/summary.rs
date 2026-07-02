@@ -1,6 +1,7 @@
 use crate::config::Severity;
 use crate::rules::Violation;
-use std::path::PathBuf;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 pub const RED: &str = "\x1b[31m";
 pub const YELLOW: &str = "\x1b[33m";
@@ -128,24 +129,20 @@ pub fn score_color(score: usize) -> &'static str {
 }
 
 pub fn group_by_rule<'a>(violations: &'a [Violation]) -> Vec<RuleGroup<'a>> {
-    let mut groups: Vec<RuleGroup<'a>> = Vec::new();
+    let mut groups: HashMap<(Severity, &'static str), RuleGroup<'a>> = HashMap::new();
 
     for violation in violations {
-        if let Some(group) = groups
-            .iter_mut()
-            .find(|group| group.severity == violation.severity && group.rule == violation.rule)
-        {
-            group.violations.push(violation);
-            continue;
-        }
-
-        groups.push(RuleGroup {
+        let key = (violation.severity, violation.rule);
+        let group = groups.entry(key).or_insert_with(|| RuleGroup {
             severity: violation.severity,
             rule: violation.rule,
             message: violation.message,
-            violations: vec![violation],
+            violations: Vec::new(),
         });
+        group.violations.push(violation);
     }
+
+    let mut groups: Vec<RuleGroup<'a>> = groups.into_values().collect();
 
     for group in &mut groups {
         group.violations.sort_by(|left, right| {
@@ -167,20 +164,19 @@ pub fn group_by_rule<'a>(violations: &'a [Violation]) -> Vec<RuleGroup<'a>> {
 }
 
 pub fn group_by_file<'a>(violations: &[&'a Violation]) -> Vec<FileGroup<'a>> {
-    let mut groups: Vec<FileGroup<'a>> = Vec::new();
+    let mut groups: HashMap<&'a Path, FileGroup<'a>> = HashMap::new();
 
     for violation in violations {
-        if let Some(group) = groups.iter_mut().find(|group| group.file == violation.file) {
-            group.violations.push(violation);
-            continue;
-        }
-
-        groups.push(FileGroup {
-            file: violation.file.clone(),
-            violations: vec![violation],
-        });
+        let group = groups
+            .entry(violation.file.as_path())
+            .or_insert_with(|| FileGroup {
+                file: violation.file.clone(),
+                violations: Vec::new(),
+            });
+        group.violations.push(violation);
     }
 
+    let mut groups: Vec<FileGroup<'a>> = groups.into_values().collect();
     groups.sort_by(|left, right| left.file.cmp(&right.file));
     groups
 }
@@ -247,4 +243,66 @@ pub fn group_line_ranges(violations: &[&Violation]) -> Vec<String> {
     }
 
     ranges
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn violation(
+        file: &str,
+        line: usize,
+        rule: &'static str,
+        message: &'static str,
+        severity: Severity,
+    ) -> Violation {
+        Violation {
+            file: PathBuf::from(file),
+            span: None,
+            line: Some(line),
+            column: Some(1),
+            rule,
+            message,
+            severity,
+            detail: None,
+            subject: None,
+        }
+    }
+
+    #[test]
+    fn group_by_rule_groups_by_severity_and_rule() {
+        let first = violation("a.ts", 1, "no-any", "message a", Severity::Error);
+        let second = violation("b.ts", 2, "no-any", "message a", Severity::Error);
+        let third = violation("c.ts", 3, "no-console", "message b", Severity::Warn);
+        let fourth = violation("d.ts", 4, "no-any", "message a", Severity::Warn);
+
+        let violations = [first, second, third, fourth];
+        let groups = group_by_rule(&violations);
+
+        assert_eq!(groups.len(), 3);
+        assert_eq!(groups[0].rule, "no-any");
+        assert_eq!(groups[0].severity, Severity::Error);
+        assert_eq!(groups[0].violations.len(), 2);
+        assert_eq!(groups[1].rule, "no-any");
+        assert_eq!(groups[1].severity, Severity::Warn);
+        assert_eq!(groups[1].violations.len(), 1);
+        assert_eq!(groups[2].rule, "no-console");
+        assert_eq!(groups[2].severity, Severity::Warn);
+        assert_eq!(groups[2].violations.len(), 1);
+    }
+
+    #[test]
+    fn group_by_file_groups_by_file_sorted() {
+        let first = violation("b.ts", 2, "no-any", "message a", Severity::Error);
+        let second = violation("a.ts", 1, "no-any", "message a", Severity::Error);
+        let third = violation("b.ts", 3, "no-console", "message b", Severity::Warn);
+
+        let groups = group_by_file(&[&first, &second, &third]);
+
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0].file, PathBuf::from("a.ts"));
+        assert_eq!(groups[0].violations.len(), 1);
+        assert_eq!(groups[1].file, PathBuf::from("b.ts"));
+        assert_eq!(groups[1].violations.len(), 2);
+    }
 }
