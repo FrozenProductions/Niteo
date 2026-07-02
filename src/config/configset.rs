@@ -1,4 +1,6 @@
 use anyhow::{Context, Result, bail};
+use std::collections::HashMap;
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -10,6 +12,7 @@ use super::resolve::{ProjectConfig, resolve_project_root};
 pub struct ConfigSet {
     root: ResolvedConfigNode,
     children: Vec<ResolvedConfigNode>,
+    lookup: ConfigTrie,
 }
 
 #[derive(Debug)]
@@ -24,6 +27,51 @@ pub struct ConfigSetOptions<'a> {
     pub root_override: Option<PathBuf>,
     pub scan_scope: Option<&'a Path>,
     pub deny_child_configs: bool,
+}
+
+#[derive(Debug, Default)]
+struct ConfigTrieNode {
+    children: HashMap<OsString, ConfigTrieNode>,
+    config_index: Option<usize>,
+}
+
+#[derive(Debug, Default)]
+struct ConfigTrie {
+    root: ConfigTrieNode,
+}
+
+impl ConfigTrie {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn insert(&mut self, directory: &Path, config_index: usize) {
+        let mut node = &mut self.root;
+        for component in directory.components() {
+            node = node
+                .children
+                .entry(component.as_os_str().to_os_string())
+                .or_default();
+        }
+        node.config_index = Some(config_index);
+    }
+
+    fn find(&self, file: &Path) -> Option<usize> {
+        let mut node = &self.root;
+        let mut best_index = None;
+        for component in file.components() {
+            match node.children.get(component.as_os_str()) {
+                Some(next) => {
+                    node = next;
+                    if let Some(index) = node.config_index {
+                        best_index = Some(index);
+                    }
+                }
+                None => break,
+            }
+        }
+        best_index
+    }
 }
 
 impl ConfigSet {
@@ -85,10 +133,19 @@ impl ConfigSet {
             });
         }
 
-        Ok(ConfigSet {
-            root: root_node,
+        Ok(ConfigSet::from_parts(root_node, children))
+    }
+
+    fn from_parts(root: ResolvedConfigNode, children: Vec<ResolvedConfigNode>) -> Self {
+        let mut lookup = ConfigTrie::new();
+        for (index, node) in children.iter().enumerate() {
+            lookup.insert(&node.directory, index + 1);
+        }
+        Self {
+            root,
             children,
-        })
+            lookup,
+        }
     }
 
     pub fn root(&self) -> &ProjectConfig {
@@ -102,26 +159,10 @@ impl ConfigSet {
     /// Returns a stable id (0 for root, i+1 for `children[i]`) together with the matching config.
     /// The id can be used as a hash key to group files by config without relying on pointer identity.
     pub fn config_with_id_for_file(&self, file: &Path) -> (usize, &ProjectConfig) {
-        let mut best_id = 0usize;
-        let mut best_match = &self.root;
-        let mut best_depth = if file.starts_with(&self.root.directory) {
-            self.root.directory.components().count()
-        } else {
-            0
-        };
-
-        for (index, node) in self.children.iter().enumerate() {
-            if file.starts_with(&node.directory) {
-                let depth = node.directory.components().count();
-                if depth > best_depth {
-                    best_depth = depth;
-                    best_match = node;
-                    best_id = index + 1;
-                }
-            }
+        match self.lookup.find(file) {
+            Some(index) => (index, &self.children[index - 1].config),
+            None => (0, &self.root.config),
         }
-
-        (best_id, &best_match.config)
     }
 
     pub fn configs(&self) -> impl Iterator<Item = &ResolvedConfigNode> {
@@ -308,7 +349,7 @@ mod tests {
             parent_index: Some(0),
         }];
 
-        let config_set = ConfigSet { root, children };
+        let config_set = ConfigSet::from_parts(root, children);
 
         let file_in_admin = Path::new("/project/src/admin/page.ts");
         let file_in_src = Path::new("/project/src/utils/format.ts");
@@ -365,7 +406,7 @@ mod tests {
             },
         ];
 
-        let config_set = ConfigSet { root, children };
+        let config_set = ConfigSet::from_parts(root, children);
 
         let children_of_root = config_set.child_directories(0);
         assert_eq!(children_of_root.len(), 2);
@@ -444,10 +485,7 @@ mod tests {
             parent_index: None,
         };
 
-        let config_set = ConfigSet {
-            root,
-            children: vec![],
-        };
+        let config_set = ConfigSet::from_parts(root, vec![]);
 
         let file_outside = Path::new("/other/file.ts");
         assert_eq!(
