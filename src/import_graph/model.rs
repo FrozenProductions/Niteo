@@ -66,24 +66,48 @@ impl ImportGraph {
     }
 
     pub fn compute_edge_hash(&self) -> String {
-        use crate::cache::key::hash_string;
+        let mut edges: Vec<&ImportEdge> = self.edges.iter().collect();
+        edges.sort_unstable_by(|a, b| {
+            let a_source = a.source_file.as_os_str().as_encoded_bytes();
+            let b_source = b.source_file.as_os_str().as_encoded_bytes();
+            a_source
+                .cmp(b_source)
+                .then_with(|| {
+                    let a_target = a
+                        .resolved_target
+                        .as_ref()
+                        .map(|path| path.as_os_str().as_encoded_bytes());
+                    let b_target = b
+                        .resolved_target
+                        .as_ref()
+                        .map(|path| path.as_os_str().as_encoded_bytes());
+                    a_target.cmp(&b_target)
+                })
+                .then_with(|| a.specifier.as_bytes().cmp(b.specifier.as_bytes()))
+                .then_with(|| import_kind_byte(a.kind).cmp(&import_kind_byte(b.kind)))
+                .then_with(|| {
+                    specifier_kind_byte(a.specifier_kind)
+                        .cmp(&specifier_kind_byte(b.specifier_kind))
+                })
+        });
 
-        let mut lines: Vec<String> = Vec::with_capacity(self.edges.len());
-        for edge in &self.edges {
-            let target = edge.resolved_target.as_ref().map_or_else(
-                || "_".to_string(),
-                |path| path.to_string_lossy().to_string(),
-            );
-            lines.push(format!(
-                "{}|{}|{}|{:?}",
-                edge.source_file.display(),
-                target,
-                edge.specifier,
-                edge.kind
-            ));
+        let mut hasher = blake3::Hasher::new();
+        for edge in edges {
+            hasher.update(edge.source_file.as_os_str().as_encoded_bytes());
+            hasher.update(b"\0");
+            match &edge.resolved_target {
+                Some(target) => hasher.update(target.as_os_str().as_encoded_bytes()),
+                None => hasher.update(b"_"),
+            };
+            hasher.update(b"\0");
+            hasher.update(edge.specifier.as_bytes());
+            hasher.update(b"\0");
+            hasher.update(&[import_kind_byte(edge.kind)]);
+            hasher.update(b"\0");
+            hasher.update(&[specifier_kind_byte(edge.specifier_kind)]);
+            hasher.update(b"\n");
         }
-        lines.sort();
-        hash_string(&lines.join("\n"))
+        hasher.finalize().to_hex().to_string()
     }
 
     pub fn add_file(&mut self, path: PathBuf, is_barrel: bool, is_test: bool) {
@@ -193,6 +217,22 @@ pub struct UnresolvedBreakdown {
     pub alias: usize,
 }
 
+fn import_kind_byte(kind: ImportKind) -> u8 {
+    match kind {
+        ImportKind::Import => 0,
+        ImportKind::ReExport => 1,
+        ImportKind::DynamicImport => 2,
+    }
+}
+
+fn specifier_kind_byte(kind: SpecifierKind) -> u8 {
+    match kind {
+        SpecifierKind::Relative => 0,
+        SpecifierKind::Alias => 1,
+        SpecifierKind::External => 2,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -221,6 +261,51 @@ mod tests {
         let first = graph.compute_edge_hash();
         let second = graph.compute_edge_hash();
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn edge_hash_is_order_independent() {
+        let mut forward = ImportGraph::new();
+        forward.add_file(PathBuf::from("/repo/a.ts"), false, false);
+        forward.add_file(PathBuf::from("/repo/b.ts"), false, false);
+        forward.edges.push(ImportEdge {
+            source_file: PathBuf::from("/repo/a.ts"),
+            specifier: "./b".to_string(),
+            specifier_kind: SpecifierKind::Relative,
+            resolved_target: Some(PathBuf::from("/repo/b.ts")),
+            kind: ImportKind::Import,
+            span: Span::new(0, 10),
+        });
+        forward.edges.push(ImportEdge {
+            source_file: PathBuf::from("/repo/b.ts"),
+            specifier: "./a".to_string(),
+            specifier_kind: SpecifierKind::Relative,
+            resolved_target: Some(PathBuf::from("/repo/a.ts")),
+            kind: ImportKind::Import,
+            span: Span::new(0, 10),
+        });
+
+        let mut reverse = ImportGraph::new();
+        reverse.add_file(PathBuf::from("/repo/a.ts"), false, false);
+        reverse.add_file(PathBuf::from("/repo/b.ts"), false, false);
+        reverse.edges.push(ImportEdge {
+            source_file: PathBuf::from("/repo/b.ts"),
+            specifier: "./a".to_string(),
+            specifier_kind: SpecifierKind::Relative,
+            resolved_target: Some(PathBuf::from("/repo/a.ts")),
+            kind: ImportKind::Import,
+            span: Span::new(0, 10),
+        });
+        reverse.edges.push(ImportEdge {
+            source_file: PathBuf::from("/repo/a.ts"),
+            specifier: "./b".to_string(),
+            specifier_kind: SpecifierKind::Relative,
+            resolved_target: Some(PathBuf::from("/repo/b.ts")),
+            kind: ImportKind::Import,
+            span: Span::new(0, 10),
+        });
+
+        assert_eq!(forward.compute_edge_hash(), reverse.compute_edge_hash());
     }
 
     #[test]
