@@ -446,6 +446,25 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         summarize: crate::rule_documentation::summary::no_side_effect_imports_summary,
     },
     RuleDocumentation {
+        name: "sort-imports",
+        intent: "Enforce consistent import ordering by module specifier. Groups separated by blank lines are sorted independently.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "import c from \"c\";\nimport a from \"a\";\nimport b from \"b\";",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "import a from \"a\";\nimport b from \"b\";\nimport c from \"c\";",
+            },
+        ],
+        options: NO_OPTIONS,
+        category: RuleCategory::Import,
+        conflicts: &[],
+        fixable: true,
+        summarize: crate::rule_documentation::summary::sort_imports_summary,
+    },
+    RuleDocumentation {
         name: "no-debugger",
         intent: "Prevent committed debugger statements from stopping runtime execution.",
         examples: &[
@@ -873,6 +892,25 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         conflicts: &[],
         fixable: false,
         summarize: crate::rule_documentation::summary::no_mutable_exports_summary,
+    },
+    RuleDocumentation {
+        name: "sort-exports",
+        intent: "Enforce consistent export ordering by exported name. Default exports sort first. Groups separated by blank lines are sorted independently.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "export const c = 1;\nexport const a = 2;\nexport const b = 3;",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "export const a = 2;\nexport const b = 3;\nexport const c = 1;",
+            },
+        ],
+        options: NO_OPTIONS,
+        category: RuleCategory::ExportModuleShape,
+        conflicts: &[],
+        fixable: true,
+        summarize: crate::rule_documentation::summary::sort_exports_summary,
     },
     RuleDocumentation {
         name: "no-nested-functions",

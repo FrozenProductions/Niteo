@@ -455,6 +455,8 @@ declare_raw_rules! {
         no_then_chain => "no-then-chain",
         no_type_assertion => "no-type-assertion",
         prefer_readonly => "prefer-readonly",
+        sort_imports => "sort-imports",
+        sort_exports => "sort-exports",
     }
     custom_default {
         layer_boundaries => ("layer-boundaries", Severity::Off),

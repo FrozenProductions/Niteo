@@ -158,6 +158,55 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_side_effect_imports
 );
+
+pub struct SortImportsAdapter {
+    pub config: crate::config::RuleConfig,
+}
+impl AstRule for SortImportsAdapter {
+    fn severity(&self) -> Severity {
+        self.config.severity
+    }
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
+        sort_imports::check_file(
+            ctx.file,
+            ctx.program,
+            ctx.source,
+            ctx.line_index,
+            &self.config,
+        )
+    }
+    fn supports_fix(&self) -> bool {
+        true
+    }
+    fn fix(&self, ctx: &AstContext<'_>) -> Vec<Fix> {
+        sort_imports::fix_file(ctx.file, ctx.program, ctx.source, &self.config)
+    }
+}
+
+pub struct SortExportsAdapter {
+    pub config: crate::config::RuleConfig,
+}
+impl AstRule for SortExportsAdapter {
+    fn severity(&self) -> Severity {
+        self.config.severity
+    }
+    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
+        sort_exports::check_file(
+            ctx.file,
+            ctx.program,
+            ctx.source,
+            ctx.line_index,
+            &self.config,
+        )
+    }
+    fn supports_fix(&self) -> bool {
+        true
+    }
+    fn fix(&self, ctx: &AstContext<'_>) -> Vec<Fix> {
+        sort_exports::fix_file(ctx.file, ctx.program, ctx.source, &self.config)
+    }
+}
+
 fixable_ast_rule_adapter!(
     NoEmptyInterfaceAdapter,
     NO_EMPTY_INTERFACE_RULE_ID,

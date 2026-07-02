@@ -365,6 +365,12 @@ pub fn build_file_rules(
         Box::new(NoSideEffectImportsAdapter {
             config: config.no_side_effect_imports.clone(),
         }),
+        Box::new(SortImportsAdapter {
+            config: config.sort_imports.clone(),
+        }),
+        Box::new(SortExportsAdapter {
+            config: config.sort_exports.clone(),
+        }),
         Box::new(NoEmptyInterfaceAdapter {
             config: config.no_empty_interface.clone(),
         }),

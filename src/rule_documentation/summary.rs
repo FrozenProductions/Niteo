@@ -179,6 +179,10 @@ pub(crate) fn no_side_effect_imports_summary(config: &ProjectConfig) -> RuleConf
     simple_summary(config.rules.no_side_effect_imports.severity)
 }
 
+pub(crate) fn sort_imports_summary(config: &ProjectConfig) -> RuleConfigSummary {
+    simple_summary(config.rules.sort_imports.severity)
+}
+
 pub(crate) fn no_default_export_summary(config: &ProjectConfig) -> RuleConfigSummary {
     RuleConfigSummary {
         severity: config.rules.no_default_export.severity,
@@ -296,6 +300,10 @@ pub(crate) fn no_logic_in_domain_summary(config: &ProjectConfig) -> RuleConfigSu
 
 pub(crate) fn no_mutable_exports_summary(config: &ProjectConfig) -> RuleConfigSummary {
     simple_summary(config.rules.no_mutable_exports.severity)
+}
+
+pub(crate) fn sort_exports_summary(config: &ProjectConfig) -> RuleConfigSummary {
+    simple_summary(config.rules.sort_exports.severity)
 }
 
 pub(crate) fn no_nested_functions_summary(config: &ProjectConfig) -> RuleConfigSummary {
