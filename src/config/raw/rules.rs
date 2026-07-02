@@ -499,14 +499,13 @@ mod tests {
     use super::super::config::RawConfig;
 
     #[test]
-    fn rules_config_rejects_invalid_severity() {
+    fn rules_config_rejects_invalid_severity() -> Result<(), Box<dyn std::error::Error>> {
         let raw: RawConfig = toml::from_str(
             r#"
 [rules.no-console]
 severity = "warning"
 "#,
-        )
-        .expect("valid toml");
+        )?;
 
         let error = raw
             .rules_config()
@@ -514,5 +513,6 @@ severity = "warning"
         assert!(error.contains("'warning'"));
         assert!(error.contains("no-console"));
         assert!(error.contains("off, info, warn, error"));
+        Ok(())
     }
 }

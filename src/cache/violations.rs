@@ -139,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn cached_violation_to_violation_uses_static_rule_id() {
+    fn cached_violation_to_violation_uses_static_rule_id() -> Result<(), String> {
         let cached = CachedViolation {
             line: Some(1),
             column: Some(2),
@@ -159,15 +159,16 @@ mod tests {
             &mut message_interner,
         )
         .pop()
-        .unwrap();
+        .ok_or("expected one violation".to_string())?;
 
         assert_eq!(violation.rule, NO_CONSOLE_RULE_ID);
         assert_eq!(violation.message, "Disallow console statements.");
         assert_eq!(violation.severity, Severity::Warn);
+        Ok(())
     }
 
     #[test]
-    fn cached_violation_with_unknown_rule_falls_back_to_interned_string() {
+    fn cached_violation_with_unknown_rule_falls_back_to_interned_string() -> Result<(), String> {
         let cached = CachedViolation {
             line: None,
             column: None,
@@ -187,11 +188,12 @@ mod tests {
             &mut message_interner,
         )
         .pop()
-        .unwrap();
+        .ok_or("expected one violation".to_string())?;
 
         assert_eq!(violation.rule, "unknown-rule");
         assert_eq!(violation.message, "message");
         assert_eq!(violation.severity, Severity::Info);
+        Ok(())
     }
 
     #[test]

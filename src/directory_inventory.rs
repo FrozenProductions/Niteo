@@ -171,7 +171,10 @@ fn is_barrel_file(path: &Path) -> bool {
 fn analyze_barrel_file(path: &Path) -> BarrelFileFacts {
     let source = match fs::read_to_string(path) {
         Ok(source) => source,
-        Err(_) => return BarrelFileFacts { is_empty: false },
+        Err(error) => {
+            eprintln!("warning: failed to read {}: {error}", path.display());
+            return BarrelFileFacts { is_empty: false };
+        }
     };
 
     let is_empty = is_empty_barrel_source(&source);

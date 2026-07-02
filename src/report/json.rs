@@ -107,21 +107,25 @@ fn diagnostic_json(diagnostic: &Diagnostic) -> Value {
 mod tests {
     use crate::diagnostics::{Diagnostic, DiagnosticCategory};
     use crate::report::model::Report;
+    use anyhow::{Context, Result};
     use serde_json::Value;
 
     #[test]
-    fn json_report_renders_diagnostics() {
+    fn json_report_renders_diagnostics() -> Result<()> {
         let report = Report::new(vec![], vec![]).with_diagnostics(vec![Diagnostic::new(
             DiagnosticCategory::Cache,
             "failed to clear cache",
         )]);
 
-        let rendered = report.render_json().unwrap();
-        let parsed: Value = serde_json::from_str(&rendered).unwrap();
-        let diagnostics = parsed["diagnostics"].as_array().unwrap();
+        let rendered = report.render_json()?;
+        let parsed: Value = serde_json::from_str(&rendered)?;
+        let diagnostics = parsed["diagnostics"]
+            .as_array()
+            .context("expected diagnostics array")?;
 
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0]["category"], "cache");
         assert_eq!(diagnostics[0]["message"], "failed to clear cache");
+        Ok(())
     }
 }

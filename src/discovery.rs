@@ -44,6 +44,7 @@ pub fn discover_files(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Context;
 
     fn gitignore_disabled() -> GitignoreConfig {
         GitignoreConfig { enabled: false }
@@ -73,7 +74,8 @@ mod tests {
         std::fs::write(root.join("dist/bundle.ts"), "")?;
         std::fs::write(root.join("tsconfig.json"), r#"{"include": ["src"]}"#)?;
 
-        let tsconfig = crate::tsconfig::discover_and_parse(root)?.expect("tsconfig should parse");
+        let tsconfig =
+            crate::tsconfig::discover_and_parse(root)?.context("tsconfig should parse")?;
         let files = discover_files(root, None, &gitignore_disabled(), Some(&tsconfig))?;
         assert_eq!(files.len(), 1);
         assert!(files[0].ends_with("src/app.ts"));
@@ -90,7 +92,8 @@ mod tests {
         std::fs::write(root.join("dist/bundle.ts"), "")?;
         std::fs::write(root.join("tsconfig.json"), r#"{"exclude": ["dist"]}"#)?;
 
-        let tsconfig = crate::tsconfig::discover_and_parse(root)?.expect("tsconfig should parse");
+        let tsconfig =
+            crate::tsconfig::discover_and_parse(root)?.context("tsconfig should parse")?;
         let files = discover_files(root, None, &gitignore_disabled(), Some(&tsconfig))?;
         assert_eq!(files.len(), 1);
         assert!(files[0].ends_with("src/app.ts"));

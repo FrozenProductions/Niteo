@@ -532,11 +532,12 @@ mod tests {
     use super::Severity;
 
     #[test]
-    fn from_str_parses_valid_severities() {
-        assert_eq!("off".parse::<Severity>().unwrap(), Severity::Off);
-        assert_eq!("info".parse::<Severity>().unwrap(), Severity::Info);
-        assert_eq!("warn".parse::<Severity>().unwrap(), Severity::Warn);
-        assert_eq!("error".parse::<Severity>().unwrap(), Severity::Error);
+    fn from_str_parses_valid_severities() -> Result<(), String> {
+        assert_eq!("off".parse::<Severity>()?, Severity::Off);
+        assert_eq!("info".parse::<Severity>()?, Severity::Info);
+        assert_eq!("warn".parse::<Severity>()?, Severity::Warn);
+        assert_eq!("error".parse::<Severity>()?, Severity::Error);
+        Ok(())
     }
 
     #[test]

@@ -84,20 +84,22 @@ mod tests {
     use crate::diagnostics::{Diagnostic, DiagnosticCategory};
     use crate::report::model::Report;
     use crate::rules::Violation;
+    use anyhow::Result;
     use std::path::PathBuf;
 
     #[test]
-    fn test_render_markdown_no_violations() {
+    fn test_render_markdown_no_violations() -> Result<()> {
         let report = Report::new(vec![PathBuf::from("src/main.ts")], vec![]);
-        let output = report.render_markdown().unwrap();
+        let output = report.render_markdown()?;
         assert!(output.contains("Niteo Lint Results"));
         assert!(output.contains("Healthy"));
         assert!(output.contains("| Files scanned | 1 |"));
         assert!(output.contains("| Violations | 0 |"));
+        Ok(())
     }
 
     #[test]
-    fn test_render_markdown_with_violations() {
+    fn test_render_markdown_with_violations() -> Result<()> {
         let violations = vec![
             Violation {
                 file: PathBuf::from("src/main.ts"),
@@ -126,21 +128,23 @@ mod tests {
             vec![PathBuf::from("src/main.ts"), PathBuf::from("src/utils.ts")],
             violations,
         );
-        let output = report.render_markdown().unwrap();
+        let output = report.render_markdown()?;
         assert!(output.contains("no-any"));
         assert!(output.contains("max-file-lines"));
         assert!(output.contains("Use `unknown` instead"));
         assert!(output.contains("| Violations | 2 |"));
+        Ok(())
     }
 
     #[test]
-    fn test_render_markdown_with_diagnostics() {
+    fn test_render_markdown_with_diagnostics() -> Result<()> {
         let report = Report::new(vec![], vec![]).with_diagnostics(vec![Diagnostic::new(
             DiagnosticCategory::Cache,
             "cache cleared",
         )]);
-        let output = report.render_markdown().unwrap();
+        let output = report.render_markdown()?;
         assert!(output.contains("cache"));
         assert!(output.contains("cache cleared"));
+        Ok(())
     }
 }

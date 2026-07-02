@@ -195,9 +195,6 @@ export const seven = 7;
 export const eight = 8;
 export const nine = 9;
 "#;
-        // 1 default + 9 named = 10 exports total
-        // With max_exports=9 and count_default=false, the default isn't counted
-        // so we have 9 named exports = no violation
         let config = FileExportsRuleConfig {
             severity: Severity::Warn,
             max_exports: 9,
@@ -222,8 +219,6 @@ export const seven = 7;
 export const eight = 8;
 export const nine = 9;
 "#;
-        // 1 default + 9 named = 10 exports total
-        // With max_exports=9 and count_default=true, all 10 count = violation
         let config = FileExportsRuleConfig {
             severity: Severity::Warn,
             max_exports: 9,
@@ -241,8 +236,6 @@ export const nine = 9;
 export const one = 1;
 export const two = 2;
 "#;
-        // 1 default + 2 named = 3 exports total
-        // With max_exports=2 and count_default=false, only named count (2) = no violation
         let config = FileExportsRuleConfig {
             severity: Severity::Warn,
             max_exports: 2,
@@ -261,8 +254,6 @@ export const one = 1;
 export const two = 2;
 export const three = 3;
 "#;
-        // 1 default + 3 named = 4 exports total
-        // With max_exports=2 and count_default=false, named count (3) exceeds = violation
         let config = FileExportsRuleConfig {
             severity: Severity::Warn,
             max_exports: 2,

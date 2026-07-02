@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use anyhow::Context;
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 
 use crate::config::UpwardImportRuleConfig;
@@ -14,7 +15,13 @@ pub fn check_file(
     import_graph: &ImportGraph,
     config: &UpwardImportRuleConfig,
 ) -> Vec<Violation> {
-    let allow_set = build_allow_set(config);
+    let allow_set = match build_allow_set(config) {
+        Ok(allow_set) => allow_set,
+        Err(error) => {
+            eprintln!("warning: {error}");
+            return Vec::new();
+        }
+    };
 
     let mut violations = Vec::new();
 
@@ -46,9 +53,9 @@ pub fn check_file(
     violations
 }
 
-fn build_allow_set(config: &UpwardImportRuleConfig) -> Option<GlobSet> {
+fn build_allow_set(config: &UpwardImportRuleConfig) -> anyhow::Result<Option<GlobSet>> {
     if config.allow_patterns.is_empty() {
-        return None;
+        return Ok(None);
     }
 
     let mut builder = GlobSetBuilder::new();
@@ -56,11 +63,15 @@ fn build_allow_set(config: &UpwardImportRuleConfig) -> Option<GlobSet> {
         let glob = GlobBuilder::new(pattern)
             .literal_separator(true)
             .build()
-            .expect("invalid allow-patterns glob");
+            .with_context(|| format!("invalid allow-patterns glob: {pattern}"))?;
         builder.add(glob);
     }
 
-    Some(builder.build().expect("failed to build glob set"))
+    Ok(Some(
+        builder
+            .build()
+            .with_context(|| "failed to build glob set")?,
+    ))
 }
 
 fn upward_depth(specifier: &[u8]) -> usize {

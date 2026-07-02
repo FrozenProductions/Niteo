@@ -47,7 +47,7 @@ pub fn build_import_graph_with_cache(
             ProgressStyle::with_template(
                 "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
             )
-            .unwrap()
+            .unwrap_or_else(|_| ProgressStyle::default_bar())
             .progress_chars("#>-"),
         );
         bar.set_message("parsing imports");

@@ -227,7 +227,7 @@ pub fn check_files_with_parallelism(
                 ProgressStyle::with_template(
                     "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
                 )
-                .unwrap()
+                .unwrap_or_else(|_| ProgressStyle::default_bar())
                 .progress_chars("#>-"),
             );
             bar.set_message("linting");
@@ -346,9 +346,13 @@ pub fn check_files_for_benchmark(
         },
         tsconfig.as_ref(),
     )?);
-    let workspace = crate::workspace::Workspace::discover(project_root)
-        .ok()
-        .map(Arc::new);
+    let workspace = match crate::workspace::Workspace::discover(project_root) {
+        Ok(workspace) => Some(Arc::new(workspace)),
+        Err(error) => {
+            eprintln!("warning: workspace discovery failed: {error}");
+            None
+        }
+    };
     let cached_violations = Arc::new(HashMap::new());
     let (violations, _, _) = check_files_with_parallelism(
         files,

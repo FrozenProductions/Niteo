@@ -53,16 +53,17 @@ fn diagnostic_json(diagnostic: &Diagnostic) -> serde_json::Value {
 mod tests {
     use crate::diagnostics::{Diagnostic, DiagnosticCategory};
     use crate::report::model::Report;
+    use anyhow::Result;
     use serde_json::Value;
 
     #[test]
-    fn ndjson_renders_diagnostic_records() {
+    fn ndjson_renders_diagnostic_records() -> Result<()> {
         let report = Report::new(vec![], vec![]).with_diagnostics(vec![Diagnostic::new(
             DiagnosticCategory::Workspace,
             "failed to discover workspace",
         )]);
 
-        let rendered = report.render_ndjson().unwrap();
+        let rendered = report.render_ndjson()?;
         let diagnostic_lines: Vec<Value> = rendered
             .lines()
             .filter_map(|line| serde_json::from_str(line).ok())
@@ -75,6 +76,7 @@ mod tests {
             diagnostic_lines[0]["message"],
             "failed to discover workspace"
         );
+        Ok(())
     }
 }
 

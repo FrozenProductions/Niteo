@@ -164,6 +164,7 @@ mod tests {
     use crate::config::Severity;
     use crate::report::model::Report;
     use crate::rules::Violation;
+    use anyhow::Context;
 
     use super::{compute_health_score, history_path, read_entries};
 
@@ -215,21 +216,21 @@ mod tests {
     }
 
     #[test]
-    fn test_read_entries_skips_malformed_lines() {
-        let tmp = tempfile::tempdir().unwrap();
+    fn test_read_entries_skips_malformed_lines() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
         let path = tmp.path().join(".niteo").join("history.jsonl");
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::create_dir_all(path.parent().context("expected parent")?)?;
         fs::write(
             &path,
             r#"{"timestamp":"2024-01-01T00:00:00Z","files":1,"violations":0,"errors":0,"warnings":0,"infos":0,"health_score":100}
 malformed_line
 {"timestamp":"2024-01-02T00:00:00Z","files":2,"violations":1,"errors":1,"warnings":0,"infos":0,"health_score":0}"#,
-        )
-        .unwrap();
+        )?;
 
-        let entries = read_entries(tmp.path()).unwrap();
+        let entries = read_entries(tmp.path())?;
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].health_score, 100);
         assert_eq!(entries[1].health_score, 0);
+        Ok(())
     }
 }

@@ -6,7 +6,7 @@ use anyhow::Result;
 use crate::config::validation::ConfigDiagnosticSeverity;
 
 pub fn check(workspace: &Path) -> Result<ExitCode> {
-    let source = read_config_source(workspace);
+    let source = read_config_source(workspace)?;
     let report = crate::config::validation::validate_config_source(&source);
 
     println!("{}", report.render_text());
@@ -22,16 +22,16 @@ pub fn check(workspace: &Path) -> Result<ExitCode> {
 }
 
 pub fn print(workspace: &Path) -> Result<ExitCode> {
-    let source = read_config_source(workspace);
+    let source = read_config_source(workspace)?;
     println!("{source}");
     Ok(ExitCode::SUCCESS)
 }
 
-fn read_config_source(workspace: &Path) -> String {
+fn read_config_source(workspace: &Path) -> Result<String> {
     let config_path = workspace.join(crate::config::defaults::CONFIG_FILE_NAME);
     if config_path.exists() {
-        std::fs::read_to_string(&config_path).unwrap_or_else(|_| String::new())
+        Ok(std::fs::read_to_string(&config_path)?)
     } else {
-        crate::config::defaults::DEFAULT_CONFIG_SOURCE.to_owned()
+        Ok(crate::config::defaults::DEFAULT_CONFIG_SOURCE.to_owned())
     }
 }

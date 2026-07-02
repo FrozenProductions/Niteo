@@ -90,20 +90,21 @@ fn sarif_notification_json(diagnostic: &Diagnostic) -> serde_json::Value {
 mod tests {
     use crate::diagnostics::{Diagnostic, DiagnosticCategory};
     use crate::report::model::Report;
+    use anyhow::{Context, Result};
     use serde_json::Value;
 
     #[test]
-    fn sarif_renders_tool_execution_notifications() {
+    fn sarif_renders_tool_execution_notifications() -> Result<()> {
         let report = Report::new(vec![], vec![]).with_diagnostics(vec![Diagnostic::new(
             DiagnosticCategory::Git,
             "could not detect changed files",
         )]);
 
-        let rendered = report.render_sarif().unwrap();
-        let parsed: Value = serde_json::from_str(&rendered).unwrap();
+        let rendered = report.render_sarif()?;
+        let parsed: Value = serde_json::from_str(&rendered)?;
         let notifications = parsed["runs"][0]["invocations"][0]["toolExecutionNotifications"]
             .as_array()
-            .unwrap();
+            .context("expected toolExecutionNotifications array")?;
 
         assert_eq!(notifications.len(), 1);
         assert_eq!(notifications[0]["level"], "warning");
@@ -112,6 +113,7 @@ mod tests {
             "could not detect changed files"
         );
         assert_eq!(notifications[0]["descriptor"]["id"], "git");
+        Ok(())
     }
 }
 

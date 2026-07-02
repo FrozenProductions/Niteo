@@ -164,7 +164,10 @@ fn cache_writes_and_reuses_violations() -> Result<()> {
                 .unwrap_or(false)
         })
         .context("expected a cache entry with no-console violations")?;
-    assert!(!console_entry["violations"].as_array().unwrap().is_empty());
+    let violations_array = console_entry["violations"]
+        .as_array()
+        .context("expected violations to be an array")?;
+    assert!(!violations_array.is_empty());
 
     let _ = harness::niteo_in_project(project.path())
         .args(["lint", "--cache"])
