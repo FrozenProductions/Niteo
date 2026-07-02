@@ -97,9 +97,9 @@ niteo lint --watch --root src
 niteo lint --watch --scope src/components
 ```
 
-Niteo runs a full lint pass on startup, then watches for changes to `.ts`, `.tsx`, and `niteo.toml` files. Each detected change triggers a re-lint after the debounce configured via `--watch-debounce-ms` (default: 300ms). Press Ctrl+C to stop.
+Niteo runs a full lint pass on startup, then watches for changes to `.ts`, `.tsx`, and `niteo.toml` files. File changes are re-linted incrementally: only the changed files and any files whose import-graph context could be affected are re-checked, rather than rediscovering the entire project tree. Changes to `niteo.toml` trigger a full re-lint. Each detected batch of changes is debounced via `--watch-debounce-ms` (default: 300ms). Press Ctrl+C to stop.
 
-Watch mode disables the interactive changed-files prompt and always performs a full scan.
+Watch mode disables the interactive changed-files prompt.
 
 ### Cache
 

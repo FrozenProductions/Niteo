@@ -128,6 +128,23 @@ impl ImportGraph {
         }
     }
 
+    pub fn edges(&self) -> &[ImportEdge] {
+        &self.edges
+    }
+
+    pub fn edges_by_file(&self) -> HashMap<PathBuf, Vec<ImportEdge>> {
+        let mut map = HashMap::new();
+        for (file_index, edge_indices) in self.edges_by_source.iter().enumerate() {
+            let path = self.files[file_index].path.clone();
+            let edges: Vec<ImportEdge> = edge_indices
+                .iter()
+                .map(|&index| self.edges[index].clone())
+                .collect();
+            map.insert(path, edges);
+        }
+        map
+    }
+
     pub fn iter_files(&self) -> impl Iterator<Item = (&Path, &FileNode)> + '_ {
         self.files
             .iter()

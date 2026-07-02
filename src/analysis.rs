@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 
 use crate::config::{ConfigSet, ConfigSetOptions, FailurePolicy, ProjectConfig};
 use crate::diagnostics::{DiagnosticCategory, Diagnostics};
@@ -11,18 +11,23 @@ use crate::git::{self, GitSelection};
 use crate::ignore::SuppressionReport;
 use crate::import_graph::{self, ImportGraph};
 use crate::rules::{self, Violation};
+use crate::syntax;
 use crate::workspace::Workspace;
 
+#[derive(Clone)]
 pub struct AnalysisResult {
     pub project_root: PathBuf,
+    pub scan_scope: Option<PathBuf>,
     pub history_enabled: bool,
     pub files: Vec<PathBuf>,
     pub violations: Vec<rules::Violation>,
     pub suppression_report: SuppressionReport,
     pub import_graph: Arc<ImportGraph>,
     pub workspace: Option<Arc<Workspace>>,
+    pub config_set: ConfigSet,
     pub diagnostics: Vec<crate::diagnostics::Diagnostic>,
     pub fail_on: FailurePolicy,
+    pub parse_failures: HashMap<PathBuf, String>,
 }
 
 pub struct AnalysisOptions {
@@ -209,6 +214,13 @@ impl CacheResult {
 
     fn is_dirty(&self) -> bool {
         self.state.as_ref().map(|s| s.dirty).unwrap_or(true)
+    }
+
+    fn empty() -> Self {
+        Self {
+            state: None,
+            config_paths: Vec::new(),
+        }
     }
 }
 
@@ -428,16 +440,23 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         );
     }
 
+    let config_set = file_set.config_set;
+    let fail_on = config_set.root().fail_on.clone();
+    let history_enabled = config_set.root().history;
+
     Ok(AnalysisResult {
         project_root,
-        history_enabled: file_set.config_set.root().history,
+        scan_scope: context.scan_scope,
+        history_enabled,
         files: file_list.files,
         violations: all_violations,
         suppression_report: file_lint.suppression_report,
         import_graph: graph_result.graph,
         workspace,
+        config_set,
         diagnostics: diagnostics.into_entries(),
-        fail_on: file_set.config_set.root().fail_on.clone(),
+        fail_on,
+        parse_failures: file_lint.parse_failures,
     })
 }
 
@@ -462,4 +481,358 @@ pub fn resolve_path(base: &Path, path: PathBuf) -> PathBuf {
         return path;
     }
     base.join(path)
+}
+
+pub fn collect_incremental(
+    workspace_root: &Path,
+    previous: &AnalysisResult,
+    changed_paths: &[PathBuf],
+) -> Result<AnalysisResult> {
+    if changed_paths.is_empty() {
+        return Ok(previous.clone());
+    }
+
+    let tsconfig = TsConfig::discover(workspace_root)?;
+
+    let mut files: Vec<PathBuf> = previous.files.clone();
+    let mut file_set: HashSet<PathBuf> = files.iter().cloned().collect();
+    let mut changed_files: HashSet<PathBuf> = HashSet::new();
+    let mut removed_files: HashSet<PathBuf> = HashSet::new();
+
+    for path in changed_paths {
+        if is_config_file(path) {
+            bail!("config file changed; full re-lint required");
+        }
+
+        if path.is_dir() {
+            if !path.exists() {
+                let to_remove: Vec<PathBuf> = files
+                    .iter()
+                    .filter(|file| file.starts_with(path))
+                    .cloned()
+                    .collect();
+                for file in to_remove {
+                    file_set.remove(&file);
+                    removed_files.insert(file);
+                }
+                files.retain(|file| !file.starts_with(path));
+            }
+            continue;
+        }
+
+        if !syntax::is_typescript_file(path) {
+            continue;
+        }
+
+        if path.exists() {
+            let in_scope = previous
+                .scan_scope
+                .as_ref()
+                .map(|scope| path.starts_with(scope))
+                .unwrap_or(true);
+            let included = tsconfig
+                .as_ref()
+                .is_none_or(|config| config.is_included(path));
+            if !in_scope || !included {
+                continue;
+            }
+            if file_set.insert(path.clone()) {
+                files.push(path.clone());
+            }
+            changed_files.insert(path.clone());
+        } else if file_set.remove(path) {
+            files.retain(|file| file != path);
+            removed_files.insert(path.clone());
+        }
+    }
+
+    if changed_files.is_empty() && removed_files.is_empty() {
+        return Ok(previous.clone());
+    }
+
+    let mut cached_edges = previous.import_graph.edges_by_file();
+    for path in changed_files.iter().chain(removed_files.iter()) {
+        cached_edges.remove(path);
+    }
+
+    let is_test_file = |file: &Path| {
+        previous
+            .config_set
+            .config_for_file(file)
+            .structure
+            .tests
+            .matches_file(file)
+    };
+
+    let mut graph = import_graph::build_import_graph_with_cache(
+        &files,
+        is_test_file,
+        tsconfig.as_ref(),
+        &cached_edges,
+    )?;
+    graph.set_cycles_by_file(crate::import_graph::topology::compute_cycles(&graph));
+    graph.set_imported_files(crate::import_graph::topology::compute_imported_files(
+        &graph,
+    ));
+    let graph = Arc::new(graph);
+
+    let files_to_lint = affected_files(
+        &previous.import_graph,
+        &graph,
+        &changed_files,
+        &removed_files,
+    );
+
+    let lint_file_list: Vec<PathBuf> = files_to_lint.iter().cloned().collect();
+    let file_lint = FileLintResult::run(
+        &lint_file_list,
+        &previous.config_set,
+        graph.clone(),
+        previous.workspace.clone(),
+        &CacheResult::empty(),
+    )?;
+
+    let mut previous_violations: HashMap<PathBuf, Vec<rules::Violation>> = HashMap::new();
+    for violation in &previous.violations {
+        previous_violations
+            .entry(violation.file.clone())
+            .or_default()
+            .push(violation.clone());
+    }
+
+    let mut new_violations: HashMap<PathBuf, Vec<rules::Violation>> = HashMap::new();
+    for violation in &file_lint.violations {
+        new_violations
+            .entry(violation.file.clone())
+            .or_default()
+            .push(violation.clone());
+    }
+
+    let mut all_violations: Vec<rules::Violation> = Vec::with_capacity(previous.violations.len());
+    for file in &files {
+        if files_to_lint.contains(file) {
+            if let Some(violations) = new_violations.get(file) {
+                all_violations.extend(violations.iter().cloned());
+            }
+        } else if let Some(violations) = previous_violations.get(file) {
+            all_violations.extend(violations.iter().cloned());
+        }
+    }
+
+    let scan_root = previous
+        .scan_scope
+        .as_deref()
+        .unwrap_or(&previous.project_root);
+    let dir_lint = DirectoryLintResult::run(&previous.config_set, scan_root);
+
+    let file_set_check = FileSet {
+        files: files.clone(),
+        config_set: previous.config_set.clone(),
+    };
+    all_violations.extend(dir_lint.violations);
+    all_violations.extend(file_set_check.check_duplicate_file_names());
+    all_violations.extend(file_set_check.check_dump_files());
+
+    let suppression_report = merged_suppression_report(
+        &previous.suppression_report,
+        &file_lint.suppression_report,
+        &files,
+        &files_to_lint,
+    );
+
+    let mut parse_failures = previous.parse_failures.clone();
+    for file in removed_files.iter() {
+        parse_failures.remove(file);
+    }
+    for (file, message) in &file_lint.parse_failures {
+        if files_to_lint.contains(file) {
+            parse_failures.insert(file.clone(), message.clone());
+        }
+    }
+
+    Ok(AnalysisResult {
+        project_root: previous.project_root.clone(),
+        scan_scope: previous.scan_scope.clone(),
+        history_enabled: previous.history_enabled,
+        files,
+        violations: all_violations,
+        suppression_report,
+        import_graph: graph,
+        workspace: previous.workspace.clone(),
+        config_set: previous.config_set.clone(),
+        diagnostics: previous.diagnostics.clone(),
+        fail_on: previous.fail_on.clone(),
+        parse_failures,
+    })
+}
+
+fn is_config_file(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name == "niteo.toml" || name == ".niteo.toml")
+}
+
+fn affected_files(
+    previous: &ImportGraph,
+    current: &ImportGraph,
+    changed: &HashSet<PathBuf>,
+    removed: &HashSet<PathBuf>,
+) -> HashSet<PathBuf> {
+    let mut forward: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
+    let mut reverse: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
+
+    for graph in [previous, current] {
+        for edge in graph.edges() {
+            if let Some(target) = &edge.resolved_target {
+                forward
+                    .entry(edge.source_file.clone())
+                    .or_default()
+                    .push(target.clone());
+                reverse
+                    .entry(target.clone())
+                    .or_default()
+                    .push(edge.source_file.clone());
+            }
+        }
+    }
+
+    let mut affected = HashSet::new();
+    let mut stack: Vec<PathBuf> = Vec::new();
+    for seed in changed.iter().chain(removed.iter()) {
+        if affected.insert(seed.clone()) {
+            stack.push(seed.clone());
+        }
+    }
+
+    while let Some(file) = stack.pop() {
+        for next in forward.get(&file).into_iter().flatten() {
+            if affected.insert(next.clone()) {
+                stack.push(next.clone());
+            }
+        }
+        for prev in reverse.get(&file).into_iter().flatten() {
+            if affected.insert(prev.clone()) {
+                stack.push(prev.clone());
+            }
+        }
+    }
+
+    affected
+}
+
+fn merged_suppression_report(
+    previous: &SuppressionReport,
+    new: &SuppressionReport,
+    files: &[PathBuf],
+    linted: &HashSet<PathBuf>,
+) -> SuppressionReport {
+    let previous_by_file: HashMap<PathBuf, crate::ignore::FileSuppressionInfo> = previous
+        .files
+        .iter()
+        .map(|info| (info.file.clone(), info.clone()))
+        .collect();
+    let new_by_file: HashMap<PathBuf, crate::ignore::FileSuppressionInfo> = new
+        .files
+        .iter()
+        .map(|info| (info.file.clone(), info.clone()))
+        .collect();
+
+    let mut merged = Vec::new();
+    for file in files {
+        if linted.contains(file) {
+            if let Some(info) = new_by_file.get(file) {
+                merged.push(info.clone());
+            }
+        } else if let Some(info) = previous_by_file.get(file) {
+            merged.push(info.clone());
+        }
+    }
+    SuppressionReport { files: merged }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn analysis_options() -> AnalysisOptions {
+        AnalysisOptions {
+            root_override: None,
+            scope_override: None,
+            git_selection: None,
+            prompt_for_changed_files: false,
+            deny_child_configs: false,
+            cache_enabled: false,
+            clear_cache: false,
+        }
+    }
+
+    #[test]
+    fn incremental_detects_violation_in_changed_file() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("src"))?;
+        std::fs::write(root.join("src/a.ts"), "export const a = 1;\n")?;
+        std::fs::write(root.join("src/b.ts"), "import { a } from './a';\n")?;
+
+        let initial = collect(root, analysis_options())?;
+        assert!(
+            !initial
+                .violations
+                .iter()
+                .any(|v| v.file == root.join("src/a.ts") && v.rule == rules::NO_CONSOLE_RULE_ID)
+        );
+
+        std::fs::write(root.join("src/a.ts"), "console.log(1);\n")?;
+        let changed = vec![root.join("src/a.ts")];
+        let incremental = collect_incremental(root, &initial, &changed)?;
+        assert!(
+            incremental
+                .violations
+                .iter()
+                .any(|v| v.file == root.join("src/a.ts") && v.rule == rules::NO_CONSOLE_RULE_ID)
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn incremental_preserves_violations_for_unchanged_files() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("src"))?;
+        std::fs::write(root.join("src/a.ts"), "console.log(1);\n")?;
+        std::fs::write(root.join("src/b.ts"), "export const b = 1;\n")?;
+
+        let initial = collect(root, analysis_options())?;
+        let a_violations_before: Vec<_> = initial
+            .violations
+            .iter()
+            .filter(|v| v.file == root.join("src/a.ts"))
+            .cloned()
+            .collect();
+        assert!(!a_violations_before.is_empty());
+
+        std::fs::write(root.join("src/b.ts"), "console.log(2);\n")?;
+        let changed = vec![root.join("src/b.ts")];
+        let incremental = collect_incremental(root, &initial, &changed)?;
+        let a_violations_after: Vec<_> = incremental
+            .violations
+            .iter()
+            .filter(|v| v.file == root.join("src/a.ts"))
+            .cloned()
+            .collect();
+        assert_eq!(a_violations_before.len(), a_violations_after.len());
+        assert_eq!(
+            a_violations_before
+                .iter()
+                .map(|v| v.rule)
+                .collect::<Vec<_>>(),
+            a_violations_after
+                .iter()
+                .map(|v| v.rule)
+                .collect::<Vec<_>>()
+        );
+
+        Ok(())
+    }
 }

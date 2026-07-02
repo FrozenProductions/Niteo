@@ -38,7 +38,7 @@ Niteo complements ESLint and Knip rather than replacing them. Where ESLint check
 - **Import graph** — `niteo stats` shows fan-out and most-imported files. `niteo graph` outputs DOT or JSON for visualization and tooling.
 - **SARIF output** — `--format sarif` integrates with GitHub Code Scanning, Azure DevOps, and any SARIF-compatible dashboard.
 - **NDJSON output** — `--format ndjson` produces one valid JSON object per line for streaming consumption.
-- **Watch mode** — `niteo lint --watch` re-lints on every file change during development.
+- **Watch mode** — `niteo lint --watch` re-lints changed files incrementally during development, falling back to a full pass when config changes.
 - **Cache** — `niteo lint --cache` caches import graph analysis, parsed AST results, and rule violations for faster repeated runs. Automatically invalidated when files, config, or Niteo version changes.
 - **Health score** — every run produces a 0–100 score so you can track structural health over time.
 - **Git-aware scanning** — `--git` limits analysis to changed files, with `--git BASE..HEAD` for revision ranges and `--git-staged` / `--git-unstaged` for pre-commit and working-tree workflows. Interactive mode auto-detects changed files with best-effort fallback.

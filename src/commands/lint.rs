@@ -3,12 +3,13 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Instant;
 
-use crate::analysis::{self, AnalysisOptions};
+use crate::analysis::{self, AnalysisOptions, AnalysisResult};
 use crate::baseline;
 use crate::cli::OutputFormat;
 use crate::config::{FailurePolicy, FailureThreshold, RuleCategory};
 use crate::history;
 use crate::report;
+
 #[derive(Clone)]
 pub struct LintOptions {
     pub verbose: bool,
@@ -26,14 +27,13 @@ pub struct LintOptions {
     pub force_history: bool,
 }
 
-pub fn lint_workspace(
+pub fn lint_workspace_with_result(
     workspace: &Path,
     root_override: Option<PathBuf>,
     scope_override: Option<PathBuf>,
     opts: LintOptions,
     prompt_for_changed_files: bool,
-) -> anyhow::Result<ExitCode> {
-    let start = Instant::now();
+) -> anyhow::Result<(ExitCode, AnalysisResult)> {
     let collected = analysis::collect(
         workspace,
         AnalysisOptions {
@@ -46,19 +46,37 @@ pub fn lint_workspace(
             clear_cache: opts.clear_cache,
         },
     )?;
+    publish_report(workspace, collected, opts)
+}
+
+pub fn lint_workspace_incremental(
+    workspace: &Path,
+    previous: &AnalysisResult,
+    changed_files: &[PathBuf],
+    opts: LintOptions,
+) -> anyhow::Result<(ExitCode, AnalysisResult)> {
+    let collected = analysis::collect_incremental(workspace, previous, changed_files)?;
+    publish_report(workspace, collected, opts)
+}
+
+fn publish_report(
+    workspace: &Path,
+    collected: AnalysisResult,
+    opts: LintOptions,
+) -> anyhow::Result<(ExitCode, AnalysisResult)> {
+    let start = Instant::now();
     let resolved_baseline_path = crate::analysis::resolve_path(workspace, opts.baseline_path);
+    let all_violations = collected.violations.clone();
     let filtered_violations = match baseline::read_baseline(&resolved_baseline_path)? {
-        Some(baseline) => {
-            baseline.filter_new_violations(&collected.project_root, collected.violations)
-        }
-        None => collected.violations,
+        Some(baseline) => baseline.filter_new_violations(&collected.project_root, all_violations),
+        None => all_violations,
     };
 
-    let mut report = report::Report::new(collected.files, filtered_violations);
+    let mut report = report::Report::new(collected.files.clone(), filtered_violations);
     if opts.report_suppressions {
-        report = report.with_suppression_report(collected.suppression_report);
+        report = report.with_suppression_report(collected.suppression_report.clone());
     }
-    report = report.with_diagnostics(collected.diagnostics);
+    report = report.with_diagnostics(collected.diagnostics.clone());
     let threshold = match opts.fail_on {
         Some(threshold) => threshold,
         None => collected.fail_on.default,
@@ -89,11 +107,13 @@ pub fn lint_workspace(
         println!("\nDone in {:.2?}", elapsed);
     }
 
-    if has_violations {
-        return Ok(ExitCode::FAILURE);
-    }
+    let exit_code = if has_violations {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    };
 
-    Ok(ExitCode::SUCCESS)
+    Ok((exit_code, collected))
 }
 
 pub fn resolve_watch_root(

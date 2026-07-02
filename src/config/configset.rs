@@ -8,14 +8,14 @@ use super::defaults::{CONFIG_FILE_NAME, DEFAULT_CONFIG_SOURCE};
 use super::raw::RawConfig;
 use super::resolve::{ProjectConfig, resolve_project_root};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ConfigSet {
     root: ResolvedConfigNode,
     children: Vec<ResolvedConfigNode>,
     lookup: ConfigTrie,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResolvedConfigNode {
     pub config_path: Option<PathBuf>,
     pub directory: PathBuf,
@@ -29,13 +29,13 @@ pub struct ConfigSetOptions<'a> {
     pub deny_child_configs: bool,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct ConfigTrieNode {
     children: HashMap<OsString, ConfigTrieNode>,
     config_index: Option<usize>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct ConfigTrie {
     root: ConfigTrieNode,
 }

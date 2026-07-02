@@ -137,25 +137,46 @@ pub fn run() -> Result<ExitCode> {
                 let workspace_clone = workspace.clone();
                 let root = cli.options.root.clone();
                 let scope = cli.options.scope.clone();
+                let mut previous_result: Option<crate::analysis::AnalysisResult> = None;
 
-                watch::run(&watch_root, cli.options.watch_debounce_ms, move || {
-                    commands::lint::lint_workspace(
-                        &workspace_clone,
-                        root.clone(),
-                        scope.clone(),
-                        opts.clone(),
-                        false,
-                    )
-                })?;
+                watch::run(
+                    &watch_root,
+                    cli.options.watch_debounce_ms,
+                    |changed_files| {
+                        if let Some(changed) = changed_files {
+                            if let Some(ref previous) = previous_result {
+                                let (code, result) = commands::lint::lint_workspace_incremental(
+                                    &workspace_clone,
+                                    previous,
+                                    changed,
+                                    opts.clone(),
+                                )?;
+                                previous_result = Some(result);
+                                return Ok(code);
+                            }
+                        }
+
+                        let (code, result) = commands::lint::lint_workspace_with_result(
+                            &workspace_clone,
+                            root.clone(),
+                            scope.clone(),
+                            opts.clone(),
+                            false,
+                        )?;
+                        previous_result = Some(result);
+                        Ok(code)
+                    },
+                )?;
                 ExitCode::SUCCESS
             } else {
-                commands::lint::lint_workspace(
+                let (code, _result) = commands::lint::lint_workspace_with_result(
                     &workspace,
                     cli.options.root.clone(),
                     cli.options.scope.clone(),
                     opts,
                     true,
-                )?
+                )?;
+                code
             };
 
             if fix {
