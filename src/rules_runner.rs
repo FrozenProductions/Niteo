@@ -58,7 +58,7 @@ pub fn check_files_with_parallelism(
     config_set: &config::ConfigSet,
     import_graph: Arc<ImportGraph>,
     workspace: Option<Arc<crate::workspace::Workspace>>,
-    cached_violations: &HashMap<PathBuf, Vec<Violation>>,
+    cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
     parallel: bool,
 ) -> Result<(
     Vec<Violation>,
@@ -261,7 +261,7 @@ pub fn check_files(
     config_set: &config::ConfigSet,
     import_graph: Arc<ImportGraph>,
     workspace: Option<Arc<crate::workspace::Workspace>>,
-    cached_violations: &HashMap<PathBuf, Vec<Violation>>,
+    cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
 ) -> Result<(
     Vec<Violation>,
     ignore::SuppressionReport,
@@ -311,13 +311,13 @@ pub fn check_files_for_benchmark(
     let workspace = crate::workspace::Workspace::discover(project_root)
         .ok()
         .map(Arc::new);
-    let cached_violations: HashMap<PathBuf, Vec<Violation>> = HashMap::new();
+    let cached_violations = Arc::new(HashMap::new());
     let (violations, _, _) = check_files_with_parallelism(
         files,
         &config_set,
         graph,
         workspace,
-        &cached_violations,
+        cached_violations,
         parallel,
     )?;
     Ok(violations)

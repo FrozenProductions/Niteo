@@ -1422,6 +1422,25 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         summarize: crate::rule_documentation::summary::no_type_assertion_summary,
     },
     RuleDocumentation {
+        name: "no-unnecessary-type-assertion",
+        intent: "Disallow `as` casts where the expression already has the asserted type.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "const value = \"hello\" as string;",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "const value = \"hello\";",
+            },
+        ],
+        options: NO_OPTIONS,
+        category: RuleCategory::LanguageTypescript,
+        conflicts: &[],
+        fixable: false,
+        summarize: crate::rule_documentation::summary::no_unnecessary_type_assertion_summary,
+    },
+    RuleDocumentation {
         name: "no-empty-domain",
         intent: "Domain folders must contain real source files, not only barrel files that re-export.",
         examples: &[

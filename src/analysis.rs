@@ -189,11 +189,11 @@ impl CacheResult {
         })
     }
 
-    fn cached_violations(&self) -> HashMap<PathBuf, Vec<Violation>> {
+    fn cached_violations(&self) -> Arc<HashMap<PathBuf, Vec<Violation>>> {
         self.state
             .as_ref()
-            .map(|s| s.cached_violations.clone())
-            .unwrap_or_default()
+            .map(|s| Arc::clone(&s.cached_violations))
+            .unwrap_or_else(|| Arc::new(HashMap::new()))
     }
 
     fn cached_edges(&self) -> HashMap<PathBuf, Vec<crate::import_graph::ImportEdge>> {
@@ -278,7 +278,7 @@ impl FileLintResult {
         let cached_violations_map = cache.cached_violations();
 
         let (violations, suppression_report, parse_failures) =
-            rules::check_files(files, config_set, graph, workspace, &cached_violations_map)?;
+            rules::check_files(files, config_set, graph, workspace, cached_violations_map)?;
 
         Ok(Self {
             violations,

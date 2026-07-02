@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::Result;
 
@@ -22,7 +23,7 @@ use crate::rules::Violation;
 pub struct CacheState {
     pub file_hashes: HashMap<PathBuf, String>,
     pub cached_edges: HashMap<PathBuf, Vec<ImportEdge>>,
-    pub cached_violations: HashMap<PathBuf, Vec<Violation>>,
+    pub cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
     pub cached_parse_failures: HashMap<PathBuf, CachedParseFailure>,
     pub cached_topology: Option<CachedGraph>,
     pub dirty: bool,
@@ -60,7 +61,7 @@ pub fn prepare_cache(
 
     let mut file_hashes = HashMap::new();
     let mut cached_edges = HashMap::new();
-    let mut cached_violations = HashMap::new();
+    let mut cached_violations_map = HashMap::new();
     let mut cached_parse_failures = HashMap::new();
     let mut dirty = !cache_valid;
     let cached_topology = cache.as_ref().and_then(|cache| cache.graph.clone());
@@ -90,7 +91,7 @@ pub fn prepare_cache(
                     &rule_lookup,
                     &mut message_interner,
                 );
-                cached_violations.insert(file.clone(), violations);
+                cached_violations_map.insert(file.clone(), violations);
 
                 if let Some(ref parse_failure) = entry.parse_failure {
                     cached_parse_failures.insert(file.clone(), parse_failure.clone());
@@ -106,7 +107,7 @@ pub fn prepare_cache(
     Ok(Some(CacheState {
         file_hashes,
         cached_edges,
-        cached_violations,
+        cached_violations: Arc::new(cached_violations_map),
         cached_parse_failures,
         cached_topology,
         dirty,

@@ -484,6 +484,10 @@ pub(crate) fn no_type_assertion_summary(config: &ProjectConfig) -> RuleConfigSum
     simple_summary(config.rules.no_type_assertion.severity)
 }
 
+pub(crate) fn no_unnecessary_type_assertion_summary(config: &ProjectConfig) -> RuleConfigSummary {
+    simple_summary(config.rules.no_unnecessary_type_assertion.severity)
+}
+
 pub(crate) fn no_empty_domain_summary(config: &ProjectConfig) -> RuleConfigSummary {
     RuleConfigSummary {
         severity: config.rules.no_empty_domain.severity,

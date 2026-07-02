@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use oxc_span::Span;
@@ -279,7 +280,7 @@ fn finalize_cache_writes_violations() -> Result<()> {
     let state = CacheState {
         file_hashes,
         cached_edges: HashMap::new(),
-        cached_violations: HashMap::new(),
+        cached_violations: Arc::new(HashMap::new()),
         cached_parse_failures: HashMap::new(),
         cached_topology: None,
         dirty: true,
@@ -348,7 +349,7 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
     let state = CacheState {
         file_hashes,
         cached_edges: HashMap::new(),
-        cached_violations,
+        cached_violations: Arc::new(cached_violations),
         cached_parse_failures: HashMap::new(),
         cached_topology: None,
         dirty: true,
@@ -567,7 +568,7 @@ fn finalize_cache_writes_all_files() -> Result<()> {
     let state = CacheState {
         file_hashes,
         cached_edges: HashMap::new(),
-        cached_violations: HashMap::new(),
+        cached_violations: Arc::new(HashMap::new()),
         cached_parse_failures: HashMap::new(),
         cached_topology: None,
         dirty: true,
@@ -630,7 +631,7 @@ fn finalize_cache_writes_graph_topology() -> Result<()> {
     let state = CacheState {
         file_hashes,
         cached_edges: HashMap::new(),
-        cached_violations: HashMap::new(),
+        cached_violations: Arc::new(HashMap::new()),
         cached_parse_failures: HashMap::new(),
         cached_topology: None,
         dirty: true,
@@ -685,7 +686,7 @@ fn prepare_cache_restores_graph_topology_when_unchanged() -> Result<()> {
     let state = CacheState {
         file_hashes: file_hashes.clone(),
         cached_edges: HashMap::new(),
-        cached_violations: HashMap::new(),
+        cached_violations: Arc::new(HashMap::new()),
         cached_parse_failures: HashMap::new(),
         cached_topology: None,
         dirty: true,
