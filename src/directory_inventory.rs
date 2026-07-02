@@ -43,6 +43,58 @@ pub fn collect_directory_inventory(root: &Path, exclude_dirs: &[PathBuf]) -> Dir
     DirectoryInventory { directories }
 }
 
+/// Return a view of `inventory` limited to directories under `root`, excluding
+/// any directories under `exclude_dirs`. Depths are rebased so that `root`
+/// itself is at depth 0, matching the values produced by a fresh collection
+/// starting at `root`.
+pub fn filter_inventory(
+    inventory: &DirectoryInventory,
+    root: &Path,
+    exclude_dirs: &[PathBuf],
+) -> DirectoryInventory {
+    let is_excluded = |path: &Path| {
+        exclude_dirs
+            .iter()
+            .any(|excluded| path.starts_with(excluded))
+    };
+
+    let depth_offset = inventory
+        .directories
+        .iter()
+        .find(|facts| facts.path == root)
+        .map(|facts| facts.depth)
+        .unwrap_or(0);
+
+    let directories: Vec<DirectoryFacts> = inventory
+        .directories
+        .iter()
+        .filter(|facts| {
+            let path = &facts.path;
+            (path == root || path.starts_with(root)) && !is_excluded(path)
+        })
+        .map(|facts| {
+            let subdirectories: Vec<PathBuf> = facts
+                .subdirectories
+                .iter()
+                .filter(|sub| {
+                    let sub_path = sub.as_path();
+                    (sub_path == root || sub_path.starts_with(root)) && !is_excluded(sub_path)
+                })
+                .cloned()
+                .collect();
+            DirectoryFacts {
+                path: facts.path.clone(),
+                depth: facts.depth.saturating_sub(depth_offset),
+                source_files: facts.source_files.clone(),
+                subdirectories,
+                barrel_files: facts.barrel_files.clone(),
+            }
+        })
+        .collect();
+
+    DirectoryInventory { directories }
+}
+
 fn walk_and_collect(
     current: &Path,
     exclude_dirs: &[PathBuf],
@@ -619,6 +671,68 @@ mod tests {
         assert!(!is_empty_barrel_source("const x = 1;\n"));
         assert!(!is_empty_barrel_source("export const x = 1;\n"));
         assert!(!is_empty_barrel_source("export { Button };\n"));
+        Ok(())
+    }
+
+    #[test]
+    fn filter_inventory_selects_subtree_and_rebases_depth() -> Result<()> {
+        let root = create_temp_dir()?;
+        fs::create_dir_all(root.join("a/b"))?;
+        fs::write(root.join("a/index.ts"), "export {};")?;
+        fs::write(root.join("a/b/index.ts"), "export {};")?;
+
+        let inventory = collect_directory_inventory(&root, &[]);
+        let subtree = filter_inventory(&inventory, &root.join("a"), &[]);
+
+        assert_eq!(subtree.directories.len(), 2);
+        let a_facts = subtree
+            .directories
+            .iter()
+            .find(|d| d.path.ends_with("a"))
+            .context("expected a directory")?;
+        let b_facts = subtree
+            .directories
+            .iter()
+            .find(|d| d.path.ends_with("b"))
+            .context("expected b directory")?;
+        assert_eq!(a_facts.depth, 0);
+        assert_eq!(b_facts.depth, 1);
+
+        cleanup_temp_dir(&root);
+        Ok(())
+    }
+
+    #[test]
+    fn filter_inventory_excludes_directories_and_descendants() -> Result<()> {
+        let root = create_temp_dir()?;
+        fs::create_dir_all(root.join("a/keep"))?;
+        fs::create_dir_all(root.join("a/skip"))?;
+        fs::write(root.join("a/keep/index.ts"), "export {};")?;
+        fs::write(root.join("a/skip/index.ts"), "export {};")?;
+
+        let inventory = collect_directory_inventory(&root, &[]);
+        let filtered = filter_inventory(&inventory, &root.join("a"), &[root.join("a/skip")]);
+
+        assert!(
+            !filtered
+                .directories
+                .iter()
+                .any(|d| d.path.ends_with("skip"))
+        );
+        assert!(
+            filtered
+                .directories
+                .iter()
+                .any(|d| d.path.ends_with("keep"))
+        );
+        let a_facts = filtered
+            .directories
+            .iter()
+            .find(|d| d.path.ends_with("a"))
+            .context("expected a directory")?;
+        assert!(!a_facts.subdirectories.iter().any(|d| d.ends_with("skip")));
+
+        cleanup_temp_dir(&root);
         Ok(())
     }
 }

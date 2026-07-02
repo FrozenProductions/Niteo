@@ -8,6 +8,7 @@ use oxc_parser::Parser;
 
 use crate::allocator::with_reusable_allocator;
 use crate::config;
+use crate::directory_inventory::DirectoryInventory;
 use crate::ignore;
 use crate::import_graph::ImportGraph;
 use crate::rule_adapters::*;
@@ -530,11 +531,12 @@ pub fn build_file_rules(
 }
 
 pub fn check_directory_rules(
+    inventory: &DirectoryInventory,
     root: &Path,
     rules: &RulesConfig,
     exclude_dirs: &[PathBuf],
 ) -> Vec<Violation> {
-    let inventory = crate::directory_inventory::collect_directory_inventory(root, exclude_dirs);
+    let inventory = crate::directory_inventory::filter_inventory(inventory, root, exclude_dirs);
     let mut violations = Vec::new();
 
     if rules.no_empty_directories.severity.is_enabled() {

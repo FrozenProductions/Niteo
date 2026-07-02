@@ -308,6 +308,7 @@ pub struct DirectoryLintResult {
 impl DirectoryLintResult {
     fn run(config_set: &ConfigSet, scan_root: &Path) -> Self {
         let mut violations = Vec::new();
+        let inventory = crate::directory_inventory::collect_directory_inventory(scan_root, &[]);
 
         for (i, node) in config_set.configs().enumerate() {
             let node_root = if node.directory.starts_with(scan_root) {
@@ -317,8 +318,12 @@ impl DirectoryLintResult {
             };
             let exclude_dirs = config_set.child_directories(i);
 
-            let mut dir_violations =
-                rules::check_directory_rules(node_root, &node.config.rules, &exclude_dirs);
+            let mut dir_violations = rules::check_directory_rules(
+                &inventory,
+                node_root,
+                &node.config.rules,
+                &exclude_dirs,
+            );
             violations.append(&mut dir_violations);
         }
 
