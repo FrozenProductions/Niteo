@@ -12,7 +12,7 @@ use crate::report;
 
 #[derive(Clone)]
 pub struct LintOptions {
-    pub verbose: bool,
+    pub verbose: u8,
     pub git_selection: Option<crate::git::GitSelection>,
     pub output_format: OutputFormat,
     pub output_path: Option<PathBuf>,
@@ -108,7 +108,7 @@ fn publish_report(
         history::append_to_workspace(workspace, &report)?;
     }
 
-    if opts.verbose && matches!(opts.output_format, OutputFormat::Text) {
+    if opts.verbose >= 1 && matches!(opts.output_format, OutputFormat::Text) {
         let elapsed = start.elapsed();
         println!("\nDone in {:.2?}", elapsed);
     }

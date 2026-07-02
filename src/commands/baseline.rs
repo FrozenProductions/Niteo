@@ -24,7 +24,7 @@ pub fn create(
             deny_child_configs,
             cache_enabled: false,
             clear_cache: false,
-            verbose: false,
+            verbose: 0,
         },
     )?;
 
@@ -73,7 +73,7 @@ pub fn prune(
             deny_child_configs,
             cache_enabled: false,
             clear_cache: false,
-            verbose: false,
+            verbose: 0,
         },
     )?;
     let result = existing_baseline.prune(&collected.project_root, &collected.violations);

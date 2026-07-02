@@ -73,7 +73,8 @@ Place a root `niteo.toml` at the workspace level and additional `niteo.toml` fil
 ```sh
 niteo rules             # List all rules with configured severity
 niteo explain no-console # Explain a specific rule
-niteo lint --verbose    # Show every finding
+niteo lint -v        # Show every finding
+niteo lint -vv       # Show every finding + progress bars
 ```
 
 See [Rules](./rules.md) and [Reports](./reports.md).

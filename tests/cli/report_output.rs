@@ -184,7 +184,7 @@ fn verbose_flag_shows_timing() -> Result<()> {
     let project = harness::copy_fixture("reports/basic")?;
 
     harness::niteo_in_project(project.path())
-        .args(["lint", "--verbose"])
+        .args(["lint", "-v"])
         .assert()
         .failure()
         .stdout(predicate::str::contains("Done in"));

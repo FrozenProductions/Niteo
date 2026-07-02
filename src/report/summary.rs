@@ -181,8 +181,8 @@ pub fn group_by_file<'a>(violations: &[&'a Violation]) -> Vec<FileGroup<'a>> {
     groups
 }
 
-pub fn visible_rule_group_count(group_count: usize, verbose: bool) -> usize {
-    if verbose {
+pub fn visible_rule_group_count(group_count: usize, verbose: u8) -> usize {
+    if verbose >= 1 {
         return group_count;
     }
 
@@ -190,8 +190,8 @@ pub fn visible_rule_group_count(group_count: usize, verbose: bool) -> usize {
     group_count.min(DEFAULT_MAX_RULE_GROUPS)
 }
 
-pub fn visible_file_count(file_count: usize, verbose: bool) -> usize {
-    if verbose {
+pub fn visible_file_count(file_count: usize, verbose: u8) -> usize {
+    if verbose >= 1 {
         return file_count;
     }
 
@@ -199,8 +199,8 @@ pub fn visible_file_count(file_count: usize, verbose: bool) -> usize {
     file_count.min(DEFAULT_MAX_FILES_PER_RULE)
 }
 
-pub fn visible_line_count(line_count: usize, verbose: bool) -> usize {
-    if verbose {
+pub fn visible_line_count(line_count: usize, verbose: u8) -> usize {
+    if verbose >= 1 {
         return line_count;
     }
 

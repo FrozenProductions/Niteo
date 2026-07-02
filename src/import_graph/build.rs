@@ -20,7 +20,7 @@ pub fn build_import_graph(
     is_test_file: impl Fn(&Path) -> bool,
     tsconfig: Option<&TsConfig>,
 ) -> Result<ImportGraph> {
-    build_import_graph_with_cache(files, is_test_file, tsconfig, &HashMap::new(), false)
+    build_import_graph_with_cache(files, is_test_file, tsconfig, &HashMap::new(), 0)
 }
 
 pub fn build_import_graph_with_cache(
@@ -28,7 +28,7 @@ pub fn build_import_graph_with_cache(
     is_test_file: impl Fn(&Path) -> bool,
     tsconfig: Option<&TsConfig>,
     cached_edges: &HashMap<PathBuf, Vec<ImportEdge>>,
-    verbose: bool,
+    verbose: u8,
 ) -> Result<ImportGraph> {
     let mut graph = ImportGraph::new();
 
@@ -41,7 +41,7 @@ pub fn build_import_graph_with_cache(
     let resolver = ImportResolverIndex::new(files, tsconfig);
 
     let total = files.len();
-    let progress_bar = if verbose && total > 0 {
+    let progress_bar = if verbose >= 2 && total > 0 {
         let bar = ProgressBar::new(total as u64);
         bar.set_style(
             ProgressStyle::with_template(

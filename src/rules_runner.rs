@@ -63,7 +63,7 @@ pub fn check_files_with_parallelism(
     workspace: Option<Arc<crate::workspace::Workspace>>,
     cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
     parallel: bool,
-    verbose: bool,
+    verbose: u8,
 ) -> Result<(
     Vec<Violation>,
     ignore::SuppressionReport,
@@ -221,7 +221,7 @@ pub fn check_files_with_parallelism(
 
     let file_results: Vec<Result<_>> = if parallel {
         let total = files.len();
-        let progress_bar = if verbose {
+        let progress_bar = if verbose >= 2 {
             let bar = ProgressBar::new(total as u64);
             bar.set_style(
                 ProgressStyle::with_template(
@@ -298,7 +298,7 @@ pub fn check_files(
     import_graph: Arc<ImportGraph>,
     workspace: Option<Arc<crate::workspace::Workspace>>,
     cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
-    verbose: bool,
+    verbose: u8,
 ) -> Result<(
     Vec<Violation>,
     ignore::SuppressionReport,
@@ -357,7 +357,7 @@ pub fn check_files_for_benchmark(
         workspace,
         cached_violations,
         parallel,
-        false,
+        0,
     )?;
     Ok(violations)
 }

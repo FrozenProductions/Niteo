@@ -16,7 +16,7 @@ These options are accepted by every command.
 | ----------------------- | ----- | ------------------------------------------------------------------------------------------------------- |
 | `--root <path>`         |       | Project root to scan. Overrides `[project].root`.                                                       |
 | `--scope <path>`        |       | Limit scanning to a path inside the project root.                                                       |
-| `--verbose`             | `-v`  | Show every violation in text reports.                                                                   |
+| `--verbose`             | `-v`  | Increase output detail. `-v` shows all text output un-truncated plus timing. `-vv` adds progress bars for import graph building and linting. `-vvv` reserved for future use. |
 | `--git [RANGE]`         |       | Scan changed TypeScript files only. Optionally pass a revision range like `main..HEAD`. Fails if git is unavailable. |
 | `--git-staged`          |       | Scan only staged TypeScript changes (index vs HEAD). Mutually exclusive with `--git` and `--git-unstaged`. |
 | `--git-unstaged`        |       | Scan only unstaged TypeScript changes (working tree vs index, plus untracked files). Mutually exclusive with `--git` and `--git-staged`. |
@@ -44,7 +44,8 @@ Scan the project for structural issues.
 niteo lint
 niteo lint --root src
 niteo lint --scope src/components
-niteo lint --verbose
+niteo lint -v
+niteo lint -vv
 niteo lint --format json --output niteo-report.json
 niteo lint --format sarif --output niteo.sarif
 niteo lint --history

@@ -29,9 +29,9 @@ pub struct CliOptions {
     #[arg(long, global = true)]
     pub scope: Option<PathBuf>,
 
-    /// Show every violation.
-    #[arg(short, long, global = true)]
-    pub verbose: bool,
+    /// Increase output detail (-v, -vv, -vvv).
+    #[arg(short, long, action = clap::ArgAction::Count, global = true)]
+    pub verbose: u8,
 
     /// Scan changed TypeScript files only. Optionally pass a revision range like `main..HEAD`.
     #[arg(

@@ -97,7 +97,7 @@ When using baselines in CI, see [CI Usage](./ci.md#existing-projects) for the re
 
 ## Recommended Workflow
 
-1. Run `niteo lint --verbose` to inspect the current state.
+1. Run `niteo lint -v` to inspect the current state.
 2. Run `niteo baseline create`.
 3. Commit `niteo-baseline.json`.
 4. Run `niteo lint` in CI.

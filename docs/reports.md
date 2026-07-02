@@ -36,10 +36,11 @@ By default, text output is summarized:
 - up to 6 files per rule
 - up to 8 locations per file
 
-Use `--verbose` to show every finding:
+Use `-v` to show every finding. Use `-vv` to also show progress bars during import graph building and linting:
 
 ```sh
-niteo lint --verbose
+niteo lint -v    # Show all findings
+niteo lint -vv   # Show all findings + progress bars
 ```
 
 ## Health Score

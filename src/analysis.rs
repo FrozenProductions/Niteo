@@ -39,7 +39,7 @@ pub struct AnalysisOptions {
     pub deny_child_configs: bool,
     pub cache_enabled: bool,
     pub clear_cache: bool,
-    pub verbose: bool,
+    pub verbose: u8,
 }
 
 pub struct ProjectContext {
@@ -237,7 +237,7 @@ impl ImportGraphResult {
         tsconfig: &TsConfig,
         cache: &CacheResult,
         project_root: &Path,
-        verbose: bool,
+        verbose: u8,
     ) -> Result<Self> {
         let mut graph = import_graph::build_import_graph_with_cache(
             files,
@@ -290,7 +290,7 @@ impl FileLintResult {
         graph: Arc<ImportGraph>,
         workspace: Option<Arc<Workspace>>,
         cache: &CacheResult,
-        verbose: bool,
+        verbose: u8,
     ) -> Result<Self> {
         let cached_violations_map = cache.cached_violations();
 
@@ -595,7 +595,7 @@ pub fn collect_incremental(
         is_test_file,
         tsconfig.as_ref(),
         &cached_edges,
-        false,
+        0,
     )?;
     graph.set_cycles_by_file(crate::import_graph::topology::compute_cycles(&graph));
     graph.set_imported_files(crate::import_graph::topology::compute_imported_files(
@@ -617,7 +617,7 @@ pub fn collect_incremental(
         graph.clone(),
         previous.workspace.clone(),
         &CacheResult::empty(),
-        false,
+        0,
     )?;
 
     let mut previous_violations: HashMap<PathBuf, Vec<rules::Violation>> = HashMap::new();
@@ -799,7 +799,7 @@ mod tests {
             deny_child_configs: false,
             cache_enabled: false,
             clear_cache: false,
-            verbose: false,
+            verbose: 0,
         }
     }
 

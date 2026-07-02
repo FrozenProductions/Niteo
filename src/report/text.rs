@@ -8,7 +8,7 @@ use crate::report::summary::{
 use crate::report::suppressions::render_suppression_report_text;
 
 impl Report {
-    pub fn render_text(&self, verbose: bool) -> String {
+    pub fn render_text(&self, verbose: u8) -> String {
         let warning_count = self.warning_count();
         let error_count = self.error_count();
         let info_count = self.info_count();
@@ -83,7 +83,7 @@ mod tests {
             "failed to prepare cache",
         )]);
 
-        let rendered = report.render_text(false);
+        let rendered = report.render_text(0);
         assert!(rendered.contains("Diagnostics"));
         assert!(rendered.contains("failed to prepare cache"));
     }
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn text_report_omits_diagnostics_when_empty() {
         let report = Report::new(vec![], vec![]);
-        let rendered = report.render_text(false);
+        let rendered = report.render_text(0);
         assert!(!rendered.contains("Diagnostics"));
     }
 }
@@ -99,7 +99,7 @@ mod tests {
 fn render_end_summary(
     summary: &TextSummary,
     rule_groups: &[super::summary::RuleGroup<'_>],
-    verbose: bool,
+    verbose: u8,
 ) -> String {
     let status = status_label(
         summary.error_count,
@@ -126,7 +126,7 @@ fn render_end_summary(
     output
 }
 
-fn render_rule_overview(rule_groups: &[super::summary::RuleGroup<'_>], verbose: bool) -> String {
+fn render_rule_overview(rule_groups: &[super::summary::RuleGroup<'_>], verbose: u8) -> String {
     let visible_count = visible_rule_group_count(rule_groups.len(), verbose);
     let visible_groups = rule_groups.split_at(visible_count.min(rule_groups.len())).0;
     let hidden_count = rule_groups.len().saturating_sub(visible_count);
@@ -177,14 +177,14 @@ fn render_rule_overview(rule_groups: &[super::summary::RuleGroup<'_>], verbose: 
 
     if hidden_count > 0 {
         output.push_str(&format!(
-            "\n{DIM}... {hidden_count} more rules hidden. Run with --verbose to show all.{RESET}\n"
+            "\n{DIM}... {hidden_count} more rules hidden. Run with -v to show all.{RESET}\n"
         ));
     }
 
     output
 }
 
-fn render_findings(rule_groups: &[super::summary::RuleGroup<'_>], verbose: bool) -> String {
+fn render_findings(rule_groups: &[super::summary::RuleGroup<'_>], verbose: u8) -> String {
     let visible_count = visible_rule_group_count(rule_groups.len(), verbose);
     let hidden_count = rule_groups.len().saturating_sub(visible_count);
     let mut output = format!("{BOLD}Findings{RESET}\n");
@@ -195,14 +195,14 @@ fn render_findings(rule_groups: &[super::summary::RuleGroup<'_>], verbose: bool)
 
     if hidden_count > 0 {
         output.push_str(&format!(
-            "{DIM}Hidden rule groups: {hidden_count}. Run with --verbose for the full report.{RESET}\n"
+            "{DIM}Hidden rule groups: {hidden_count}. Run with -v for the full report.{RESET}\n"
         ));
     }
 
     output
 }
 
-fn render_rule_group(group: &super::summary::RuleGroup<'_>, verbose: bool) -> String {
+fn render_rule_group(group: &super::summary::RuleGroup<'_>, verbose: u8) -> String {
     let color = severity_color(group.severity);
     let label = pluralized_label(group.severity);
     let file_groups = group_by_file(&group.violations);
@@ -267,11 +267,11 @@ fn render_rule_group(group: &super::summary::RuleGroup<'_>, verbose: bool) -> St
         let hidden_lines = file_group.violations.len().saturating_sub(line_count);
         if hidden_lines > 0 && !has_details {
             output.push_str(&format!(
-                "    {DIM}+ {hidden_lines} more locations in this file. Use --verbose to show all.{RESET}\n"
+                "    {DIM}+ {hidden_lines} more locations in this file. Use -v to show all.{RESET}\n"
             ));
         } else if hidden_lines > 0 {
             output.push_str(&format!(
-                "    {DIM}+ {hidden_lines} more findings in this file. Use --verbose to show all.{RESET}\n"
+                "    {DIM}+ {hidden_lines} more findings in this file. Use -v to show all.{RESET}\n"
             ));
         }
     }
@@ -284,7 +284,7 @@ fn render_rule_group(group: &super::summary::RuleGroup<'_>, verbose: bool) -> St
             .map(|file_group| file_group.violations.len())
             .sum::<usize>();
         output.push_str(&format!(
-            "  {DIM}+ {hidden_file_count} more files with {hidden_violation_count} findings. Use --verbose to show all files.{RESET}\n"
+            "  {DIM}+ {hidden_file_count} more files with {hidden_violation_count} findings. Use -v to show all files.{RESET}\n"
         ));
     }
 
@@ -294,7 +294,7 @@ fn render_rule_group(group: &super::summary::RuleGroup<'_>, verbose: bool) -> St
 fn render_line_numbers<'a>(
     violations: impl Iterator<Item = &'a crate::rules::Violation>,
     total_count: usize,
-    verbose: bool,
+    verbose: u8,
 ) -> String {
     let violations: Vec<&'a crate::rules::Violation> = violations.collect();
     let positioned: Vec<&'a crate::rules::Violation> = violations
@@ -302,7 +302,7 @@ fn render_line_numbers<'a>(
         .filter(|violation| violation.line.is_some())
         .copied()
         .collect();
-    let ranges = if verbose {
+    let ranges = if verbose >= 1 {
         positioned
             .iter()
             .filter_map(|violation| {
@@ -316,11 +316,11 @@ fn render_line_numbers<'a>(
     };
     let lines = ranges.join(", ");
 
-    let suffix = if !verbose && total_count > super::summary::visible_line_count(total_count, false)
+    let suffix = if verbose < 1 && total_count > super::summary::visible_line_count(total_count, 0)
     {
         format!(
             ", {DIM}...and {} more{RESET}",
-            total_count.saturating_sub(super::summary::visible_line_count(total_count, false))
+            total_count.saturating_sub(super::summary::visible_line_count(total_count, 0))
         )
     } else {
         String::new()
