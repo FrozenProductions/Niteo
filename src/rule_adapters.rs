@@ -297,6 +297,12 @@ ast_rule_adapter!(
     crate::config::RuleConfig,
     no_type_assertion
 );
+ast_rule_adapter!(
+    NoUnnecessaryTypeAssertionAdapter,
+    NO_UNNECESSARY_TYPE_ASSERTION_RULE_ID,
+    crate::config::RuleConfig,
+    no_unnecessary_type_assertion
+);
 fixable_ast_rule_adapter!(
     NoProcessEnvAdapter,
     NO_PROCESS_ENV_RULE_ID,

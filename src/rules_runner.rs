@@ -416,6 +416,9 @@ pub fn build_file_rules(
         Box::new(NoTypeAssertionAdapter {
             config: config.no_type_assertion.clone(),
         }),
+        Box::new(NoUnnecessaryTypeAssertionAdapter {
+            config: config.no_unnecessary_type_assertion.clone(),
+        }),
         Box::new(NoProcessEnvAdapter {
             config: config.no_process_env.clone(),
         }),

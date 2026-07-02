@@ -87,6 +87,7 @@ niteo explain no-console --format json
 | `no-test-import`                 | `warn`           | Production code may not import test files.                                           | `project.structure.tests`                                |
 | `no-then-chain`                  | `warn`           | Prefer `async`/`await` over `.then()` chains.                                        | `severity`                                               |
 | `no-type-assertion`              | `warn`           | Disallow `as` casts. Prefer type narrowing or `satisfies`.                           | `severity`                                               |
+| `no-unnecessary-type-assertion`  | `warn`           | Flag `as T` when the expression is already typed as `T`.                             | `severity`                                               |
 | `no-upward-import`               | `warn`           | Limit fragile `../` imports.                                                         | `max-depth`, `allow-patterns`                            |
 | `prefer-satisfies`               | `info`           | Prefer `satisfies` over `as` when validating a value against a type.                 | `severity`                                               |
 | `prefer-readonly`                | `warn`           | Prefer `readonly` for array parameters in exported functions.                        | `severity`                                               |
@@ -228,6 +229,32 @@ const config = { port: 3000 } satisfies Config;
 if (typeof value === "string") {
   // value is narrowed to string
 }
+```
+
+### `no-unnecessary-type-assertion`
+
+Reports `as T` casts where the expression is already typed as `T`, making the assertion redundant.
+
+```ts
+const name = "hello" as string;
+const count = 42 as number;
+const flag = true as boolean;
+const empty = null as null;
+const missing = undefined as undefined;
+const big = 0n as bigint;
+const message = `hello` as string;
+```
+
+All of these assertions are no-ops — the expression's type already matches the asserted type. Remove the `as` cast:
+
+```ts
+const name = "hello";
+const count = 42;
+const flag = true;
+const empty = null;
+const missing = undefined;
+const big = 0n;
+const message = `hello`;
 ```
 
 ### `prefer-satisfies`

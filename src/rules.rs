@@ -115,6 +115,7 @@ declare_rules! {
     no_package_cycle => { id: NO_PACKAGE_CYCLE_RULE_ID, value: "no-package-cycle", path: "rules/imports/no_package_cycle.rs", config: crate::config::RuleConfig },
     no_private_package_import => { id: NO_PRIVATE_PACKAGE_IMPORT_RULE_ID, value: "no-private-package-import", path: "rules/imports/no_private_package_import.rs", config: crate::config::RuleConfig },
     no_type_assertion => { id: NO_TYPE_ASSERTION_RULE_ID, value: "no-type-assertion", path: "rules/typescript/no_type_assertion.rs", config: crate::config::RuleConfig },
+    no_unnecessary_type_assertion => { id: NO_UNNECESSARY_TYPE_ASSERTION_RULE_ID, value: "no-unnecessary-type-assertion", path: "rules/typescript/no_unnecessary_type_assertion.rs", config: crate::config::RuleConfig },
     no_process_env => { id: NO_PROCESS_ENV_RULE_ID, value: "no-process-env", path: "rules/typescript/no_process_env.rs", config: crate::config::RuleConfig },
     no_silent_catch => { id: NO_SILENT_CATCH_RULE_ID, value: "no-silent-catch", path: "rules/hygiene/no_silent_catch.rs", config: crate::config::RuleConfig },
     no_skipped_test => { id: NO_SKIPPED_TEST_RULE_ID, value: "no-skipped-test", path: "rules/hygiene/no_skipped_test.rs", config: crate::config::RuleConfig },
