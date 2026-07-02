@@ -71,6 +71,7 @@ niteo explain no-console --format json
 | `no-mutable-exports`             | `warn`           | Avoid exported mutable bindings.                                                     | `severity`                                               |
 | `no-nested-functions`            | `warn`           | Disallow functions nested beyond a configured depth.                                 | `max-depth`, `contexts`                                  |
 | `no-orphan-files`                | `warn`           | Detect files not imported by any other file in the project.                          | `entry-files`                                            |
+| `no-promise-executor-return`     | `warn`           | Forbid returning a value from a Promise executor. Values are discarded.              | —                                                        | `severity`                     |
 | `no-namespace`                   | `warn`           | Prefer ES modules over TypeScript namespaces.                                        | `severity`                                               |
 | `no-unsafe-optional-chaining`    | `warn`           | Forbid `?.` on expressions that are never null or undefined.                         | —                                                        | `severity`                     |
 | `no-non-null-assertion`          | `warn`           | Disallow the non-null assertion operator.                                            | `severity`                                               |
@@ -284,6 +285,26 @@ Reports `debugger` statements.
 ### `no-eval`
 
 Reports `eval()` and `new Function()`.
+
+### `no-promise-executor-return`
+
+Reports returning a value from a Promise executor function. Return values from Promise executors are silently discarded; use `resolve()` or `reject()` instead.
+
+```ts
+new Promise((resolve, reject) => {
+  return 42;
+});
+
+new Promise((resolve) => 42);
+```
+
+Prefer:
+
+```ts
+new Promise((resolve, reject) => {
+  resolve(42);
+});
+```
 
 ### `no-process-env`
 

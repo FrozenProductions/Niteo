@@ -225,6 +225,12 @@ ast_rule_adapter!(
     no_await_in_loop
 );
 ast_rule_adapter!(
+    NoPromiseExecutorReturnAdapter,
+    NO_PROMISE_EXECUTOR_RETURN_RULE_ID,
+    crate::config::RuleConfig,
+    no_promise_executor_return
+);
+ast_rule_adapter!(
     NoUnsafeOptionalChainingAdapter,
     NO_UNSAFE_OPTIONAL_CHAINING_RULE_ID,
     crate::config::RuleConfig,

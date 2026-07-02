@@ -398,6 +398,9 @@ pub fn build_file_rules(
         Box::new(NoAwaitInLoopAdapter {
             config: config.no_await_in_loop.clone(),
         }),
+        Box::new(NoPromiseExecutorReturnAdapter {
+            config: config.no_promise_executor_return.clone(),
+        }),
         Box::new(NoUnsafeOptionalChainingAdapter {
             config: config.no_unsafe_optional_chaining.clone(),
         }),

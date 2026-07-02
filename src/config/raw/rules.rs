@@ -443,6 +443,7 @@ declare_raw_rules! {
         no_namespace => "no-namespace",
         no_non_null_assertion => "no-non-null-assertion",
         no_await_in_loop => "no-await-in-loop",
+        no_promise_executor_return => "no-promise-executor-return",
         no_unsafe_optional_chaining => "no-unsafe-optional-chaining",
         no_process_env => "no-process-env",
         no_silent_catch => "no-silent-catch",

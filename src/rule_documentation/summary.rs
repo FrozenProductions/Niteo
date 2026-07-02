@@ -423,6 +423,10 @@ pub(crate) fn no_await_in_loop_summary(config: &ProjectConfig) -> RuleConfigSumm
     simple_summary(config.rules.no_await_in_loop.severity)
 }
 
+pub(crate) fn no_promise_executor_return_summary(config: &ProjectConfig) -> RuleConfigSummary {
+    simple_summary(config.rules.no_promise_executor_return.severity)
+}
+
 pub(crate) fn no_magic_numbers_summary(config: &ProjectConfig) -> RuleConfigSummary {
     let mut options = vec![format!(
         "allowed-numbers: {:?}",

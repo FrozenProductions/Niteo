@@ -59,6 +59,9 @@ severity = "warn"
 [rules.no-await-in-loop]
 severity = "warn"
 
+[rules.no-promise-executor-return]
+severity = "warn"
+
 [rules.explicit-return-type]
 severity = "warn"
 
@@ -129,6 +132,9 @@ severity = "error"
 severity = "error"
 
 [rules.no-await-in-loop]
+severity = "error"
+
+[rules.no-promise-executor-return]
 severity = "error"
 
 [rules.no-type-assertion]
@@ -256,6 +262,9 @@ severity = "off"
 severity = "off"
 
 [rules.no-await-in-loop]
+severity = "off"
+
+[rules.no-promise-executor-return]
 severity = "off"
 
 [rules.no-type-assertion]
@@ -390,6 +399,9 @@ severity = "warn"
 [rules.no-await-in-loop]
 severity = "warn"
 
+[rules.no-promise-executor-return]
+severity = "warn"
+
 [rules.explicit-return-type]
 severity = "warn"
 
@@ -458,6 +470,9 @@ severity = "warn"
 severity = "warn"
 
 [rules.no-await-in-loop]
+severity = "warn"
+
+[rules.no-promise-executor-return]
 severity = "warn"
 
 [rules.no-type-assertion]

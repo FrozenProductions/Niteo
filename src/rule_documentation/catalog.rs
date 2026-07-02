@@ -1238,6 +1238,25 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         summarize: crate::rule_documentation::summary::no_await_in_loop_summary,
     },
     RuleDocumentation {
+        name: "no-promise-executor-return",
+        intent: "Disallow returning a value from a Promise executor. Values are discarded; use resolve() instead.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "new Promise((resolve, reject) => { return 42; });",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "new Promise((resolve, reject) => { resolve(42); });",
+            },
+        ],
+        options: NO_OPTIONS,
+        category: RuleCategory::SourceHygiene,
+        conflicts: &[],
+        fixable: false,
+        summarize: crate::rule_documentation::summary::no_promise_executor_return_summary,
+    },
+    RuleDocumentation {
         name: "no-unsafe-optional-chaining",
         intent: "Disallow optional chaining (`?.`) on expressions that are never null or undefined, such as literals, constructors, and assertions.",
         examples: &[
