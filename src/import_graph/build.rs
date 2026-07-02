@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use rayon::prelude::*;
 
 use crate::import_graph::extract::extract_imports;
 use crate::import_graph::helpers::is_barrel_file;
@@ -36,15 +37,20 @@ pub fn build_import_graph_with_cache(
 
     let resolver = ImportResolverIndex::new(files, tsconfig);
 
-    for file in files {
-        if let Some(edges) = cached_edges.get(file) {
-            graph.edges.extend(edges.clone());
-        } else {
+    let extracted: Vec<Vec<ImportEdge>> = files
+        .par_iter()
+        .map(|file| {
+            if let Some(edges) = cached_edges.get(file) {
+                return Ok(edges.clone());
+            }
             let source = std::fs::read_to_string(file)
                 .with_context(|| format!("failed to read {}", file.display()))?;
-            let edges = extract_imports(file, &source, &resolver);
-            graph.edges.extend(edges);
-        }
+            Ok(extract_imports(file, &source, &resolver))
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    for edges in extracted {
+        graph.edges.extend(edges);
     }
 
     graph.build_edges_by_source();
@@ -72,9 +78,15 @@ pub fn build_import_graph_from_sources(
 
     let resolver = ImportResolverIndex::new(&files, tsconfig);
 
-    for (path, source) in files_with_sources {
-        let file = PathBuf::from(path);
-        let edges = extract_imports(&file, source, &resolver);
+    let extracted: Vec<Vec<ImportEdge>> = files_with_sources
+        .par_iter()
+        .map(|(path, source)| {
+            let file = PathBuf::from(path);
+            extract_imports(&file, source, &resolver)
+        })
+        .collect();
+
+    for edges in extracted {
         graph.edges.extend(edges);
     }
 
