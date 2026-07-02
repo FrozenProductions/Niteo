@@ -219,6 +219,12 @@ fixable_ast_rule_adapter!(
     no_non_null_assertion
 );
 ast_rule_adapter!(
+    NoUnsafeOptionalChainingAdapter,
+    NO_UNSAFE_OPTIONAL_CHAINING_RULE_ID,
+    crate::config::RuleConfig,
+    no_unsafe_optional_chaining
+);
+ast_rule_adapter!(
     NoMagicNumbersAdapter,
     NO_MAGIC_NUMBERS_RULE_ID,
     crate::config::NoMagicNumbersRuleConfig,

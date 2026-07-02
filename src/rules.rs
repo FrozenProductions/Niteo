@@ -105,6 +105,7 @@ declare_rules! {
     no_namespace => { id: NO_NAMESPACE_RULE_ID, value: "no-namespace", path: "rules/typescript/no_namespace.rs", config: crate::config::RuleConfig },
     no_nested_functions => { id: NO_NESTED_FUNCTIONS_RULE_ID, value: "no-nested-functions", path: "rules/hygiene/no_nested_functions.rs", config: crate::config::NoNestedFunctionsRuleConfig },
     no_non_null_assertion => { id: NO_NON_NULL_ASSERTION_RULE_ID, value: "no-non-null-assertion", path: "rules/typescript/no_non_null_assertion.rs", config: crate::config::RuleConfig },
+    no_unsafe_optional_chaining => { id: NO_UNSAFE_OPTIONAL_CHAINING_RULE_ID, value: "no-unsafe-optional-chaining", path: "rules/typescript/no_unsafe_optional_chaining.rs", config: crate::config::RuleConfig },
     no_magic_numbers => { id: NO_MAGIC_NUMBERS_RULE_ID, value: "no-magic-numbers", path: "rules/typescript/no_magic_numbers.rs", config: crate::config::NoMagicNumbersRuleConfig },
     no_orphan_files => { id: NO_ORPHAN_FILES_RULE_ID, value: "no-orphan-files", path: "rules/imports/no_orphan_files.rs", config: crate::config::NoOrphanFilesRuleConfig },
     no_package_cycle => { id: NO_PACKAGE_CYCLE_RULE_ID, value: "no-package-cycle", path: "rules/imports/no_package_cycle.rs", config: crate::config::RuleConfig },

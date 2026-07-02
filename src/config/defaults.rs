@@ -188,6 +188,9 @@ severity = "warn"
 [rules.no-non-null-assertion]
 severity = "warn"
 
+[rules.no-unsafe-optional-chaining]
+severity = "warn"
+
 [rules.no-type-assertion]
 severity = "warn"
 

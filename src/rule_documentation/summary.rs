@@ -415,6 +415,10 @@ pub(crate) fn no_non_null_assertion_summary(config: &ProjectConfig) -> RuleConfi
     simple_summary(config.rules.no_non_null_assertion.severity)
 }
 
+pub(crate) fn no_unsafe_optional_chaining_summary(config: &ProjectConfig) -> RuleConfigSummary {
+    simple_summary(config.rules.no_unsafe_optional_chaining.severity)
+}
+
 pub(crate) fn no_magic_numbers_summary(config: &ProjectConfig) -> RuleConfigSummary {
     let mut options = vec![format!(
         "allowed-numbers: {:?}",

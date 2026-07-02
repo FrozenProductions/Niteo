@@ -71,6 +71,7 @@ niteo explain no-console --format json
 | `no-nested-functions`            | `warn`           | Disallow functions nested beyond a configured depth.                                 | `max-depth`, `contexts`                                  |
 | `no-orphan-files`                | `warn`           | Detect files not imported by any other file in the project.                          | `entry-files`                                            |
 | `no-namespace`                   | `warn`           | Prefer ES modules over TypeScript namespaces.                                        | `severity`                                               |
+| `no-unsafe-optional-chaining`    | `warn`           | Forbid `?.` on expressions that are never null or undefined.                         | —                                                        | `severity`                     |
 | `no-non-null-assertion`          | `warn`           | Disallow the non-null assertion operator.                                            | `severity`                                               |
 | `no-magic-numbers`               | `warn`           | Disallow numeric and string literals outside constants.                              | `allowed-numbers`, `enforce-strings`                     |
 | `no-package-cycle`               | `warn`           | Detect circular dependencies between workspace packages.                             | `severity`                                               |
@@ -165,6 +166,24 @@ const value = obj!.prop;
 ```
 
 Prefer optional chaining, guards, or explicit narrowing.
+
+### `no-unsafe-optional-chaining`
+
+Reports optional chaining (`?.`) on expressions that are never null or undefined. These include literal values, `new` expressions, arrow/function/class expressions, `this`, `new.target`, and non-null assertions.
+
+```ts
+const result = "hello"?.length;
+const instance = new Foo()?.bar;
+const value = onClick!?.();
+```
+
+Prefer removing the unnecessary `?.`:
+
+```ts
+const result = "hello".length;
+const instance = new Foo().bar;
+const value = onClick();
+```
 
 ### `no-type-assertion`
 

@@ -53,6 +53,9 @@ severity = "warn"
 [rules.no-non-null-assertion]
 severity = "warn"
 
+[rules.no-unsafe-optional-chaining]
+severity = "warn"
+
 [rules.explicit-return-type]
 severity = "warn"
 
@@ -117,6 +120,9 @@ severity = "error"
 severity = "error"
 
 [rules.no-non-null-assertion]
+severity = "error"
+
+[rules.no-unsafe-optional-chaining]
 severity = "error"
 
 [rules.no-type-assertion]
@@ -238,6 +244,9 @@ severity = "error"
 severity = "off"
 
 [rules.no-non-null-assertion]
+severity = "off"
+
+[rules.no-unsafe-optional-chaining]
 severity = "off"
 
 [rules.no-type-assertion]
@@ -366,6 +375,9 @@ severity = "warn"
 [rules.no-non-null-assertion]
 severity = "error"
 
+[rules.no-unsafe-optional-chaining]
+severity = "warn"
+
 [rules.explicit-return-type]
 severity = "warn"
 
@@ -428,6 +440,9 @@ severity = "error"
 severity = "warn"
 
 [rules.no-non-null-assertion]
+severity = "warn"
+
+[rules.no-unsafe-optional-chaining]
 severity = "warn"
 
 [rules.no-type-assertion]

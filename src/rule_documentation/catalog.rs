@@ -1219,6 +1219,29 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         summarize: crate::rule_documentation::summary::no_non_null_assertion_summary,
     },
     RuleDocumentation {
+        name: "no-unsafe-optional-chaining",
+        intent: "Disallow optional chaining (`?.`) on expressions that are never null or undefined, such as literals, constructors, and assertions.",
+        examples: &[
+            RuleExample {
+                label: "Reports",
+                code: "const result = 'hello'?.length;",
+            },
+            RuleExample {
+                label: "Reports",
+                code: "const instance = new Foo()?.bar;",
+            },
+            RuleExample {
+                label: "Prefer",
+                code: "const result = 'hello'.length;",
+            },
+        ],
+        options: NO_OPTIONS,
+        category: RuleCategory::LanguageTypescript,
+        conflicts: &[],
+        fixable: false,
+        summarize: crate::rule_documentation::summary::no_unsafe_optional_chaining_summary,
+    },
+    RuleDocumentation {
         name: "no-magic-numbers",
         intent: "Disallow numeric and string literals outside constants. Extract literals to named constants for clarity and maintainability.",
         examples: &[

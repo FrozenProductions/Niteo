@@ -395,6 +395,9 @@ pub fn build_file_rules(
         Box::new(NoNonNullAssertionAdapter {
             config: config.no_non_null_assertion.clone(),
         }),
+        Box::new(NoUnsafeOptionalChainingAdapter {
+            config: config.no_unsafe_optional_chaining.clone(),
+        }),
         Box::new(NoMagicNumbersAdapter {
             config: config.no_magic_numbers.clone(),
         }),
