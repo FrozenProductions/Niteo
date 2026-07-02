@@ -39,6 +39,7 @@ pub struct AnalysisOptions {
     pub deny_child_configs: bool,
     pub cache_enabled: bool,
     pub clear_cache: bool,
+    pub verbose: bool,
 }
 
 pub struct ProjectContext {
@@ -236,6 +237,7 @@ impl ImportGraphResult {
         tsconfig: &TsConfig,
         cache: &CacheResult,
         project_root: &Path,
+        verbose: bool,
     ) -> Result<Self> {
         let mut graph = import_graph::build_import_graph_with_cache(
             files,
@@ -248,6 +250,7 @@ impl ImportGraphResult {
             },
             tsconfig.as_ref(),
             &cache.cached_edges(),
+            verbose,
         )?;
 
         let cached_graph = cache.cached_topology().filter(|cached| {
@@ -287,11 +290,18 @@ impl FileLintResult {
         graph: Arc<ImportGraph>,
         workspace: Option<Arc<Workspace>>,
         cache: &CacheResult,
+        verbose: bool,
     ) -> Result<Self> {
         let cached_violations_map = cache.cached_violations();
 
-        let (violations, suppression_report, parse_failures) =
-            rules::check_files(files, config_set, graph, workspace, cached_violations_map)?;
+        let (violations, suppression_report, parse_failures) = rules::check_files(
+            files,
+            config_set,
+            graph,
+            workspace,
+            cached_violations_map,
+            verbose,
+        )?;
 
         Ok(Self {
             violations,
@@ -396,6 +406,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         &tsconfig,
         &cache,
         &project_root,
+        options.verbose,
     )?;
 
     let workspace = match Workspace::discover(workspace_root) {
@@ -415,6 +426,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         graph_result.graph.clone(),
         workspace.clone(),
         &cache,
+        options.verbose,
     )?;
 
     let dir_lint = DirectoryLintResult::run(&context.config_set, &scan_root);
@@ -583,6 +595,7 @@ pub fn collect_incremental(
         is_test_file,
         tsconfig.as_ref(),
         &cached_edges,
+        false,
     )?;
     graph.set_cycles_by_file(crate::import_graph::topology::compute_cycles(&graph));
     graph.set_imported_files(crate::import_graph::topology::compute_imported_files(
@@ -604,6 +617,7 @@ pub fn collect_incremental(
         graph.clone(),
         previous.workspace.clone(),
         &CacheResult::empty(),
+        false,
     )?;
 
     let mut previous_violations: HashMap<PathBuf, Vec<rules::Violation>> = HashMap::new();
@@ -785,6 +799,7 @@ mod tests {
             deny_child_configs: false,
             cache_enabled: false,
             clear_cache: false,
+            verbose: false,
         }
     }
 

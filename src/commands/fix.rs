@@ -31,6 +31,7 @@ pub fn fix_workspace(
             deny_child_configs: options.deny_child_configs,
             cache_enabled: false,
             clear_cache: false,
+            verbose: false,
         },
     )?;
 

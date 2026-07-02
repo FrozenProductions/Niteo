@@ -23,6 +23,7 @@ serde_json = "1.0.150"
 serde_yaml = "0.9.34"
 toml = "1.1.2"
 blake3 = "1.5"
+indicatif = "0.17"
 
 [dev-dependencies]
 assert_cmd = "2"

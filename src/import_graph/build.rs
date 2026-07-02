@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result};
+use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 
 use crate::import_graph::extract::extract_imports;
@@ -18,7 +20,7 @@ pub fn build_import_graph(
     is_test_file: impl Fn(&Path) -> bool,
     tsconfig: Option<&TsConfig>,
 ) -> Result<ImportGraph> {
-    build_import_graph_with_cache(files, is_test_file, tsconfig, &HashMap::new())
+    build_import_graph_with_cache(files, is_test_file, tsconfig, &HashMap::new(), false)
 }
 
 pub fn build_import_graph_with_cache(
@@ -26,6 +28,7 @@ pub fn build_import_graph_with_cache(
     is_test_file: impl Fn(&Path) -> bool,
     tsconfig: Option<&TsConfig>,
     cached_edges: &HashMap<PathBuf, Vec<ImportEdge>>,
+    verbose: bool,
 ) -> Result<ImportGraph> {
     let mut graph = ImportGraph::new();
 
@@ -37,17 +40,44 @@ pub fn build_import_graph_with_cache(
 
     let resolver = ImportResolverIndex::new(files, tsconfig);
 
+    let total = files.len();
+    let progress_bar = if verbose && total > 0 {
+        let bar = ProgressBar::new(total as u64);
+        bar.set_style(
+            ProgressStyle::with_template(
+                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
+            )
+            .unwrap()
+            .progress_chars("#>-"),
+        );
+        bar.set_message("parsing imports");
+        Some(bar)
+    } else {
+        None
+    };
+    let processed = AtomicUsize::new(0);
+
     let extracted: Vec<Vec<ImportEdge>> = files
         .par_iter()
         .map(|file| {
-            if let Some(edges) = cached_edges.get(file) {
-                return Ok(edges.clone());
+            let result = if let Some(edges) = cached_edges.get(file) {
+                Ok(edges.clone())
+            } else {
+                let source = std::fs::read_to_string(file)
+                    .with_context(|| format!("failed to read {}", file.display()))?;
+                Ok(extract_imports(file, &source, &resolver))
+            };
+            let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
+            if let Some(ref bar) = progress_bar {
+                bar.set_position(count as u64);
             }
-            let source = std::fs::read_to_string(file)
-                .with_context(|| format!("failed to read {}", file.display()))?;
-            Ok(extract_imports(file, &source, &resolver))
+            result
         })
         .collect::<Result<Vec<_>>>()?;
+
+    if let Some(bar) = progress_bar {
+        bar.finish_and_clear();
+    }
 
     for edges in extracted {
         graph.edges.extend(edges);

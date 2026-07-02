@@ -44,6 +44,7 @@ pub fn lint_workspace_with_result(
             deny_child_configs: opts.deny_child_configs,
             cache_enabled: opts.cache_enabled,
             clear_cache: opts.clear_cache,
+            verbose: opts.verbose,
         },
     )?;
     publish_report(workspace, collected, opts)

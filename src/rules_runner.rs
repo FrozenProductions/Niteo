@@ -1,8 +1,10 @@
 use anyhow::{Context, Result};
+use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use oxc_parser::Parser;
 
@@ -61,6 +63,7 @@ pub fn check_files_with_parallelism(
     workspace: Option<Arc<crate::workspace::Workspace>>,
     cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
     parallel: bool,
+    verbose: bool,
 ) -> Result<(
     Vec<Violation>,
     ignore::SuppressionReport,
@@ -217,7 +220,39 @@ pub fn check_files_with_parallelism(
     };
 
     let file_results: Vec<Result<_>> = if parallel {
-        files.par_iter().map(&process_file).collect()
+        let total = files.len();
+        let progress_bar = if verbose {
+            let bar = ProgressBar::new(total as u64);
+            bar.set_style(
+                ProgressStyle::with_template(
+                    "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
+                )
+                .unwrap()
+                .progress_chars("#>-"),
+            );
+            bar.set_message("linting");
+            Some(bar)
+        } else {
+            None
+        };
+        let processed = AtomicUsize::new(0);
+
+        let results = files
+            .par_iter()
+            .map(|file| {
+                let result = process_file(file);
+                let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
+                if let Some(ref bar) = progress_bar {
+                    bar.set_position(count as u64);
+                }
+                result
+            })
+            .collect();
+
+        if let Some(bar) = progress_bar {
+            bar.finish_and_clear();
+        }
+        results
     } else {
         files.iter().map(&process_file).collect()
     };
@@ -263,6 +298,7 @@ pub fn check_files(
     import_graph: Arc<ImportGraph>,
     workspace: Option<Arc<crate::workspace::Workspace>>,
     cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
+    verbose: bool,
 ) -> Result<(
     Vec<Violation>,
     ignore::SuppressionReport,
@@ -275,6 +311,7 @@ pub fn check_files(
         workspace,
         cached_violations,
         true,
+        verbose,
     )
 }
 
@@ -320,6 +357,7 @@ pub fn check_files_for_benchmark(
         workspace,
         cached_violations,
         parallel,
+        false,
     )?;
     Ok(violations)
 }
