@@ -36,7 +36,7 @@ severity = "warn"
 severity = "error"
 
 [rules.no-skipped-test]
-severity = "warn"
+severity = "error"
 
 [rules.no-test-code-in-production]
 severity = "error"
@@ -48,10 +48,10 @@ severity = "error"
 severity = "error"
 
 [rules.no-silent-catch]
-severity = "warn"
+severity = "error"
 
 [rules.no-non-null-assertion]
-severity = "warn"
+severity = "error"
 
 [rules.no-unsafe-optional-chaining]
 severity = "warn"
@@ -69,7 +69,7 @@ severity = "warn"
 severity = "error"
 
 [rules.no-large-file]
-severity = "info"
+severity = "warn"
 max-lines = 500
 
 [rules.max-function-params]
@@ -77,13 +77,61 @@ severity = "warn"
 max-params = 3
 
 [rules.no-barrel-files]
-severity = "off"
+severity = "info"
 
 [rules.no-barrel-chain]
-severity = "off"
+severity = "info"
 
 [rules.no-logic-in-barrel]
-severity = "off"
+severity = "warn"
+
+[rules.no-package-cycle]
+severity = "error"
+
+[rules.no-test-import]
+severity = "error"
+
+[rules.no-process-env]
+severity = "warn"
+
+[rules.no-type-assertion]
+severity = "warn"
+
+[rules.no-magic-numbers]
+severity = "info"
+
+[rules.no-abbreviations]
+severity = "info"
+
+[rules.no-default-export]
+severity = "info"
+components-only = false
+
+[rules.no-enums]
+severity = "info"
+
+[rules.no-interface]
+severity = "info"
+allow-declaration-merging = true
+
+[rules.no-inline-types]
+severity = "info"
+
+[rules.no-comments]
+severity = "info"
+allow-doc-comments = true
+
+[rules.no-side-effect-imports]
+severity = "info"
+
+[rules.sort-exports]
+severity = "info"
+
+[rules.sort-imports]
+severity = "info"
+
+[rules.prefer-readonly]
+severity = "warn"
 "#;
 
 const STRICT_PRESET: &str = r#"[project]
@@ -92,7 +140,7 @@ respect-gitignore = true
 
 [rules]
 [rules.no-console]
-severity = "warn"
+severity = "error"
 allow-patterns = []
 
 [rules.no-debugger]
@@ -164,7 +212,7 @@ severity = "error"
 severity = "error"
 
 [rules.no-magic-numbers]
-severity = "warn"
+severity = "error"
 allowed-numbers = ["0", "1", "-1"]
 enforce-strings = false
 
@@ -173,24 +221,32 @@ severity = "error"
 allowed-folders = []
 
 [rules.no-abbreviations]
-severity = "warn"
+severity = "error"
 extra-abbreviations = []
 
+[rules.no-comments]
+severity = "error"
+allow-doc-comments = true
+
+[rules.no-default-export]
+severity = "error"
+components-only = false
+
 [rules.prefer-readonly]
-severity = "warn"
+severity = "error"
 
 [rules.no-enums]
-severity = "warn"
+severity = "error"
 
 [rules.no-interface]
-severity = "warn"
+severity = "error"
 allow-declaration-merging = true
 
 [rules.no-inline-types]
-severity = "warn"
+severity = "error"
 
 [rules.no-logic-in-domain]
-severity = "warn"
+severity = "error"
 
 [rules.max-directory-depth]
 severity = "warn"
@@ -198,23 +254,57 @@ max-depth = 5
 ignore-dirs = []
 
 [rules.no-duplicate-file-names]
-severity = "warn"
+severity = "error"
 ignore-names = []
 
 [rules.no-dump-files]
-severity = "warn"
+severity = "error"
 extra-names = []
 
 [rules.no-empty-directories]
-severity = "warn"
+severity = "error"
 ignore-dirs = []
 
 [rules.no-process-env]
 severity = "error"
 
 [rules.no-restricted-imports]
-severity = "warn"
+severity = "error"
 restricted = []
+
+[rules.no-side-effect-imports]
+severity = "error"
+
+[rules.no-test-import]
+severity = "error"
+
+[rules.no-package-cycle]
+severity = "error"
+
+[rules.no-unnecessary-type-assertion]
+severity = "error"
+
+[rules.no-then-chain]
+severity = "error"
+
+[rules.sort-exports]
+severity = "warn"
+
+[rules.sort-imports]
+severity = "warn"
+
+[rules.no-nested-functions]
+severity = "warn"
+max-depth = 2
+contexts = ["function", "arrow", "class-method", "object-method"]
+
+[rules.no-orphan-files]
+severity = "warn"
+entry-files = ["main", "app", "layout", "page"]
+
+[rules.entry-file-no-logic]
+severity = "error"
+entry-files = ["main", "app", "layout", "page"]
 "#;
 
 const MIGRATION_PRESET: &str = r#"[project]
@@ -241,7 +331,7 @@ severity = "off"
 severity = "error"
 
 [rules.no-skipped-test]
-severity = "off"
+severity = "error"
 
 [rules.no-test-code-in-production]
 severity = "error"
@@ -253,7 +343,7 @@ severity = "error"
 severity = "error"
 
 [rules.no-silent-catch]
-severity = "off"
+severity = "error"
 
 [rules.no-non-null-assertion]
 severity = "off"
@@ -282,7 +372,7 @@ max-lines = 800
 
 [rules.max-function-params]
 severity = "info"
-max-params = 4
+max-params = 5
 
 [rules.no-barrel-files]
 severity = "off"
@@ -300,6 +390,12 @@ severity = "off"
 severity = "off"
 
 [rules.no-abbreviations]
+severity = "off"
+
+[rules.no-comments]
+severity = "off"
+
+[rules.no-default-export]
 severity = "off"
 
 [rules.prefer-readonly]
@@ -333,6 +429,21 @@ severity = "off"
 severity = "off"
 
 [rules.no-restricted-imports]
+severity = "off"
+
+[rules.no-side-effect-imports]
+severity = "off"
+
+[rules.no-test-import]
+severity = "error"
+
+[rules.no-package-cycle]
+severity = "error"
+
+[rules.sort-exports]
+severity = "off"
+
+[rules.sort-imports]
 severity = "off"
 "#;
 
@@ -373,17 +484,17 @@ prefixes = ["use"]
 severity = "warn"
 
 [rules.no-default-export]
-severity = "warn"
+severity = "info"
 components-only = true
 
 [rules.no-barrel-files]
-severity = "warn"
+severity = "info"
 
 [rules.no-logic-in-barrel]
 severity = "warn"
 
 [rules.boolean-prefix]
-severity = "warn"
+severity = "info"
 prefixes = ["is", "has", "can"]
 ignore-constants = false
 
@@ -403,7 +514,7 @@ severity = "warn"
 severity = "warn"
 
 [rules.explicit-return-type]
-severity = "warn"
+severity = "info"
 
 [rules.no-circular-import]
 severity = "error"
@@ -423,6 +534,11 @@ entry-files = ["main", "app", "layout", "page"]
 [rules.no-orphan-files]
 severity = "warn"
 entry-files = ["main", "app", "layout", "page"]
+
+[rules.no-nested-functions]
+severity = "warn"
+max-depth = 2
+contexts = ["function", "arrow", "class-method", "object-method"]
 "#;
 
 const LIBRARY_PRESET: &str = r#"[project]
@@ -446,13 +562,13 @@ severity = "error"
 severity = "off"
 
 [rules.no-focused-test]
-severity = "off"
+severity = "error"
 
 [rules.no-skipped-test]
-severity = "off"
+severity = "error"
 
 [rules.no-test-code-in-production]
-severity = "off"
+severity = "error"
 
 [rules.no-mutable-exports]
 severity = "error"
@@ -461,10 +577,10 @@ severity = "error"
 severity = "error"
 
 [rules.no-silent-catch]
-severity = "warn"
+severity = "error"
 
 [rules.no-non-null-assertion]
-severity = "warn"
+severity = "error"
 
 [rules.no-unsafe-optional-chaining]
 severity = "warn"
@@ -493,13 +609,13 @@ severity = "warn"
 max-params = 3
 
 [rules.no-barrel-files]
-severity = "off"
+severity = "info"
 
 [rules.no-barrel-chain]
-severity = "off"
+severity = "info"
 
 [rules.no-logic-in-barrel]
-severity = "off"
+severity = "warn"
 
 [rules.no-magic-numbers]
 severity = "warn"
@@ -511,18 +627,27 @@ severity = "warn"
 allowed-folders = []
 
 [rules.no-abbreviations]
-severity = "warn"
+severity = "info"
 
 [rules.prefer-readonly]
-severity = "warn"
+severity = "error"
 
 [rules.no-interface]
-severity = "warn"
+severity = "info"
 allow-declaration-merging = true
 
 [rules.no-restricted-imports]
 severity = "warn"
 restricted = []
+
+[rules.no-package-cycle]
+severity = "error"
+
+[rules.no-test-import]
+severity = "error"
+
+[rules.no-side-effect-imports]
+severity = "warn"
 "#;
 
 const NO_BARRELS_PRESET: &str = r#"[project]

@@ -37,29 +37,29 @@ file-suffixes = [".generated.ts", ".generated.tsx"]
 severity = "warn"
 
 [rules.boolean-prefix]
-severity = "warn"
+severity = "info"
 prefixes = ["is", "has", "can"]
 ignore-constants = false
 
 [rules.no-comments]
-severity = "warn"
+severity = "info"
 allow-doc-comments = true
 
 [rules.no-logic-in-barrel]
 severity = "warn"
 
 [rules.no-default-export]
-severity = "warn"
+severity = "info"
 components-only = false
 
 [rules.no-export-star]
 severity = "warn"
 
 [rules.no-focused-test]
-severity = "warn"
+severity = "error"
 
 [rules.no-inline-types]
-severity = "warn"
+severity = "info"
 
 [rules.max-file-exports]
 severity = "warn"
@@ -79,26 +79,26 @@ severity = "warn"
 max-lines = 500
 
 [rules.no-enums]
-severity = "warn"
+severity = "info"
 
 [rules.no-barrel-files]
-severity = "warn"
+severity = "info"
 
 [rules.no-barrel-chain]
-severity = "warn"
+severity = "info"
 
 [rules.no-circular-import]
-severity = "warn"
+severity = "error"
 
 [rules.no-console]
 severity = "warn"
 allow-patterns = []
 
 [rules.no-debugger]
-severity = "warn"
+severity = "error"
 
 [rules.no-eval]
-severity = "warn"
+severity = "error"
 
 [rules.no-logic-in-domain]
 severity = "warn"
@@ -135,28 +135,28 @@ ignore-dirs = []
 severity = "error"
 
 [rules.no-interface]
-severity = "warn"
+severity = "info"
 allow-declaration-merging = true
 
 [rules.no-magic-numbers]
-severity = "warn"
+severity = "info"
 allowed-numbers = []
 enforce-strings = false
 
 [rules.no-mutable-exports]
-severity = "warn"
+severity = "error"
 
 [rules.no-namespace]
-severity = "warn"
+severity = "error"
 
 [rules.no-silent-catch]
-severity = "warn"
+severity = "error"
 
 [rules.no-skipped-test]
-severity = "warn"
+severity = "error"
 
 [rules.no-test-code-in-production]
-severity = "warn"
+severity = "error"
 
 [rules.prefer-satisfies]
 severity = "info"
@@ -168,7 +168,7 @@ severity = "warn"
 severity = "warn"
 
 [rules.hook-prefix]
-severity = "warn"
+severity = "info"
 prefixes = ["use"]
 
 [rules.no-dump-files]
@@ -176,7 +176,7 @@ severity = "warn"
 extra-names = []
 
 [rules.no-test-import]
-severity = "warn"
+severity = "error"
 
 [rules.entry-file-no-logic]
 severity = "warn"
@@ -186,7 +186,7 @@ entry-files = ["main", "app", "layout", "page"]
 severity = "warn"
 
 [rules.no-non-null-assertion]
-severity = "warn"
+severity = "error"
 
 [rules.no-await-in-loop]
 severity = "warn"
@@ -201,7 +201,7 @@ severity = "warn"
 severity = "warn"
 
 [rules.no-abbreviations]
-severity = "warn"
+severity = "info"
 extra-abbreviations = []
 
 [rules.no-any]
@@ -213,7 +213,7 @@ severity = "warn"
 restricted = []
 
 [rules.no-side-effect-imports]
-severity = "warn"
+severity = "info"
 
 [rules.no-nested-functions]
 severity = "warn"
@@ -225,7 +225,7 @@ severity = "warn"
 entry-files = ["main", "app", "layout", "page"]
 
 [rules.no-package-cycle]
-severity = "warn"
+severity = "error"
 
 [rules.no-private-package-import]
 severity = "warn"
@@ -243,6 +243,21 @@ ignore-dirs = []
 severity = "warn"
 max-files = 20
 ignore-dirs = []
+
+[rules.no-promise-executor-return]
+severity = "warn"
+
+[rules.no-then-chain]
+severity = "info"
+
+[rules.no-unnecessary-type-assertion]
+severity = "warn"
+
+[rules.sort-exports]
+severity = "info"
+
+[rules.sort-imports]
+severity = "info"
 
 [rules.layer-boundaries]
 severity = "off"
