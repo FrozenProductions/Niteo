@@ -66,7 +66,12 @@ fn publish_report(
 ) -> anyhow::Result<(ExitCode, AnalysisResult)> {
     let start = Instant::now();
     let resolved_baseline_path = crate::analysis::resolve_path(workspace, opts.baseline_path);
-    let all_violations = collected.violations.clone();
+    let all_violations: Vec<crate::rules::Violation> = collected
+        .violations
+        .iter()
+        .cloned()
+        .chain(collected.directory_violations.iter().cloned())
+        .collect();
     let filtered_violations = match baseline::read_baseline(&resolved_baseline_path)? {
         Some(baseline) => baseline.filter_new_violations(&collected.project_root, all_violations),
         None => all_violations,

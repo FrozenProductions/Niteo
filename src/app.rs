@@ -143,17 +143,17 @@ pub fn run() -> Result<ExitCode> {
                     &watch_root,
                     cli.options.watch_debounce_ms,
                     |changed_files| {
-                        if let Some(changed) = changed_files {
-                            if let Some(ref previous) = previous_result {
-                                let (code, result) = commands::lint::lint_workspace_incremental(
-                                    &workspace_clone,
-                                    previous,
-                                    changed,
-                                    opts.clone(),
-                                )?;
-                                previous_result = Some(result);
-                                return Ok(code);
-                            }
+                        if let Some(changed) = changed_files
+                            && let Some(ref previous) = previous_result
+                        {
+                            let (code, result) = commands::lint::lint_workspace_incremental(
+                                &workspace_clone,
+                                previous,
+                                changed,
+                                opts.clone(),
+                            )?;
+                            previous_result = Some(result);
+                            return Ok(code);
                         }
 
                         let (code, result) = commands::lint::lint_workspace_with_result(

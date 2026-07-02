@@ -21,6 +21,7 @@ pub struct AnalysisResult {
     pub history_enabled: bool,
     pub files: Vec<PathBuf>,
     pub violations: Vec<rules::Violation>,
+    pub directory_violations: Vec<rules::Violation>,
     pub suppression_report: SuppressionReport,
     pub import_graph: Arc<ImportGraph>,
     pub workspace: Option<Arc<Workspace>>,
@@ -417,10 +418,16 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         files: file_list.files.clone(),
         config_set: context.config_set,
     };
-    let mut all_violations = file_lint.violations;
-    all_violations.extend(dir_lint.violations);
-    all_violations.extend(file_set.check_duplicate_file_names());
-    all_violations.extend(file_set.check_dump_files());
+    let mut file_violations = file_lint.violations;
+    file_violations.extend(file_set.check_duplicate_file_names());
+    file_violations.extend(file_set.check_dump_files());
+
+    let directory_violations = dir_lint.violations;
+    let all_violations_for_cache: Vec<rules::Violation> = file_violations
+        .iter()
+        .cloned()
+        .chain(directory_violations.iter().cloned())
+        .collect();
 
     if let Some(ref state) = cache.state
         && let Err(error) = crate::cache::lifecycle::finalize_cache(
@@ -430,7 +437,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
             tsconfig_path.as_deref(),
             state,
             graph_result.graph.as_ref(),
-            &all_violations,
+            &all_violations_for_cache,
             &file_lint.parse_failures,
         )
     {
@@ -449,7 +456,8 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         scan_scope: context.scan_scope,
         history_enabled,
         files: file_list.files,
-        violations: all_violations,
+        violations: file_violations,
+        directory_violations,
         suppression_report: file_lint.suppression_report,
         import_graph: graph_result.graph,
         workspace,
@@ -494,6 +502,7 @@ pub fn collect_incremental(
 
     let tsconfig = TsConfig::discover(workspace_root)?;
 
+    let previous_file_set: HashSet<PathBuf> = previous.files.iter().cloned().collect();
     let mut files: Vec<PathBuf> = previous.files.clone();
     let mut file_set: HashSet<PathBuf> = files.iter().cloned().collect();
     let mut changed_files: HashSet<PathBuf> = HashSet::new();
@@ -608,30 +617,37 @@ pub fn collect_incremental(
             .push(violation.clone());
     }
 
-    let mut all_violations: Vec<rules::Violation> = Vec::with_capacity(previous.violations.len());
+    let mut file_violations: Vec<rules::Violation> = Vec::with_capacity(previous.violations.len());
     for file in &files {
         if files_to_lint.contains(file) {
             if let Some(violations) = new_violations.get(file) {
-                all_violations.extend(violations.iter().cloned());
+                file_violations.extend(violations.iter().cloned());
             }
         } else if let Some(violations) = previous_violations.get(file) {
-            all_violations.extend(violations.iter().cloned());
+            file_violations.extend(violations.iter().cloned());
         }
     }
-
-    let scan_root = previous
-        .scan_scope
-        .as_deref()
-        .unwrap_or(&previous.project_root);
-    let dir_lint = DirectoryLintResult::run(&previous.config_set, scan_root);
 
     let file_set_check = FileSet {
         files: files.clone(),
         config_set: previous.config_set.clone(),
     };
-    all_violations.extend(dir_lint.violations);
-    all_violations.extend(file_set_check.check_duplicate_file_names());
-    all_violations.extend(file_set_check.check_dump_files());
+    file_violations.extend(file_set_check.check_duplicate_file_names());
+    file_violations.extend(file_set_check.check_dump_files());
+
+    let has_structural_change = !removed_files.is_empty()
+        || changed_files
+            .iter()
+            .any(|file| !previous_file_set.contains(file));
+    let directory_violations = if has_structural_change {
+        let scan_root = previous
+            .scan_scope
+            .as_deref()
+            .unwrap_or(&previous.project_root);
+        DirectoryLintResult::run(&previous.config_set, scan_root).violations
+    } else {
+        previous.directory_violations.clone()
+    };
 
     let suppression_report = merged_suppression_report(
         &previous.suppression_report,
@@ -655,7 +671,8 @@ pub fn collect_incremental(
         scan_scope: previous.scan_scope.clone(),
         history_enabled: previous.history_enabled,
         files,
-        violations: all_violations,
+        violations: file_violations,
+        directory_violations,
         suppression_report,
         import_graph: graph,
         workspace: previous.workspace.clone(),
