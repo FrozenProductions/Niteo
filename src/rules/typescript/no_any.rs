@@ -344,7 +344,6 @@ mod tests {
 
     fn run_fix(source: &str) -> Vec<Fix> {
         let allocator = Allocator::default();
-        let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
         let program = parser_return.program;
         fix_file(
@@ -410,7 +409,6 @@ mod tests {
     fn fix_disabled_returns_empty() -> Result<()> {
         let source = "const value: any = 'test';\n";
         let allocator = Allocator::default();
-        let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
         let program = parser_return.program;
         let disabled_config = NoAnyRuleConfig {
@@ -432,7 +430,6 @@ mod tests {
     fn fix_skips_generated_files() -> Result<()> {
         let allocator = Allocator::default();
         let source = "const value: any = 'test';\n";
-        let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
         let program = parser_return.program;
         let fixes = fix_file(

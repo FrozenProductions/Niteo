@@ -226,6 +226,16 @@ fn fixable_rule_ids_from_adapters() -> HashSet<String> {
     if let Some(any) = constants.get("NO_ANY_RULE_ID") {
         ids.insert(any.clone());
     }
+    // `SortImportsAdapter` uses a manual `supports_fix`/`fix` impl (custom `check`
+    // signature with `source` parameter), so it is not detected by the macro scan above.
+    if let Some(id) = constants.get("SORT_IMPORTS_RULE_ID") {
+        ids.insert(id.clone());
+    }
+    // `SortExportsAdapter` uses a manual `supports_fix`/`fix` impl (custom `check`
+    // signature with `source` parameter), so it is not detected by the macro scan above.
+    if let Some(id) = constants.get("SORT_EXPORTS_RULE_ID") {
+        ids.insert(id.clone());
+    }
 
     ids
 }

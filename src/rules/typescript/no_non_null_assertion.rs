@@ -213,7 +213,6 @@ mod tests {
 
     fn run_fix(source: &str) -> Vec<Fix> {
         let allocator = Allocator::default();
-        let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
         let program = parser_return.program;
         fix_file(
@@ -277,7 +276,6 @@ mod tests {
     fn fix_disabled_returns_empty() -> Result<()> {
         let source = "const value = obj!.prop;\n";
         let allocator = Allocator::default();
-        let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
         let program = parser_return.program;
         let config = RuleConfig {

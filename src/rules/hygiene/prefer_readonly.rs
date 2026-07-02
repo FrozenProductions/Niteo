@@ -421,7 +421,6 @@ mod tests {
 
     fn run_fix(source: &str) -> Vec<Fix> {
         let allocator = Allocator::default();
-        let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
         let program = parser_return.program;
         fix_file(Path::new("utils.ts"), &program, source, &test_config())
@@ -511,7 +510,6 @@ mod tests {
     fn fix_disabled_returns_empty() -> Result<()> {
         let source = "export function process(items: string[]) {}";
         let allocator = Allocator::default();
-        let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::ts()).parse();
         let program = parser_return.program;
         let config = RuleConfig {

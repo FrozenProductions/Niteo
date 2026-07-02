@@ -90,6 +90,8 @@ niteo explain no-console --format json
 | `no-upward-import`               | `warn`           | Limit fragile `../` imports.                                                         | `max-depth`, `allow-patterns`                            |
 | `prefer-satisfies`               | `info`           | Prefer `satisfies` over `as` when validating a value against a type.                 | `severity`                                               |
 | `prefer-readonly`                | `warn`           | Prefer `readonly` for array parameters in exported functions.                        | `severity`                                               |
+| `sort-exports`                   | `warn`           | Enforce consistent export ordering by exported name. Fixable.                         | `severity`                                               |
+| `sort-imports`                   | `warn`           | Enforce consistent import ordering by module specifier. Fixable.                      | `severity`                                               |
 
 ## Language And TypeScript Rules
 
@@ -561,6 +563,24 @@ Reports barrel files that re-export through another barrel.
 ### `no-logic-in-barrel`
 
 Reports runtime logic in `index.ts` files. Barrel files should only forward imports and exports.
+
+### `sort-exports`
+
+Reports export declarations not in alphabetical order by exported name. Default exports sort first. Groups separated by blank lines are sorted independently. This rule supports autofix.
+
+```ts
+// ❌ Reports
+export const c = 1;
+export const a = 2;
+export const b = 3;
+```
+
+```ts
+// ✅ Prefer
+export const a = 2;
+export const b = 3;
+export const c = 1;
+```
 
 ## File And Directory Rules
 

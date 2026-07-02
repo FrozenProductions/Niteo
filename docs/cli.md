@@ -152,7 +152,7 @@ niteo fix --baseline niteo-baseline.json
 
 Use `--dry-run` to preview fixes without writing files.
 
-`fix` only addresses rules with a non-`None` `fix_capability` in their metadata (`Safe` or `Conditional`) and an enabled `[fix]` gate in `niteo.toml`. Rules that support autofix today are `no-debugger`, `no-focused-test`, `no-skipped-test`, and `no-empty-interface`. Violations from other rules are left untouched.
+`fix` only addresses rules with a non-`None` `fix_capability` in their metadata (`Safe` or `Conditional`) and an enabled `[fix]` gate in `niteo.toml`. Rules that support autofix today are `no-debugger`, `no-focused-test`, `no-skipped-test`, `no-empty-interface`, `prefer-satisfies`, `no-any`, `no-process-env`, `prefer-readonly`, `no-non-null-assertion`, `sort-exports`, and `sort-imports`. Violations from other rules are left untouched.
 
 Use `[fix]` to block a supported rule's edits without disabling its diagnostics:
 
