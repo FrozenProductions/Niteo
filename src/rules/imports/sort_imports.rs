@@ -50,7 +50,7 @@ fn find_import_groups<'a>(
             let prev_end = prev_stmt.span().end as usize;
             let curr_start = curr_stmt.span().start as usize;
             let between = &source[prev_end..curr_start];
-            between.matches("\n\n").count() > 0
+            between.matches('\n').count() >= 2
         } else {
             false
         };
@@ -150,16 +150,18 @@ pub fn fix_file(
         let group_start = group[0].span.start as usize;
         let group_end = group[group.len() - 1].span.end as usize;
 
-        let sorted_snippets: Vec<&str> = sorted
+        let separator = if group.len() >= 2 {
+            &source[group[0].span.end as usize..group[1].span.start as usize]
+        } else {
+            "\n"
+        };
+
+        let snippets: Vec<&str> = sorted
             .iter()
-            .map(|decl| {
-                let start = decl.span.start as usize;
-                let end = decl.span.end as usize;
-                &source[start..end]
-            })
+            .map(|decl| &source[decl.span.start as usize..decl.span.end as usize])
             .collect();
 
-        let replacement = sorted_snippets.join("\n");
+        let replacement = snippets.join(separator);
 
         fixes.push(Fix {
             file: file.to_path_buf(),
@@ -338,6 +340,31 @@ mod tests {
         let source = "import x from \"x\";\n";
         let violations = run_check(source);
         assert!(violations.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn preserves_crlf_in_groups() -> Result<()> {
+        let source = "import c from \"c\";\r\nimport a from \"a\";\r\nimport b from \"b\";\r\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix(source, &fixes);
+        assert_eq!(
+            fixed,
+            "import a from \"a\";\r\nimport b from \"b\";\r\nimport c from \"c\";\r\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn respects_crlf_blank_line_groups() -> Result<()> {
+        let source =
+            "import z from \"z\";\r\nimport y from \"y\";\r\n\r\nimport b from \"b\";\r\nimport a from \"a\";\r\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix(source, &fixes);
+        assert_eq!(
+            fixed,
+            "import y from \"y\";\r\nimport z from \"z\";\r\n\r\nimport a from \"a\";\r\nimport b from \"b\";\r\n"
+        );
         Ok(())
     }
 }
