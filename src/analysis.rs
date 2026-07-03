@@ -705,7 +705,9 @@ pub fn collect_incremental(
 fn is_config_file(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
-        .is_some_and(|name| name == "niteo.toml" || name == ".niteo.toml")
+        .is_some_and(|name| {
+            name == "niteo.toml" || name == ".niteo.toml" || name == "tsconfig.json"
+        })
 }
 
 fn affected_files(
