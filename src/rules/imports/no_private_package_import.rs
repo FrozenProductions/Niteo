@@ -42,12 +42,10 @@ pub fn check_file(
             continue;
         }
 
-        let is_public = target_package.public_entrypoints.iter().any(|entrypoint| {
-            target == entrypoint
-                || target.parent() == Some(entrypoint.as_path())
-                || target.starts_with(entrypoint.parent().unwrap_or(entrypoint.as_path()))
-                    && entrypoint.file_name() == target.file_name()
-        });
+        let is_public = target_package
+            .public_entrypoints
+            .iter()
+            .any(|entrypoint| target == entrypoint);
 
         if !is_public {
             let pos = line_index.position_for(edge.span);
