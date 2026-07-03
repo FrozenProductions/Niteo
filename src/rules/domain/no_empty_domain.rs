@@ -1,4 +1,4 @@
-use crate::config::{NoEmptyDomainRuleConfig, Severity};
+use crate::config::NoEmptyDomainRuleConfig;
 use crate::directory_inventory::{DirectoryInventory, DEFAULT_IGNORED_DIRECTORIES};
 use crate::rules::{NO_EMPTY_DOMAIN_RULE_ID, Violation};
 const MESSAGE: &str =
@@ -39,7 +39,7 @@ pub fn check_inventory(
                 column: None,
                 rule: NO_EMPTY_DOMAIN_RULE_ID,
                 message: MESSAGE,
-                severity: Severity::Warn,
+                severity: config.severity,
                 detail: None,
                 subject: None,
             });

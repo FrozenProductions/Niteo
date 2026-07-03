@@ -1,4 +1,4 @@
-use crate::config::{NoAnemicDomainRuleConfig, Severity};
+use crate::config::NoAnemicDomainRuleConfig;
 use crate::directory_inventory::{DirectoryInventory, DEFAULT_IGNORED_DIRECTORIES};
 use crate::rules::{NO_ANEMIC_DOMAIN_RULE_ID, Violation};
 const MESSAGE: &str =
@@ -36,7 +36,7 @@ pub fn check_inventory(
                 column: None,
                 rule: NO_ANEMIC_DOMAIN_RULE_ID,
                 message: MESSAGE,
-                severity: Severity::Warn,
+                severity: config.severity,
                 detail: Some(format!(
                     "Contains {} TypeScript file{} (threshold: {}).",
                     file_count,

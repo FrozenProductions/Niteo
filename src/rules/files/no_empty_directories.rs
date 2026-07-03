@@ -46,7 +46,7 @@ pub fn check_inventory(
         };
 
         if is_empty_dir || is_empty_barrel_dir {
-            violations.push(directory_violation(&facts.path, Severity::Warn));
+            violations.push(directory_violation(&facts.path, config.severity));
         }
     }
 

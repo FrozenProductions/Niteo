@@ -44,7 +44,7 @@ pub fn check_inventory(
             if file_depth > config.max_depth {
                 violations.push(depth_violation(
                     source_file,
-                    Severity::Warn,
+                    config.severity,
                     file_depth,
                     config.max_depth,
                 ));

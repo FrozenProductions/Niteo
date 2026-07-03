@@ -1,4 +1,4 @@
-use crate::config::{NoGodDomainRuleConfig, Severity};
+use crate::config::NoGodDomainRuleConfig;
 use crate::directory_inventory::{DirectoryInventory, DEFAULT_IGNORED_DIRECTORIES};
 use crate::rules::{NO_GOD_DOMAIN_RULE_ID, Violation};
 const MESSAGE: &str = "Domain has too many files. Consider splitting into sub-domains.";
@@ -35,7 +35,7 @@ pub fn check_inventory(
                 column: None,
                 rule: NO_GOD_DOMAIN_RULE_ID,
                 message: MESSAGE,
-                severity: Severity::Warn,
+                severity: config.severity,
                 detail: Some(format!(
                     "Contains {} TypeScript files (limit: {}).",
                     file_count, config.max_files

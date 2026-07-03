@@ -38,7 +38,7 @@ pub fn check_inventory(
         if item_count > config.max_items {
             violations.push(directory_violation(
                 &facts.path,
-                Severity::Warn,
+                config.severity,
                 item_count,
                 config.max_items,
                 config.count_folders,

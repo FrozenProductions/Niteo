@@ -39,7 +39,7 @@ pub fn check_inventory(
         if item_count > 0 && item_count < config.min_items {
             violations.push(directory_violation(
                 &facts.path,
-                Severity::Warn,
+                config.severity,
                 item_count,
                 config.min_items,
                 config.count_folders,
