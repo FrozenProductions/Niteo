@@ -87,11 +87,13 @@ fn is_file_allowed(file: &Path, config: &NoAnyRuleConfig, generated: &DomainConf
         return true;
     }
 
-    let file_str = file.to_string_lossy();
-    config
-        .allowed_folders
-        .iter()
-        .any(|folder| file_str.contains(folder))
+    file.components().any(|component| {
+        matches!(
+            component,
+            std::path::Component::Normal(name)
+                if config.allowed_folders.iter().any(|folder| name.to_str() == Some(folder))
+        )
+    })
 }
 
 struct AnyKeywordVisitor<'a, 'f> {
@@ -296,6 +298,75 @@ mod tests {
         );
         assert!(violations.is_empty());
     
+        Ok(())}
+
+    #[test]
+    fn reports_any_in_folder_containing_allowed_name_as_substring() -> Result<()> {
+        let config = NoAnyRuleConfig {
+            severity: Severity::Warn,
+            allowed_folders: vec!["api".to_string()],
+        };
+        let allocator = Allocator::default();
+        let source = "const value: any = 'test';\n";
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+
+        let violations = check_file(
+            Path::new("src/api-legacy/foo.ts"),
+            &program,
+            &line_index,
+            &config,
+            &default_generated(),
+        );
+        assert_eq!(violations.len(), 1);
+
+        Ok(())}
+
+    #[test]
+    fn reports_any_in_file_with_folder_in_parent_name() -> Result<()> {
+        let config = NoAnyRuleConfig {
+            severity: Severity::Warn,
+            allowed_folders: vec!["api".to_string()],
+        };
+        let allocator = Allocator::default();
+        let source = "const value: any = 'test';\n";
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+
+        let violations = check_file(
+            Path::new("src/blog/api-helpers.ts"),
+            &program,
+            &line_index,
+            &config,
+            &default_generated(),
+        );
+        assert_eq!(violations.len(), 1);
+
+        Ok(())}
+
+    #[test]
+    fn allows_any_in_exact_allowed_folder() -> Result<()> {
+        let config = NoAnyRuleConfig {
+            severity: Severity::Warn,
+            allowed_folders: vec!["api".to_string()],
+        };
+        let allocator = Allocator::default();
+        let source = "const value: any = 'test';\n";
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+
+        let violations = check_file(
+            Path::new("src/api/client.ts"),
+            &program,
+            &line_index,
+            &config,
+            &default_generated(),
+        );
+        assert!(violations.is_empty());
+
         Ok(())}
 
     #[test]
