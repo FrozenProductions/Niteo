@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
+use rayon::prelude::*;
 
 use crate::cache::edges::{CachedImportEdge, cached_import_edges_to_import, import_edge_to_cached};
 use crate::cache::key::{
@@ -10,8 +11,8 @@ use crate::cache::key::{
     hash_file_list, hash_tsconfig, is_cache_valid, normalize_path_for_cache,
 };
 use crate::cache::store::{
-    CacheFile, CachedCycle, CachedFileAnalysis, CachedGraph, CachedParseFailure, read_cache,
-    write_cache,
+    CacheFile, CachedCycle, CachedFileAnalysis, CachedGraph, CachedParseFailure, CachedViolation,
+    read_cache, write_cache,
 };
 use crate::cache::violations::{
     StringInterner, build_rule_lookup, cached_violations_to_violations, violation_to_cached,
@@ -59,48 +60,65 @@ pub fn prepare_cache(
         cache = None;
     }
 
-    let mut file_hashes = HashMap::new();
+    let mut dirty = !cache_valid;
+    let cached_topology = cache.as_ref().and_then(|cache| cache.graph.clone());
+
+    struct CacheHit {
+        edges: Vec<ImportEdge>,
+        violations: Vec<CachedViolation>,
+        parse_failure: Option<CachedParseFailure>,
+    }
+
+    let prepared: Vec<(PathBuf, String, Option<CacheHit>)> = files
+        .par_iter()
+        .filter_map(|file| {
+            let content = std::fs::read(file).ok()?;
+            let hash = hash_content(&content);
+            let hit = cache.as_ref().and_then(|cache| {
+                let rel_path = normalize_path_for_cache(file, project_root);
+                let entry = cache.files.get(&rel_path)?;
+                if entry.content_hash != hash {
+                    return None;
+                }
+                let edges = cached_import_edges_to_import(&entry.import_edges, file, project_root);
+                Some(CacheHit {
+                    edges,
+                    violations: entry.violations.clone(),
+                    parse_failure: entry.parse_failure.clone(),
+                })
+            });
+            Some((file.clone(), hash, hit))
+        })
+        .collect();
+
+    let mut file_hashes = HashMap::with_capacity(prepared.len());
     let mut cached_edges = HashMap::new();
     let mut cached_violations_map = HashMap::new();
     let mut cached_parse_failures = HashMap::new();
-    let mut dirty = !cache_valid;
-    let cached_topology = cache.as_ref().and_then(|cache| cache.graph.clone());
 
     let rule_lookup = build_rule_lookup();
     let mut message_interner = StringInterner::new();
 
-    for file in files {
-        let content = match std::fs::read(file) {
-            Ok(content) => content,
-            Err(_) => continue,
-        };
-        let hash = hash_content(&content);
-        file_hashes.insert(file.clone(), hash.clone());
+    for (file, hash, hit) in prepared {
+        file_hashes.insert(file.clone(), hash);
 
-        if let Some(ref cache) = cache {
-            let rel_path = normalize_path_for_cache(file, project_root);
-            if let Some(entry) = cache.files.get(&rel_path)
-                && entry.content_hash == hash
-            {
-                let edges = cached_import_edges_to_import(&entry.import_edges, file, project_root);
-                cached_edges.insert(file.clone(), edges);
-
+        match hit {
+            Some(hit) => {
+                cached_edges.insert(file.clone(), hit.edges);
                 let violations = cached_violations_to_violations(
-                    &entry.violations,
+                    &hit.violations,
                     file.clone(),
                     &rule_lookup,
                     &mut message_interner,
                 );
                 cached_violations_map.insert(file.clone(), violations);
 
-                if let Some(ref parse_failure) = entry.parse_failure {
-                    cached_parse_failures.insert(file.clone(), parse_failure.clone());
+                if let Some(parse_failure) = hit.parse_failure {
+                    cached_parse_failures.insert(file.clone(), parse_failure);
                 }
-            } else {
-                dirty = true;
             }
-        } else {
-            dirty = true;
+            None if cache_valid => dirty = true,
+            None => {}
         }
     }
 
