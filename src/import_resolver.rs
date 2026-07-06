@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::import_graph::helpers::{
     extensionless, is_barrel_file, is_relative_specifier, normalize_path,
 };
-use crate::tsconfig::{ResolvedPathAlias, TsConfig, match_alias};
+use crate::tsconfig::{ResolvedPathAlias, TsConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpecifierKind {
@@ -13,9 +13,25 @@ pub enum SpecifierKind {
     External,
 }
 
+struct WildcardNode {
+    aliases: Vec<usize>,
+    children: HashMap<char, WildcardNode>,
+}
+
+impl WildcardNode {
+    fn new() -> Self {
+        Self {
+            aliases: Vec::new(),
+            children: HashMap::new(),
+        }
+    }
+}
+
 pub(crate) struct ImportResolverIndex {
     entries: HashMap<PathBuf, PathBuf>,
     aliases: Vec<ResolvedPathAlias>,
+    exact_aliases: HashMap<String, usize>,
+    wildcard_root: WildcardNode,
     base_url: PathBuf,
 }
 
@@ -47,57 +63,132 @@ impl ImportResolverIndex {
             None => (Vec::new(), PathBuf::from(".")),
         };
 
+        let mut exact_aliases = HashMap::new();
+        let mut wildcard_root = WildcardNode::new();
+        for (index, alias) in aliases.iter().enumerate() {
+            if alias.pattern.contains('*') {
+                let mut node = &mut wildcard_root;
+                for ch in alias.prefix.chars() {
+                    node = node.children.entry(ch).or_insert_with(WildcardNode::new);
+                }
+                node.aliases.push(index);
+            } else {
+                exact_aliases.insert(alias.pattern.clone(), index);
+            }
+        }
+
         Self {
             entries,
             aliases,
+            exact_aliases,
+            wildcard_root,
             base_url,
         }
     }
 
     pub(crate) fn resolve(&self, source_file: &Path, specifier: &str) -> Option<PathBuf> {
-        if is_relative_specifier(specifier) {
-            let parent = source_file.parent()?;
-            let target = normalize_path(&parent.join(specifier));
-            return self.entries.get(&target).cloned();
-        }
-
-        self.resolve_alias(specifier)
+        self.classify_and_resolve(source_file, specifier).1
     }
 
     pub(crate) fn classify_specifier(&self, specifier: &str) -> SpecifierKind {
         if is_relative_specifier(specifier) {
             return SpecifierKind::Relative;
         }
-        if self
-            .aliases
-            .iter()
-            .any(|a| match_alias(a, specifier).is_some())
-        {
+        if self.exact_aliases.contains_key(specifier) {
             return SpecifierKind::Alias;
+        }
+        let candidates = self.collect_wildcard_candidates(specifier);
+        for &index in &candidates {
+            let alias = &self.aliases[index];
+            if Self::match_wildcard(alias, specifier).is_some() {
+                return SpecifierKind::Alias;
+            }
         }
         SpecifierKind::External
     }
 
-    fn resolve_alias(&self, specifier: &str) -> Option<PathBuf> {
-        for alias in &self.aliases {
-            let Some(captured) = match_alias(alias, specifier) else {
-                continue;
-            };
-            for target in &alias.targets {
-                let candidate = format!("{}{}{}", target.prefix, captured, target.suffix);
-                let resolved = normalize_path(&self.base_url.join(&candidate));
-                if let Some(found) = self.entries.get(&resolved) {
+    pub(crate) fn classify_and_resolve(
+        &self,
+        source_file: &Path,
+        specifier: &str,
+    ) -> (SpecifierKind, Option<PathBuf>) {
+        if is_relative_specifier(specifier) {
+            let resolved = self.resolve_relative(source_file, specifier);
+            return (SpecifierKind::Relative, resolved);
+        }
+
+        if let Some(&index) = self.exact_aliases.get(specifier) {
+            let resolved = self.resolve_alias_index(index);
+            return (SpecifierKind::Alias, resolved);
+        }
+
+        let candidates = self.collect_wildcard_candidates(specifier);
+        for &index in &candidates {
+            let alias = &self.aliases[index];
+            if let Some(captured) = Self::match_wildcard(alias, specifier) {
+                if let Some(resolved) = self.resolve_alias_targets(alias, captured) {
+                    return (SpecifierKind::Alias, Some(resolved));
+                }
+            }
+        }
+
+        (SpecifierKind::External, None)
+    }
+
+    fn resolve_relative(&self, source_file: &Path, specifier: &str) -> Option<PathBuf> {
+        let parent = source_file.parent()?;
+        let target = normalize_path(&parent.join(specifier));
+        self.entries.get(&target).cloned()
+    }
+
+    fn collect_wildcard_candidates(&self, specifier: &str) -> Vec<usize> {
+        let mut node = &self.wildcard_root;
+        let mut candidates = Vec::new();
+        candidates.extend(&node.aliases);
+        for ch in specifier.chars() {
+            match node.children.get(&ch) {
+                Some(next) => {
+                    node = next;
+                    candidates.extend(&node.aliases);
+                }
+                None => break,
+            }
+        }
+        candidates.sort();
+        candidates
+    }
+
+    fn match_wildcard<'a>(alias: &ResolvedPathAlias, specifier: &'a str) -> Option<&'a str> {
+        if specifier.starts_with(&alias.prefix) && specifier.ends_with(&alias.suffix) {
+            let wildcard_start = alias.prefix.len();
+            let wildcard_end = specifier.len().saturating_sub(alias.suffix.len());
+            if wildcard_end >= wildcard_start {
+                return Some(specifier.get(wildcard_start..wildcard_end).unwrap_or(""));
+            }
+        }
+        None
+    }
+
+    fn resolve_alias_index(&self, index: usize) -> Option<PathBuf> {
+        let alias = &self.aliases[index];
+        self.resolve_alias_targets(alias, "")
+    }
+
+    fn resolve_alias_targets(&self, alias: &ResolvedPathAlias, captured: &str) -> Option<PathBuf> {
+        for target in &alias.targets {
+            let candidate = format!("{}{}{}", target.prefix, captured, target.suffix);
+            let resolved = normalize_path(&self.base_url.join(&candidate));
+            if let Some(found) = self.entries.get(&resolved) {
+                return Some(found.clone());
+            }
+            let without_ext = extensionless(&resolved);
+            if without_ext != resolved {
+                if let Some(found) = self.entries.get(&without_ext) {
                     return Some(found.clone());
                 }
-                let without_ext = extensionless(&resolved);
-                if without_ext != resolved
-                    && let Some(found) = self.entries.get(&without_ext)
-                {
-                    return Some(found.clone());
-                }
-                if let Some(parent) = resolved.parent()
-                    && let Some(found) = self.entries.get(parent)
-                {
+            }
+            if let Some(parent) = resolved.parent() {
+                if let Some(found) = self.entries.get(parent) {
                     return Some(found.clone());
                 }
             }

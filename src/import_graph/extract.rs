@@ -72,8 +72,9 @@ impl<'a> Visit<'a> for ImportVisitor<'a> {
 
 impl ImportVisitor<'_> {
     fn add_edge(&mut self, specifier: &str, kind: ImportKind, span: Span) {
-        let specifier_kind = self.resolver.classify_specifier(specifier);
-        let resolved_target = self.resolver.resolve(&self.source_file, specifier);
+        let (specifier_kind, resolved_target) = self
+            .resolver
+            .classify_and_resolve(&self.source_file, specifier);
 
         self.edges.push(ImportEdge {
             source_file: self.source_file.clone(),
