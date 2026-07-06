@@ -125,7 +125,7 @@ fn is_excluded_type(ts_type: &TSType<'_>, source: &str) -> bool {
             let type_text = source
                 .get(type_ref.span.start as usize..type_ref.span.end as usize)
                 .unwrap_or("");
-            type_text == "const"
+            type_text.trim() == "const"
         }
         _ => false,
     }
