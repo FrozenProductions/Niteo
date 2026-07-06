@@ -237,7 +237,12 @@ pub fn cached_graph_to_imported_files(
     cached
         .imported_files
         .iter()
-        .map(|path| denormalize_path_from_cache(path, project_root))
+        .map(|path| {
+            crate::import_graph::helpers::normalize_path(&denormalize_path_from_cache(
+                path,
+                project_root,
+            ))
+        })
         .collect()
 }
 

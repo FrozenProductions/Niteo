@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+use crate::import_graph::helpers::normalize_path;
 use crate::import_graph::model::ImportGraph;
 
 /// Only resolved edges count as imports; unresolved specifiers must not satisfy
@@ -9,7 +10,7 @@ pub fn compute_imported_files(graph: &ImportGraph) -> HashSet<PathBuf> {
     graph
         .edges
         .iter()
-        .filter_map(|edge| edge.resolved_target.clone())
+        .filter_map(|edge| edge.resolved_target.as_ref().map(|p| normalize_path(p)))
         .collect()
 }
 

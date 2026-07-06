@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use crate::config::NoOrphanFilesRuleConfig;
+use crate::import_graph::helpers::normalize_path;
 use crate::import_graph::ImportGraph;
 use crate::import_graph::topology::compute_imported_files;
 use crate::rules::{NO_ORPHAN_FILES_RULE_ID, Violation};
@@ -31,7 +32,7 @@ pub fn check_file(
         .cloned()
         .unwrap_or_else(|| compute_imported_files(import_graph));
 
-    if imported_files.contains(file) {
+    if imported_files.contains(&normalize_path(file)) {
         return Vec::new();
     }
 
