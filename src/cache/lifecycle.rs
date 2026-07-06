@@ -154,7 +154,7 @@ pub fn finalize_cache(
             .cloned()
             .unwrap_or_else(|| match std::fs::read(file) {
                 Ok(content) => hash_content(&content),
-                Err(_) => String::new(),
+                Err(_) => String::from("<unreadable-file>"),
             });
 
         let edges: Vec<CachedImportEdge> = graph

@@ -37,7 +37,7 @@ pub fn hash_config_files(config_paths: &[PathBuf]) -> String {
 pub fn hash_tsconfig(tsconfig_path: &Path) -> String {
     match std::fs::read_to_string(tsconfig_path) {
         Ok(content) => hash_string(&content),
-        Err(_) => hash_string(""),
+        Err(_) => hash_string("<unreadable-tsconfig>"),
     }
 }
 
