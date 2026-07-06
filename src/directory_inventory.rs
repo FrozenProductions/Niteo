@@ -1,5 +1,7 @@
+use rayon::prelude::*;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 pub const DEFAULT_IGNORED_DIRECTORIES: &[&str] = &[
     "node_modules",
@@ -38,8 +40,8 @@ pub struct BarrelFileFacts {
 }
 
 pub fn collect_directory_inventory(root: &Path, exclude_dirs: &[PathBuf]) -> DirectoryInventory {
-    let mut directories = Vec::new();
-    walk_and_collect(root, exclude_dirs, 0, &mut directories);
+    let exclude_dirs = Arc::new(exclude_dirs.to_vec());
+    let directories = walk_and_collect(root, exclude_dirs, 0);
     DirectoryInventory { directories }
 }
 
@@ -97,22 +99,21 @@ pub fn filter_inventory(
 
 fn walk_and_collect(
     current: &Path,
-    exclude_dirs: &[PathBuf],
+    exclude_dirs: Arc<Vec<PathBuf>>,
     depth: usize,
-    directories: &mut Vec<DirectoryFacts>,
-) {
+) -> Vec<DirectoryFacts> {
     if exclude_dirs.iter().any(|excl| current == excl.as_path()) {
-        return;
+        return Vec::new();
     }
 
     let entries = match fs::read_dir(current) {
         Ok(entries) => entries,
-        Err(_) => return,
+        Err(_) => return Vec::new(),
     };
 
     let mut source_files = Vec::new();
     let mut subdirectories = Vec::new();
-    let mut barrel_files = Vec::new();
+    let mut barrel_paths = Vec::new();
 
     for entry in entries {
         let entry = match entry {
@@ -135,23 +136,34 @@ fn walk_and_collect(
         } else if path.is_file() && is_source_file(&path) {
             source_files.push(path.clone());
             if is_barrel_file(&path) {
-                let barrel_facts = analyze_barrel_file(&path);
-                barrel_files.push(barrel_facts);
+                barrel_paths.push(path);
             }
         }
     }
 
-    directories.push(DirectoryFacts {
+    let barrel_files: Vec<BarrelFileFacts> = barrel_paths
+        .par_iter()
+        .map(|path| analyze_barrel_file(path))
+        .collect();
+
+    let mut directories = vec![DirectoryFacts {
         path: current.to_path_buf(),
         depth,
         source_files,
         subdirectories: subdirectories.clone(),
         barrel_files,
-    });
+    }];
 
-    for subdir in subdirectories {
-        walk_and_collect(&subdir, exclude_dirs, depth + 1, directories);
+    let child_facts: Vec<Vec<DirectoryFacts>> = subdirectories
+        .par_iter()
+        .map(|subdir| walk_and_collect(subdir, Arc::clone(&exclude_dirs), depth + 1))
+        .collect();
+
+    for mut child in child_facts {
+        directories.append(&mut child);
     }
+
+    directories
 }
 
 fn is_source_file(path: &Path) -> bool {
@@ -457,13 +469,17 @@ mod tests {
     use super::*;
     use anyhow::{Context, Result};
     use std::fs;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEMP_DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn create_temp_dir() -> Result<PathBuf> {
         let dir = std::env::temp_dir().join(format!(
-            "niteo_test_{}",
+            "niteo_test_{}_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)?
-                .as_nanos()
+                .as_nanos(),
+            TEMP_DIR_COUNTER.fetch_add(1, Ordering::Relaxed)
         ));
         fs::create_dir_all(&dir)?;
         Ok(dir)
