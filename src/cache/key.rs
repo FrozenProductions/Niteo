@@ -18,20 +18,27 @@ pub fn hash_file_list(files: &[PathBuf]) -> String {
         .map(|p| p.to_string_lossy().to_string())
         .collect();
     sorted.sort();
-    hash_string(&sorted.join("\n"))
+    let mut hasher = blake3::Hasher::new();
+    for (index, path) in sorted.iter().enumerate() {
+        if index > 0 {
+            hasher.update(b"\n");
+        }
+        hasher.update(path.as_bytes());
+    }
+    hasher.finalize().to_hex().to_string()
 }
 
 pub fn hash_config_files(config_paths: &[PathBuf]) -> String {
     let mut sorted_paths = config_paths.to_vec();
     sorted_paths.sort();
-    let mut hasher_input = String::new();
+    let mut hasher = blake3::Hasher::new();
     for path in &sorted_paths {
         if let Ok(content) = std::fs::read_to_string(path) {
-            hasher_input.push_str(&content);
-            hasher_input.push('\n');
+            hasher.update(content.as_bytes());
+            hasher.update(b"\n");
         }
     }
-    hash_string(&hasher_input)
+    hasher.finalize().to_hex().to_string()
 }
 
 pub fn hash_tsconfig(tsconfig_path: &Path) -> String {
