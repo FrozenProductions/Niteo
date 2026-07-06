@@ -18,11 +18,18 @@ pub fn check_file(
     line_index: &LineIndex,
     config: &NoMagicNumbersRuleConfig,
 ) -> Vec<Violation> {
+    let allowed_values: Vec<f64> = config
+        .allowed_numbers
+        .iter()
+        .filter_map(|allowed| allowed.parse::<f64>().ok())
+        .collect();
+
     let mut visitor = MagicNumberVisitor {
         violations: Vec::new(),
         file,
         line_index,
         config,
+        allowed_values,
         current_var_decl_is_const: false,
         in_computed_member: false,
         in_property_key: false,
@@ -36,6 +43,7 @@ struct MagicNumberVisitor<'a, 'f> {
     file: &'f Path,
     line_index: &'f LineIndex,
     config: &'a NoMagicNumbersRuleConfig,
+    allowed_values: Vec<f64>,
     current_var_decl_is_const: bool,
     in_computed_member: bool,
     in_property_key: bool,
@@ -43,13 +51,9 @@ struct MagicNumberVisitor<'a, 'f> {
 
 impl<'a, 'f> MagicNumberVisitor<'a, 'f> {
     fn is_allowed_number(&self, literal: &NumericLiteral) -> bool {
-        self.config.allowed_numbers.iter().any(|allowed| {
-            if let Ok(allowed_value) = allowed.parse::<f64>() {
-                (literal.value - allowed_value).abs() < f64::EPSILON
-            } else {
-                false
-            }
-        })
+        self.allowed_values
+            .iter()
+            .any(|allowed| (literal.value - allowed).abs() < f64::EPSILON)
     }
 }
 
