@@ -80,7 +80,7 @@ pub fn build_import_graph_with_cache(
         bar.finish_and_clear();
     }
 
-    for (file, (edges, had_panic)) in files.iter().zip(extracted.into_iter()) {
+    for (file, (edges, had_panic)) in files.iter().zip(extracted) {
         graph.edges.extend(edges);
         if had_panic {
             graph.add_graph_parse_failure(file.clone());
