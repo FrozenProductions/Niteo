@@ -77,9 +77,13 @@ impl<'a> Visit<'a> for NoAwaitInLoopVisitor<'_> {
     }
 
     fn visit_for_of_statement(&mut self, stmt: &oxc_ast::ast::ForOfStatement<'a>) {
-        self.loop_depth += 1;
+        if !stmt.r#await {
+            self.loop_depth += 1;
+        }
         oxc_ast_visit::walk::walk_for_of_statement(self, stmt);
-        self.loop_depth -= 1;
+        if !stmt.r#await {
+            self.loop_depth -= 1;
+        }
     }
 }
 
