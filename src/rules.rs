@@ -76,7 +76,7 @@ declare_rules! {
     min_items_per_directory => { id: MIN_ITEMS_PER_DIRECTORY_RULE_ID, value: "min-items-per-directory", path: "rules/files/min_items_per_directory.rs", config: crate::config::MinItemsPerDirectoryRuleConfig },
     no_any => { id: NO_ANY_RULE_ID, value: "no-any", path: "rules/typescript/no_any.rs", config: crate::config::NoAnyRuleConfig },
     no_barrel_chain => { id: NO_BARREL_CHAIN_RULE_ID, value: "no-barrel-chain", path: "rules/exports/no_barrel_chain.rs", config: crate::config::RuleConfig, default_severity: Severity::Info },
-    no_circular_import => { id: NO_CIRCULAR_IMPORT_RULE_ID, value: "no-circular-import", path: "rules/imports/no_circular_import.rs", config: crate::config::RuleConfig, default_severity: Severity::Error },
+    no_circular_import => { id: NO_CIRCULAR_IMPORT_RULE_ID, value: "no-circular-import", path: "rules/imports/no_circular_import.rs", config: crate::config::NoCircularImportRuleConfig, default_severity: Severity::Error },
     no_barrel_files => { id: NO_BARREL_FILES_RULE_ID, value: "no-barrel-files", path: "rules/exports/no_barrel_files.rs", config: crate::config::RuleConfig, default_severity: Severity::Info },
     no_comments => { id: NO_COMMENTS_RULE_ID, value: "no-comments", path: "rules/hygiene/no_comments.rs", config: crate::config::CommentsRuleConfig, default_severity: Severity::Info },
     no_console => { id: NO_CONSOLE_RULE_ID, value: "no-console", path: "rules/hygiene/no_console.rs", config: crate::config::NoConsoleRuleConfig },

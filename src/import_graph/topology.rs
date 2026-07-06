@@ -13,8 +13,8 @@ pub fn compute_imported_files(graph: &ImportGraph) -> HashSet<PathBuf> {
         .collect()
 }
 
-/// Only the canonical file in each strongly connected component reports the
-/// cycle, which keeps violation reporting deterministic.
+/// Each file in a strongly connected component gets a cycle entry so rules
+/// can choose whether to report one or all nodes.
 pub fn compute_cycles(graph: &ImportGraph) -> HashMap<PathBuf, Vec<PathBuf>> {
     let adjacency = build_adjacency(graph);
     let sccs = find_strongly_connected_components(&adjacency);
@@ -40,12 +40,11 @@ pub fn compute_cycles(graph: &ImportGraph) -> HashMap<PathBuf, Vec<PathBuf>> {
 
         let mut sorted_scc = scc;
         sorted_scc.sort();
-        let Some(canonical) = sorted_scc.first().cloned() else {
-            continue;
-        };
 
-        let cycle = reconstruct_cycle(&canonical, &sorted_scc, &adjacency);
-        cycles_by_file.insert(canonical, cycle);
+        for node in &sorted_scc {
+            let node_cycle = reconstruct_cycle(node, &sorted_scc, &adjacency);
+            cycles_by_file.insert(node.clone(), node_cycle);
+        }
     }
 
     cycles_by_file
@@ -271,7 +270,8 @@ mod tests {
         let cycles = compute_cycles(&graph);
 
         assert!(cycles.contains_key(&PathBuf::from("src/a.ts")));
-        assert_eq!(cycles.len(), 1);
+        assert!(cycles.contains_key(&PathBuf::from("src/b.ts")));
+        assert_eq!(cycles.len(), 2);
         Ok(())
     }
 

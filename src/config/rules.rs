@@ -528,6 +528,21 @@ impl Default for NoGodDomainRuleConfig {
 }
 
 #[derive(Debug, Clone)]
+pub struct NoCircularImportRuleConfig {
+    pub severity: Severity,
+    pub report_all_nodes: bool,
+}
+
+impl Default for NoCircularImportRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            report_all_nodes: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct NoThenChainRuleConfig {
     pub severity: Severity,
     pub allow_single: bool,

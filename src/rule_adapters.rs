@@ -537,7 +537,7 @@ impl GraphRule for NoBarrelChainAdapter {
 }
 
 pub struct NoCircularImportAdapter {
-    pub config: crate::config::RuleConfig,
+    pub config: crate::config::NoCircularImportRuleConfig,
     pub context: no_circular_import::CircularImportContext,
 }
 impl GraphRule for NoCircularImportAdapter {

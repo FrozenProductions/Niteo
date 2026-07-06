@@ -47,7 +47,7 @@ niteo explain no-console --format json
 | `no-await-in-loop`               | `warn`           | Forbid `await` inside loops — a common performance trap.                             | —                                                        | `severity`                     |
 | `no-barrel-chain`                | `info`           | Prevent `index.ts` barrel files from re-exporting through other barrels.             | `severity`                                               |
 | `no-barrel-files`                | `info`           | Avoid `index.ts` barrel files.                                                       | `severity`                                               |
-| `no-circular-import`             | `error`          | Detect circular import chains between modules.                                       | `severity`                                               |
+| `no-circular-import`             | `error`          | Detect circular import chains between modules.                                       | `severity`, `report-all-nodes`                           |
 | `no-comments`                    | `info`           | Discourage implementation comments that duplicate code.                              | `allow-doc-comments`                                     |
 | `no-console`                     | `warn`           | Keep debugging output out of application code.                                       | `severity`, `allow-patterns`                             |
 | `no-debugger`                    | `error`          | Prevent committed `debugger` statements from stopping runtime execution.             | `severity`                                               |
@@ -782,7 +782,7 @@ entry-files = ["main", "app", "layout", "page"]
 
 ### `no-circular-import`
 
-Reports circular import chains between modules. Circular imports can cause runtime initialization issues and make module dependencies harder to reason about.
+Reports circular import chains between modules. Circular imports can cause runtime initialization issues and make module dependencies harder to reason about. By default, only one file per cycle is reported (the alphabetically first). Set `report-all-nodes = true` to flag every file participating in a cycle.
 
 ```ts
 // a.ts

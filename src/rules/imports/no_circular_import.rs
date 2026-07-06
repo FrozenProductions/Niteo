@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use crate::config::RuleConfig;
+use crate::config::NoCircularImportRuleConfig;
 use crate::import_graph::ImportGraph;
 use crate::import_graph::topology::compute_cycles;
 use crate::rules::{NO_CIRCULAR_IMPORT_RULE_ID, Violation};
@@ -11,6 +11,7 @@ const MESSAGE: &str = "Circular import chain detected.";
 
 pub struct CircularImportContext {
     cycles_by_file: HashMap<PathBuf, Vec<PathBuf>>,
+    canonical_files: HashSet<PathBuf>,
 }
 
 impl CircularImportContext {
@@ -19,7 +20,11 @@ impl CircularImportContext {
             .cycles_by_file()
             .cloned()
             .unwrap_or_else(|| compute_cycles(import_graph));
-        Self { cycles_by_file }
+        let canonical_files = find_canonical_files(&cycles_by_file);
+        Self {
+            cycles_by_file,
+            canonical_files,
+        }
     }
 }
 
@@ -28,11 +33,15 @@ pub fn check_file(
     line_index: &LineIndex,
     import_graph: &ImportGraph,
     context: &CircularImportContext,
-    config: &RuleConfig,
+    config: &NoCircularImportRuleConfig,
 ) -> Vec<Violation> {
     let Some(cycle) = context.cycles_by_file.get(file) else {
         return Vec::new();
     };
+
+    if !config.report_all_nodes && !context.canonical_files.contains(file) {
+        return Vec::new();
+    }
 
     let cycle_display = format_cycle(cycle);
     let Some(target) = cycle.get(1) else {
@@ -64,6 +73,29 @@ pub fn check_file(
     violations
 }
 
+fn find_canonical_files(cycles_by_file: &HashMap<PathBuf, Vec<PathBuf>>) -> HashSet<PathBuf> {
+    let mut canonical = HashSet::new();
+    let mut seen_scc = HashSet::new();
+
+    for (_file, cycle) in cycles_by_file {
+        let mut unique: Vec<PathBuf> = cycle
+            .iter()
+            .take(cycle.len().saturating_sub(1))
+            .cloned()
+            .collect();
+        unique.sort();
+        let key = unique.clone();
+        if !seen_scc.contains(&key) {
+            if let Some(canon) = unique.first() {
+                canonical.insert(canon.clone());
+            }
+            seen_scc.insert(key);
+        }
+    }
+
+    canonical
+}
+
 fn format_cycle(cycle: &[PathBuf]) -> String {
     let names: Vec<&str> = cycle
         .iter()
@@ -79,18 +111,19 @@ fn format_cycle(cycle: &[PathBuf]) -> String {
 #[cfg(test)]
 mod tests {
 
-        use anyhow::{Context, Result};
+    use anyhow::{Context, Result};
     use super::{check_file, CircularImportContext};
     use crate::config::structure::DomainConfig;
-    use crate::config::{RuleConfig, Severity};
+    use crate::config::{NoCircularImportRuleConfig, Severity};
     use crate::import_graph::build_import_graph_from_sources;
     use crate::rules::Violation;
     use crate::syntax::LineIndex;
     use std::path::Path;
 
-    fn test_config() -> RuleConfig {
-        RuleConfig {
+    fn test_config(report_all_nodes: bool) -> NoCircularImportRuleConfig {
+        NoCircularImportRuleConfig {
             severity: Severity::Warn,
+            report_all_nodes,
         }
     }
 
@@ -101,7 +134,11 @@ mod tests {
         }
     }
 
-    fn run_check(file_path: &str, files_with_sources: &[(&str, &str)]) -> Vec<Violation> {
+    fn run_check(
+        file_path: &str,
+        files_with_sources: &[(&str, &str)],
+        report_all_nodes: bool,
+    ) -> Vec<Violation> {
         let graph = build_import_graph_from_sources(files_with_sources, &test_domain(), None);
         let context = CircularImportContext::new(&graph);
         let source = files_with_sources
@@ -115,7 +152,7 @@ mod tests {
             &line_index,
             &graph,
             &context,
-            &test_config(),
+            &test_config(report_all_nodes),
         )
     }
 
@@ -125,8 +162,8 @@ mod tests {
             ("src/a.ts", "import { b } from './b';\n"),
             ("src/b.ts", "import { a } from './a';\n"),
         ];
-        let violations_a = run_check("src/a.ts", &files);
-        let violations_b = run_check("src/b.ts", &files);
+        let violations_a = run_check("src/a.ts", &files, false);
+        let violations_b = run_check("src/b.ts", &files, false);
 
         assert_eq!(violations_a.len(), 1);
         assert!(violations_a[0]
@@ -145,9 +182,9 @@ mod tests {
             ("src/b.ts", "import { c } from './c';\n"),
             ("src/c.ts", "import { a } from './a';\n"),
         ];
-        let violations_a = run_check("src/a.ts", &files);
-        let violations_b = run_check("src/b.ts", &files);
-        let violations_c = run_check("src/c.ts", &files);
+        let violations_a = run_check("src/a.ts", &files, false);
+        let violations_b = run_check("src/b.ts", &files, false);
+        let violations_c = run_check("src/c.ts", &files, false);
 
         assert_eq!(violations_a.len(), 1);
         assert_eq!(violations_b.len(), 0);
@@ -162,7 +199,7 @@ mod tests {
             ("src/b.ts", "import { c } from './c';\n"),
             ("src/c.ts", ""),
         ];
-        let violations = run_check("src/a.ts", &files);
+        let violations = run_check("src/a.ts", &files, false);
         assert!(violations.is_empty());
         Ok(())
     }
@@ -170,7 +207,7 @@ mod tests {
     #[test]
     fn no_cycle_with_external_imports() -> Result<()> {
         let files = vec![("src/a.ts", "import { z } from 'zod';\n")];
-        let violations = run_check("src/a.ts", &files);
+        let violations = run_check("src/a.ts", &files, false);
         assert!(violations.is_empty());
         Ok(())
     }
@@ -181,7 +218,7 @@ mod tests {
             ("src/a.ts", "import { b } from './b';\n"),
             ("src/b.ts", "import { a } from './a';\n"),
         ];
-        let violations = run_check("src/a.ts", &files);
+        let violations = run_check("src/a.ts", &files, false);
         assert_eq!(violations[0].line, Some(1));
         assert_eq!(violations[0].column, Some(1));
         Ok(())
@@ -190,7 +227,7 @@ mod tests {
     #[test]
     fn self_import_is_a_cycle() -> Result<()> {
         let files = vec![("src/a.ts", "import { a } from './a';\n")];
-        let violations = run_check("src/a.ts", &files);
+        let violations = run_check("src/a.ts", &files, false);
         assert_eq!(violations.len(), 1);
         Ok(())
     }
@@ -203,8 +240,8 @@ mod tests {
             ("src/c.ts", "import { d } from './d';\n"),
             ("src/d.ts", "import { c } from './c';\n"),
         ];
-        let violations_a = run_check("src/a.ts", &files);
-        let violations_c = run_check("src/c.ts", &files);
+        let violations_a = run_check("src/a.ts", &files, false);
+        let violations_c = run_check("src/c.ts", &files, false);
 
         assert_eq!(violations_a.len(), 1);
         assert_eq!(violations_c.len(), 1);
@@ -220,7 +257,7 @@ mod tests {
             ),
             ("src/b.ts", "import { a } from './a';\n"),
         ];
-        let violations = run_check("src/a.ts", &files);
+        let violations = run_check("src/a.ts", &files, false);
         assert_eq!(violations.len(), 1);
         Ok(())
     }
@@ -235,8 +272,8 @@ mod tests {
             ("src/b.ts", "import { a } from './a';\n"),
             ("src/c.ts", "import { a } from './a';\n"),
         ];
-        let violations_1 = run_check("src/a.ts", &files);
-        let violations_2 = run_check("src/a.ts", &files);
+        let violations_1 = run_check("src/a.ts", &files, false);
+        let violations_2 = run_check("src/a.ts", &files, false);
 
         assert_eq!(violations_1.len(), 1);
         assert_eq!(violations_2.len(), 1);
@@ -252,8 +289,8 @@ mod tests {
             ("src/b.ts", "import { c } from './c';\n"),
             ("src/c.ts", "import { a } from './a';\n"),
         ];
-        let violations_b = run_check("src/b.ts", &files);
-        let violations_c = run_check("src/c.ts", &files);
+        let violations_b = run_check("src/b.ts", &files, false);
+        let violations_c = run_check("src/c.ts", &files, false);
 
         assert_eq!(violations_b.len(), 0);
         assert_eq!(violations_c.len(), 0);
@@ -266,7 +303,7 @@ mod tests {
             ("src/a.ts", "import { b } from './b';\n"),
             ("src/b.ts", "import { a } from './a';\n"),
         ];
-        let violations = run_check("src/a.ts", &files);
+        let violations = run_check("src/a.ts", &files, false);
         assert_eq!(
             violations[0].detail.as_ref().context("expected detail")?,
             "a.ts -> b.ts -> a.ts"
@@ -281,11 +318,42 @@ mod tests {
             ("src/b.ts", "import { c } from './c';\n"),
             ("src/c.ts", "import { a } from './a';\n"),
         ];
-        let violations = run_check("src/a.ts", &files);
+        let violations = run_check("src/a.ts", &files, false);
         assert_eq!(
             violations[0].detail.as_ref().context("expected detail")?,
             "a.ts -> b.ts -> c.ts -> a.ts"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn report_all_nodes_reports_all_scc_members() -> Result<()> {
+        let files = vec![
+            ("src/a.ts", "import { b } from './b';\n"),
+            ("src/b.ts", "import { c } from './c';\n"),
+            ("src/c.ts", "import { a } from './a';\n"),
+        ];
+        let violations_a = run_check("src/a.ts", &files, true);
+        let violations_b = run_check("src/b.ts", &files, true);
+        let violations_c = run_check("src/c.ts", &files, true);
+
+        assert_eq!(violations_a.len(), 1);
+        assert_eq!(violations_b.len(), 1);
+        assert_eq!(violations_c.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn report_all_nodes_single_cycle_both_reported() -> Result<()> {
+        let files = vec![
+            ("src/a.ts", "import { b } from './b';\n"),
+            ("src/b.ts", "import { a } from './a';\n"),
+        ];
+        let violations_a = run_check("src/a.ts", &files, true);
+        let violations_b = run_check("src/b.ts", &files, true);
+
+        assert_eq!(violations_a.len(), 1);
+        assert_eq!(violations_b.len(), 1);
         Ok(())
     }
 }

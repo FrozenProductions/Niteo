@@ -651,7 +651,7 @@ fn finalize_cache_writes_graph_topology() -> Result<()> {
     let read = read_cache(project_root)?.context("missing cache")?;
     let cached_graph = read.graph.context("missing graph topology")?;
     assert!(!cached_graph.edge_hash.is_empty());
-    assert_eq!(cached_graph.cycles.len(), 1);
+    assert_eq!(cached_graph.cycles.len(), 2);
     assert_eq!(cached_graph.imported_files.len(), 2);
     Ok(())
 }

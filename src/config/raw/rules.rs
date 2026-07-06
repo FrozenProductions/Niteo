@@ -5,11 +5,12 @@ use super::super::rules::{
     FileLengthRuleConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
     MaxFunctionParamsRuleConfig, MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig,
     NestingContext, NoAbbreviationsRuleConfig, NoAnemicDomainRuleConfig, NoAnyRuleConfig,
-    NoConsoleRuleConfig, NoDefaultExportRuleConfig, NoDumpFilesRuleConfig,
-    NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoEmptyDomainRuleConfig,
-    NoGodDomainRuleConfig, NoInterfaceRuleConfig, NoMagicNumbersRuleConfig,
-    NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig,
-    NoThenChainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
+    NoCircularImportRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig,
+    NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
+    NoEmptyDomainRuleConfig, NoGodDomainRuleConfig, NoInterfaceRuleConfig,
+    NoMagicNumbersRuleConfig, NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig,
+    NoRestrictedImportsRuleConfig, NoThenChainRuleConfig, RuleConfig, Severity,
+    UpwardImportRuleConfig,
 };
 use super::config::RawConfig;
 use crate::rules::RulesConfig;
@@ -272,6 +273,10 @@ impl RawRuleConfig {
         to_no_then_chain_config => (NoThenChainRuleConfig) {
             allow_single: default(true)
             ;
+        },
+        to_no_circular_import_config => (NoCircularImportRuleConfig) {
+            report_all_nodes: default(false)
+            ;
         }
     }
 
@@ -359,6 +364,8 @@ pub(crate) struct RawRuleOptions {
     pub contexts: Option<Vec<String>>,
     #[serde(rename = "allow-single")]
     pub allow_single: Option<bool>,
+    #[serde(rename = "report-all-nodes")]
+    pub report_all_nodes: Option<bool>,
 }
 
 impl RawRuleOptions {
@@ -424,6 +431,7 @@ impl RawRuleOptions {
             max_files: child.max_files.or(parent.max_files),
             contexts: child.contexts.clone().or_else(|| parent.contexts.clone()),
             allow_single: child.allow_single.or(parent.allow_single),
+            report_all_nodes: child.report_all_nodes.or(parent.report_all_nodes),
         }
     }
 }
@@ -434,7 +442,6 @@ declare_raw_rules! {
         directory_must_have_barrel => "directory-must-have-barrel",
         hook_no_jsx => "hook-no-jsx",
         no_barrel_chain => "no-barrel-chain",
-        no_circular_import => "no-circular-import",
         no_barrel_files => "no-barrel-files",
         no_debugger => "no-debugger",
         no_side_effect_imports => "no-side-effect-imports",
@@ -498,6 +505,7 @@ declare_raw_rules! {
         no_anemic_domain => ("no-anemic-domain", to_no_anemic_domain_config, NoAnemicDomainRuleConfig),
         no_god_domain => ("no-god-domain", to_no_god_domain_config, NoGodDomainRuleConfig),
         no_then_chain => ("no-then-chain", to_no_then_chain_config, NoThenChainRuleConfig),
+        no_circular_import => ("no-circular-import", to_no_circular_import_config, NoCircularImportRuleConfig),
     }
 }
 
