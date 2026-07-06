@@ -346,7 +346,7 @@ Every rule also supports `severity`.
 
 ## Cascading Configs
 
-Niteo supports nested `niteo.toml` files for monorepos and multi-package projects. When Niteo discovers a `niteo.toml` inside a subdirectory, it merges that config on top of the root config.
+Niteo supports nested `niteo.toml` files for monorepos and multi-package projects. When Niteo discovers a `niteo.toml` inside a subdirectory, it merges that config on top of its direct parent config. Multi-level nesting (`root → packages/ → packages/admin/`) cascades correctly — each child inherits from its immediate parent.
 
 To enforce a single root policy and reject all nested overrides, use `--deny-child-configs`. See [CI Usage](./ci.md#enforcing-config-policy) for details.
 

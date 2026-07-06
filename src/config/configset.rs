@@ -111,19 +111,26 @@ impl ConfigSet {
         };
 
         let mut children = Vec::new();
+        let mut merged_raws: Vec<RawConfig> = Vec::new();
         for (config_path, config_dir) in child_configs {
             let source = fs::read_to_string(&config_path)
                 .with_context(|| format!("failed to read {}", config_path.display()))?;
             let child_raw: RawConfig = toml::from_str(&source)
                 .with_context(|| format!("failed to parse {}", config_path.display()))?;
 
-            let merged_raw = RawConfig::merge(&root_raw, &child_raw);
+            let parent_index = find_parent_node(&root_node, &children, &config_dir);
+            let parent_raw = match parent_index {
+                Some(0) | None => &root_raw,
+                Some(child_index) => &merged_raws[child_index - 1],
+            };
+
+            let merged_raw = RawConfig::merge(parent_raw, &child_raw);
             let merged_config = raw_to_project_config(&merged_raw, project_root.clone())
                 .with_context(|| {
                     format!("failed to validate rules in {}", config_path.display())
                 })?;
 
-            let parent_index = find_parent_node(&root_node, &children, &config_dir);
+            merged_raws.push(merged_raw.clone());
 
             children.push(ResolvedConfigNode {
                 config_path: Some(config_path),
@@ -297,7 +304,7 @@ mod tests {
 
     use super::*;
     use crate::config::architecture::ArchitectureConfig;
-    use crate::config::rules::GitignoreConfig;
+    use crate::config::rules::{GitignoreConfig, Severity};
     use crate::config::structure::ProjectStructureConfig;
     use crate::rules::RulesConfig;
     use anyhow::{Context, Result};
@@ -595,6 +602,48 @@ mod tests {
             },
         )?;
         assert_eq!(config_set.children.len(), 0);
+
+        remove_dir_if_exists(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_three_level_config_cascades_from_direct_parent() -> Result<()> {
+        let tmp = std::env::temp_dir().join("niteo_test_resolve_three_level");
+        remove_dir_if_exists(&tmp);
+        fs::create_dir_all(tmp.join("src"))?;
+        fs::create_dir_all(tmp.join("src/packages/admin"))?;
+
+        fs::write(
+            tmp.join("niteo.toml"),
+            "[project]\nroot = \"src\"\n[rules.no-console]\nseverity = \"warn\"\n[rules.no-debugger]\nseverity = \"off\"\n",
+        )?;
+        fs::write(
+            tmp.join("src/packages/niteo.toml"),
+            "[rules.no-console]\nseverity = \"error\"\n[rules.no-debugger]\nseverity = \"warn\"\n",
+        )?;
+        fs::write(
+            tmp.join("src/packages/admin/niteo.toml"),
+            "[rules.no-console]\nseverity = \"off\"\n",
+        )?;
+
+        let config_set = ConfigSet::resolve(
+            &tmp,
+            ConfigSetOptions {
+                root_override: None,
+                scan_scope: None,
+                deny_child_configs: false,
+            },
+        )?;
+        assert_eq!(config_set.children.len(), 2);
+
+        let admin_config = config_set.config_for_file(&tmp.join("src/packages/admin/index.ts"));
+        assert_eq!(admin_config.rules.no_console.severity, Severity::Off);
+        assert_eq!(
+            admin_config.rules.no_debugger.severity,
+            Severity::Warn,
+            "inherits from direct parent, not root"
+        );
 
         remove_dir_if_exists(&tmp);
         Ok(())
