@@ -59,7 +59,6 @@ impl<'a> Visit<'a> for ThenChainVisitor<'a> {
             let name = &member.property.name;
 
             if is_chain_method_name(name) {
-                // The object before the dot is the thing being chained FROM.
                 if let Expression::CallExpression(inner) = &member.object
                     && is_chain_method(&inner.callee)
                 {

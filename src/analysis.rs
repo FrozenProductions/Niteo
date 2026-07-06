@@ -969,7 +969,6 @@ mod tests {
             |v| v.file == root.join("src/a.ts") && v.rule == rules::NO_CIRCULAR_IMPORT_RULE_ID
         ));
 
-        // Break the cycle: B drops its import of C. A and C are unchanged.
         std::fs::write(root.join("src/b.ts"), "export const b = 1;\n")?;
         let changed = vec![root.join("src/b.ts")];
         let incremental = collect_incremental(root, &initial, &changed)?;
@@ -1000,7 +999,6 @@ mod tests {
             )
         );
 
-        // main.ts starts importing a.ts. a.ts is unchanged, main.ts is changed.
         std::fs::write(
             root.join("src/main.ts"),
             "import { a } from './a';\nexport const x = 1;\n",

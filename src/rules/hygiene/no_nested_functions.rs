@@ -407,7 +407,6 @@ function outer() {
             NestingContext::Arrow,
             NestingContext::ObjectMethod,
         ]);
-        // function(outer) -> class-method(methodA) -> class-method(methodB) = depth 3, exceeds 2
         assert_eq!(violations.len(), 1);
 
         Ok(())}
