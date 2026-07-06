@@ -336,7 +336,7 @@ ast_rule_adapter!(
 ast_rule_adapter!(
     NoLogicInBarrelAdapter,
     NO_LOGIC_IN_BARREL_RULE_ID,
-    crate::config::RuleConfig,
+    crate::config::BarrelRuleConfig,
     no_logic_in_barrel
 );
 
@@ -355,7 +355,7 @@ impl TextRule for NoLargeFileAdapter {
 ast_rule_adapter!(
     NoBarrelFilesAdapter,
     NO_BARREL_FILES_RULE_ID,
-    crate::config::RuleConfig,
+    crate::config::BarrelRuleConfig,
     no_barrel_files
 );
 fixable_ast_rule_adapter!(

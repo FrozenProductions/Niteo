@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::config::{RuleConfig, Severity};
+use crate::config::{BarrelRuleConfig, Severity};
 use crate::directory_inventory::{DirectoryFacts, DirectoryInventory, DEFAULT_IGNORED_DIRECTORIES};
 use crate::rules::{DIRECTORY_MUST_HAVE_BARREL_RULE_ID, Violation};
 
@@ -9,7 +9,7 @@ const DETAIL: &str = "Directory contains child folders but no index.ts.";
 
 pub fn check_inventory(
     inventory: &DirectoryInventory,
-    config: &RuleConfig,
+    config: &BarrelRuleConfig,
 ) -> Vec<Violation> {
     let mut violations = Vec::new();
     let ignored: Vec<&str> = DEFAULT_IGNORED_DIRECTORIES.to_vec();
@@ -28,7 +28,7 @@ pub fn check_inventory(
             continue;
         }
 
-        if has_index_ts(facts) {
+        if has_barrel_file(facts, &config.barrel_names) {
             continue;
         }
 
@@ -38,9 +38,11 @@ pub fn check_inventory(
     violations
 }
 
-fn has_index_ts(facts: &DirectoryFacts) -> bool {
+fn has_barrel_file(facts: &DirectoryFacts, barrel_names: &[String]) -> bool {
     facts.source_files.iter().any(|file| {
-        file.file_name().and_then(|name| name.to_str()) == Some("index.ts")
+        file.file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| barrel_names.iter().any(|n| n == name))
     })
 }
 
@@ -66,9 +68,10 @@ mod tests {
     use crate::directory_inventory::{DirectoryFacts, DirectoryInventory};
     use std::path::PathBuf;
 
-    fn test_config() -> RuleConfig {
-        RuleConfig {
+    fn test_config() -> BarrelRuleConfig {
+        BarrelRuleConfig {
             severity: Severity::Warn,
+            barrel_names: vec!["index.ts".to_string(), "index.tsx".to_string()],
         }
     }
 
@@ -136,7 +139,7 @@ mod tests {
         Ok(())}
 
     #[test]
-    fn ignores_index_tsx() -> Result<()> {
+    fn allows_directory_with_index_tsx() -> Result<()> {
         let inventory = DirectoryInventory {
             directories: vec![make_facts(
                 "src/features",
@@ -146,7 +149,7 @@ mod tests {
         };
 
         let violations = check_inventory(&inventory, &test_config());
-        assert_eq!(violations.len(), 1);
+        assert!(violations.is_empty());
     
         Ok(())}
 
@@ -160,8 +163,9 @@ mod tests {
             )],
         };
 
-        let config = RuleConfig {
+        let config = BarrelRuleConfig {
             severity: Severity::Error,
+            barrel_names: vec!["index.ts".to_string(), "index.tsx".to_string()],
         };
         let violations = check_inventory(&inventory, &config);
         assert_eq!(violations.len(), 1);

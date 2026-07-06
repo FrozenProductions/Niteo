@@ -1,8 +1,8 @@
 use serde::Deserialize;
 
 use super::super::rules::{
-    BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig, FileExportsRuleConfig,
-    FileLengthRuleConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
+    BarrelRuleConfig, BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig,
+    FileExportsRuleConfig, FileLengthRuleConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
     MaxFunctionParamsRuleConfig, MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig,
     NestingContext, NoAbbreviationsRuleConfig, NoAnemicDomainRuleConfig, NoAnyRuleConfig,
     NoCircularImportRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig,
@@ -158,6 +158,10 @@ impl RawRuleConfig {
     }
 
     declare_option_converters! {
+        to_barrel_config => (BarrelRuleConfig) {
+            ;
+            barrel_names: clone_default
+        },
         to_boolean_prefix_config => (BooleanPrefixRuleConfig) {
             ignore_constants: default(false)
             ;
@@ -366,6 +370,8 @@ pub(crate) struct RawRuleOptions {
     pub allow_single: Option<bool>,
     #[serde(rename = "report-all-nodes")]
     pub report_all_nodes: Option<bool>,
+    #[serde(rename = "barrel-names")]
+    pub barrel_names: Option<Vec<String>>,
 }
 
 impl RawRuleOptions {
@@ -432,6 +438,10 @@ impl RawRuleOptions {
             contexts: child.contexts.clone().or_else(|| parent.contexts.clone()),
             allow_single: child.allow_single.or(parent.allow_single),
             report_all_nodes: child.report_all_nodes.or(parent.report_all_nodes),
+            barrel_names: child
+                .barrel_names
+                .clone()
+                .or_else(|| parent.barrel_names.clone()),
         }
     }
 }
@@ -439,10 +449,8 @@ impl RawRuleOptions {
 declare_raw_rules! {
     simple {
         component_file_only_components => "component-file-only-components",
-        directory_must_have_barrel => "directory-must-have-barrel",
         hook_no_jsx => "hook-no-jsx",
         no_barrel_chain => "no-barrel-chain",
-        no_barrel_files => "no-barrel-files",
         no_debugger => "no-debugger",
         no_side_effect_imports => "no-side-effect-imports",
         no_enums => "no-enums",
@@ -451,7 +459,6 @@ declare_raw_rules! {
         no_export_star => "no-export-star",
         no_focused_test => "no-focused-test",
         no_inline_types => "no-inline-types",
-        no_logic_in_barrel => "no-logic-in-barrel",
         no_logic_in_domain => "no-logic-in-domain",
         no_mutable_exports => "no-mutable-exports",
         no_namespace => "no-namespace",
@@ -478,6 +485,9 @@ declare_raw_rules! {
         prefer_satisfies => ("prefer-satisfies", Severity::Info),
     }
     custom {
+        directory_must_have_barrel => ("directory-must-have-barrel", to_barrel_config, BarrelRuleConfig),
+        no_barrel_files => ("no-barrel-files", to_barrel_config, BarrelRuleConfig),
+        no_logic_in_barrel => ("no-logic-in-barrel", to_barrel_config, BarrelRuleConfig),
         boolean_prefix => ("boolean-prefix", to_boolean_prefix_config, BooleanPrefixRuleConfig),
         entry_file_no_logic => ("entry-file-no-logic", to_entry_file_no_logic_config, EntryFileNoLogicRuleConfig),
         hook_prefix => ("hook-prefix", to_hook_prefix_config, HookPrefixRuleConfig),

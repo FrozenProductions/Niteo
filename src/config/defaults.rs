@@ -47,6 +47,7 @@ allow-doc-comments = true
 
 [rules.no-logic-in-barrel]
 severity = "warn"
+barrel-names = ["index.ts", "index.tsx"]
 
 [rules.no-default-export]
 severity = "info"
@@ -83,6 +84,7 @@ severity = "info"
 
 [rules.no-barrel-files]
 severity = "info"
+barrel-names = ["index.ts", "index.tsx"]
 
 [rules.no-barrel-chain]
 severity = "info"
@@ -109,6 +111,7 @@ ignore-dirs = []
 
 [rules.directory-must-have-barrel]
 severity = "warn"
+barrel-names = ["index.ts", "index.tsx"]
 
 [rules.no-duplicate-file-names]
 severity = "warn"

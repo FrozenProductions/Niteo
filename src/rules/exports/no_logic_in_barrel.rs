@@ -3,19 +3,24 @@ use std::path::Path;
 use oxc_ast::ast::Statement;
 use oxc_span::GetSpan;
 
-use crate::config::RuleConfig;
+use crate::config::BarrelRuleConfig;
 use crate::rules::{NO_LOGIC_IN_BARREL_RULE_ID, Violation};
 use crate::syntax::LineIndex;
 const MESSAGE: &str = "Keep barrel files limited to re-exports.";
-const BARREL_FILE_NAME: &str = "index.ts";
+
+fn is_barrel_file(file: &Path, barrel_names: &[String]) -> bool {
+    file.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| barrel_names.iter().any(|n| n == name))
+}
 
 pub fn check_file(
     file: &Path,
     program: &oxc_ast::ast::Program,
     line_index: &LineIndex,
-    config: &RuleConfig,
+    config: &BarrelRuleConfig,
 ) -> Vec<Violation> {
-    if file.file_name().and_then(|name| name.to_str()) != Some(BARREL_FILE_NAME) {
+    if !is_barrel_file(file, &config.barrel_names) {
         return Vec::new();
     }
 
@@ -52,7 +57,7 @@ mod tests {
 
     use anyhow::Result;
     use super::check_file;
-    use crate::config::{RuleConfig, Severity};
+    use crate::config::{BarrelRuleConfig, Severity};
     use crate::rules::Violation;
     use crate::syntax::LineIndex;
     use oxc_allocator::Allocator;
@@ -151,9 +156,19 @@ const value = 1;
     
         Ok(())}
 
-    fn test_config() -> RuleConfig {
-        RuleConfig {
+    fn test_config() -> BarrelRuleConfig {
+        BarrelRuleConfig {
             severity: Severity::Warn,
+            barrel_names: vec!["index.ts".to_string(), "index.tsx".to_string()],
         }
+    }
+
+    #[test]
+    fn reports_logic_in_index_tsx() {
+        let source = r#"import { Button } from "./Button";
+export { Button };
+"#;
+        let violations = run_check("index.tsx", source);
+        assert_eq!(violations.len(), 1);
     }
 }

@@ -31,7 +31,7 @@ niteo explain no-console --format json
 | -------------------------------- | ---------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------- | ------------------------------ |
 | `boolean-prefix`                 | `info`           | Boolean variables should be prefixed with names such as `is`, `has`, or `can`.       | —                                                        | `prefixes`, `ignore-constants` |
 | `component-file-only-components` | `warn`           | Component files should export components only.                                       | `project.structure.components`                           |
-| `directory-must-have-barrel`     | `warn`           | Non-leaf directories must expose an `index.ts` barrel file.                          | `severity`                                               |
+| `directory-must-have-barrel`     | `warn`           | Non-leaf directories must expose a barrel file.                                      | `barrel-names`                                           |
 | `entry-file-no-logic`            | `warn`           | Entry files should delegate implementation logic to dedicated modules.               | `entry-files`                                            |
 | `hook-no-jsx`                    | `warn`           | Hook files should not return or contain JSX.                                         | `project.structure.hooks`                                |
 | `explicit-return-type`           | `warn`           | Require explicit return types on exported functions.                                 | `severity`                                               |
@@ -45,8 +45,8 @@ niteo explain no-console --format json
 | `no-abbreviations`               | `info`           | Disallow abbreviated identifiers like `btn`, `ctx`, and `mgr`.                       | `extra-abbreviations`, `allow-abbreviations`             |
 | `no-any`                         | `warn`           | Disallow explicit `any` type annotations outside generated or allowed folders.       | `allowed-folders`, `project.structure.generated`         |
 | `no-await-in-loop`               | `warn`           | Forbid `await` inside loops — a common performance trap.                             | —                                                        | `severity`                     |
-| `no-barrel-chain`                | `info`           | Prevent `index.ts` barrel files from re-exporting through other barrels.             | `severity`                                               |
-| `no-barrel-files`                | `info`           | Avoid `index.ts` barrel files.                                                       | `severity`                                               |
+| `no-barrel-chain`                | `info`           | Prevent barrel files from re-exporting through other barrels.                        | `severity`                                               |
+| `no-barrel-files`                | `info`           | Avoid barrel files.                                                                  | `barrel-names`                                           |
 | `no-circular-import`             | `error`          | Detect circular import chains between modules.                                       | `severity`, `report-all-nodes`                           |
 | `no-comments`                    | `info`           | Discourage implementation comments that duplicate code.                              | `allow-doc-comments`                                     |
 | `no-console`                     | `warn`           | Keep debugging output out of application code.                                       | `severity`, `allow-patterns`                             |
@@ -66,7 +66,7 @@ niteo explain no-console --format json
 | `no-inline-types`                | `info`           | Keep exported contracts in type files or type folders.                               | `project.structure.types`                                |
 | `no-interface`                   | `info`           | Prefer type aliases unless declaration merging is intentional.                       | `allow-declaration-merging`                              |
 | `no-large-file`                  | `warn`           | Keep files under a configured line count.                                            | `max-lines`                                              |
-| `no-logic-in-barrel`             | `warn`           | Keep barrel files limited to import/export forwarding.                               | `severity`                                               |
+| `no-logic-in-barrel`             | `warn`           | Keep barrel files limited to import/export forwarding.                               | `barrel-names`                                           |
 | `no-logic-in-domain`             | `warn`           | Keep type and constants domains free of runtime implementation logic.                | `project.structure.types`, `project.structure.constants` |
 | `no-mutable-exports`             | `error`          | Avoid exported mutable bindings.                                                     | `severity`                                               |
 | `no-nested-functions`            | `warn`           | Disallow functions nested beyond a configured depth.                                 | `max-depth`, `contexts`                                  |
@@ -595,7 +595,7 @@ Prefer explicit re-exports.
 
 ### `no-barrel-files`
 
-Reports `index.ts` barrel files.
+Reports barrel files. Barrel file names are configurable via `barrel-names`.
 
 ### `no-barrel-chain`
 
@@ -603,7 +603,7 @@ Reports barrel files that re-export through another barrel.
 
 ### `no-logic-in-barrel`
 
-Reports runtime logic in `index.ts` files. Barrel files should only forward imports and exports.
+Reports runtime logic in barrel files. Barrel files should only forward imports and exports. Barrel file names are configurable via `barrel-names`.
 
 ### `sort-exports`
 
@@ -663,11 +663,12 @@ Reports directories that do not contain source files.
 
 ### `directory-must-have-barrel`
 
-Reports non-leaf directories (those containing child folders) that do not have a direct `index.ts` barrel file. Barrel files provide a single import surface for the directory's public API.
+Reports non-leaf directories (those containing child folders) that do not have a direct barrel file. Barrel files provide a single import surface for the directory's public API. Barrel file names are configurable via `barrel-names`.
 
 ```toml
 [rules.directory-must-have-barrel]
 severity = "warn"
+barrel-names = ["index.ts", "index.tsx"]
 ```
 
 ### `max-items-per-directory`

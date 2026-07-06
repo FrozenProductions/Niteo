@@ -557,6 +557,21 @@ impl Default for NoThenChainRuleConfig {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct BarrelRuleConfig {
+    pub severity: Severity,
+    pub barrel_names: Vec<String>,
+}
+
+impl Default for BarrelRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            barrel_names: vec!["index.ts".to_string(), "index.tsx".to_string()],
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Severity;

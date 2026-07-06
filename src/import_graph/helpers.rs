@@ -24,7 +24,10 @@ pub(crate) fn extensionless(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn is_barrel_file(file: &Path) -> bool {
-    file.file_name().and_then(|name| name.to_str()) == Some("index.ts")
+    const BARREL_FILE_NAMES: &[&str] = &["index.ts", "index.tsx"];
+    file.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| BARREL_FILE_NAMES.contains(&name))
 }
 
 pub(crate) fn is_relative_specifier(specifier: &str) -> bool {
