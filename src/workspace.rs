@@ -6,6 +6,8 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
+use crate::import_graph::topology::find_strongly_connected_components;
+
 #[derive(Debug, Clone)]
 pub struct Workspace {
     pub root: PathBuf,
@@ -301,66 +303,115 @@ impl WorkspaceGraph {
     }
 
     pub fn find_cycles(&self) -> Vec<Vec<String>> {
-        let mut cycles = Vec::new();
-        let mut visited = HashMap::<String, VisitState>::new();
-        let mut stack = Vec::new();
+        let package_names: Vec<String> = self.package_graph.keys().cloned().collect();
+        let name_to_index: HashMap<String, u32> = package_names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (name.clone(), index as u32))
+            .collect();
 
-        for package_name in self.package_graph.keys() {
-            if !visited.contains_key(package_name) {
-                self.dfs(package_name, &mut visited, &mut stack, &mut cycles);
+        let node_count = package_names.len();
+        let mut adjacency: Vec<Vec<u32>> = vec![Vec::new(); node_count];
+        for (source_name, targets) in &self.package_graph {
+            let source_index = name_to_index[source_name] as usize;
+            for target_name in targets {
+                if let Some(&target_index) = name_to_index.get(target_name) {
+                    adjacency[source_index].push(target_index);
+                }
+            }
+        }
+        for neighbors in adjacency.iter_mut() {
+            neighbors.sort_unstable();
+            neighbors.dedup();
+        }
+
+        let sccs = find_strongly_connected_components(&adjacency);
+        let mut cycles = Vec::new();
+
+        for scc in sccs {
+            let is_cyclic = if scc.len() > 1 {
+                true
+            } else {
+                adjacency[scc[0] as usize].contains(&scc[0])
+            };
+
+            if !is_cyclic {
+                continue;
+            }
+
+            if let Some(cycle) = reconstruct_package_cycle(&scc, &adjacency, &package_names) {
+                cycles.push(cycle);
             }
         }
 
         cycles
     }
-
-    fn dfs(
-        &self,
-        current: &str,
-        visited: &mut HashMap<String, VisitState>,
-        stack: &mut Vec<String>,
-        cycles: &mut Vec<Vec<String>>,
-    ) {
-        visited.insert(current.to_string(), VisitState::InStack);
-        stack.push(current.to_string());
-
-        if let Some(neighbors) = self.package_graph.get(current) {
-            for neighbor in neighbors {
-                match visited.get(neighbor) {
-                    Some(VisitState::InStack) => {
-                        if let Some(pos) = stack.iter().position(|s| s == neighbor) {
-                            let cycle = stack.get(pos..).unwrap_or(&[]).to_vec();
-                            let mut exists = false;
-                            for existing_cycle in &*cycles {
-                                if existing_cycle.len() == cycle.len()
-                                    && existing_cycle.iter().all(|item| cycle.contains(item))
-                                {
-                                    exists = true;
-                                    break;
-                                }
-                            }
-                            if !exists {
-                                cycles.push(cycle);
-                            }
-                        }
-                    }
-                    None => {
-                        self.dfs(neighbor, visited, stack, cycles);
-                    }
-                    Some(VisitState::Done) => {}
-                }
-            }
-        }
-
-        stack.pop();
-        visited.insert(current.to_string(), VisitState::Done);
-    }
 }
 
-#[derive(PartialEq, Eq)]
-enum VisitState {
-    InStack,
-    Done,
+fn reconstruct_package_cycle(
+    scc: &[u32],
+    adjacency: &[Vec<u32>],
+    package_names: &[String],
+) -> Option<Vec<String>> {
+    let start = scc[0];
+    let scc_set: HashSet<u32> = scc.iter().copied().collect();
+    let mut path = vec![start];
+    let mut visited: HashSet<u32> = HashSet::new();
+    visited.insert(start);
+
+    let cycle = if dfs_package_cycle(start, adjacency, &scc_set, &mut visited, &mut path) {
+        path
+    } else {
+        vec![start, start]
+    };
+
+    Some(
+        cycle
+            .into_iter()
+            .map(|index| package_names[index as usize].clone())
+            .collect(),
+    )
+}
+
+fn dfs_package_cycle(
+    start: u32,
+    adjacency: &[Vec<u32>],
+    scc_set: &HashSet<u32>,
+    visited: &mut HashSet<u32>,
+    path: &mut Vec<u32>,
+) -> bool {
+    let mut stack: Vec<(u32, usize)> = vec![(start, 0)];
+
+    while let Some((node, idx)) = stack.last_mut() {
+        let Some(neighbors) = adjacency.get(*node as usize) else {
+            path.pop();
+            stack.pop();
+            continue;
+        };
+
+        if *idx < neighbors.len() {
+            let neighbor = neighbors[*idx];
+            *idx += 1;
+
+            if neighbor == start && path.len() > 1 {
+                path.push(neighbor);
+                return true;
+            }
+
+            if !scc_set.contains(&neighbor) || visited.contains(&neighbor) {
+                continue;
+            }
+
+            visited.insert(neighbor);
+            path.push(neighbor);
+            stack.push((neighbor, 0));
+        } else {
+            path.pop();
+            stack.pop();
+        }
+    }
+
+    false
 }
 
 #[cfg(test)]

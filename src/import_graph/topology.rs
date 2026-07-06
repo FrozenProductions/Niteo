@@ -50,7 +50,7 @@ pub fn compute_cycles(graph: &ImportGraph) -> HashMap<PathBuf, Vec<PathBuf>> {
     cycles_by_file
 }
 
-fn find_strongly_connected_components(adjacency: &[Vec<u32>]) -> Vec<Vec<u32>> {
+pub fn find_strongly_connected_components(adjacency: &[Vec<u32>]) -> Vec<Vec<u32>> {
     let node_count = adjacency.len();
     let mut visited = vec![false; node_count];
     let mut finish_order = Vec::with_capacity(node_count);
