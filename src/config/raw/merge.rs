@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use super::architecture::RawLayerBoundaryConfig;
 use super::config::{RawConfig, RawFailOnConfig, RawProjectConfig, RawProjectStructure};
+use super::domain::RawDomainConfig;
 use super::rules::RawRuleConfig;
 
 impl RawConfig {
@@ -81,15 +82,21 @@ impl RawConfig {
             (Some(parent), None) => Some(parent.clone()),
             (None, Some(child)) => Some(child.clone()),
             (Some(parent), Some(child)) => Some(RawProjectStructure {
-                hooks: child.hooks.clone().or_else(|| parent.hooks.clone()),
-                components: child
-                    .components
-                    .clone()
-                    .or_else(|| parent.components.clone()),
-                types: child.types.clone().or_else(|| parent.types.clone()),
-                constants: child.constants.clone().or_else(|| parent.constants.clone()),
-                tests: child.tests.clone().or_else(|| parent.tests.clone()),
-                generated: child.generated.clone().or_else(|| parent.generated.clone()),
+                hooks: RawDomainConfig::merge_option(parent.hooks.as_ref(), child.hooks.as_ref()),
+                components: RawDomainConfig::merge_option(
+                    parent.components.as_ref(),
+                    child.components.as_ref(),
+                ),
+                types: RawDomainConfig::merge_option(parent.types.as_ref(), child.types.as_ref()),
+                constants: RawDomainConfig::merge_option(
+                    parent.constants.as_ref(),
+                    child.constants.as_ref(),
+                ),
+                tests: RawDomainConfig::merge_option(parent.tests.as_ref(), child.tests.as_ref()),
+                generated: RawDomainConfig::merge_option(
+                    parent.generated.as_ref(),
+                    child.generated.as_ref(),
+                ),
             }),
         }
     }
@@ -260,6 +267,29 @@ file-suffixes = [".spechild.ts"]
         let structure = merged.structure();
         assert_eq!(structure.tests.folders, vec!["__tests__"]);
         assert_eq!(structure.tests.file_suffixes, vec![".spechild.ts"]);
+        Ok(())
+    }
+
+    #[test]
+    fn merge_structure_partial_child_preserves_parent_field() -> Result<()> {
+        let parent: RawConfig = toml::from_str(
+            r#"
+[project.structure.tests]
+folders = ["tests"]
+file-suffixes = [".test.ts"]
+"#,
+        )?;
+        let child: RawConfig = toml::from_str(
+            r#"
+[project.structure.tests]
+file-suffixes = [".spec.ts"]
+"#,
+        )?;
+
+        let merged = RawConfig::merge(&parent, &child);
+        let structure = merged.structure();
+        assert_eq!(structure.tests.folders, vec!["tests"]);
+        assert_eq!(structure.tests.file_suffixes, vec![".spec.ts"]);
         Ok(())
     }
 

@@ -10,6 +10,28 @@ pub(crate) struct RawDomainConfig {
 }
 
 impl RawDomainConfig {
+    pub(super) fn merge_option(
+        parent: Option<&RawDomainConfig>,
+        child: Option<&RawDomainConfig>,
+    ) -> Option<RawDomainConfig> {
+        match (parent, child) {
+            (None, None) => None,
+            (Some(parent), None) => Some(parent.clone()),
+            (None, Some(child)) => Some(child.clone()),
+            (Some(parent), Some(child)) => Some(Self::merge(parent, child)),
+        }
+    }
+
+    pub(super) fn merge(parent: &RawDomainConfig, child: &RawDomainConfig) -> RawDomainConfig {
+        RawDomainConfig {
+            folders: child.folders.clone().or_else(|| parent.folders.clone()),
+            file_suffixes: child
+                .file_suffixes
+                .clone()
+                .or_else(|| parent.file_suffixes.clone()),
+        }
+    }
+
     pub(super) fn to_domain_config(&self, defaults: &DomainConfig) -> DomainConfig {
         DomainConfig {
             folders: self
