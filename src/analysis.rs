@@ -144,7 +144,6 @@ impl FileList {
 
 pub struct CacheResult {
     state: Option<crate::cache::lifecycle::CacheState>,
-    config_paths: Vec<PathBuf>,
 }
 
 impl CacheResult {
@@ -190,10 +189,7 @@ impl CacheResult {
             None
         };
 
-        Ok(Self {
-            state,
-            config_paths,
-        })
+        Ok(Self { state })
     }
 
     fn cached_violations(&self) -> Arc<HashMap<PathBuf, Vec<Violation>>> {
@@ -224,10 +220,7 @@ impl CacheResult {
     }
 
     fn empty() -> Self {
-        Self {
-            state: None,
-            config_paths: Vec::new(),
-        }
+        Self { state: None }
     }
 }
 
@@ -455,8 +448,6 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         && let Err(error) = crate::cache::lifecycle::finalize_cache(
             workspace_root,
             file_list.as_slice(),
-            &cache.config_paths,
-            tsconfig_path.as_deref(),
             state,
             graph_result.graph.as_ref(),
             &all_violations_for_cache,

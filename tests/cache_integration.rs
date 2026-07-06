@@ -274,6 +274,10 @@ fn finalize_cache_writes_violations() -> Result<()> {
     let file = project_root.join("a.ts");
     std::fs::write(&file, "content")?;
 
+    let config_path = project_root.join("niteo.toml");
+    let file_list_hash = hash_file_list(std::slice::from_ref(&file));
+    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
+
     let mut file_hashes = HashMap::new();
     file_hashes.insert(file.clone(), hash_content(b"content"));
 
@@ -284,6 +288,9 @@ fn finalize_cache_writes_violations() -> Result<()> {
         cached_parse_failures: HashMap::new(),
         cached_topology: None,
         dirty: true,
+        file_list_hash,
+        config_hash,
+        tsconfig_hash: None,
     };
 
     let violation = Violation {
@@ -301,8 +308,6 @@ fn finalize_cache_writes_violations() -> Result<()> {
     finalize_cache(
         project_root,
         std::slice::from_ref(&file),
-        &[project_root.join("niteo.toml")],
-        None,
         &state,
         &ImportGraph::new(),
         &[violation],
@@ -325,6 +330,10 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
     let file_b = project_root.join("b.ts");
     std::fs::write(&file_a, "content a")?;
     std::fs::write(&file_b, "content b")?;
+
+    let config_path = project_root.join("niteo.toml");
+    let file_list_hash = hash_file_list(&[file_a.clone(), file_b.clone()]);
+    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
     let mut file_hashes = HashMap::new();
     file_hashes.insert(file_a.clone(), hash_content(b"content a"));
@@ -353,6 +362,9 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
         cached_parse_failures: HashMap::new(),
         cached_topology: None,
         dirty: true,
+        file_list_hash,
+        config_hash,
+        tsconfig_hash: None,
     };
 
     let new_violation = Violation {
@@ -370,8 +382,6 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
     finalize_cache(
         project_root,
         &[file_a.clone(), file_b.clone()],
-        &[project_root.join("niteo.toml")],
-        None,
         &state,
         &ImportGraph::new(),
         &[new_violation],
@@ -548,6 +558,10 @@ fn finalize_cache_writes_all_files() -> Result<()> {
     std::fs::write(&file_a, "content a")?;
     std::fs::write(&file_b, "content b")?;
 
+    let config_path = project_root.join("niteo.toml");
+    let file_list_hash = hash_file_list(&[file_a.clone(), file_b.clone()]);
+    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
+
     let mut graph = ImportGraph::new();
     graph.add_file(file_a.clone(), false, false);
     graph.add_file(file_b.clone(), false, false);
@@ -572,13 +586,14 @@ fn finalize_cache_writes_all_files() -> Result<()> {
         cached_parse_failures: HashMap::new(),
         cached_topology: None,
         dirty: true,
+        file_list_hash,
+        config_hash,
+        tsconfig_hash: None,
     };
 
     finalize_cache(
         project_root,
         &[file_a.clone(), file_b.clone()],
-        &[project_root.join("niteo.toml")],
-        None,
         &state,
         &graph,
         &[],
@@ -601,6 +616,10 @@ fn finalize_cache_writes_graph_topology() -> Result<()> {
     let file_b = project_root.join("b.ts");
     std::fs::write(&file_a, "content a")?;
     std::fs::write(&file_b, "content b")?;
+
+    let config_path = project_root.join("niteo.toml");
+    let file_list_hash = hash_file_list(&[file_a.clone(), file_b.clone()]);
+    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
     let mut graph = ImportGraph::new();
     graph.add_file(file_a.clone(), false, false);
@@ -635,13 +654,14 @@ fn finalize_cache_writes_graph_topology() -> Result<()> {
         cached_parse_failures: HashMap::new(),
         cached_topology: None,
         dirty: true,
+        file_list_hash,
+        config_hash,
+        tsconfig_hash: None,
     };
 
     finalize_cache(
         project_root,
         &[file_a.clone(), file_b.clone()],
-        &[project_root.join("niteo.toml")],
-        None,
         &state,
         &graph,
         &[],
@@ -664,6 +684,10 @@ fn prepare_cache_restores_graph_topology_when_unchanged() -> Result<()> {
     let file_b = project_root.join("b.ts");
     std::fs::write(&file_a, "content a")?;
     std::fs::write(&file_b, "content b")?;
+
+    let config_path = project_root.join("niteo.toml");
+    let file_list_hash = hash_file_list(&[file_a.clone(), file_b.clone()]);
+    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
     let mut graph = ImportGraph::new();
     graph.add_file(file_a.clone(), false, false);
@@ -690,20 +714,20 @@ fn prepare_cache_restores_graph_topology_when_unchanged() -> Result<()> {
         cached_parse_failures: HashMap::new(),
         cached_topology: None,
         dirty: true,
+        file_list_hash,
+        config_hash,
+        tsconfig_hash: None,
     };
 
     finalize_cache(
         project_root,
         &[file_a.clone(), file_b.clone()],
-        &[project_root.join("niteo.toml")],
-        None,
         &state,
         &graph,
         &[],
         &HashMap::new(),
     )?;
 
-    let config_path = project_root.join("niteo.toml");
     let state = prepare_cache(
         project_root,
         &[file_a.clone(), file_b.clone()],

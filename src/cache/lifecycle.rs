@@ -28,6 +28,9 @@ pub struct CacheState {
     pub cached_parse_failures: HashMap<PathBuf, CachedParseFailure>,
     pub cached_topology: Option<CachedGraph>,
     pub dirty: bool,
+    pub file_list_hash: String,
+    pub config_hash: String,
+    pub tsconfig_hash: Option<String>,
 }
 
 pub fn prepare_cache(
@@ -129,15 +132,15 @@ pub fn prepare_cache(
         cached_parse_failures,
         cached_topology,
         dirty,
+        file_list_hash,
+        config_hash,
+        tsconfig_hash,
     }))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn finalize_cache(
     project_root: &Path,
     files: &[PathBuf],
-    config_paths: &[PathBuf],
-    tsconfig_path: Option<&Path>,
     cache_state: &CacheState,
     graph: &ImportGraph,
     violations: &[Violation],
@@ -148,16 +151,13 @@ pub fn finalize_cache(
     }
 
     let niteo_version = env!("CARGO_PKG_VERSION");
-    let file_list_hash = hash_file_list(files);
-    let config_hash = hash_config_files(config_paths);
-    let tsconfig_hash = tsconfig_path.map(hash_tsconfig);
 
     let mut new_cache = CacheFile {
         version: CACHE_SCHEMA_VERSION,
         niteo_version: niteo_version.to_string(),
-        config_hash,
-        tsconfig_hash,
-        file_list_hash,
+        config_hash: cache_state.config_hash.clone(),
+        tsconfig_hash: cache_state.tsconfig_hash.clone(),
+        file_list_hash: cache_state.file_list_hash.clone(),
         files: HashMap::new(),
         graph: Some(graph_to_cached_graph(graph, project_root)),
     };
