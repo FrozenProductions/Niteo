@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Component, Path};
 
 use super::structure::DomainConfig;
 
@@ -20,14 +20,28 @@ impl LayerBoundaryConfig {
     }
 
     pub fn layer_for_file(&self, path: &Path) -> Option<&str> {
-        let path_str = path.to_string_lossy();
+        let path_components: Vec<&str> = path
+            .components()
+            .filter_map(|c| match c {
+                Component::Normal(name) => name.to_str(),
+                _ => None,
+            })
+            .collect();
+
         let mut best: Option<(&str, usize)> = None;
 
         for name in &self.order {
             if let Some(domain) = self.definitions.get(name) {
                 if !domain.folders.is_empty() {
                     for folder in &domain.folders {
-                        if path_str.contains(folder.as_str()) {
+                        if folder.is_empty() {
+                            continue;
+                        }
+                        let folder_components: Vec<&str> = folder.split('/').collect();
+                        if path_components
+                            .windows(folder_components.len())
+                            .any(|window| window == folder_components.as_slice())
+                        {
                             let specificity = folder.len();
                             match best {
                                 Some((_, existing)) if specificity > existing => {
@@ -121,6 +135,24 @@ mod tests {
 
         let path = Path::new("src/app/admin/page.ts");
         assert_eq!(config.layer_for_file(path), Some("app-sub"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn layer_for_folder_does_not_match_substring() -> Result<()> {
+        let mut config = LayerBoundaryConfig::default();
+        config.order = vec!["app".to_string()];
+        config.definitions.insert(
+            "app".to_string(),
+            DomainConfig {
+                folders: vec!["app".to_string()],
+                file_suffixes: vec![],
+            },
+        );
+
+        let path = Path::new("src/happy-utils/foo.ts");
+        assert_eq!(config.layer_for_file(path), None);
 
         Ok(())
     }
