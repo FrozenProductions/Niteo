@@ -121,7 +121,7 @@ declare_rules! {
     no_skipped_test => { id: NO_SKIPPED_TEST_RULE_ID, value: "no-skipped-test", path: "rules/hygiene/no_skipped_test.rs", config: crate::config::RuleConfig, default_severity: Severity::Error },
     no_test_code_in_production => { id: NO_TEST_CODE_IN_PRODUCTION_RULE_ID, value: "no-test-code-in-production", path: "rules/imports/no_test_code_in_production.rs", config: crate::config::RuleConfig, default_severity: Severity::Error },
     no_test_import => { id: NO_TEST_IMPORT_RULE_ID, value: "no-test-import", path: "rules/imports/no_test_import.rs", config: crate::config::RuleConfig, default_severity: Severity::Error },
-    no_then_chain => { id: NO_THEN_CHAIN_RULE_ID, value: "no-then-chain", path: "rules/hygiene/no_then_chain.rs", config: crate::config::RuleConfig, default_severity: Severity::Info },
+    no_then_chain => { id: NO_THEN_CHAIN_RULE_ID, value: "no-then-chain", path: "rules/hygiene/no_then_chain.rs", config: crate::config::NoThenChainRuleConfig, default_severity: Severity::Info },
     no_upward_import => { id: NO_UPWARD_IMPORT_RULE_ID, value: "no-upward-import", path: "rules/imports/no_upward_import.rs", config: crate::config::UpwardImportRuleConfig },
     prefer_satisfies => { id: PREFER_SATISFIES_RULE_ID, value: "prefer-satisfies", path: "rules/typescript/prefer_satisfies.rs", config: crate::config::RuleConfig, default_severity: Severity::Info },
     prefer_readonly => { id: PREFER_READONLY_RULE_ID, value: "prefer-readonly", path: "rules/hygiene/prefer_readonly.rs", config: crate::config::RuleConfig },

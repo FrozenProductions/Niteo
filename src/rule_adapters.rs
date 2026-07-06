@@ -246,7 +246,7 @@ fixable_ast_rule_adapter!(
 ast_rule_adapter!(
     NoThenChainAdapter,
     NO_THEN_CHAIN_RULE_ID,
-    crate::config::RuleConfig,
+    crate::config::NoThenChainRuleConfig,
     no_then_chain
 );
 ast_rule_adapter!(

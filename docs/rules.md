@@ -85,7 +85,7 @@ niteo explain no-console --format json
 | `no-skipped-test`                | `error`          | Disallow skipped tests (`describe.skip`, `it.skip`, `test.skip`).                    | `severity`                                               |
 | `no-test-code-in-production`     | `error`          | Disallow test globals and test library imports outside test files.                   | `project.structure.tests`                                |
 | `no-test-import`                 | `error`          | Production code may not import test files.                                           | `project.structure.tests`                                |
-| `no-then-chain`                  | `info`           | Prefer `async`/`await` over `.then()` chains.                                        | `severity`                                               |
+| `no-then-chain`                  | `info`           | Prefer `async`/`await` over `.then()` chains.                                        | `severity`, `allow-single`                               |
 | `no-type-assertion`              | `warn`           | Disallow `as` casts. Prefer type narrowing or `satisfies`.                           | `severity`                                               |
 | `no-unnecessary-type-assertion`  | `warn`           | Flag `as T` when the expression is already typed as `T`.                             | `severity`                                               |
 | `no-upward-import`               | `warn`           | Limit fragile `../` imports.                                                         | `max-depth`, `allow-patterns`                            |
@@ -407,7 +407,21 @@ allow-abbreviations = ["btn", "ctx"]
 
 ### `no-then-chain`
 
-Reports `.then()` chains. Prefer `async`/`await`.
+Reports `.then()` chains. With `allow-single` enabled (default), only flags `.then()` calls that are part of a chain (follow another `.then()`) or followed by `.catch()` / `.finally()`. Set `allow-single = false` to flag every `.then()` call.
+
+```ts
+fetch("/api")
+  .then((r) => r.json())
+  .then((d) => process(d));
+```
+
+Prefer:
+
+```ts
+const r = await fetch("/api");
+const d = await r.json();
+process(d);
+```
 
 ### `no-focused-test`
 

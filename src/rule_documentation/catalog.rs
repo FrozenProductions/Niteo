@@ -1092,14 +1092,20 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
         examples: &[
             RuleExample {
                 label: "Reports",
-                code: "fetch('/api').then(res => res.json());",
+                code: "fetch('/api').then(res => res.json()).then(data => process(data));",
             },
             RuleExample {
                 label: "Prefer",
                 code: "const res = await fetch('/api');",
             },
         ],
-        options: NO_OPTIONS,
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "allow-single",
+                description: "When true, a single .then() call without chaining is not flagged (default: true).",
+            },
+        ],
         category: RuleCategory::SourceHygiene,
         conflicts: &[],
         fixable: false,

@@ -527,6 +527,21 @@ impl Default for NoGodDomainRuleConfig {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct NoThenChainRuleConfig {
+    pub severity: Severity,
+    pub allow_single: bool,
+}
+
+impl Default for NoThenChainRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            allow_single: true,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Severity;

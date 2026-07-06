@@ -23,5 +23,5 @@ pub use rules::{
     NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoEmptyDomainRuleConfig,
     NoGodDomainRuleConfig, NoInterfaceRuleConfig, NoMagicNumbersRuleConfig,
     NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig,
-    RuleConfig, Severity, UpwardImportRuleConfig,
+    NoThenChainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
 };

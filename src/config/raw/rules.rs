@@ -9,7 +9,7 @@ use super::super::rules::{
     NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig, NoEmptyDomainRuleConfig,
     NoGodDomainRuleConfig, NoInterfaceRuleConfig, NoMagicNumbersRuleConfig,
     NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig,
-    RuleConfig, Severity, UpwardImportRuleConfig,
+    NoThenChainRuleConfig, RuleConfig, Severity, UpwardImportRuleConfig,
 };
 use super::config::RawConfig;
 use crate::rules::RulesConfig;
@@ -268,6 +268,10 @@ impl RawRuleConfig {
             max_files: default(20)
             ;
             ignore_dirs: clone_default
+        },
+        to_no_then_chain_config => (NoThenChainRuleConfig) {
+            allow_single: default(true)
+            ;
         }
     }
 
@@ -353,6 +357,8 @@ pub(crate) struct RawRuleOptions {
     #[serde(rename = "max-files")]
     pub max_files: Option<usize>,
     pub contexts: Option<Vec<String>>,
+    #[serde(rename = "allow-single")]
+    pub allow_single: Option<bool>,
 }
 
 impl RawRuleOptions {
@@ -417,6 +423,7 @@ impl RawRuleOptions {
             enforce_strings: child.enforce_strings.or(parent.enforce_strings),
             max_files: child.max_files.or(parent.max_files),
             contexts: child.contexts.clone().or_else(|| parent.contexts.clone()),
+            allow_single: child.allow_single.or(parent.allow_single),
         }
     }
 }
@@ -452,7 +459,6 @@ declare_raw_rules! {
         no_package_cycle => "no-package-cycle",
         no_private_package_import => "no-private-package-import",
         no_test_import => "no-test-import",
-        no_then_chain => "no-then-chain",
         no_type_assertion => "no-type-assertion",
         no_unnecessary_type_assertion => "no-unnecessary-type-assertion",
         prefer_readonly => "prefer-readonly",
@@ -491,6 +497,7 @@ declare_raw_rules! {
         no_empty_domain => ("no-empty-domain", to_no_empty_domain_config, NoEmptyDomainRuleConfig),
         no_anemic_domain => ("no-anemic-domain", to_no_anemic_domain_config, NoAnemicDomainRuleConfig),
         no_god_domain => ("no-god-domain", to_no_god_domain_config, NoGodDomainRuleConfig),
+        no_then_chain => ("no-then-chain", to_no_then_chain_config, NoThenChainRuleConfig),
     }
 }
 

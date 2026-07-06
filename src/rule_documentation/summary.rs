@@ -374,7 +374,13 @@ pub(crate) fn no_test_code_in_production_summary(config: &ProjectConfig) -> Rule
 }
 
 pub(crate) fn no_then_chain_summary(config: &ProjectConfig) -> RuleConfigSummary {
-    simple_summary(config.rules.no_then_chain.severity)
+    RuleConfigSummary {
+        severity: config.rules.no_then_chain.severity,
+        options: vec![format!(
+            "allow-single: {}",
+            config.rules.no_then_chain.allow_single
+        )],
+    }
 }
 
 pub(crate) fn no_upward_import_summary(config: &ProjectConfig) -> RuleConfigSummary {
