@@ -551,7 +551,7 @@ fn finalize_cache_writes_all_files() -> Result<()> {
     let mut graph = ImportGraph::new();
     graph.add_file(file_a.clone(), false, false);
     graph.add_file(file_b.clone(), false, false);
-    graph.edges.push(ImportEdge {
+    graph.add_edge(ImportEdge {
         source_file: file_a.clone(),
         specifier: "./b".to_string(),
         specifier_kind: SpecifierKind::Relative,
@@ -605,7 +605,7 @@ fn finalize_cache_writes_graph_topology() -> Result<()> {
     let mut graph = ImportGraph::new();
     graph.add_file(file_a.clone(), false, false);
     graph.add_file(file_b.clone(), false, false);
-    graph.edges.push(ImportEdge {
+    graph.add_edge(ImportEdge {
         source_file: file_a.clone(),
         specifier: "./b".to_string(),
         specifier_kind: SpecifierKind::Relative,
@@ -613,7 +613,7 @@ fn finalize_cache_writes_graph_topology() -> Result<()> {
         kind: ImportKind::Import,
         span: Span::new(0, 10),
     });
-    graph.edges.push(ImportEdge {
+    graph.add_edge(ImportEdge {
         source_file: file_b.clone(),
         specifier: "./a".to_string(),
         specifier_kind: SpecifierKind::Relative,
@@ -668,7 +668,7 @@ fn prepare_cache_restores_graph_topology_when_unchanged() -> Result<()> {
     let mut graph = ImportGraph::new();
     graph.add_file(file_a.clone(), false, false);
     graph.add_file(file_b.clone(), false, false);
-    graph.edges.push(ImportEdge {
+    graph.add_edge(ImportEdge {
         source_file: file_a.clone(),
         specifier: "./b".to_string(),
         specifier_kind: SpecifierKind::Relative,

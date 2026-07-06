@@ -275,7 +275,7 @@ impl WorkspaceGraph {
     pub fn build(workspace: &Workspace, import_graph: &crate::import_graph::ImportGraph) -> Self {
         let mut package_graph: HashMap<String, HashSet<String>> = HashMap::new();
 
-        for edge in &import_graph.edges {
+        for edge in import_graph.edges() {
             let Some(ref resolved_target) = edge.resolved_target else {
                 continue;
             };

@@ -87,7 +87,7 @@ fn render_json(graph: &import_graph::ImportGraph) -> Result<String> {
         .collect();
 
     let edges: Vec<EdgeData> = graph
-        .edges
+        .edges()
         .iter()
         .filter_map(|edge| {
             edge.resolved_target.as_ref().map(|target| EdgeData {

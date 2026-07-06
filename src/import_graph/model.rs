@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use oxc_span::Span;
 
@@ -38,11 +39,12 @@ pub struct FileEntry {
 pub struct ImportGraph {
     pub(crate) files: Vec<FileEntry>,
     file_index: HashMap<PathBuf, u32>,
-    pub edges: Vec<ImportEdge>,
+    edges: Vec<ImportEdge>,
     edges_by_source: Vec<Vec<usize>>,
     pub(crate) cycles_by_file: Option<HashMap<PathBuf, Vec<PathBuf>>>,
     pub(crate) imported_files: Option<HashSet<PathBuf>>,
     pub(crate) graph_parse_failures: HashSet<PathBuf>,
+    cached_edge_hash: Mutex<Option<String>>,
 }
 
 impl ImportGraph {
@@ -79,6 +81,26 @@ impl ImportGraph {
     }
 
     pub fn compute_edge_hash(&self) -> String {
+        {
+            let cached = self
+                .cached_edge_hash
+                .lock()
+                .expect("edge hash lock poisoned");
+            if let Some(hash) = cached.as_ref() {
+                return hash.clone();
+            }
+        }
+
+        let hash = self.calculate_edge_hash();
+        let mut cached = self
+            .cached_edge_hash
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        *cached = Some(hash.clone());
+        hash
+    }
+
+    fn calculate_edge_hash(&self) -> String {
         let mut edges: Vec<&ImportEdge> = self.edges.iter().collect();
         edges.sort_unstable_by(|a, b| {
             let a_source = a.source_file.as_os_str().as_encoded_bytes();
@@ -121,6 +143,24 @@ impl ImportGraph {
             hasher.update(b"\n");
         }
         hasher.finalize().to_hex().to_string()
+    }
+
+    pub fn add_edge(&mut self, edge: ImportEdge) {
+        self.edges.push(edge);
+        self.invalidate_edge_hash();
+    }
+
+    pub fn extend_edges(&mut self, new_edges: impl IntoIterator<Item = ImportEdge>) {
+        self.edges.extend(new_edges);
+        self.invalidate_edge_hash();
+    }
+
+    fn invalidate_edge_hash(&self) {
+        let mut cached = self
+            .cached_edge_hash
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        *cached = None;
     }
 
     pub fn add_file(&mut self, path: PathBuf, is_barrel: bool, is_test: bool) {
@@ -278,7 +318,7 @@ mod tests {
         let mut graph = ImportGraph::new();
         graph.add_file(PathBuf::from("/repo/a.ts"), false, false);
         graph.add_file(PathBuf::from("/repo/b.ts"), false, false);
-        graph.edges.push(ImportEdge {
+        graph.add_edge(ImportEdge {
             source_file: PathBuf::from("/repo/a.ts"),
             specifier: "./b".to_string(),
             specifier_kind: SpecifierKind::Relative,
@@ -298,7 +338,7 @@ mod tests {
         let mut forward = ImportGraph::new();
         forward.add_file(PathBuf::from("/repo/a.ts"), false, false);
         forward.add_file(PathBuf::from("/repo/b.ts"), false, false);
-        forward.edges.push(ImportEdge {
+        forward.add_edge(ImportEdge {
             source_file: PathBuf::from("/repo/a.ts"),
             specifier: "./b".to_string(),
             specifier_kind: SpecifierKind::Relative,
@@ -306,7 +346,7 @@ mod tests {
             kind: ImportKind::Import,
             span: Span::new(0, 10),
         });
-        forward.edges.push(ImportEdge {
+        forward.add_edge(ImportEdge {
             source_file: PathBuf::from("/repo/b.ts"),
             specifier: "./a".to_string(),
             specifier_kind: SpecifierKind::Relative,
@@ -318,7 +358,7 @@ mod tests {
         let mut reverse = ImportGraph::new();
         reverse.add_file(PathBuf::from("/repo/a.ts"), false, false);
         reverse.add_file(PathBuf::from("/repo/b.ts"), false, false);
-        reverse.edges.push(ImportEdge {
+        reverse.add_edge(ImportEdge {
             source_file: PathBuf::from("/repo/b.ts"),
             specifier: "./a".to_string(),
             specifier_kind: SpecifierKind::Relative,
@@ -326,7 +366,7 @@ mod tests {
             kind: ImportKind::Import,
             span: Span::new(0, 10),
         });
-        reverse.edges.push(ImportEdge {
+        reverse.add_edge(ImportEdge {
             source_file: PathBuf::from("/repo/a.ts"),
             specifier: "./b".to_string(),
             specifier_kind: SpecifierKind::Relative,
@@ -343,7 +383,7 @@ mod tests {
         let mut graph = ImportGraph::new();
         graph.add_file(PathBuf::from("/repo/a.ts"), false, false);
         graph.add_file(PathBuf::from("/repo/b.ts"), false, false);
-        graph.edges.push(ImportEdge {
+        graph.add_edge(ImportEdge {
             source_file: PathBuf::from("/repo/a.ts"),
             specifier: "./b".to_string(),
             specifier_kind: SpecifierKind::Relative,
@@ -354,7 +394,7 @@ mod tests {
         graph.build_edges_by_source();
 
         let before = graph.compute_edge_hash();
-        graph.edges.push(ImportEdge {
+        graph.add_edge(ImportEdge {
             source_file: PathBuf::from("/repo/b.ts"),
             specifier: "./a".to_string(),
             specifier_kind: SpecifierKind::Relative,

@@ -81,13 +81,14 @@ pub fn build_import_graph_with_cache(
     }
 
     for (file, (edges, had_panic)) in files.iter().zip(extracted) {
-        graph.edges.extend(edges);
+        graph.extend_edges(edges);
         if had_panic {
             graph.add_graph_parse_failure(file.clone());
         }
     }
 
     graph.build_edges_by_source();
+    let _hash = graph.compute_edge_hash();
 
     Ok(graph)
 }
@@ -121,13 +122,14 @@ pub fn build_import_graph_from_sources(
         .collect();
 
     for (file, (edges, had_panic)) in files.iter().zip(extracted.into_iter()) {
-        graph.edges.extend(edges);
+        graph.extend_edges(edges);
         if had_panic {
             graph.add_graph_parse_failure(file.clone());
         }
     }
 
     graph.build_edges_by_source();
+    let _hash = graph.compute_edge_hash();
 
     graph
 }

@@ -38,7 +38,7 @@ impl<'a> GraphFormatter<'a> {
 
         output.push('\n');
 
-        for edge in &self.graph.edges {
+        for edge in self.graph.edges() {
             if let Some(target) = &edge.resolved_target {
                 let style = match edge.kind {
                     ImportKind::Import => "",

@@ -8,7 +8,7 @@ use crate::import_graph::model::ImportGraph;
 /// orphan-file checks.
 pub fn compute_imported_files(graph: &ImportGraph) -> HashSet<PathBuf> {
     graph
-        .edges
+        .edges()
         .iter()
         .filter_map(|edge| edge.resolved_target.as_ref().map(|p| normalize_path(p)))
         .collect()
@@ -53,7 +53,7 @@ pub fn compute_cycles(graph: &ImportGraph) -> HashMap<PathBuf, Vec<PathBuf>> {
 
 fn build_adjacency(graph: &ImportGraph) -> HashMap<PathBuf, Vec<PathBuf>> {
     let mut adjacency: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
-    for edge in &graph.edges {
+    for edge in graph.edges() {
         if let Some(target) = &edge.resolved_target {
             adjacency
                 .entry(edge.source_file.clone())
