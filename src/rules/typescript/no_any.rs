@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use oxc_ast::ast::TSAnyKeyword;
+use oxc_ast::ast::{
+    TSAnyKeyword, TSAsExpression, TSConditionalType, TSTypeAssertion,
+    TSTypeParameterInstantiation,
+};
 use oxc_ast_visit::Visit;
 
 use crate::config::NoAnyRuleConfig;
@@ -49,9 +52,19 @@ pub fn fix_file(
     };
     collector.visit_program(program);
 
+    let mut unsafe_collector = UnsafePositionCollector {
+        spans: Vec::new(),
+        _phantom: std::marker::PhantomData,
+    };
+    unsafe_collector.visit_program(program);
+
+    let unsafe_set: std::collections::HashSet<usize> =
+        unsafe_collector.spans.iter().map(|s| s.start as usize).collect();
+
     let edits: Vec<TextEdit> = collector
         .spans
         .iter()
+        .filter(|span| !unsafe_set.contains(&(span.start as usize)))
         .map(|span| TextEdit {
             start: span.start as usize,
             end: span.end as usize,
@@ -79,6 +92,50 @@ impl<'a> Visit<'a> for AnyKeywordCollector<'a> {
     fn visit_ts_any_keyword(&mut self, keyword: &TSAnyKeyword) {
         self.spans.push(keyword.span);
         oxc_ast_visit::walk::walk_ts_any_keyword(self, keyword);
+    }
+}
+
+/// Collects spans of `any` keywords that appear in positions where `unknown`
+/// would break semantics: `as any` type assertions, `<any>` type assertions,
+/// implicit `any` in `T extends any`, and `any` in `Array<any>`-style
+/// type parameter instantiations.
+struct UnsafePositionCollector<'a> {
+    spans: Vec<oxc_span::Span>,
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a> Visit<'a> for UnsafePositionCollector<'a> {
+    fn visit_ts_as_expression(&mut self, expr: &TSAsExpression<'a>) {
+        if let oxc_ast::ast::TSType::TSAnyKeyword(kw) = &expr.type_annotation {
+            self.spans.push(kw.span);
+        }
+        oxc_ast_visit::walk::walk_ts_as_expression(self, expr);
+    }
+
+    fn visit_ts_type_assertion(&mut self, expr: &TSTypeAssertion<'a>) {
+        if let oxc_ast::ast::TSType::TSAnyKeyword(kw) = &expr.type_annotation {
+            self.spans.push(kw.span);
+        }
+        oxc_ast_visit::walk::walk_ts_type_assertion(self, expr);
+    }
+
+    fn visit_ts_conditional_type(&mut self, conditional: &TSConditionalType<'a>) {
+        if let oxc_ast::ast::TSType::TSAnyKeyword(kw) = &conditional.extends_type {
+            self.spans.push(kw.span);
+        }
+        oxc_ast_visit::walk::walk_ts_conditional_type(self, conditional);
+    }
+
+    fn visit_ts_type_parameter_instantiation(
+        &mut self,
+        instantiation: &TSTypeParameterInstantiation<'a>,
+    ) {
+        for param in &instantiation.params {
+            if let oxc_ast::ast::TSType::TSAnyKeyword(kw) = param {
+                self.spans.push(kw.span);
+            }
+        }
+        oxc_ast_visit::walk::walk_ts_type_parameter_instantiation(self, instantiation);
     }
 }
 
@@ -459,11 +516,11 @@ mod tests {
         Ok(())}
 
     #[test]
-    fn fix_replaces_any_in_generic() -> Result<()> {
+    fn fix_skips_any_in_type_parameter_instantiation() -> Result<()> {
         let source = "const arr: Array<any> = [];\n";
         let fixes = run_fix(source);
         let fixed = apply_fix_edits(source, &fixes);
-        assert_eq!(fixed, "const arr: Array<unknown> = [];\n");
+        assert_eq!(fixed, source);
     
         Ok(())}
 
@@ -473,6 +530,42 @@ mod tests {
         let fixes = run_fix(source);
         let fixed = apply_fix_edits(source, &fixes);
         assert_eq!(fixed, "type Foo = unknown;\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_skips_as_any() -> Result<()> {
+        let source = "const value = obj as any;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, source);
+    
+        Ok(())}
+
+    #[test]
+    fn fix_skips_extends_any_in_conditional_type() -> Result<()> {
+        let source = "type Foo<T> = T extends any ? T : never;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, source);
+    
+        Ok(())}
+
+    #[test]
+    fn fix_replaces_any_in_union_type() -> Result<()> {
+        let source = "type Foo = string | any;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "type Foo = string | unknown;\n");
+    
+        Ok(())}
+
+    #[test]
+    fn fix_replaces_any_in_intersection_type() -> Result<()> {
+        let source = "type Foo = object & any;\n";
+        let fixes = run_fix(source);
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "type Foo = object & unknown;\n");
     
         Ok(())}
 
