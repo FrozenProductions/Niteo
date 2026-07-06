@@ -532,6 +532,30 @@ pub fn collect_incremental(
     let mut changed_files: HashSet<PathBuf> = HashSet::new();
     let mut removed_files: HashSet<PathBuf> = HashSet::new();
 
+    // Re-check tsconfig inclusion for existing files; tsconfig may have changed.
+    {
+        let no_longer_included: Vec<PathBuf> = files
+            .iter()
+            .filter(|file| {
+                let in_scope = previous
+                    .scan_scope
+                    .as_ref()
+                    .map(|scope| file.starts_with(scope))
+                    .unwrap_or(true);
+                let included = tsconfig
+                    .as_ref()
+                    .is_none_or(|config| config.is_included(file));
+                !in_scope || !included
+            })
+            .cloned()
+            .collect();
+        for file in &no_longer_included {
+            file_set.remove(file);
+            removed_files.insert(file.clone());
+        }
+        files.retain(|file| !no_longer_included.contains(file));
+    }
+
     for path in changed_paths {
         if is_config_file(path) {
             bail!("config file changed; full re-lint required");
