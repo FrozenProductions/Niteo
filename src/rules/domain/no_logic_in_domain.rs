@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use oxc_ast::ast::{Declaration, Expression, Statement, VariableDeclarationKind};
+use oxc_ast::ast::{
+    Declaration, ExportDefaultDeclarationKind, Expression, Statement, VariableDeclarationKind,
+};
 
 use crate::config::structure::DomainConfig;
 use crate::config::{RuleConfig, Severity};
@@ -77,6 +79,9 @@ fn check_statement(
             .declaration
             .as_ref()
             .and_then(|decl| check_declaration(file, decl, kind, line_index, severity)),
+        Statement::ExportDefaultDeclaration(export_default) => {
+            check_export_default_declaration(file, export_default, line_index, severity)
+        }
         _ => None,
     }
 }
@@ -97,6 +102,26 @@ fn check_declaration(
         }
         Declaration::VariableDeclaration(var_decl) => {
             check_variable_declaration(file, var_decl, kind, line_index, severity)
+        }
+        _ => None,
+    }
+}
+
+fn check_export_default_declaration(
+    file: &Path,
+    export_default: &oxc_ast::ast::ExportDefaultDeclaration,
+    line_index: &LineIndex,
+    severity: Severity,
+) -> Option<Violation> {
+    match &export_default.declaration {
+        ExportDefaultDeclarationKind::FunctionDeclaration(func) => {
+            Some(make_violation(file, line_index, func.span, severity))
+        }
+        ExportDefaultDeclarationKind::ClassDeclaration(class) => {
+            Some(make_violation(file, line_index, class.span, severity))
+        }
+        ExportDefaultDeclarationKind::ArrowFunctionExpression(arrow) => {
+            Some(make_violation(file, line_index, arrow.span, severity))
         }
         _ => None,
     }
@@ -420,6 +445,67 @@ mod tests {
         let violations = run_check(
             "constants/helpers.ts",
             "export const formatName = function(name: string) { return name.trim(); };\n",
+        );
+
+        assert_eq!(violations.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn reports_export_default_function_in_types() -> anyhow::Result<()> {
+        let violations = run_check(
+            "types/Button.ts",
+            "export default function handleClick() {}\n",
+        );
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, Some(1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn reports_export_default_arrow_in_types() -> anyhow::Result<()> {
+        let violations = run_check(
+            "types/Button.ts",
+            "export default () => {};\n",
+        );
+
+        assert_eq!(violations.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn reports_export_default_class_in_types() -> anyhow::Result<()> {
+        let violations = run_check(
+            "types/Button.ts",
+            "export default class Button {}\n",
+        );
+
+        assert_eq!(violations.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn reports_export_default_function_in_constants() -> anyhow::Result<()> {
+        let violations = run_check(
+            "constants/helpers.ts",
+            "export default function buildUrl() { return ''; }\n",
+        );
+
+        assert_eq!(violations.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn reports_export_default_arrow_in_constants() -> anyhow::Result<()> {
+        let violations = run_check(
+            "constants/helpers.ts",
+            "export default (a: number) => a * 2;\n",
         );
 
         assert_eq!(violations.len(), 1);
