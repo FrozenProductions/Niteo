@@ -551,6 +551,9 @@ pub fn build_file_rules(
         }),
         Box::new(NoOrphanFilesAdapter {
             config: config.no_orphan_files.clone(),
+            context: crate::rules::no_orphan_files::NoOrphanFilesContext::new(
+                import_graph.as_ref(),
+            ),
         }),
         Box::new(NoPrivatePackageImportAdapter {
             config: config.no_private_package_import.clone(),

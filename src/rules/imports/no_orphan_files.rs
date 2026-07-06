@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 use crate::config::NoOrphanFilesRuleConfig;
 use crate::import_graph::helpers::normalize_path;
@@ -9,10 +10,25 @@ use crate::syntax::LineIndex;
 
 const MESSAGE: &str = "File is not imported by any other file in the project.";
 
+pub struct NoOrphanFilesContext {
+    imported_files: HashSet<PathBuf>,
+}
+
+impl NoOrphanFilesContext {
+    pub fn new(import_graph: &ImportGraph) -> Self {
+        let imported_files = import_graph
+            .imported_files()
+            .cloned()
+            .unwrap_or_else(|| compute_imported_files(import_graph));
+        Self { imported_files }
+    }
+}
+
 pub fn check_file(
     file: &Path,
     _line_index: &LineIndex,
     import_graph: &ImportGraph,
+    context: &NoOrphanFilesContext,
     config: &NoOrphanFilesRuleConfig,
 ) -> Vec<Violation> {
     let Some(file_node) = import_graph.file_node(file) else {
@@ -27,12 +43,7 @@ pub fn check_file(
         return Vec::new();
     }
 
-    let imported_files = import_graph
-        .imported_files()
-        .cloned()
-        .unwrap_or_else(|| compute_imported_files(import_graph));
-
-    if imported_files.contains(&normalize_path(file)) {
+    if context.imported_files.contains(&normalize_path(file)) {
         return Vec::new();
     }
 
@@ -60,7 +71,7 @@ fn is_entry_file(file: &Path, entry_files: &[String]) -> bool {
 mod tests {
 
     use anyhow::Result;
-    use super::check_file;
+    use super::{NoOrphanFilesContext, check_file};
     use crate::config::structure::DomainConfig;
     use crate::config::{NoOrphanFilesRuleConfig, Severity};
     use crate::import_graph::build_import_graph_from_sources;
@@ -84,13 +95,20 @@ mod tests {
 
     fn run_check(file_path: &str, files_with_sources: &[(&str, &str)]) -> Vec<Violation> {
         let graph = build_import_graph_from_sources(files_with_sources, &test_domain(), None);
+        let context = NoOrphanFilesContext::new(&graph);
         let source = files_with_sources
             .iter()
             .find(|(path, _)| *path == file_path)
             .map(|(_, source)| *source)
             .unwrap_or("");
         let line_index = LineIndex::new(source);
-        check_file(Path::new(file_path), &line_index, &graph, &test_config())
+        check_file(
+            Path::new(file_path),
+            &line_index,
+            &graph,
+            &context,
+            &test_config(),
+        )
     }
 
     #[test]

@@ -557,6 +557,7 @@ impl GraphRule for NoCircularImportAdapter {
 
 pub struct NoOrphanFilesAdapter {
     pub config: crate::config::NoOrphanFilesRuleConfig,
+    pub context: no_orphan_files::NoOrphanFilesContext,
 }
 impl GraphRule for NoOrphanFilesAdapter {
     fn severity(&self) -> Severity {
@@ -567,6 +568,7 @@ impl GraphRule for NoOrphanFilesAdapter {
             ctx.file,
             ctx.line_index,
             ctx.import_graph.as_ref(),
+            &self.context,
             &self.config,
         )
     }
