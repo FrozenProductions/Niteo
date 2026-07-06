@@ -28,18 +28,18 @@ niteo lint --fix           # Lint, then apply fixes
 cli.rs: Command::Fix { dry_run }
    │
    ▼
-app.rs → commands::fix::fix_workspace()
+app.rs -> commands::fix::fix_workspace()
    │
    ├── analysis::collect()           # full lint pass
    ├── baseline::read_baseline()     # filter known violations
-   ├── filter fixable files          # from violation → rule metadata
+   ├── filter fixable files          # from violation -> rule metadata
    ├── for each file:
    │   ├── config_for_file()
    │   ├── build_file_rules()
    │   ├── parse AST
    │   ├── fix::collect_fixes()      # rule.fix() on enabled fixable rules
    │   └── accumulate Vec<Fix>
-   ├── if dry_run → fix::report_dry_run()
+   ├── if dry_run -> fix::report_dry_run()
    │   └── return
    ├── fix::apply_fixes()
    │   └── returns FixOutcome
@@ -186,7 +186,7 @@ The following rules support autofix. Each rule is classified by a capability lev
 | `prefer-satisfies`      | Conditional | Replaces `as` with `satisfies` for literal expressions cast with `as`. Preserves the type annotation. Does not modify `as const`, `as any`, or `as unknown` casts.                                                                                                       |
 | `no-any`                | Conditional | Replaces `any` type keyword with `unknown`. Applies to type annotations, generics, and type references. Skips generated files and configured allowed folders.                                                                                                            |
 | `no-process-env`        | Conditional | Adds `// niteo-ignore-line: no-process-env` to the end of each line with a `process.env` access. Deduplicates multiple accesses on the same line.                                                                                                                        |
-| `prefer-readonly`       | Safe        | Inserts `readonly` keyword before mutable array types (`string[]` → `readonly string[]`, `Array<T>` → `readonly Array<T>`) in exported function parameters and rest parameters.                                                                                          |
+| `prefer-readonly`       | Safe        | Inserts `readonly` keyword before mutable array types (`string[]` -> `readonly string[]`, `Array<T>` -> `readonly Array<T>`) in exported function parameters and rest parameters.                                                                                        |
 | `no-non-null-assertion` | Conditional | Removes the `!` non-null assertion operator. Converts `obj!.prop` to `obj.prop` and `fn()!` to `fn()`. Removes each `!` independently for nested assertions.                                                                                                             |
 | `sort-exports`          | Safe        | Reorders export declarations alphabetically by exported name. Default exports sort first. Groups separated by blank lines are sorted independently.                                                                                                                      |
 | `sort-imports`          | Safe        | Reorders import declarations alphabetically by module specifier. Groups separated by blank lines are sorted independently.                                                                                                                                               |

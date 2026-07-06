@@ -644,6 +644,25 @@ pub fn collect_incremental(
     }
 
     let mut file_violations: Vec<rules::Violation> = Vec::with_capacity(previous.violations.len());
+    // Unaffected files keep their previous violations. This is sound because
+    // affected_files() runs a bidirectional BFS over the union of old+new
+    // import graphs, seeded from every changed/removed file. A graph-rule
+    // violation for an unchanged file F can only change if some edge incident
+    // to F (importing or imported-by) changed — and the BFS follows all such
+    // edges transitively, so F is guaranteed to be reachable.
+    //
+    // Edge-local rules (no_upward_import, layer_boundaries, no_test_import,
+    // no_barrel_chain, no_private_package_import, no_package_cycle) depend
+    // only on edges_from(F). If F is unchanged, its own edges are identical,
+    // so these rules produce identical violations.
+    //
+    // Global rules (no_circular_import, no_orphan_files) depend on the SCC or
+    // imported-files set. For no_circular_import: if F's cycle membership
+    // changed, some edge in the SCC was added/removed in a changed file C;
+    // SCC strong-connectivity guarantees a path C -> … -> F in the old or new
+    // graph, so the BFS reaches F. For no_orphan_files: if F's imported
+    // status changed, some changed file C started or stopped importing F
+    // (forward edge C->F exists in old or new graph), so the BFS reaches F.
     for file in &files {
         if files_to_lint.contains(file) {
             if let Some(violations) = new_violations.get(file) {
@@ -877,6 +896,68 @@ mod tests {
                 .iter()
                 .map(|v| v.rule)
                 .collect::<Vec<_>>()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn incremental_bfs_reaches_scc_member_when_cycle_broken() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("src"))?;
+        std::fs::write(root.join("src/a.ts"), "import { b } from './b';\n")?;
+        std::fs::write(root.join("src/b.ts"), "import { c } from './c';\n")?;
+        std::fs::write(root.join("src/c.ts"), "import { a } from './a';\n")?;
+
+        let initial = collect(root, analysis_options())?;
+        assert!(initial.violations.iter().any(
+            |v| v.file == root.join("src/a.ts") && v.rule == rules::NO_CIRCULAR_IMPORT_RULE_ID
+        ));
+
+        // Break the cycle: B drops its import of C. A and C are unchanged.
+        std::fs::write(root.join("src/b.ts"), "export const b = 1;\n")?;
+        let changed = vec![root.join("src/b.ts")];
+        let incremental = collect_incremental(root, &initial, &changed)?;
+        assert!(
+            !incremental
+                .violations
+                .iter()
+                .any(|v| v.file == root.join("src/a.ts")
+                    && v.rule == rules::NO_CIRCULAR_IMPORT_RULE_ID),
+            "a.ts should no longer report circular import after cycle is broken via changed b.ts"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn incremental_bfs_reaches_orphan_when_new_importer_added() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("src"))?;
+        std::fs::write(root.join("src/a.ts"), "export const a = 1;\n")?;
+        std::fs::write(root.join("src/main.ts"), "export const x = 1;\n")?;
+
+        let initial = collect(root, analysis_options())?;
+        assert!(
+            initial.violations.iter().any(
+                |v| v.file == root.join("src/a.ts") && v.rule == rules::NO_ORPHAN_FILES_RULE_ID
+            )
+        );
+
+        // main.ts starts importing a.ts. a.ts is unchanged, main.ts is changed.
+        std::fs::write(
+            root.join("src/main.ts"),
+            "import { a } from './a';\nexport const x = 1;\n",
+        )?;
+        let changed = vec![root.join("src/main.ts")];
+        let incremental = collect_incremental(root, &initial, &changed)?;
+        assert!(
+            !incremental.violations.iter().any(
+                |v| v.file == root.join("src/a.ts") && v.rule == rules::NO_ORPHAN_FILES_RULE_ID
+            ),
+            "a.ts (unchanged) should no longer be orphan after main.ts imports it"
         );
 
         Ok(())

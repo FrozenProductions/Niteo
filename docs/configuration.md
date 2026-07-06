@@ -148,10 +148,10 @@ Layers are ordered from highest (app-specific) to lowest (shared utilities). A f
 With the example above:
 
 ```text
-app       → can import from features, entities, shared
-features  → can import from entities, shared
-entities  → can import from shared
-shared    → cannot import from app, features, or entities
+app       -> can import from features, entities, shared
+features  -> can import from entities, shared
+entities  -> can import from shared
+shared    -> cannot import from app, features, or entities
 ```
 
 Each layer definition uses the same `folders` and `file-suffixes` matching as structure domains. When a file matches multiple layers, the most specific folder match wins. Files matching no layer are ignored by `layer-boundaries`.
@@ -346,7 +346,7 @@ Every rule also supports `severity`.
 
 ## Cascading Configs
 
-Niteo supports nested `niteo.toml` files for monorepos and multi-package projects. When Niteo discovers a `niteo.toml` inside a subdirectory, it merges that config on top of its direct parent config. Multi-level nesting (`root → packages/ → packages/admin/`) cascades correctly — each child inherits from its immediate parent.
+Niteo supports nested `niteo.toml` files for monorepos and multi-package projects. When Niteo discovers a `niteo.toml` inside a subdirectory, it merges that config on top of its direct parent config. Multi-level nesting (`root -> packages/ -> packages/admin/`) cascades correctly — each child inherits from its immediate parent.
 
 To enforce a single root policy and reject all nested overrides, use `--deny-child-configs`. See [CI Usage](./ci.md#enforcing-config-policy) for details.
 

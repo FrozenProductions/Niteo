@@ -861,7 +861,7 @@ severity = "warn"
 A cycle exists when package A depends on package B and package B depends (directly or transitively) on package A. These cycles can cause initialization deadlocks and make dependency relationships unclear.
 
 ```
-packages/a → packages/b → packages/c → packages/a  ❌
+packages/a -> packages/b -> packages/c -> packages/a  ❌
 ```
 
 ### `no-private-package-import`
