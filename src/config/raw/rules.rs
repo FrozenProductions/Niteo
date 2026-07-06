@@ -26,7 +26,7 @@ macro_rules! declare_option_converters {
         ),* $(,)?
     ) => {
         $(
-            pub fn $method(&self) -> Result<$config_type, String> {
+            pub fn $method(&self, default_severity: Severity) -> Result<$config_type, String> {
                 match self {
                     Self::Severity(severity) => {
                         let mut cfg = <$config_type>::default();
@@ -37,7 +37,7 @@ macro_rules! declare_option_converters {
                         let mut cfg = <$config_type>::default();
                         cfg.severity = match options.severity.as_deref() {
                             Some(severity) => severity.parse::<Severity>()?,
-                            None => Severity::Warn,
+                            None => default_severity,
                         };
                         $( cfg.$field = options.$field.unwrap_or($default); )*
                         $( cfg.$clone_field = options.$clone_field.clone().unwrap_or_else(|| <$config_type>::default().$clone_field); )*
@@ -55,7 +55,7 @@ macro_rules! declare_raw_rules {
             $( $simple_method:ident => $simple_name:literal ),* $(,)?
         }
         custom_default {
-            $( $cd_method:ident => ($cd_name:literal, $cd_sev:expr) ),* $(,)?
+            $( $cd_method:ident => $cd_name:literal ),* $(,)?
         }
         custom {
             $( $custom_method:ident => ($custom_name:literal, $custom_converter:ident, $custom_type:ty) ),* $(,)?
@@ -67,42 +67,47 @@ macro_rules! declare_raw_rules {
             }
 
             pub fn rules_config(&self) -> Result<RulesConfig, String> {
+                let defaults = RulesConfig::default();
                 Ok(RulesConfig {
-                    $( $simple_method: self.$simple_method()?, )*
-                    $( $cd_method: self.$cd_method()?, )*
-                    $( $custom_method: self.$custom_method()?, )*
+                    $( $simple_method: self.$simple_method(defaults.$simple_method.severity)?, )*
+                    $( $cd_method: self.$cd_method(defaults.$cd_method.severity)?, )*
+                    $( $custom_method: self.$custom_method(defaults.$custom_method.severity)?, )*
                 })
             }
 
             $(
-                fn $simple_method(&self) -> Result<RuleConfig, String> {
+                fn $simple_method(&self, default_severity: Severity) -> Result<RuleConfig, String> {
                     match self.rule($simple_name) {
-                        Some(rule) => rule.to_rule_config().map_err(|error| {
+                        Some(rule) => rule.to_rule_config_with_default(default_severity).map_err(|error| {
                             format!("in rule '{}': {}", $simple_name, error)
                         }),
-                        None => Ok(RuleConfig::default()),
+                        None => Ok(RuleConfig { severity: default_severity }),
                     }
                 }
             )*
 
             $(
-                fn $cd_method(&self) -> Result<RuleConfig, String> {
+                fn $cd_method(&self, default_severity: Severity) -> Result<RuleConfig, String> {
                     match self.rule($cd_name) {
-                        Some(rule) => rule.to_rule_config_with_default($cd_sev).map_err(|error| {
+                        Some(rule) => rule.to_rule_config_with_default(default_severity).map_err(|error| {
                             format!("in rule '{}': {}", $cd_name, error)
                         }),
-                        None => Ok(RuleConfig { severity: $cd_sev }),
+                        None => Ok(RuleConfig { severity: default_severity }),
                     }
                 }
             )*
 
             $(
-                fn $custom_method(&self) -> Result<$custom_type, String> {
+                fn $custom_method(&self, default_severity: Severity) -> Result<$custom_type, String> {
                     match self.rule($custom_name) {
-                        Some(rule) => RawRuleConfig::$custom_converter(rule).map_err(|error| {
+                        Some(rule) => RawRuleConfig::$custom_converter(rule, default_severity).map_err(|error| {
                             format!("in rule '{}': {}", $custom_name, error)
                         }),
-                        None => Ok(<$custom_type>::default()),
+                        None => {
+                            let mut cfg = <$custom_type>::default();
+                            cfg.severity = default_severity;
+                            Ok(cfg)
+                        }
                     }
                 }
             )*
@@ -143,10 +148,6 @@ impl RawRuleConfig {
 }
 
 impl RawRuleConfig {
-    pub fn to_rule_config(&self) -> Result<RuleConfig, String> {
-        self.to_rule_config_with_default(Severity::Warn)
-    }
-
     pub fn to_rule_config_with_default(
         &self,
         default_severity: Severity,
@@ -291,7 +292,10 @@ impl RawRuleConfig {
         }
     }
 
-    pub fn to_no_nested_functions_config(&self) -> Result<NoNestedFunctionsRuleConfig, String> {
+    pub fn to_no_nested_functions_config(
+        &self,
+        default_severity: Severity,
+    ) -> Result<NoNestedFunctionsRuleConfig, String> {
         match self {
             Self::Severity(severity) => Ok(NoNestedFunctionsRuleConfig {
                 severity: severity.parse::<Severity>()?,
@@ -311,7 +315,7 @@ impl RawRuleConfig {
                 Ok(NoNestedFunctionsRuleConfig {
                     severity: match options.severity.as_deref() {
                         Some(severity) => severity.parse::<Severity>()?,
-                        None => Severity::Warn,
+                        None => default_severity,
                     },
                     max_depth: options.max_depth.unwrap_or(2),
                     contexts,
@@ -487,9 +491,9 @@ declare_raw_rules! {
         sort_exports => "sort-exports",
     }
     custom_default {
-        layer_boundaries => ("layer-boundaries", Severity::Off),
-        no_empty_interface => ("no-empty-interface", Severity::Error),
-        prefer_satisfies => ("prefer-satisfies", Severity::Info),
+        layer_boundaries => "layer-boundaries",
+        no_empty_interface => "no-empty-interface",
+        prefer_satisfies => "prefer-satisfies",
     }
     custom {
         directory_must_have_barrel => ("directory-must-have-barrel", to_barrel_config, BarrelRuleConfig),
