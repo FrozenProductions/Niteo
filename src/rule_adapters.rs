@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::config::Severity;
 use crate::rules::*;
 
@@ -56,7 +58,7 @@ ast_rule_adapter!(
 
 pub struct NoDefaultExportAdapter {
     pub config: crate::config::NoDefaultExportRuleConfig,
-    pub components: crate::config::structure::DomainConfig,
+    pub components: Arc<crate::config::structure::DomainConfig>,
 }
 impl AstRule for NoDefaultExportAdapter {
     fn severity(&self) -> Severity {
@@ -68,7 +70,7 @@ impl AstRule for NoDefaultExportAdapter {
             ctx.program,
             ctx.line_index,
             &self.config,
-            &self.components,
+            self.components.as_ref(),
         )
     }
 }
@@ -373,7 +375,7 @@ fixable_ast_rule_adapter!(
 
 pub struct NoInlineTypesAdapter {
     pub config: crate::config::RuleConfig,
-    pub types: crate::config::structure::DomainConfig,
+    pub types: Arc<crate::config::structure::DomainConfig>,
 }
 impl AstRule for NoInlineTypesAdapter {
     fn severity(&self) -> Severity {
@@ -386,14 +388,14 @@ impl AstRule for NoInlineTypesAdapter {
             ctx.line_index,
             &self.config,
             ctx.type_location_style,
-            &self.types,
+            self.types.as_ref(),
         )
     }
 }
 
 pub struct HookNoJsxAdapter {
     pub config: crate::config::RuleConfig,
-    pub hooks: crate::config::structure::DomainConfig,
+    pub hooks: Arc<crate::config::structure::DomainConfig>,
 }
 impl AstRule for HookNoJsxAdapter {
     fn severity(&self) -> Severity {
@@ -405,14 +407,14 @@ impl AstRule for HookNoJsxAdapter {
             ctx.program,
             ctx.line_index,
             &self.config,
-            &self.hooks,
+            self.hooks.as_ref(),
         )
     }
 }
 
 pub struct HookPrefixAdapter {
     pub config: crate::config::HookPrefixRuleConfig,
-    pub hooks: crate::config::structure::DomainConfig,
+    pub hooks: Arc<crate::config::structure::DomainConfig>,
 }
 impl AstRule for HookPrefixAdapter {
     fn severity(&self) -> Severity {
@@ -424,14 +426,14 @@ impl AstRule for HookPrefixAdapter {
             ctx.program,
             ctx.line_index,
             &self.config,
-            &self.hooks,
+            self.hooks.as_ref(),
         )
     }
 }
 
 pub struct ComponentFileOnlyComponentsAdapter {
     pub config: crate::config::RuleConfig,
-    pub components: crate::config::structure::DomainConfig,
+    pub components: Arc<crate::config::structure::DomainConfig>,
 }
 impl AstRule for ComponentFileOnlyComponentsAdapter {
     fn severity(&self) -> Severity {
@@ -443,14 +445,14 @@ impl AstRule for ComponentFileOnlyComponentsAdapter {
             ctx.program,
             ctx.line_index,
             &self.config,
-            &self.components,
+            self.components.as_ref(),
         )
     }
 }
 
 pub struct NoTestCodeInProductionAdapter {
     pub config: crate::config::RuleConfig,
-    pub tests: crate::config::structure::DomainConfig,
+    pub tests: Arc<crate::config::structure::DomainConfig>,
 }
 impl AstRule for NoTestCodeInProductionAdapter {
     fn severity(&self) -> Severity {
@@ -462,14 +464,14 @@ impl AstRule for NoTestCodeInProductionAdapter {
             ctx.program,
             ctx.line_index,
             &self.config,
-            &self.tests,
+            self.tests.as_ref(),
         )
     }
 }
 
 pub struct NoTestImportAdapter {
     pub config: crate::config::RuleConfig,
-    pub tests: crate::config::structure::DomainConfig,
+    pub tests: Arc<crate::config::structure::DomainConfig>,
 }
 impl GraphRule for NoTestImportAdapter {
     fn severity(&self) -> Severity {
@@ -481,14 +483,14 @@ impl GraphRule for NoTestImportAdapter {
             ctx.line_index,
             ctx.import_graph.as_ref(),
             &self.config,
-            &self.tests,
+            self.tests.as_ref(),
         )
     }
 }
 
 pub struct NoAnyAdapter {
     pub config: crate::config::NoAnyRuleConfig,
-    pub generated: crate::config::structure::DomainConfig,
+    pub generated: Arc<crate::config::structure::DomainConfig>,
 }
 impl AstRule for NoAnyAdapter {
     fn severity(&self) -> Severity {
@@ -500,7 +502,7 @@ impl AstRule for NoAnyAdapter {
             ctx.program,
             ctx.line_index,
             &self.config,
-            &self.generated,
+            self.generated.as_ref(),
         )
     }
 
@@ -514,7 +516,7 @@ impl AstRule for NoAnyAdapter {
             ctx.program,
             ctx.source,
             &self.config,
-            &self.generated,
+            self.generated.as_ref(),
         )
     }
 }
@@ -576,8 +578,8 @@ impl GraphRule for NoOrphanFilesAdapter {
 
 pub struct NoLogicInDomainAdapter {
     pub config: crate::config::RuleConfig,
-    pub types: crate::config::structure::DomainConfig,
-    pub constants: crate::config::structure::DomainConfig,
+    pub types: Arc<crate::config::structure::DomainConfig>,
+    pub constants: Arc<crate::config::structure::DomainConfig>,
 }
 impl AstRule for NoLogicInDomainAdapter {
     fn severity(&self) -> Severity {
@@ -589,8 +591,8 @@ impl AstRule for NoLogicInDomainAdapter {
             ctx.program,
             ctx.line_index,
             &self.config,
-            &self.types,
-            &self.constants,
+            self.types.as_ref(),
+            self.constants.as_ref(),
         )
     }
 }

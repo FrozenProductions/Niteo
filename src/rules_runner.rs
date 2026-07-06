@@ -375,192 +375,374 @@ pub fn build_file_rules(
     import_graph: Arc<ImportGraph>,
     workspace: Option<Arc<crate::workspace::Workspace>>,
 ) -> FileRuleSet {
-    let mut ast_rules: Vec<Box<dyn crate::rules::AstRule + Send + Sync>> = vec![
-        Box::new(BooleanPrefixAdapter {
+    let components = Arc::new(structure.components.clone());
+    let types = Arc::new(structure.types.clone());
+    let hooks = Arc::new(structure.hooks.clone());
+    let tests = Arc::new(structure.tests.clone());
+    let generated = Arc::new(structure.generated.clone());
+    let constants = Arc::new(structure.constants.clone());
+
+    let mut ast_rules: Vec<Box<dyn crate::rules::AstRule + Send + Sync>> = Vec::new();
+
+    macro_rules! push_ast {
+        ($rule_config:expr, $adapter:expr) => {
+            if $rule_config.severity.is_enabled() {
+                ast_rules.push(Box::new($adapter));
+            }
+        };
+    }
+
+    push_ast!(
+        config.boolean_prefix,
+        BooleanPrefixAdapter {
             config: config.boolean_prefix.clone(),
-        }),
-        Box::new(NoConsoleAdapter {
+        }
+    );
+    push_ast!(
+        config.no_console,
+        NoConsoleAdapter {
             config: config.no_console.clone(),
-        }),
-        Box::new(NoDefaultExportAdapter {
+        }
+    );
+    push_ast!(
+        config.no_default_export,
+        NoDefaultExportAdapter {
             config: config.no_default_export.clone(),
-            components: structure.components.clone(),
-        }),
-        Box::new(NoExportStarAdapter {
+            components: components.clone(),
+        }
+    );
+    push_ast!(
+        config.no_export_star,
+        NoExportStarAdapter {
             config: config.no_export_star.clone(),
-        }),
-        Box::new(NoFocusedTestAdapter {
+        }
+    );
+    push_ast!(
+        config.no_focused_test,
+        NoFocusedTestAdapter {
             config: config.no_focused_test.clone(),
-        }),
-        Box::new(MaxFileExportsAdapter {
+        }
+    );
+    push_ast!(
+        config.max_file_exports,
+        MaxFileExportsAdapter {
             config: config.max_file_exports.clone(),
-        }),
-        Box::new(MaxFunctionParamsAdapter {
+        }
+    );
+    push_ast!(
+        config.max_function_params,
+        MaxFunctionParamsAdapter {
             config: config.max_function_params.clone(),
-        }),
-        Box::new(NoEnumsAdapter {
+        }
+    );
+    push_ast!(
+        config.no_enums,
+        NoEnumsAdapter {
             config: config.no_enums.clone(),
-        }),
-        Box::new(NoDebuggerAdapter {
+        }
+    );
+    push_ast!(
+        config.no_debugger,
+        NoDebuggerAdapter {
             config: config.no_debugger.clone(),
-        }),
-        Box::new(NoEvalAdapter {
+        }
+    );
+    push_ast!(
+        config.no_eval,
+        NoEvalAdapter {
             config: config.no_eval.clone(),
-        }),
-        Box::new(NoSideEffectImportsAdapter {
+        }
+    );
+    push_ast!(
+        config.no_side_effect_imports,
+        NoSideEffectImportsAdapter {
             config: config.no_side_effect_imports.clone(),
-        }),
-        Box::new(SortImportsAdapter {
+        }
+    );
+    push_ast!(
+        config.sort_imports,
+        SortImportsAdapter {
             config: config.sort_imports.clone(),
-        }),
-        Box::new(SortExportsAdapter {
+        }
+    );
+    push_ast!(
+        config.sort_exports,
+        SortExportsAdapter {
             config: config.sort_exports.clone(),
-        }),
-        Box::new(NoEmptyInterfaceAdapter {
+        }
+    );
+    push_ast!(
+        config.no_empty_interface,
+        NoEmptyInterfaceAdapter {
             config: config.no_empty_interface.clone(),
-        }),
-        Box::new(NoInterfaceAdapter {
+        }
+    );
+    push_ast!(
+        config.no_interface,
+        NoInterfaceAdapter {
             config: config.no_interface.clone(),
-        }),
-        Box::new(NoMutableExportsAdapter {
+        }
+    );
+    push_ast!(
+        config.no_mutable_exports,
+        NoMutableExportsAdapter {
             config: config.no_mutable_exports.clone(),
-        }),
-        Box::new(NoNamespaceAdapter {
+        }
+    );
+    push_ast!(
+        config.no_namespace,
+        NoNamespaceAdapter {
             config: config.no_namespace.clone(),
-        }),
-        Box::new(NoSilentCatchAdapter {
+        }
+    );
+    push_ast!(
+        config.no_silent_catch,
+        NoSilentCatchAdapter {
             config: config.no_silent_catch.clone(),
-        }),
-        Box::new(NoSkippedTestAdapter {
+        }
+    );
+    push_ast!(
+        config.no_skipped_test,
+        NoSkippedTestAdapter {
             config: config.no_skipped_test.clone(),
-        }),
-        Box::new(NoThenChainAdapter {
+        }
+    );
+    push_ast!(
+        config.no_then_chain,
+        NoThenChainAdapter {
             config: config.no_then_chain.clone(),
-        }),
-        Box::new(EntryFileNoLogicAdapter {
+        }
+    );
+    push_ast!(
+        config.entry_file_no_logic,
+        EntryFileNoLogicAdapter {
             config: config.entry_file_no_logic.clone(),
-        }),
-        Box::new(ExplicitReturnTypeAdapter {
+        }
+    );
+    push_ast!(
+        config.explicit_return_type,
+        ExplicitReturnTypeAdapter {
             config: config.explicit_return_type.clone(),
-        }),
-        Box::new(NoNonNullAssertionAdapter {
+        }
+    );
+    push_ast!(
+        config.no_non_null_assertion,
+        NoNonNullAssertionAdapter {
             config: config.no_non_null_assertion.clone(),
-        }),
-        Box::new(NoAwaitInLoopAdapter {
+        }
+    );
+    push_ast!(
+        config.no_await_in_loop,
+        NoAwaitInLoopAdapter {
             config: config.no_await_in_loop.clone(),
-        }),
-        Box::new(NoPromiseExecutorReturnAdapter {
+        }
+    );
+    push_ast!(
+        config.no_promise_executor_return,
+        NoPromiseExecutorReturnAdapter {
             config: config.no_promise_executor_return.clone(),
-        }),
-        Box::new(NoUnsafeOptionalChainingAdapter {
+        }
+    );
+    push_ast!(
+        config.no_unsafe_optional_chaining,
+        NoUnsafeOptionalChainingAdapter {
             config: config.no_unsafe_optional_chaining.clone(),
-        }),
-        Box::new(NoMagicNumbersAdapter {
+        }
+    );
+    push_ast!(
+        config.no_magic_numbers,
+        NoMagicNumbersAdapter {
             config: config.no_magic_numbers.clone(),
-        }),
-        Box::new(NoTypeAssertionAdapter {
+        }
+    );
+    push_ast!(
+        config.no_type_assertion,
+        NoTypeAssertionAdapter {
             config: config.no_type_assertion.clone(),
-        }),
-        Box::new(NoUnnecessaryTypeAssertionAdapter {
+        }
+    );
+    push_ast!(
+        config.no_unnecessary_type_assertion,
+        NoUnnecessaryTypeAssertionAdapter {
             config: config.no_unnecessary_type_assertion.clone(),
-        }),
-        Box::new(NoProcessEnvAdapter {
+        }
+    );
+    push_ast!(
+        config.no_process_env,
+        NoProcessEnvAdapter {
             config: config.no_process_env.clone(),
-        }),
-        Box::new(NoAbbreviationsAdapter {
+        }
+    );
+    push_ast!(
+        config.no_abbreviations,
+        NoAbbreviationsAdapter {
             config: config.no_abbreviations.clone(),
-        }),
-        Box::new(NoRestrictedImportsAdapter {
+        }
+    );
+    push_ast!(
+        config.no_restricted_imports,
+        NoRestrictedImportsAdapter {
             config: config.no_restricted_imports.clone(),
-        }),
-        Box::new(NoInlineTypesAdapter {
+        }
+    );
+    push_ast!(
+        config.no_inline_types,
+        NoInlineTypesAdapter {
             config: config.no_inline_types.clone(),
-            types: structure.types.clone(),
-        }),
-        Box::new(HookNoJsxAdapter {
+            types: types.clone(),
+        }
+    );
+    push_ast!(
+        config.hook_no_jsx,
+        HookNoJsxAdapter {
             config: config.hook_no_jsx.clone(),
-            hooks: structure.hooks.clone(),
-        }),
-        Box::new(HookPrefixAdapter {
+            hooks: hooks.clone(),
+        }
+    );
+    push_ast!(
+        config.hook_prefix,
+        HookPrefixAdapter {
             config: config.hook_prefix.clone(),
-            hooks: structure.hooks.clone(),
-        }),
-        Box::new(ComponentFileOnlyComponentsAdapter {
+            hooks: hooks.clone(),
+        }
+    );
+    push_ast!(
+        config.component_file_only_components,
+        ComponentFileOnlyComponentsAdapter {
             config: config.component_file_only_components.clone(),
-            components: structure.components.clone(),
-        }),
-        Box::new(NoTestCodeInProductionAdapter {
+            components: components.clone(),
+        }
+    );
+    push_ast!(
+        config.no_test_code_in_production,
+        NoTestCodeInProductionAdapter {
             config: config.no_test_code_in_production.clone(),
-            tests: structure.tests.clone(),
-        }),
-        Box::new(NoAnyAdapter {
+            tests: tests.clone(),
+        }
+    );
+    push_ast!(
+        config.no_any,
+        NoAnyAdapter {
             config: config.no_any.clone(),
-            generated: structure.generated.clone(),
-        }),
-        Box::new(NoNestedFunctionsAdapter {
+            generated: generated.clone(),
+        }
+    );
+    push_ast!(
+        config.no_nested_functions,
+        NoNestedFunctionsAdapter {
             config: config.no_nested_functions.clone(),
-        }),
-        Box::new(NoCommentsAdapter {
+        }
+    );
+    push_ast!(
+        config.no_comments,
+        NoCommentsAdapter {
             config: config.no_comments.clone(),
-        }),
-        Box::new(NoLogicInBarrelAdapter {
+        }
+    );
+    push_ast!(
+        config.no_logic_in_barrel,
+        NoLogicInBarrelAdapter {
             config: config.no_logic_in_barrel.clone(),
-        }),
-        Box::new(NoBarrelFilesAdapter {
+        }
+    );
+    push_ast!(
+        config.no_barrel_files,
+        NoBarrelFilesAdapter {
             config: config.no_barrel_files.clone(),
-        }),
-        Box::new(PreferSatisfiesAdapter {
+        }
+    );
+    push_ast!(
+        config.prefer_satisfies,
+        PreferSatisfiesAdapter {
             config: config.prefer_satisfies.clone(),
-        }),
-        Box::new(PreferReadonlyAdapter {
+        }
+    );
+    push_ast!(
+        config.prefer_readonly,
+        PreferReadonlyAdapter {
             config: config.prefer_readonly.clone(),
-        }),
-    ];
+        }
+    );
+    push_ast!(
+        config.no_logic_in_domain,
+        NoLogicInDomainAdapter {
+            config: config.no_logic_in_domain.clone(),
+            types: types.clone(),
+            constants: constants.clone(),
+        }
+    );
 
-    ast_rules.push(Box::new(NoLogicInDomainAdapter {
-        config: config.no_logic_in_domain.clone(),
-        types: structure.types.clone(),
-        constants: structure.constants.clone(),
-    }));
-
-    let text_rules: Vec<Box<dyn crate::rules::TextRule + Send + Sync>> =
-        vec![Box::new(NoLargeFileAdapter {
+    let mut text_rules: Vec<Box<dyn crate::rules::TextRule + Send + Sync>> = Vec::new();
+    if config.no_large_file.severity.is_enabled() {
+        text_rules.push(Box::new(NoLargeFileAdapter {
             config: config.no_large_file.clone(),
-        })];
+        }));
+    }
 
-    let mut graph_rules: Vec<Box<dyn crate::rules::GraphRule + Send + Sync>> = vec![
-        Box::new(NoUpwardImportAdapter {
+    let mut graph_rules: Vec<Box<dyn crate::rules::GraphRule + Send + Sync>> = Vec::new();
+
+    macro_rules! push_graph {
+        ($rule_config:expr, $adapter:expr) => {
+            if $rule_config.severity.is_enabled() {
+                graph_rules.push(Box::new($adapter));
+            }
+        };
+    }
+
+    push_graph!(
+        config.no_upward_import,
+        NoUpwardImportAdapter {
             config: config.no_upward_import.clone(),
-        }),
-        Box::new(LayerBoundariesAdapter {
+        }
+    );
+    push_graph!(
+        config.layer_boundaries,
+        LayerBoundariesAdapter {
             config: config.layer_boundaries.clone(),
             layers: architecture.layers.clone(),
-        }),
-        Box::new(NoTestImportAdapter {
+        }
+    );
+    push_graph!(
+        config.no_test_import,
+        NoTestImportAdapter {
             config: config.no_test_import.clone(),
-            tests: structure.tests.clone(),
-        }),
-        Box::new(NoBarrelChainAdapter {
+            tests: tests.clone(),
+        }
+    );
+    push_graph!(
+        config.no_barrel_chain,
+        NoBarrelChainAdapter {
             config: config.no_barrel_chain.clone(),
-        }),
-        Box::new(NoCircularImportAdapter {
+        }
+    );
+    push_graph!(
+        config.no_circular_import,
+        NoCircularImportAdapter {
             config: config.no_circular_import.clone(),
             context: crate::rules::no_circular_import::CircularImportContext::new(
                 import_graph.as_ref(),
             ),
-        }),
-        Box::new(NoOrphanFilesAdapter {
+        }
+    );
+    push_graph!(
+        config.no_orphan_files,
+        NoOrphanFilesAdapter {
             config: config.no_orphan_files.clone(),
             context: crate::rules::no_orphan_files::NoOrphanFilesContext::new(
                 import_graph.as_ref(),
             ),
-        }),
-        Box::new(NoPrivatePackageImportAdapter {
+        }
+    );
+    push_graph!(
+        config.no_private_package_import,
+        NoPrivatePackageImportAdapter {
             config: config.no_private_package_import.clone(),
-        }),
-    ];
+        }
+    );
 
-    if let Some(workspace) = workspace {
+    if config.no_package_cycle.severity.is_enabled()
+        && let Some(workspace) = workspace
+    {
         graph_rules.push(Box::new(NoPackageCycleAdapter {
             config: config.no_package_cycle.clone(),
             context: crate::rules::no_package_cycle::PackageCycleContext::new(
