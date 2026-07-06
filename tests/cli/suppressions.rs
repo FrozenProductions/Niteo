@@ -23,7 +23,7 @@ fn file_level_suppression_hides_violations() -> Result<()> {
             v["file"]
                 .as_str()
                 .context("expected file string")
-                .map_or(false, |s| s.contains("file_ignore.ts"))
+                .is_ok_and(|s| s.contains("file_ignore.ts"))
         })
         .collect();
 
@@ -54,7 +54,7 @@ fn next_line_suppression_hides_targeted_violation() -> Result<()> {
             v["file"]
                 .as_str()
                 .context("expected file string")
-                .map_or(false, |s| s.contains("next_line.ts"))
+                .is_ok_and(|s| s.contains("next_line.ts"))
                 && v["line"].as_u64() == Some(2)
         })
         .collect();
@@ -70,7 +70,7 @@ fn next_line_suppression_hides_targeted_violation() -> Result<()> {
             v["file"]
                 .as_str()
                 .context("expected file string")
-                .map_or(false, |s| s.contains("next_line.ts"))
+                .is_ok_and(|s| s.contains("next_line.ts"))
                 && v["line"].as_u64() == Some(3)
         })
         .collect();
@@ -102,7 +102,7 @@ fn same_line_suppression_hides_targeted_violation() -> Result<()> {
             v["file"]
                 .as_str()
                 .context("expected file string")
-                .map_or(false, |s| s.contains("same_line.ts"))
+                .is_ok_and(|s| s.contains("same_line.ts"))
                 && v["line"].as_u64() == Some(1)
         })
         .collect();
@@ -134,7 +134,7 @@ fn rule_scoped_suppression_only_affects_target_rule() -> Result<()> {
             v["file"]
                 .as_str()
                 .context("expected file string")
-                .map_or(false, |s| s.contains("next_line.ts"))
+                .is_ok_and(|s| s.contains("next_line.ts"))
                 && v["line"].as_u64() == Some(2)
                 && v["rule"].as_str() == Some("no-console")
         })

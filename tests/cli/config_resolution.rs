@@ -48,7 +48,7 @@ fn nested_config_changes_severity() -> Result<()> {
             v["file"]
                 .as_str()
                 .context("expected file string")
-                .map_or(false, |s| s.contains("packages/app"))
+                .is_ok_and(|s| s.contains("packages/app"))
         })
         .collect();
 
@@ -95,7 +95,7 @@ fn scoped_run_limits_to_package() -> Result<()> {
             v["file"]
                 .as_str()
                 .context("expected file string")
-                .map_or(false, |s| s.contains("packages/lib"))
+                .is_ok_and(|s| s.contains("packages/lib"))
         })
         .collect();
 
@@ -159,7 +159,7 @@ fn config_merging_produces_expected_severities() -> Result<()> {
             v["file"]
                 .as_str()
                 .context("expected file string")
-                .map_or(false, |s| s.contains("packages/lib"))
+                .is_ok_and(|s| s.contains("packages/lib"))
                 && v["rule"].as_str() == Some("no-console")
         })
         .collect();
@@ -180,7 +180,7 @@ fn config_merging_produces_expected_severities() -> Result<()> {
             v["file"]
                 .as_str()
                 .context("expected file string")
-                .map_or(false, |s| s.contains("packages/app"))
+                .is_ok_and(|s| s.contains("packages/app"))
                 && v["rule"].as_str() == Some("no-console")
         })
         .collect();

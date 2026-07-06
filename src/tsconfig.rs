@@ -210,21 +210,6 @@ fn split_pattern(pattern: &str) -> (String, String) {
     }
 }
 
-pub fn match_alias<'a>(alias: &ResolvedPathAlias, specifier: &'a str) -> Option<&'a str> {
-    if alias.pattern.contains('*') {
-        if specifier.starts_with(&alias.prefix) && specifier.ends_with(&alias.suffix) {
-            let wildcard_start = alias.prefix.len();
-            let wildcard_end = specifier.len().saturating_sub(alias.suffix.len());
-            if wildcard_end >= wildcard_start {
-                return Some(specifier.get(wildcard_start..wildcard_end).unwrap_or(""));
-            }
-        }
-    } else if specifier == alias.pattern {
-        return Some("");
-    }
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,49 +320,6 @@ mod tests {
 
         let result = discover_and_parse(dir.path())?;
         assert!(result.is_some());
-        Ok(())
-    }
-
-    #[test]
-    fn match_alias_wildcard_captures_middle() -> Result<()> {
-        let alias = ResolvedPathAlias {
-            pattern: "@/*".into(),
-            prefix: "@/".into(),
-            suffix: "".into(),
-            targets: vec![],
-        };
-        assert_eq!(match_alias(&alias, "@/shared/date"), Some("shared/date"));
-        assert_eq!(match_alias(&alias, "lodash"), None);
-        Ok(())
-    }
-
-    #[test]
-    fn match_alias_exact_does_not_match_prefix() -> Result<()> {
-        let alias = ResolvedPathAlias {
-            pattern: "react".into(),
-            prefix: "react".into(),
-            suffix: "".into(),
-            targets: vec![],
-        };
-        assert_eq!(match_alias(&alias, "react"), Some(""));
-        assert_eq!(match_alias(&alias, "react-dom"), None);
-        Ok(())
-    }
-
-    #[test]
-    fn match_alias_with_suffix_pattern() -> Result<()> {
-        let alias = ResolvedPathAlias {
-            pattern: "@features/*/utils".into(),
-            prefix: "@features/".into(),
-            suffix: "/utils".into(),
-            targets: vec![],
-        };
-        assert_eq!(match_alias(&alias, "@features/auth/utils"), Some("auth"));
-        assert_eq!(
-            match_alias(&alias, "@features/nested/dir/utils"),
-            Some("nested/dir")
-        );
-        assert_eq!(match_alias(&alias, "@features/auth/other"), None);
         Ok(())
     }
 

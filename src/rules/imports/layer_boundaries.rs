@@ -99,11 +99,12 @@ mod tests {
     }
 
     fn test_layers() -> LayerBoundaryConfig {
-        let mut order = Vec::new();
-        order.push("app".to_string());
-        order.push("features".to_string());
-        order.push("entities".to_string());
-        order.push("shared".to_string());
+        let order = vec![
+            "app".to_string(),
+            "features".to_string(),
+            "entities".to_string(),
+            "shared".to_string(),
+        ];
 
         let mut definitions = HashMap::new();
         definitions.insert(

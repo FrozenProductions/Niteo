@@ -71,31 +71,6 @@ fn render_diagnostics(diagnostics: &[crate::diagnostics::Diagnostic]) -> String 
     output
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::diagnostics::{Diagnostic, DiagnosticCategory};
-    use crate::report::model::Report;
-
-    #[test]
-    fn text_report_renders_diagnostics_section() {
-        let report = Report::new(vec![], vec![]).with_diagnostics(vec![Diagnostic::new(
-            DiagnosticCategory::Cache,
-            "failed to prepare cache",
-        )]);
-
-        let rendered = report.render_text(0);
-        assert!(rendered.contains("Diagnostics"));
-        assert!(rendered.contains("failed to prepare cache"));
-    }
-
-    #[test]
-    fn text_report_omits_diagnostics_when_empty() {
-        let report = Report::new(vec![], vec![]);
-        let rendered = report.render_text(0);
-        assert!(!rendered.contains("Diagnostics"));
-    }
-}
-
 fn render_end_summary(
     summary: &TextSummary,
     rule_groups: &[super::summary::RuleGroup<'_>],
@@ -330,5 +305,30 @@ fn render_line_numbers<'a>(
         format!("{DIM}{suffix}{RESET}").trim().to_string()
     } else {
         format!("{DIM}lines {lines}{suffix}{RESET}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::diagnostics::{Diagnostic, DiagnosticCategory};
+    use crate::report::model::Report;
+
+    #[test]
+    fn text_report_renders_diagnostics_section() {
+        let report = Report::new(vec![], vec![]).with_diagnostics(vec![Diagnostic::new(
+            DiagnosticCategory::Cache,
+            "failed to prepare cache",
+        )]);
+
+        let rendered = report.render_text(0);
+        assert!(rendered.contains("Diagnostics"));
+        assert!(rendered.contains("failed to prepare cache"));
+    }
+
+    #[test]
+    fn text_report_omits_diagnostics_when_empty() {
+        let report = Report::new(vec![], vec![]);
+        let rendered = report.render_text(0);
+        assert!(!rendered.contains("Diagnostics"));
     }
 }

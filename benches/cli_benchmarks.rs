@@ -90,26 +90,25 @@ export function useData{}({{ id }}: UseData{}Options) {{
         fs::write(dir.join(format!("src/hooks/useData{}.ts", i)), content)?;
     }
 
-    let app_content = format!(
-        r#"import React from 'react';
-import {{ Component1 }} from './components/component1';
-import {{ Component2 }} from './components/component2';
-import {{ Component3 }} from './components/component3';
-import {{ useData1 }} from './hooks/useData1';
+    let app_content = r#"import React from 'react';
+import { Component1 } from './components/component1';
+import { Component2 } from './components/component2';
+import { Component3 } from './components/component3';
+import { useData1 } from './hooks/useData1';
 
-export function App() {{
-  const data = useData1({{ id: 'main' }});
+export function App() {
+  const data = useData1({ id: 'main' });
   return (
     <div>
-      <Component1 title="First" count={{1}} />
-      <Component2 title="Second" count={{2}} />
-      <Component3 title="Third" count={{3}} />
-      <p>{{data}}</p>
+      <Component1 title="First" count={1} />
+      <Component2 title="Second" count={2} />
+      <Component3 title="Third" count={3} />
+      <p>{data}</p>
     </div>
   );
-}}
+}
 "#
-    );
+    .to_string();
     fs::write(dir.join("src/App.tsx"), app_content)?;
     Ok(())
 }

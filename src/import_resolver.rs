@@ -86,27 +86,6 @@ impl ImportResolverIndex {
         }
     }
 
-    pub(crate) fn resolve(&self, source_file: &Path, specifier: &str) -> Option<PathBuf> {
-        self.classify_and_resolve(source_file, specifier).1
-    }
-
-    pub(crate) fn classify_specifier(&self, specifier: &str) -> SpecifierKind {
-        if is_relative_specifier(specifier) {
-            return SpecifierKind::Relative;
-        }
-        if self.exact_aliases.contains_key(specifier) {
-            return SpecifierKind::Alias;
-        }
-        let candidates = self.collect_wildcard_candidates(specifier);
-        for &index in &candidates {
-            let alias = &self.aliases[index];
-            if Self::match_wildcard(alias, specifier).is_some() {
-                return SpecifierKind::Alias;
-            }
-        }
-        SpecifierKind::External
-    }
-
     pub(crate) fn classify_and_resolve(
         &self,
         source_file: &Path,
@@ -125,10 +104,10 @@ impl ImportResolverIndex {
         let candidates = self.collect_wildcard_candidates(specifier);
         for &index in &candidates {
             let alias = &self.aliases[index];
-            if let Some(captured) = Self::match_wildcard(alias, specifier) {
-                if let Some(resolved) = self.resolve_alias_targets(alias, captured) {
-                    return (SpecifierKind::Alias, Some(resolved));
-                }
+            if let Some(captured) = Self::match_wildcard(alias, specifier)
+                && let Some(resolved) = self.resolve_alias_targets(alias, captured)
+            {
+                return (SpecifierKind::Alias, Some(resolved));
             }
         }
 
@@ -182,15 +161,15 @@ impl ImportResolverIndex {
                 return Some(found.clone());
             }
             let without_ext = extensionless(&resolved);
-            if without_ext != resolved {
-                if let Some(found) = self.entries.get(&without_ext) {
-                    return Some(found.clone());
-                }
+            if without_ext != resolved
+                && let Some(found) = self.entries.get(&without_ext)
+            {
+                return Some(found.clone());
             }
-            if let Some(parent) = resolved.parent() {
-                if let Some(found) = self.entries.get(parent) {
-                    return Some(found.clone());
-                }
+            if let Some(parent) = resolved.parent()
+                && let Some(found) = self.entries.get(parent)
+            {
+                return Some(found.clone());
             }
         }
         None
@@ -213,7 +192,9 @@ mod tests {
         specifier: &str,
         all_files: &[PathBuf],
     ) -> Option<PathBuf> {
-        ImportResolverIndex::new(all_files, None).resolve(source_file, specifier)
+        ImportResolverIndex::new(all_files, None)
+            .classify_and_resolve(source_file, specifier)
+            .1
     }
 
     #[test]
@@ -334,15 +315,19 @@ mod tests {
     #[test]
     fn classifies_relative_specifier() -> Result<()> {
         let resolver = ImportResolverIndex::new(&[], None);
+        let dummy = &Path::new("src/a.ts");
         assert_eq!(
-            resolver.classify_specifier("./foo"),
+            resolver.classify_and_resolve(dummy, "./foo").0,
             SpecifierKind::Relative
         );
         assert_eq!(
-            resolver.classify_specifier("../bar"),
+            resolver.classify_and_resolve(dummy, "../bar").0,
             SpecifierKind::Relative
         );
-        assert_eq!(resolver.classify_specifier("/abs"), SpecifierKind::Relative);
+        assert_eq!(
+            resolver.classify_and_resolve(dummy, "/abs").0,
+            SpecifierKind::Relative
+        );
 
         Ok(())
     }
@@ -361,9 +346,12 @@ mod tests {
                 }],
             }],
         );
-        let resolver = ImportResolverIndex::new(&[], Some(&tsconfig));
+        let files = vec![PathBuf::from("/repo/src/shared/date.ts")];
+        let resolver = ImportResolverIndex::new(&files, Some(&tsconfig));
         assert_eq!(
-            resolver.classify_specifier("@/shared/date"),
+            resolver
+                .classify_and_resolve(Path::new("/repo/src/a.ts"), "@/shared/date")
+                .0,
             SpecifierKind::Alias
         );
 
@@ -373,12 +361,13 @@ mod tests {
     #[test]
     fn classifies_external_specifier() -> Result<()> {
         let resolver = ImportResolverIndex::new(&[], None);
+        let dummy = &Path::new("src/a.ts");
         assert_eq!(
-            resolver.classify_specifier("lodash"),
+            resolver.classify_and_resolve(dummy, "lodash").0,
             SpecifierKind::External
         );
         assert_eq!(
-            resolver.classify_specifier("@scope/package"),
+            resolver.classify_and_resolve(dummy, "@scope/package").0,
             SpecifierKind::External
         );
 
@@ -394,28 +383,49 @@ mod tests {
                     pattern: "@components/*".into(),
                     prefix: "@components/".into(),
                     suffix: "".into(),
-                    targets: vec![],
+                    targets: vec![PathTargetPattern {
+                        prefix: "src/components/".into(),
+                        suffix: "".into(),
+                    }],
                 },
                 ResolvedPathAlias {
                     pattern: "@/*".into(),
                     prefix: "@/".into(),
                     suffix: "".into(),
-                    targets: vec![],
+                    targets: vec![PathTargetPattern {
+                        prefix: "src/".into(),
+                        suffix: "".into(),
+                    }],
                 },
             ],
         );
-        let resolver = ImportResolverIndex::new(&[], Some(&tsconfig));
-        assert_eq!(resolver.classify_specifier("@/app"), SpecifierKind::Alias);
+        let files = vec![
+            PathBuf::from("/repo/src/app.ts"),
+            PathBuf::from("/repo/src/components/button.ts"),
+        ];
+        let resolver = ImportResolverIndex::new(&files, Some(&tsconfig));
         assert_eq!(
-            resolver.classify_specifier("@components/button"),
+            resolver
+                .classify_and_resolve(Path::new("/repo/src/a.ts"), "@/app")
+                .0,
             SpecifierKind::Alias
         );
         assert_eq!(
-            resolver.classify_specifier("lodash"),
+            resolver
+                .classify_and_resolve(Path::new("/repo/src/a.ts"), "@components/button")
+                .0,
+            SpecifierKind::Alias
+        );
+        assert_eq!(
+            resolver
+                .classify_and_resolve(Path::new("/repo/src/a.ts"), "lodash")
+                .0,
             SpecifierKind::External
         );
         assert_eq!(
-            resolver.classify_specifier("./relative"),
+            resolver
+                .classify_and_resolve(Path::new("/repo/src/a.ts"), "./relative")
+                .0,
             SpecifierKind::Relative
         );
 

@@ -179,10 +179,10 @@ impl ImportGraph {
         for (edge_index, edge) in self.edges.iter().enumerate() {
             if let Some(&source_index) = self.file_index.get(&edge.source_file) {
                 self.edges_by_source[source_index as usize].push(edge_index);
-                if let Some(ref target_path) = edge.resolved_target {
-                    if let Some(&target_index) = self.file_index.get(target_path) {
-                        self.edges_by_target[source_index as usize].push(target_index);
-                    }
+                if let Some(ref target_path) = edge.resolved_target
+                    && let Some(&target_index) = self.file_index.get(target_path)
+                {
+                    self.edges_by_target[source_index as usize].push(target_index);
                 }
             }
         }

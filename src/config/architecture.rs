@@ -80,8 +80,10 @@ mod tests {
 
     #[test]
     fn configured_when_order_exists() -> Result<()> {
-        let mut config = LayerBoundaryConfig::default();
-        config.order = vec!["app".to_string()];
+        let config = LayerBoundaryConfig {
+            order: vec!["app".to_string()],
+            ..Default::default()
+        };
         assert!(config.is_configured());
 
         Ok(())
@@ -116,8 +118,10 @@ mod tests {
 
     #[test]
     fn layer_for_file_prefers_most_specific() -> Result<()> {
-        let mut config = LayerBoundaryConfig::default();
-        config.order = vec!["app".to_string(), "app-sub".to_string()];
+        let mut config = LayerBoundaryConfig {
+            order: vec!["app".to_string(), "app-sub".to_string()],
+            ..Default::default()
+        };
         config.definitions.insert(
             "app".to_string(),
             DomainConfig {
@@ -141,8 +145,10 @@ mod tests {
 
     #[test]
     fn layer_for_folder_does_not_match_substring() -> Result<()> {
-        let mut config = LayerBoundaryConfig::default();
-        config.order = vec!["app".to_string()];
+        let mut config = LayerBoundaryConfig {
+            order: vec!["app".to_string()],
+            ..Default::default()
+        };
         config.definitions.insert(
             "app".to_string(),
             DomainConfig {
@@ -159,8 +165,10 @@ mod tests {
 
     #[test]
     fn layer_for_file_suffix_match() -> Result<()> {
-        let mut config = LayerBoundaryConfig::default();
-        config.order = vec!["shared".to_string()];
+        let mut config = LayerBoundaryConfig {
+            order: vec!["shared".to_string()],
+            ..Default::default()
+        };
         config.definitions.insert(
             "shared".to_string(),
             DomainConfig {
@@ -176,13 +184,15 @@ mod tests {
     }
 
     fn make_test_layers() -> LayerBoundaryConfig {
-        let mut config = LayerBoundaryConfig::default();
-        config.order = vec![
-            "app".to_string(),
-            "features".to_string(),
-            "entities".to_string(),
-            "shared".to_string(),
-        ];
+        let mut config = LayerBoundaryConfig {
+            order: vec![
+                "app".to_string(),
+                "features".to_string(),
+                "entities".to_string(),
+                "shared".to_string(),
+            ],
+            ..Default::default()
+        };
         config.definitions.insert(
             "app".to_string(),
             DomainConfig {

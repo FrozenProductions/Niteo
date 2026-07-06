@@ -41,10 +41,10 @@ fn rule_ids_from_preset_source() -> Vec<String> {
     let mut ids = Vec::new();
     for line in raw.lines() {
         let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("[rules.") {
-            if let Some(end) = rest.find(']') {
-                ids.push(rest[..end].to_string());
-            }
+        if let Some(rest) = trimmed.strip_prefix("[rules.")
+            && let Some(end) = rest.find(']')
+        {
+            ids.push(rest[..end].to_string());
         }
     }
     ids
@@ -143,10 +143,10 @@ fn fixable_rule_ids_from_catalog() -> HashSet<String> {
     let raw = include_str!("../src/rule_documentation/catalog.rs");
     let mut ids = HashSet::new();
     for block in catalog_rule_blocks(raw) {
-        if block.contains("fixable: true,") {
-            if let Some(id) = rule_id_from_catalog_block(block) {
-                ids.insert(id);
-            }
+        if block.contains("fixable: true,")
+            && let Some(id) = rule_id_from_catalog_block(block)
+        {
+            ids.insert(id);
         }
     }
     ids
@@ -157,17 +157,17 @@ fn rule_id_constants() -> HashMap<String, String> {
     let mut map = HashMap::new();
     for line in raw.lines() {
         let trimmed = line.trim();
-        if let Some(id_start) = trimmed.find("id: ") {
-            if let Some(id_end) = trimmed[id_start..].find(',') {
-                let id_const = trimmed[id_start + 4..id_start + id_end].trim().to_string();
-                if let Some(value_start) = trimmed.find("value: ") {
-                    let value_offset = value_start + 7;
-                    if value_offset < trimmed.len() && trimmed.as_bytes()[value_offset] == b'"' {
-                        let value_body = &trimmed[value_offset + 1..];
-                        if let Some(value_end) = value_body.find('"') {
-                            let value = value_body[..value_end].to_string();
-                            map.insert(id_const, value);
-                        }
+        if let Some(id_start) = trimmed.find("id: ")
+            && let Some(id_end) = trimmed[id_start..].find(',')
+        {
+            let id_const = trimmed[id_start + 4..id_start + id_end].trim().to_string();
+            if let Some(value_start) = trimmed.find("value: ") {
+                let value_offset = value_start + 7;
+                if value_offset < trimmed.len() && trimmed.as_bytes()[value_offset] == b'"' {
+                    let value_body = &trimmed[value_offset + 1..];
+                    if let Some(value_end) = value_body.find('"') {
+                        let value = value_body[..value_end].to_string();
+                        map.insert(id_const, value);
                     }
                 }
             }
@@ -188,7 +188,7 @@ fn fixable_rule_ids_from_adapters() -> HashSet<String> {
             || trimmed.starts_with("fixable_text_rule_adapter!(")
         {
             let mut macro_lines = vec![trimmed.to_string()];
-            while let Some(next) = lines.next() {
+            for next in lines.by_ref() {
                 let next_trimmed = next.trim();
                 macro_lines.push(next_trimmed.to_string());
                 if next_trimmed.ends_with(");") {
@@ -196,25 +196,25 @@ fn fixable_rule_ids_from_adapters() -> HashSet<String> {
                 }
             }
             let full = macro_lines.join(" ");
-            if let Some(args) = full.strip_prefix("fixable_ast_rule_adapter!(") {
-                if let Some(end) = args.rfind(");") {
-                    let parts: Vec<&str> = args[..end].split(',').collect();
-                    if parts.len() >= 2 {
-                        let id = parts[1].trim();
-                        if let Some(value) = constants.get(id) {
-                            ids.insert(value.clone());
-                        }
+            if let Some(args) = full.strip_prefix("fixable_ast_rule_adapter!(")
+                && let Some(end) = args.rfind(");")
+            {
+                let parts: Vec<&str> = args[..end].split(',').collect();
+                if parts.len() >= 2 {
+                    let id = parts[1].trim();
+                    if let Some(value) = constants.get(id) {
+                        ids.insert(value.clone());
                     }
                 }
             }
-            if let Some(args) = full.strip_prefix("fixable_text_rule_adapter!(") {
-                if let Some(end) = args.rfind(");") {
-                    let parts: Vec<&str> = args[..end].split(',').collect();
-                    if parts.len() >= 2 {
-                        let id = parts[1].trim();
-                        if let Some(value) = constants.get(id) {
-                            ids.insert(value.clone());
-                        }
+            if let Some(args) = full.strip_prefix("fixable_text_rule_adapter!(")
+                && let Some(end) = args.rfind(");")
+            {
+                let parts: Vec<&str> = args[..end].split(',').collect();
+                if parts.len() >= 2 {
+                    let id = parts[1].trim();
+                    if let Some(value) = constants.get(id) {
+                        ids.insert(value.clone());
                     }
                 }
             }

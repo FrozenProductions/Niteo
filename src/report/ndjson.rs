@@ -49,6 +49,19 @@ fn diagnostic_json(diagnostic: &Diagnostic) -> serde_json::Value {
     })
 }
 
+fn violation_json(violation: &Violation) -> serde_json::Value {
+    json!({
+        "file": path_to_string(&violation.file),
+        "line": violation.line,
+        "column": violation.column,
+        "rule": violation.rule,
+        "message": violation.message,
+        "severity": severity_label(violation.severity),
+        "detail": violation.detail,
+        "subject": violation.subject,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use crate::diagnostics::{Diagnostic, DiagnosticCategory};
@@ -78,17 +91,4 @@ mod tests {
         );
         Ok(())
     }
-}
-
-fn violation_json(violation: &Violation) -> serde_json::Value {
-    json!({
-        "file": path_to_string(&violation.file),
-        "line": violation.line,
-        "column": violation.column,
-        "rule": violation.rule,
-        "message": violation.message,
-        "severity": severity_label(violation.severity),
-        "detail": violation.detail,
-        "subject": violation.subject,
-    })
 }
