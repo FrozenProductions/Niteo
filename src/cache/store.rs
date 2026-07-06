@@ -79,7 +79,16 @@ pub fn write_cache(project_root: &Path, cache: &CacheFile) -> Result<()> {
             .with_context(|| format!("failed to create {}", parent.display()))?;
     }
     let source = serde_json::to_string_pretty(cache).context("failed to serialize cache")?;
-    std::fs::write(&path, source).with_context(|| format!("failed to write {}", path.display()))?;
+    let temp_path = path.with_extension("json.tmp");
+    std::fs::write(&temp_path, source)
+        .with_context(|| format!("failed to write {}", temp_path.display()))?;
+    std::fs::rename(&temp_path, &path).with_context(|| {
+        format!(
+            "failed to rename {} to {}",
+            temp_path.display(),
+            path.display()
+        )
+    })?;
     Ok(())
 }
 
