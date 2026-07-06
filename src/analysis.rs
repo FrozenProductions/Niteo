@@ -766,41 +766,75 @@ fn affected_files(
     changed: &HashSet<PathBuf>,
     removed: &HashSet<PathBuf>,
 ) -> HashSet<PathBuf> {
-    let mut forward: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
-    let mut reverse: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
+    let mut index_by_path: HashMap<PathBuf, u32> = HashMap::new();
+    let mut paths: Vec<PathBuf> = Vec::new();
+
+    for graph in [previous, current] {
+        for (path, _node) in graph.iter_files() {
+            let path = path.to_path_buf();
+            if index_by_path.contains_key(&path) {
+                continue;
+            }
+            let index = paths.len() as u32;
+            index_by_path.insert(path.clone(), index);
+            paths.push(path);
+        }
+    }
+
+    let node_count = paths.len();
+    let mut forward: Vec<Vec<u32>> = vec![Vec::new(); node_count];
+    let mut reverse: Vec<Vec<u32>> = vec![Vec::new(); node_count];
 
     for graph in [previous, current] {
         for edge in graph.edges() {
-            if let Some(target) = &edge.resolved_target {
-                forward
-                    .entry(edge.source_file.clone())
-                    .or_default()
-                    .push(target.clone());
-                reverse
-                    .entry(target.clone())
-                    .or_default()
-                    .push(edge.source_file.clone());
-            }
+            let Some(target) = &edge.resolved_target else {
+                continue;
+            };
+            let Some(&source_index) = index_by_path.get(&edge.source_file) else {
+                continue;
+            };
+            let Some(&target_index) = index_by_path.get(target) else {
+                continue;
+            };
+            forward[source_index as usize].push(target_index);
+            reverse[target_index as usize].push(source_index);
         }
+    }
+
+    for neighbors in forward.iter_mut().chain(reverse.iter_mut()) {
+        neighbors.sort_unstable();
+        neighbors.dedup();
     }
 
     let mut affected = HashSet::new();
-    let mut stack: Vec<PathBuf> = Vec::new();
+    let mut visited = vec![false; node_count];
+    let mut stack: Vec<u32> = Vec::new();
+
     for seed in changed.iter().chain(removed.iter()) {
-        if affected.insert(seed.clone()) {
-            stack.push(seed.clone());
+        if let Some(&index) = index_by_path.get(seed) {
+            if !visited[index as usize] {
+                visited[index as usize] = true;
+                affected.insert(paths[index as usize].clone());
+                stack.push(index);
+            }
+        } else {
+            affected.insert(seed.clone());
         }
     }
 
-    while let Some(file) = stack.pop() {
-        for next in forward.get(&file).into_iter().flatten() {
-            if affected.insert(next.clone()) {
-                stack.push(next.clone());
+    while let Some(index) = stack.pop() {
+        for &next in &forward[index as usize] {
+            if !visited[next as usize] {
+                visited[next as usize] = true;
+                affected.insert(paths[next as usize].clone());
+                stack.push(next);
             }
         }
-        for prev in reverse.get(&file).into_iter().flatten() {
-            if affected.insert(prev.clone()) {
-                stack.push(prev.clone());
+        for &prev in &reverse[index as usize] {
+            if !visited[prev as usize] {
+                visited[prev as usize] = true;
+                affected.insert(paths[prev as usize].clone());
+                stack.push(prev);
             }
         }
     }

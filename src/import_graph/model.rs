@@ -41,6 +41,7 @@ pub struct ImportGraph {
     file_index: HashMap<PathBuf, u32>,
     edges: Vec<ImportEdge>,
     edges_by_source: Vec<Vec<usize>>,
+    edges_by_target: Vec<Vec<u32>>,
     pub(crate) cycles_by_file: Option<HashMap<PathBuf, Vec<PathBuf>>>,
     pub(crate) imported_files: Option<HashSet<PathBuf>>,
     pub(crate) graph_parse_failures: HashSet<PathBuf>,
@@ -174,11 +175,25 @@ impl ImportGraph {
 
     pub fn build_edges_by_source(&mut self) {
         self.edges_by_source = vec![Vec::new(); self.files.len()];
+        self.edges_by_target = vec![Vec::new(); self.files.len()];
         for (edge_index, edge) in self.edges.iter().enumerate() {
-            if let Some(&file_index) = self.file_index.get(&edge.source_file) {
-                self.edges_by_source[file_index as usize].push(edge_index);
+            if let Some(&source_index) = self.file_index.get(&edge.source_file) {
+                self.edges_by_source[source_index as usize].push(edge_index);
+                if let Some(ref target_path) = edge.resolved_target {
+                    if let Some(&target_index) = self.file_index.get(target_path) {
+                        self.edges_by_target[source_index as usize].push(target_index);
+                    }
+                }
             }
         }
+        for targets in self.edges_by_target.iter_mut() {
+            targets.sort_unstable();
+            targets.dedup();
+        }
+    }
+
+    pub(crate) fn edges_by_target(&self) -> &[Vec<u32>] {
+        &self.edges_by_target
     }
 
     pub fn edges(&self) -> &[ImportEdge] {

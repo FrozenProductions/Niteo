@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::import_graph::helpers::normalize_path;
 use crate::import_graph::model::ImportGraph;
@@ -17,13 +17,13 @@ pub fn compute_imported_files(graph: &ImportGraph) -> HashSet<PathBuf> {
 /// Each file in a strongly connected component gets a cycle entry so rules
 /// can choose whether to report one or all nodes.
 pub fn compute_cycles(graph: &ImportGraph) -> HashMap<PathBuf, Vec<PathBuf>> {
-    let adjacency = build_adjacency(graph);
-    let sccs = find_strongly_connected_components(&adjacency);
+    let adjacency = graph.edges_by_target();
+    let sccs = find_strongly_connected_components(adjacency);
 
     let mut cycles_by_file = HashMap::new();
 
-    for scc in sccs {
-        let Some(first) = scc.first() else {
+    for mut scc in sccs {
+        let Some(&first) = scc.first() else {
             continue;
         };
 
@@ -31,85 +31,52 @@ pub fn compute_cycles(graph: &ImportGraph) -> HashMap<PathBuf, Vec<PathBuf>> {
             true
         } else {
             adjacency
-                .get(first)
-                .is_some_and(|neighbors| neighbors.contains(first))
+                .get(first as usize)
+                .is_some_and(|neighbors| neighbors.contains(&first))
         };
 
         if !is_cyclic {
             continue;
         }
 
-        let mut sorted_scc = scc;
-        sorted_scc.sort();
+        scc.sort_unstable();
 
-        for node in &sorted_scc {
-            let node_cycle = reconstruct_cycle(node, &sorted_scc, &adjacency);
-            cycles_by_file.insert(node.clone(), node_cycle);
+        for &node in &scc {
+            let node_cycle = reconstruct_cycle(node, &scc, adjacency, graph);
+            cycles_by_file.insert(graph.files[node as usize].path.clone(), node_cycle);
         }
     }
 
     cycles_by_file
 }
 
-fn build_adjacency(graph: &ImportGraph) -> HashMap<PathBuf, Vec<PathBuf>> {
-    let mut adjacency: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
-    for edge in graph.edges() {
-        if let Some(target) = &edge.resolved_target {
-            adjacency
-                .entry(edge.source_file.clone())
-                .or_default()
-                .push(target.clone());
-        }
-    }
-    for neighbors in adjacency.values_mut() {
-        neighbors.sort();
-        neighbors.dedup();
-    }
-    adjacency
-}
+fn find_strongly_connected_components(adjacency: &[Vec<u32>]) -> Vec<Vec<u32>> {
+    let node_count = adjacency.len();
+    let mut visited = vec![false; node_count];
+    let mut finish_order = Vec::with_capacity(node_count);
 
-fn find_strongly_connected_components(
-    adjacency: &HashMap<PathBuf, Vec<PathBuf>>,
-) -> Vec<Vec<PathBuf>> {
-    let mut all_nodes: HashSet<PathBuf> = HashSet::new();
-    for (source, targets) in adjacency {
-        all_nodes.insert(source.clone());
-        for target in targets {
-            all_nodes.insert(target.clone());
-        }
-    }
-
-    let mut sorted_nodes: Vec<PathBuf> = all_nodes.into_iter().collect();
-    sorted_nodes.sort();
-
-    let mut visited = HashSet::new();
-    let mut finish_order = Vec::new();
-
-    for node in &sorted_nodes {
-        if !visited.contains(node) {
+    for node in 0..node_count as u32 {
+        if !visited[node as usize] {
             dfs_finish(node, adjacency, &mut visited, &mut finish_order);
         }
     }
 
-    let mut transpose: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
-    for (source, targets) in adjacency {
-        for target in targets {
-            transpose
-                .entry(target.clone())
-                .or_default()
-                .push(source.clone());
+    let mut transpose: Vec<Vec<u32>> = vec![Vec::new(); node_count];
+    for source in 0..node_count as u32 {
+        for &target in &adjacency[source as usize] {
+            transpose[target as usize].push(source);
         }
     }
-    for neighbors in transpose.values_mut() {
-        neighbors.sort();
+    for neighbors in transpose.iter_mut() {
+        neighbors.sort_unstable();
         neighbors.dedup();
     }
 
-    let mut visited = HashSet::new();
+    visited.fill(false);
     let mut sccs = Vec::new();
 
-    for node in finish_order.iter().rev() {
-        if !visited.contains(node) {
+    for &node in finish_order.iter().rev() {
+        if !visited[node as usize] {
             let mut scc = Vec::new();
             dfs_collect(node, &transpose, &mut visited, &mut scc);
             sccs.push(scc);
@@ -120,50 +87,45 @@ fn find_strongly_connected_components(
 }
 
 fn dfs_finish(
-    start: &Path,
-    adjacency: &HashMap<PathBuf, Vec<PathBuf>>,
-    visited: &mut HashSet<PathBuf>,
-    finish_order: &mut Vec<PathBuf>,
+    start: u32,
+    adjacency: &[Vec<u32>],
+    visited: &mut [bool],
+    finish_order: &mut Vec<u32>,
 ) {
-    let mut stack: Vec<(PathBuf, usize)> = vec![(start.to_path_buf(), 0)];
-    visited.insert(start.to_path_buf());
+    let mut stack: Vec<(u32, usize)> = vec![(start, 0)];
+    visited[start as usize] = true;
 
     while let Some((node, idx)) = stack.last_mut() {
-        if let Some(neighbors) = adjacency.get(node) {
+        if let Some(neighbors) = adjacency.get(*node as usize) {
             if *idx < neighbors.len() {
-                let next = neighbors[*idx].clone();
+                let next = neighbors[*idx];
                 *idx += 1;
-                if !visited.contains(&next) {
-                    visited.insert(next.clone());
+                if !visited[next as usize] {
+                    visited[next as usize] = true;
                     stack.push((next, 0));
                 }
             } else {
-                finish_order.push(node.clone());
+                finish_order.push(*node);
                 stack.pop();
             }
         } else {
-            finish_order.push(node.clone());
+            finish_order.push(*node);
             stack.pop();
         }
     }
 }
 
-fn dfs_collect(
-    start: &Path,
-    adjacency: &HashMap<PathBuf, Vec<PathBuf>>,
-    visited: &mut HashSet<PathBuf>,
-    collected: &mut Vec<PathBuf>,
-) {
-    let mut stack = vec![start.to_path_buf()];
-    visited.insert(start.to_path_buf());
+fn dfs_collect(start: u32, adjacency: &[Vec<u32>], visited: &mut [bool], collected: &mut Vec<u32>) {
+    let mut stack = vec![start];
+    visited[start as usize] = true;
 
     while let Some(node) = stack.pop() {
-        collected.push(node.clone());
-        if let Some(neighbors) = adjacency.get(&node) {
-            for neighbor in neighbors.iter().rev() {
-                if !visited.contains(neighbor) {
-                    visited.insert(neighbor.clone());
-                    stack.push(neighbor.clone());
+        collected.push(node);
+        if let Some(neighbors) = adjacency.get(node as usize) {
+            for &neighbor in neighbors.iter().rev() {
+                if !visited[neighbor as usize] {
+                    visited[neighbor as usize] = true;
+                    stack.push(neighbor);
                 }
             }
         }
@@ -171,55 +133,60 @@ fn dfs_collect(
 }
 
 fn reconstruct_cycle(
-    canonical: &PathBuf,
-    scc: &[PathBuf],
-    adjacency: &HashMap<PathBuf, Vec<PathBuf>>,
+    canonical: u32,
+    scc: &[u32],
+    adjacency: &[Vec<u32>],
+    graph: &ImportGraph,
 ) -> Vec<PathBuf> {
-    if scc.len() == 1 {
-        return vec![canonical.clone(), canonical.clone(), canonical.clone()];
-    }
-
-    let scc_set: HashSet<&PathBuf> = scc.iter().collect();
-    let mut path = vec![canonical.clone()];
-    let mut visited: HashSet<PathBuf> = HashSet::new();
-    visited.insert(canonical.clone());
-
-    if dfs_cycle(
-        canonical,
-        canonical,
-        adjacency,
-        &scc_set,
-        &mut visited,
-        &mut path,
-    ) {
-        path
+    let path = if scc.len() == 1 {
+        vec![canonical, canonical, canonical]
     } else {
-        vec![canonical.clone(), canonical.clone()]
-    }
+        let scc_set: HashSet<u32> = scc.iter().copied().collect();
+        let mut path = vec![canonical];
+        let mut visited: HashSet<u32> = HashSet::new();
+        visited.insert(canonical);
+
+        if dfs_cycle(
+            canonical,
+            canonical,
+            adjacency,
+            &scc_set,
+            &mut visited,
+            &mut path,
+        ) {
+            path
+        } else {
+            vec![canonical, canonical]
+        }
+    };
+
+    path.into_iter()
+        .map(|index| graph.files[index as usize].path.clone())
+        .collect()
 }
 
 fn dfs_cycle(
-    start: &PathBuf,
-    current: &PathBuf,
-    adjacency: &HashMap<PathBuf, Vec<PathBuf>>,
-    scc_set: &HashSet<&PathBuf>,
-    visited: &mut HashSet<PathBuf>,
-    path: &mut Vec<PathBuf>,
+    start: u32,
+    current: u32,
+    adjacency: &[Vec<u32>],
+    scc_set: &HashSet<u32>,
+    visited: &mut HashSet<u32>,
+    path: &mut Vec<u32>,
 ) -> bool {
-    let Some(neighbors) = adjacency.get(current) else {
+    let Some(neighbors) = adjacency.get(current as usize) else {
         return false;
     };
 
-    for neighbor in neighbors {
+    for &neighbor in neighbors {
         if neighbor == start && path.len() > 1 {
-            path.push(neighbor.clone());
+            path.push(neighbor);
             return true;
         }
-        if !scc_set.contains(neighbor) || visited.contains(neighbor) {
+        if !scc_set.contains(&neighbor) || visited.contains(&neighbor) {
             continue;
         }
-        visited.insert(neighbor.clone());
-        path.push(neighbor.clone());
+        visited.insert(neighbor);
+        path.push(neighbor);
         if dfs_cycle(start, neighbor, adjacency, scc_set, visited, path) {
             return true;
         }
