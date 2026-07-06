@@ -27,7 +27,7 @@ pub fn build_import_graph_with_cache(
     files: &[PathBuf],
     is_test_file: impl Fn(&Path) -> bool,
     tsconfig: Option<&TsConfig>,
-    cached_edges: &HashMap<PathBuf, Vec<ImportEdge>>,
+    cached_edges: &HashMap<PathBuf, &[ImportEdge]>,
     verbose: u8,
 ) -> Result<ImportGraph> {
     let mut graph = ImportGraph::new();
@@ -61,7 +61,7 @@ pub fn build_import_graph_with_cache(
         .par_iter()
         .map(|file| {
             let result = if let Some(edges) = cached_edges.get(file) {
-                Ok((edges.clone(), false))
+                Ok((edges.to_vec(), false))
             } else {
                 let source = std::fs::read_to_string(file)
                     .with_context(|| format!("failed to read {}", file.display()))?;

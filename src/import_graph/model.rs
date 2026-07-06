@@ -200,15 +200,24 @@ impl ImportGraph {
         &self.edges
     }
 
-    pub fn edges_by_file(&self) -> HashMap<PathBuf, Vec<ImportEdge>> {
+    pub fn edges_by_file(&self) -> HashMap<PathBuf, &[ImportEdge]> {
         let mut map = HashMap::new();
         for (file_index, edge_indices) in self.edges_by_source.iter().enumerate() {
             let path = self.files[file_index].path.clone();
-            let edges: Vec<ImportEdge> = edge_indices
-                .iter()
-                .map(|&index| self.edges[index].clone())
-                .collect();
-            map.insert(path, edges);
+            let slice = match (edge_indices.first(), edge_indices.last()) {
+                (Some(&first), Some(&last)) => {
+                    debug_assert!(
+                        edge_indices
+                            .iter()
+                            .enumerate()
+                            .all(|(offset, &index)| index == first + offset),
+                        "edges for a single source file must be contiguous"
+                    );
+                    &self.edges[first..=last]
+                }
+                _ => &[],
+            };
+            map.insert(path, slice);
         }
         map
     }

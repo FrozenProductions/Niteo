@@ -203,10 +203,15 @@ impl CacheResult {
             .unwrap_or_else(|| Arc::new(HashMap::new()))
     }
 
-    fn cached_edges(&self) -> HashMap<PathBuf, Vec<crate::import_graph::ImportEdge>> {
+    fn cached_edges(&self) -> HashMap<PathBuf, &[crate::import_graph::ImportEdge]> {
         self.state
             .as_ref()
-            .map(|s| s.cached_edges.clone())
+            .map(|s| {
+                s.cached_edges
+                    .iter()
+                    .map(|(path, edges)| (path.clone(), edges.as_slice()))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
