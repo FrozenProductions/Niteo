@@ -146,14 +146,7 @@ fn reconstruct_cycle(
         let mut visited: HashSet<u32> = HashSet::new();
         visited.insert(canonical);
 
-        if dfs_cycle(
-            canonical,
-            canonical,
-            adjacency,
-            &scc_set,
-            &mut visited,
-            &mut path,
-        ) {
+        if dfs_cycle(canonical, adjacency, &scc_set, &mut visited, &mut path) {
             path
         } else {
             vec![canonical, canonical]
@@ -167,30 +160,40 @@ fn reconstruct_cycle(
 
 fn dfs_cycle(
     start: u32,
-    current: u32,
     adjacency: &[Vec<u32>],
     scc_set: &HashSet<u32>,
     visited: &mut HashSet<u32>,
     path: &mut Vec<u32>,
 ) -> bool {
-    let Some(neighbors) = adjacency.get(current as usize) else {
-        return false;
-    };
+    let mut stack: Vec<(u32, usize)> = vec![(start, 0)];
 
-    for &neighbor in neighbors {
-        if neighbor == start && path.len() > 1 {
-            path.push(neighbor);
-            return true;
-        }
-        if !scc_set.contains(&neighbor) || visited.contains(&neighbor) {
+    while let Some((node, idx)) = stack.last_mut() {
+        let Some(neighbors) = adjacency.get(*node as usize) else {
+            path.pop();
+            stack.pop();
             continue;
+        };
+
+        if *idx < neighbors.len() {
+            let neighbor = neighbors[*idx];
+            *idx += 1;
+
+            if neighbor == start && path.len() > 1 {
+                path.push(neighbor);
+                return true;
+            }
+
+            if !scc_set.contains(&neighbor) || visited.contains(&neighbor) {
+                continue;
+            }
+
+            visited.insert(neighbor);
+            path.push(neighbor);
+            stack.push((neighbor, 0));
+        } else {
+            path.pop();
+            stack.pop();
         }
-        visited.insert(neighbor);
-        path.push(neighbor);
-        if dfs_cycle(start, neighbor, adjacency, scc_set, visited, path) {
-            return true;
-        }
-        path.pop();
     }
 
     false
