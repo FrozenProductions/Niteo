@@ -14,16 +14,16 @@ pub(crate) fn extract_imports(
     source_file: &Path,
     source: &str,
     resolver: &ImportResolverIndex,
-) -> Vec<ImportEdge> {
+) -> (Vec<ImportEdge>, bool) {
     let source_type = crate::syntax::source_type_from_path(source_file);
     let Some(source_type) = source_type else {
-        return Vec::new();
+        return (Vec::new(), false);
     };
 
     with_reusable_allocator(|allocator| {
         let parser_return = oxc_parser::Parser::new(allocator, source, source_type).parse();
         if parser_return.panicked {
-            return Vec::new();
+            return (Vec::new(), true);
         }
 
         let mut visitor = ImportVisitor {
@@ -33,7 +33,7 @@ pub(crate) fn extract_imports(
             _phantom: std::marker::PhantomData,
         };
         visitor.visit_program(&parser_return.program);
-        visitor.edges
+        (visitor.edges, false)
     })
 }
 

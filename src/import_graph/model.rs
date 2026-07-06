@@ -42,6 +42,7 @@ pub struct ImportGraph {
     edges_by_source: Vec<Vec<usize>>,
     pub(crate) cycles_by_file: Option<HashMap<PathBuf, Vec<PathBuf>>>,
     pub(crate) imported_files: Option<HashSet<PathBuf>>,
+    pub(crate) graph_parse_failures: HashSet<PathBuf>,
 }
 
 impl ImportGraph {
@@ -63,6 +64,18 @@ impl ImportGraph {
 
     pub fn imported_files(&self) -> Option<&HashSet<PathBuf>> {
         self.imported_files.as_ref()
+    }
+
+    pub fn add_graph_parse_failure(&mut self, file: PathBuf) {
+        self.graph_parse_failures.insert(file);
+    }
+
+    pub fn has_graph_parse_failure(&self, file: &Path) -> bool {
+        self.graph_parse_failures.contains(file)
+    }
+
+    pub fn graph_parse_failures(&self) -> &HashSet<PathBuf> {
+        &self.graph_parse_failures
     }
 
     pub fn compute_edge_hash(&self) -> String {

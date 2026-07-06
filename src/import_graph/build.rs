@@ -57,15 +57,16 @@ pub fn build_import_graph_with_cache(
     };
     let processed = AtomicUsize::new(0);
 
-    let extracted: Vec<Vec<ImportEdge>> = files
+    let extracted: Vec<(Vec<ImportEdge>, bool)> = files
         .par_iter()
         .map(|file| {
             let result = if let Some(edges) = cached_edges.get(file) {
-                Ok(edges.clone())
+                Ok((edges.clone(), false))
             } else {
                 let source = std::fs::read_to_string(file)
                     .with_context(|| format!("failed to read {}", file.display()))?;
-                Ok(extract_imports(file, &source, &resolver))
+                let (edges, had_panic) = extract_imports(file, &source, &resolver);
+                Ok((edges, had_panic))
             };
             let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
             if let Some(ref bar) = progress_bar {
@@ -79,8 +80,11 @@ pub fn build_import_graph_with_cache(
         bar.finish_and_clear();
     }
 
-    for edges in extracted {
+    for (file, (edges, had_panic)) in files.iter().zip(extracted.into_iter()) {
         graph.edges.extend(edges);
+        if had_panic {
+            graph.add_graph_parse_failure(file.clone());
+        }
     }
 
     graph.build_edges_by_source();
@@ -108,7 +112,7 @@ pub fn build_import_graph_from_sources(
 
     let resolver = ImportResolverIndex::new(&files, tsconfig);
 
-    let extracted: Vec<Vec<ImportEdge>> = files_with_sources
+    let extracted: Vec<(Vec<ImportEdge>, bool)> = files_with_sources
         .par_iter()
         .map(|(path, source)| {
             let file = PathBuf::from(path);
@@ -116,8 +120,11 @@ pub fn build_import_graph_from_sources(
         })
         .collect();
 
-    for edges in extracted {
+    for (file, (edges, had_panic)) in files.iter().zip(extracted.into_iter()) {
         graph.edges.extend(edges);
+        if had_panic {
+            graph.add_graph_parse_failure(file.clone());
+        }
     }
 
     graph.build_edges_by_source();

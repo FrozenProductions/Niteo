@@ -468,6 +468,13 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
     let fail_on = config_set.root().fail_on.clone();
     let history_enabled = config_set.root().history;
 
+    let mut parse_failures = file_lint.parse_failures;
+    for failure_file in graph_result.graph.graph_parse_failures().iter() {
+        parse_failures
+            .entry(failure_file.clone())
+            .or_insert_with(|| "parse error".to_string());
+    }
+
     Ok(AnalysisResult {
         project_root,
         scan_scope: context.scan_scope,
@@ -481,7 +488,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         config_set,
         diagnostics: diagnostics.into_entries(),
         fail_on,
-        parse_failures: file_lint.parse_failures,
+        parse_failures,
     })
 }
 

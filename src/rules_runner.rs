@@ -182,9 +182,11 @@ pub fn check_files_with_parallelism(
                 import_graph: import_graph.clone(),
                 workspace: workspace.clone(),
             };
-            for rule in rules.graph_rules.iter() {
-                if rule.severity().is_enabled() {
-                    violations.extend(rule.check(&graph_ctx));
+            if !import_graph.has_graph_parse_failure(file) {
+                for rule in rules.graph_rules.iter() {
+                    if rule.severity().is_enabled() {
+                        violations.extend(rule.check(&graph_ctx));
+                    }
                 }
             }
 
