@@ -120,7 +120,14 @@ pub(crate) enum RawRuleConfig {
 impl RawRuleConfig {
     pub fn merge(parent: &RawRuleConfig, child: &RawRuleConfig) -> RawRuleConfig {
         match (parent, child) {
-            (_, RawRuleConfig::Severity(sev)) => RawRuleConfig::Severity(sev.clone()),
+            (RawRuleConfig::Severity(_), RawRuleConfig::Severity(sev)) => {
+                RawRuleConfig::Severity(sev.clone())
+            }
+            (RawRuleConfig::Options(parent_opts), RawRuleConfig::Severity(sev)) => {
+                let mut merged = (**parent_opts).clone();
+                merged.severity = Some(sev.clone());
+                RawRuleConfig::Options(Box::new(merged))
+            }
             (RawRuleConfig::Severity(parent_sev), RawRuleConfig::Options(child_opts)) => {
                 let mut merged = (**child_opts).clone();
                 if merged.severity.is_none() {
