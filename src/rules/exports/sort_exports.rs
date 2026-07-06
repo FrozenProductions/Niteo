@@ -147,16 +147,17 @@ fn check_group(
 ) -> Vec<Violation> {
     let mut violations = Vec::new();
 
-    for window in group.windows(2) {
-        let prev_key = window[0].sort_key();
-        let curr_key = window[1].sort_key();
-        if prev_key > curr_key {
-            let pos = line_index.position_for(window[1].span());
-            let prev_name = format_export_name(&window[0]);
-            let curr_name = format_export_name(&window[1]);
+    let keys: Vec<String> = group.iter().map(ExportDecl::sort_key).collect();
+    for i in 0..keys.len().saturating_sub(1) {
+        if keys[i] > keys[i + 1] {
+            let curr = &group[i + 1];
+            let prev = &group[i];
+            let pos = line_index.position_for(curr.span());
+            let prev_name = format_export_name(prev);
+            let curr_name = format_export_name(curr);
             violations.push(Violation {
                 file: file.to_path_buf(),
-                span: Some(window[1].span()),
+                span: Some(curr.span()),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: SORT_EXPORTS_RULE_ID,
@@ -224,10 +225,11 @@ pub fn fix_file(file: &Path, program: &Program, source: &str, config: &RuleConfi
     let mut fixes = Vec::new();
 
     for group in &groups {
-        let mut sorted: Vec<&ExportDecl> = group.iter().collect();
+        let mut keyed: Vec<(String, &ExportDecl)> =
+            group.iter().map(|decl| (decl.sort_key(), decl)).collect();
         let mut is_sorted = true;
-        for window in sorted.windows(2) {
-            if window[0].sort_key() > window[1].sort_key() {
+        for window in keyed.windows(2) {
+            if window[0].0 > window[1].0 {
                 is_sorted = false;
                 break;
             }
@@ -236,7 +238,7 @@ pub fn fix_file(file: &Path, program: &Program, source: &str, config: &RuleConfi
             continue;
         }
 
-        sorted.sort_by_key(|decl| decl.sort_key());
+        keyed.sort_by(|a, b| a.0.cmp(&b.0));
 
         let group_start = group[0].span().start as usize;
         let group_end = group[group.len() - 1].span().end as usize;
@@ -247,9 +249,9 @@ pub fn fix_file(file: &Path, program: &Program, source: &str, config: &RuleConfi
             "\n"
         };
 
-        let snippets: Vec<&str> = sorted
+        let snippets: Vec<&str> = keyed
             .iter()
-            .map(|decl| &source[decl.span().start as usize..decl.span().end as usize])
+            .map(|(_, decl)| &source[decl.span().start as usize..decl.span().end as usize])
             .collect();
 
         let replacement = snippets.join(separator);

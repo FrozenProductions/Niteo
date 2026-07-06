@@ -74,14 +74,15 @@ fn check_group(
 ) -> Vec<Violation> {
     let mut violations = Vec::new();
 
-    for window in group.windows(2) {
-        let prev_key = import_sort_key(window[0]);
-        let curr_key = import_sort_key(window[1]);
-        if prev_key > curr_key {
-            let pos = line_index.position_for(window[1].span);
+    let keys: Vec<String> = group.iter().map(|decl| import_sort_key(decl)).collect();
+    for i in 0..keys.len().saturating_sub(1) {
+        if keys[i] > keys[i + 1] {
+            let curr = group[i + 1];
+            let prev = group[i];
+            let pos = line_index.position_for(curr.span);
             violations.push(Violation {
                 file: file.to_path_buf(),
-                span: Some(window[1].span),
+                span: Some(curr.span),
                 line: Some(pos.line),
                 column: Some(pos.column),
                 rule: SORT_IMPORTS_RULE_ID,
@@ -89,10 +90,9 @@ fn check_group(
                 severity,
                 detail: Some(format!(
                     "\"{}\" should appear before \"{}\"",
-                    window[1].source.value,
-                    window[0].source.value
+                    curr.source.value, prev.source.value
                 )),
-                subject: Some(window[1].source.value.to_string()),
+                subject: Some(curr.source.value.to_string()),
             });
         }
     }
@@ -133,10 +133,11 @@ pub fn fix_file(
     let mut fixes = Vec::new();
 
     for group in &groups {
-        let mut sorted: Vec<&&ImportDeclaration> = group.iter().collect();
+        let mut keyed: Vec<(String, &ImportDeclaration)> =
+            group.iter().map(|decl| (import_sort_key(decl), *decl)).collect();
         let mut is_sorted = true;
-        for window in sorted.windows(2) {
-            if import_sort_key(window[0]) > import_sort_key(window[1]) {
+        for window in keyed.windows(2) {
+            if window[0].0 > window[1].0 {
                 is_sorted = false;
                 break;
             }
@@ -145,7 +146,7 @@ pub fn fix_file(
             continue;
         }
 
-        sorted.sort_by_key(|decl| import_sort_key(decl));
+        keyed.sort_by(|a, b| a.0.cmp(&b.0));
 
         let group_start = group[0].span.start as usize;
         let group_end = group[group.len() - 1].span.end as usize;
@@ -156,9 +157,9 @@ pub fn fix_file(
             "\n"
         };
 
-        let snippets: Vec<&str> = sorted
+        let snippets: Vec<&str> = keyed
             .iter()
-            .map(|decl| &source[decl.span.start as usize..decl.span.end as usize])
+            .map(|(_, decl)| &source[decl.span.start as usize..decl.span.end as usize])
             .collect();
 
         let replacement = snippets.join(separator);
