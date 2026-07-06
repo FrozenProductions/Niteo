@@ -81,14 +81,14 @@ With this setup, `no-any` autofix is disabled by default but re-enabled inside `
 
 ### Edit Model
 
-Edits are applied in reverse byte order (from end of file to beginning) so that earlier edits do not shift the byte offsets of later edits. This ensures correct application even when multiple edits target the same file.
+Edits are sorted by start byte offset and applied in order. The text between edits is taken directly from the original source, so replacement lengths do not affect the byte offsets of subsequent edits. This ensures correct application even when multiple edits target the same file.
 
 The core edit engine in `src/fix.rs` provides:
 
 | Function                      | Purpose                                                                                                                                                          |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `apply_fixes(fixes, options)` | Groups edits by file, sorts by start offset, checks for overlap, applies edits, validates source freshness and parseability, writes files. Returns `FixOutcome`. |
-| `apply_edits(source, edits)`  | Pure function that applies `TextEdit` values in reverse order to a source string.                                                                                |
+| `apply_edits(source, edits)`  | Pure function that applies sorted `TextEdit` values to a source string.                                                                                          |
 | `collect_fixes(ctx, rules)`   | Iterates rules, calling `rule.fix()` only on enabled fixable rules.                                                                                              |
 | `has_overlap(edits)`          | Checks if any adjacent edits in sorted-by-start order overlap.                                                                                                   |
 | `report_dry_run(fixes)`       | Prints each edit as `file: rule\n  would replace bytes N-M with "replacement"`.                                                                                  |

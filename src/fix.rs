@@ -222,26 +222,22 @@ fn has_overlap(edits: &[TextEdit]) -> bool {
     false
 }
 
-/// Apply edits from end to start so that earlier source offsets remain valid
-/// after later replacements are applied.
+/// Apply sorted edits from start to end, concatenating preserved source segments
+/// directly so replacement lengths do not affect subsequent edit offsets.
 pub fn apply_edits(source: &str, edits: &[TextEdit]) -> String {
     let mut sorted_edits: Vec<&TextEdit> = edits.iter().collect();
     sorted_edits.sort_by_key(|edit| edit.start);
-    sorted_edits.reverse();
 
     let mut result = String::with_capacity(source.len());
-    let mut cursor = source.len();
+    let mut previous_end = 0;
 
     for edit in &sorted_edits {
-        let start = edit.start;
-        let end = edit.end;
-
-        result.insert_str(0, source.get(end..cursor).unwrap_or(""));
-        result.insert_str(0, &edit.replacement);
-        cursor = start;
+        result.push_str(source.get(previous_end..edit.start).unwrap_or(""));
+        result.push_str(&edit.replacement);
+        previous_end = edit.end;
     }
 
-    result.insert_str(0, source.get(..cursor).unwrap_or(""));
+    result.push_str(source.get(previous_end..).unwrap_or(""));
     result
 }
 
