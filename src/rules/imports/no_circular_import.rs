@@ -77,7 +77,7 @@ fn find_canonical_files(cycles_by_file: &HashMap<PathBuf, Vec<PathBuf>>) -> Hash
     let mut canonical = HashSet::new();
     let mut seen_scc = HashSet::new();
 
-    for (_file, cycle) in cycles_by_file {
+    for cycle in cycles_by_file.values() {
         let mut unique: Vec<PathBuf> = cycle
             .iter()
             .take(cycle.len().saturating_sub(1))
