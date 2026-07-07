@@ -119,8 +119,6 @@ impl<'a, 'f> Visit<'a> for MagicNumberVisitor<'a, 'f> {
     fn visit_object_property(&mut self, prop: &ObjectProperty<'a>) {
         let saved = self.in_property_key;
 
-        // String literal property keys are not magic strings.
-        // Computed keys like { [expr]: val } still get visited normally.
         if !prop.computed {
             self.in_property_key =
                 matches!(&prop.key, PropertyKey::StringLiteral(_));

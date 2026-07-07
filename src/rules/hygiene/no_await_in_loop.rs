@@ -77,6 +77,7 @@ impl<'a> Visit<'a> for NoAwaitInLoopVisitor<'_> {
     }
 
     fn visit_for_of_statement(&mut self, stmt: &oxc_ast::ast::ForOfStatement<'a>) {
+        // for-await-of is async-native iteration; awaits inside it are expected, not an anti-pattern.
         if !stmt.r#await {
             self.loop_depth += 1;
         }
