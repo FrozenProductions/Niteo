@@ -35,20 +35,12 @@ fn dump_violation(file: &Path, stem: &str, severity: Severity) -> Violation {
         .map(|os_name| os_name.to_string_lossy().to_string())
         .unwrap_or_default();
 
-    Violation {
-        file: file.to_path_buf(),
-        span: None,
-        line: None,
-        column: None,
-        rule: NO_DUMP_FILES_RULE_ID,
-        message: MESSAGE,
-        severity,
-        detail: Some(format!(
+    Violation::for_file(file, NO_DUMP_FILES_RULE_ID, MESSAGE, severity)
+        .with_detail(format!(
             "File stem '{}' matches a forbidden generic name.",
             stem
-        )),
-        subject: Some(file_name),
-    }
+        ))
+        .with_subject(file_name)
 }
 
 #[cfg(test)]

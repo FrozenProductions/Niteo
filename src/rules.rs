@@ -19,6 +19,23 @@ macro_rules! declare_rules {
             &[$( $rule_value ),*]
         }
 
+        /// A lint violation detected by a rule.
+        ///
+        /// # Field conventions
+        ///
+        /// - `file`: The workspace-relative or absolute path of the file with the violation.
+        /// - `span`: Byte range in source text. Set for AST rules, `None` for file/directory checks.
+        /// - `line` / `column`: 1-based position from `span` for AST rules, `Some(1)` for
+        ///   file-level rules, `None` for directory-level rules.
+        /// - `rule`: The rule's unique identifier (e.g., `"no-console"`).
+        /// - `message`: Static one-line rule description shared across all violations from the rule.
+        /// - `severity`: Enforcement level (Off, Info, Warn, Error).
+        /// - `subject`: Names the specific code element causing the violation — a variable name,
+        ///   function name, import specifier, or filename. Short and label-like. `None` when the
+        ///   violation applies to the whole file or directory.
+        /// - `detail`: Contextual explanation with computed values (counts, limits, paths). A
+        ///   human-readable sentence supplementing the static `message`. `None` when the message
+        ///   alone suffices.
         #[derive(Debug, Clone)]
         pub struct Violation {
             pub file: PathBuf,
@@ -30,6 +47,83 @@ macro_rules! declare_rules {
             pub severity: Severity,
             pub detail: Option<String>,
             pub subject: Option<String>,
+        }
+
+        impl Violation {
+            /// Create a violation from an AST span, resolving line and column automatically.
+            pub fn from_span(
+                file: &Path,
+                line_index: &LineIndex,
+                span: Span,
+                rule: RuleId,
+                message: &'static str,
+                severity: Severity,
+            ) -> Self {
+                let pos = line_index.position_for(span);
+                Violation {
+                    file: file.to_path_buf(),
+                    span: Some(span),
+                    line: Some(pos.line),
+                    column: Some(pos.column),
+                    rule,
+                    message,
+                    severity,
+                    detail: None,
+                    subject: None,
+                }
+            }
+
+            /// Create a file-level violation with no span but line/column set to 1.
+            pub fn for_file(
+                file: &Path,
+                rule: RuleId,
+                message: &'static str,
+                severity: Severity,
+            ) -> Self {
+                Violation {
+                    file: file.to_path_buf(),
+                    span: None,
+                    line: Some(1),
+                    column: Some(1),
+                    rule,
+                    message,
+                    severity,
+                    detail: None,
+                    subject: None,
+                }
+            }
+
+            /// Create a directory-level violation with no span, line, or column.
+            pub fn for_directory(
+                file: &Path,
+                rule: RuleId,
+                message: &'static str,
+                severity: Severity,
+            ) -> Self {
+                Violation {
+                    file: file.to_path_buf(),
+                    span: None,
+                    line: None,
+                    column: None,
+                    rule,
+                    message,
+                    severity,
+                    detail: None,
+                    subject: None,
+                }
+            }
+
+            /// Attach a contextual detail message.
+            pub fn with_detail(mut self, detail: String) -> Self {
+                self.detail = Some(detail);
+                self
+            }
+
+            /// Attach a subject identifier.
+            pub fn with_subject(mut self, subject: String) -> Self {
+                self.subject = Some(subject);
+                self
+            }
         }
 
         #[derive(Debug, Clone)]

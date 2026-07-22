@@ -42,44 +42,28 @@ impl<'a, 'f> Visit<'a> for ConsoleVisitor<'a, 'f> {
         if let Expression::StaticMemberExpression(static_member) = &call.callee
             && matches!(&static_member.object, Expression::Identifier(id) if id.name == "console")
         {
-            self.violations.push(make_violation(
+            self.violations.push(Violation::from_span(
                 self.file,
                 self.line_index,
                 static_member.span,
+                NO_CONSOLE_RULE_ID,
+                MESSAGE,
                 self.severity,
             ));
         }
         if let Expression::ComputedMemberExpression(computed) = &call.callee
             && matches!(&computed.object, Expression::Identifier(id) if id.name == "console")
         {
-            self.violations.push(make_violation(
+            self.violations.push(Violation::from_span(
                 self.file,
                 self.line_index,
                 computed.span,
+                NO_CONSOLE_RULE_ID,
+                MESSAGE,
                 self.severity,
             ));
         }
         oxc_ast_visit::walk::walk_call_expression(self, call);
-    }
-}
-
-fn make_violation(
-    file: &Path,
-    line_index: &LineIndex,
-    span: oxc_span::Span,
-    severity: crate::config::Severity,
-) -> Violation {
-    let pos = line_index.position_for(span);
-    Violation {
-        file: file.to_path_buf(),
-        span: Some(span),
-        line: Some(pos.line),
-        column: Some(pos.column),
-        rule: NO_CONSOLE_RULE_ID,
-        message: MESSAGE,
-        severity,
-        detail: None,
-        subject: None,
     }
 }
 
