@@ -217,6 +217,13 @@ impl CacheResult {
         self.state.as_ref().and_then(|s| s.cached_topology.as_ref())
     }
 
+    fn sources(&self) -> Arc<HashMap<PathBuf, String>> {
+        self.state
+            .as_ref()
+            .map(|s| Arc::new(s.sources.clone()))
+            .unwrap_or_else(|| Arc::new(HashMap::new()))
+    }
+
     fn is_dirty(&self) -> bool {
         self.state.as_ref().map(|s| s.dirty).unwrap_or(true)
     }
@@ -236,6 +243,7 @@ impl ImportGraphResult {
         config_set: &ConfigSet,
         tsconfig: &TsConfig,
         cache: &CacheResult,
+        sources: Arc<HashMap<PathBuf, String>>,
         project_root: &Path,
         verbose: u8,
     ) -> Result<Self> {
@@ -250,6 +258,7 @@ impl ImportGraphResult {
             },
             tsconfig.as_ref(),
             &cache.cached_edges(),
+            &sources,
             verbose,
         )?;
 
@@ -290,6 +299,7 @@ impl FileLintResult {
         graph: Arc<ImportGraph>,
         workspace: Option<Arc<Workspace>>,
         cache: &CacheResult,
+        sources: &HashMap<PathBuf, String>,
         verbose: u8,
     ) -> Result<Self> {
         let cached_violations_map = cache.cached_violations();
@@ -300,6 +310,7 @@ impl FileLintResult {
             graph,
             workspace,
             cached_violations_map,
+            sources,
             verbose,
         )?;
 
@@ -399,11 +410,14 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
         &mut diagnostics,
     )?;
 
+    let sources = cache.sources();
+
     let graph_result = ImportGraphResult::build(
         file_list.as_slice(),
         &context.config_set,
         &tsconfig,
         &cache,
+        sources.clone(),
         &project_root,
         options.verbose,
     )?;
@@ -425,6 +439,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
         graph_result.graph.clone(),
         workspace.clone(),
         &cache,
+        &sources,
         options.verbose,
     )?;
 
@@ -630,6 +645,7 @@ pub fn collect_incremental(
         is_test_file,
         tsconfig.as_ref(),
         &cached_edges,
+        &HashMap::new(),
         0,
     )?;
     graph.set_cycles_by_file(crate::import_graph::topology::compute_cycles(&graph));
@@ -646,12 +662,14 @@ pub fn collect_incremental(
     );
 
     let lint_file_list: Vec<PathBuf> = files_to_lint.iter().cloned().collect();
+    let no_sources = HashMap::new();
     let file_lint = FileLintResult::run(
         &lint_file_list,
         &previous.config_set,
         graph.clone(),
         previous.workspace.clone(),
         &CacheResult::empty(),
+        &no_sources,
         0,
     )?;
 

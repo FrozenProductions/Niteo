@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::allocator::with_reusable_allocator;
@@ -72,6 +72,7 @@ pub fn fix_workspace(
     }
 
     let mut all_fixes = Vec::new();
+    let mut sources = HashMap::new();
 
     for file in &fixable_files {
         let config_for_file = config_set.config_for_file(file);
@@ -94,6 +95,7 @@ pub fn fix_workspace(
 
         let source = std::fs::read_to_string(file)
             .with_context(|| format!("failed to read {}", file.display()))?;
+        sources.insert(file.clone(), source.clone());
 
         let needs_ast = rules
             .ast_rules
@@ -104,37 +106,38 @@ pub fn fix_workspace(
         let type_location_style =
             crate::rules::TypeLocationStyle::detect(&single_file, &config_for_file.structure.types);
 
-        let file_fixes = with_reusable_allocator(|allocator| {
-            let line_index = crate::syntax::LineIndex::new(&source);
-            let parse_result = if needs_ast {
-                match crate::syntax::source_type_from_path(file) {
-                    Some(source_type) => {
-                        let parser_return =
-                            oxc_parser::Parser::new(allocator, &source, source_type).parse();
-                        if parser_return.panicked {
-                            None
-                        } else {
-                            Some(parser_return.program)
+        let file_fixes = crate::syntax::with_reusable_line_index(&source, |line_index| {
+            with_reusable_allocator(|allocator| {
+                let parse_result = if needs_ast {
+                    match crate::syntax::source_type_from_path(file) {
+                        Some(source_type) => {
+                            let parser_return =
+                                oxc_parser::Parser::new(allocator, &source, source_type).parse();
+                            if parser_return.panicked {
+                                None
+                            } else {
+                                Some(parser_return.program)
+                            }
                         }
+                        None => None,
                     }
-                    None => None,
-                }
-            } else {
-                None
-            };
+                } else {
+                    None
+                };
 
-            let Some(program) = parse_result.as_ref() else {
-                return Vec::new();
-            };
+                let Some(program) = parse_result.as_ref() else {
+                    return Vec::new();
+                };
 
-            let ctx = crate::rules::AstContext {
-                file,
-                source: &source,
-                program,
-                line_index: &line_index,
-                type_location_style,
-            };
-            crate::fix::collect_fixes(&ctx, &rules.ast_rules)
+                let ctx = crate::rules::AstContext {
+                    file,
+                    source: &source,
+                    program,
+                    line_index,
+                    type_location_style,
+                };
+                crate::fix::collect_fixes(&ctx, &rules.ast_rules)
+            })
         });
 
         all_fixes.extend(
@@ -159,6 +162,7 @@ pub fn fix_workspace(
         fix::ApplyFixOptions {
             dry_run: false,
             validate_parse: true,
+            sources,
         },
     )?;
 

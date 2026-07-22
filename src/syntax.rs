@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::path::Path;
 
 use oxc_span::{SourceType, Span};
@@ -13,16 +14,27 @@ pub struct LineIndex {
     line_starts: Vec<u32>,
 }
 
+thread_local! {
+    static REUSABLE_LINE_INDEX: Cell<Option<LineIndex>> = const { Cell::new(None) };
+}
+
 impl LineIndex {
     pub fn new(source: &str) -> Self {
-        let mut line_starts = Vec::with_capacity(source.len() / 40 + 1);
-        line_starts.push(0);
+        let mut this = Self {
+            line_starts: Vec::with_capacity(source.len() / 40 + 1),
+        };
+        this.populate(source);
+        this
+    }
+
+    pub fn populate(&mut self, source: &str) {
+        self.line_starts.clear();
+        self.line_starts.push(0);
         for (offset, byte) in source.bytes().enumerate() {
             if byte == b'\n' {
-                line_starts.push(offset as u32 + 1);
+                self.line_starts.push(offset as u32 + 1);
             }
         }
-        Self { line_starts }
     }
 
     pub fn position(&self, byte_offset: u32) -> Position {
@@ -40,6 +52,16 @@ impl LineIndex {
     pub fn position_for(&self, span: Span) -> Position {
         self.position(span.start)
     }
+}
+
+pub(crate) fn with_reusable_line_index<R>(source: &str, f: impl FnOnce(&LineIndex) -> R) -> R {
+    REUSABLE_LINE_INDEX.with(|cell| {
+        let mut index = cell.replace(None).unwrap_or_else(|| LineIndex::new(source));
+        index.populate(source);
+        let result = f(&index);
+        cell.set(Some(index));
+        result
+    })
 }
 
 pub fn is_typescript_file(path: &Path) -> bool {

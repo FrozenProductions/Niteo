@@ -23,6 +23,7 @@ use crate::rules::Violation;
 #[derive(Debug)]
 pub struct CacheState {
     pub file_hashes: HashMap<PathBuf, String>,
+    pub sources: HashMap<PathBuf, String>,
     pub cached_edges: HashMap<PathBuf, Vec<ImportEdge>>,
     pub cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
     pub cached_parse_failures: HashMap<PathBuf, CachedParseFailure>,
@@ -72,29 +73,51 @@ pub fn prepare_cache(
         parse_failure: Option<CachedParseFailure>,
     }
 
-    let prepared: Vec<(PathBuf, String, Option<CacheHit>)> = files
+    struct PreparedFile {
+        file: PathBuf,
+        hash: String,
+        hit: Option<CacheHit>,
+        source: Option<String>,
+    }
+
+    let prepared: Vec<PreparedFile> = files
         .par_iter()
-        .filter_map(|file| {
-            let content = std::fs::read(file).ok()?;
-            let hash = hash_content(&content);
-            let hit = cache.as_ref().and_then(|cache| {
-                let rel_path = normalize_path_for_cache(file, project_root);
-                let entry = cache.files.get(&rel_path)?;
-                if entry.content_hash != hash {
-                    return None;
+        .map(|file| match std::fs::read(file) {
+            Ok(content) => {
+                let hash = hash_content(&content);
+                let source = String::from_utf8_lossy(&content).into_owned();
+                let hit = cache.as_ref().and_then(|cache| {
+                    let rel_path = normalize_path_for_cache(file, project_root);
+                    let entry = cache.files.get(&rel_path)?;
+                    if entry.content_hash != hash {
+                        return None;
+                    }
+                    let edges =
+                        cached_import_edges_to_import(&entry.import_edges, file, project_root);
+                    Some(CacheHit {
+                        edges,
+                        violations: entry.violations.clone(),
+                        parse_failure: entry.parse_failure.clone(),
+                    })
+                });
+                PreparedFile {
+                    file: file.clone(),
+                    hash,
+                    hit,
+                    source: Some(source),
                 }
-                let edges = cached_import_edges_to_import(&entry.import_edges, file, project_root);
-                Some(CacheHit {
-                    edges,
-                    violations: entry.violations.clone(),
-                    parse_failure: entry.parse_failure.clone(),
-                })
-            });
-            Some((file.clone(), hash, hit))
+            }
+            Err(_) => PreparedFile {
+                file: file.clone(),
+                hash: String::new(),
+                hit: None,
+                source: None,
+            },
         })
         .collect();
 
     let mut file_hashes = HashMap::with_capacity(prepared.len());
+    let mut sources = HashMap::with_capacity(prepared.len());
     let mut cached_edges = HashMap::new();
     let mut cached_violations_map = HashMap::new();
     let mut cached_parse_failures = HashMap::new();
@@ -102,22 +125,29 @@ pub fn prepare_cache(
     let rule_lookup = build_rule_lookup();
     let mut message_interner = StringInterner::new();
 
-    for (file, hash, hit) in prepared {
-        file_hashes.insert(file.clone(), hash);
+    for pf in prepared {
+        if pf.hash.is_empty() {
+            continue;
+        }
 
-        match hit {
+        file_hashes.insert(pf.file.clone(), pf.hash);
+        if let Some(source) = pf.source {
+            sources.insert(pf.file.clone(), source);
+        }
+
+        match pf.hit {
             Some(hit) => {
-                cached_edges.insert(file.clone(), hit.edges);
+                cached_edges.insert(pf.file.clone(), hit.edges);
                 let violations = cached_violations_to_violations(
                     &hit.violations,
-                    file.clone(),
+                    pf.file.clone(),
                     &rule_lookup,
                     &mut message_interner,
                 );
-                cached_violations_map.insert(file.clone(), violations);
+                cached_violations_map.insert(pf.file.clone(), violations);
 
                 if let Some(parse_failure) = hit.parse_failure {
-                    cached_parse_failures.insert(file.clone(), parse_failure);
+                    cached_parse_failures.insert(pf.file.clone(), parse_failure);
                 }
             }
             None if cache_valid => dirty = true,
@@ -127,6 +157,7 @@ pub fn prepare_cache(
 
     Ok(Some(CacheState {
         file_hashes,
+        sources,
         cached_edges,
         cached_violations: Arc::new(cached_violations_map),
         cached_parse_failures,

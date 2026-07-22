@@ -15,7 +15,7 @@ use crate::ignore;
 use crate::import_graph::ImportGraph;
 use crate::rule_adapters::*;
 use crate::rules::{AstContext, FileRuleSet, GraphContext, RulesConfig, TextContext, Violation};
-use crate::syntax::LineIndex;
+use crate::syntax::with_reusable_line_index;
 
 type FileResult = (
     Vec<Violation>,
@@ -56,12 +56,17 @@ fn compute_suppression_info(
     })
 }
 
+pub struct FileCheckInput<'a> {
+    pub files: &'a [PathBuf],
+    pub config_set: &'a config::ConfigSet,
+    pub import_graph: Arc<ImportGraph>,
+    pub workspace: Option<Arc<crate::workspace::Workspace>>,
+    pub cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
+    pub sources: &'a HashMap<PathBuf, String>,
+}
+
 pub fn check_files_with_parallelism(
-    files: &[PathBuf],
-    config_set: &config::ConfigSet,
-    import_graph: Arc<ImportGraph>,
-    workspace: Option<Arc<crate::workspace::Workspace>>,
-    cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
+    input: &FileCheckInput<'_>,
     parallel: bool,
     verbose: u8,
 ) -> Result<(
@@ -69,6 +74,12 @@ pub fn check_files_with_parallelism(
     ignore::SuppressionReport,
     HashMap<PathBuf, String>,
 )> {
+    let files = input.files;
+    let config_set = input.config_set;
+    let import_graph = input.import_graph.clone();
+    let workspace = input.workspace.clone();
+    let cached_violations = input.cached_violations.clone();
+    let sources = input.sources;
     let mut violations = Vec::new();
     let mut suppression_files = Vec::new();
     let mut parse_failures: HashMap<PathBuf, String> = HashMap::new();
@@ -123,10 +134,16 @@ pub fn check_files_with_parallelism(
         let rules = runtime.rules.clone();
         let type_location_style = runtime.type_location_style;
 
-        let source = std::fs::read_to_string(file)
-            .with_context(|| format!("failed to read {}", file.display()))?;
+        let owned_source;
+        let source: &str = if let Some(s) = sources.get(file.as_path()) {
+            s.as_str()
+        } else {
+            owned_source = std::fs::read_to_string(file)
+                .with_context(|| format!("failed to read {}", file.display()))?;
+            &owned_source
+        };
 
-        let directives = ignore::parse_ignore_directives(&source);
+        let directives = ignore::parse_ignore_directives(source);
 
         if let Some(cached) = cached_violations.get(file) {
             let suppression_info = compute_suppression_info(file, cached, &directives);
@@ -140,73 +157,77 @@ pub fn check_files_with_parallelism(
             return Ok((kept, suppression_info, None));
         }
 
-        let (new_violations, parse_failure) = with_reusable_allocator(|allocator| {
-            let line_index = LineIndex::new(&source);
-            let needs_ast = rules
-                .ast_rules
-                .iter()
-                .any(|rule| rule.severity().is_enabled());
+        let (new_violations, parse_failure) = with_reusable_line_index(source, |line_index| {
+            with_reusable_allocator(|allocator| {
+                let needs_ast = rules
+                    .ast_rules
+                    .iter()
+                    .any(|rule| rule.severity().is_enabled());
 
-            let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
-                match crate::syntax::source_type_from_path(file) {
-                    Some(source_type) => {
-                        let parser_return = Parser::new(allocator, &source, source_type).parse();
-                        if parser_return.panicked {
-                            return (Vec::new(), Some((file.clone(), "parse error".to_string())));
+                let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
+                    match crate::syntax::source_type_from_path(file) {
+                        Some(source_type) => {
+                            let parser_return = Parser::new(allocator, source, source_type).parse();
+                            if parser_return.panicked {
+                                return (
+                                    Vec::new(),
+                                    Some((file.clone(), "parse error".to_string())),
+                                );
+                            }
+                            Some(parser_return.program)
                         }
-                        Some(parser_return.program)
+                        None => None,
                     }
-                    None => None,
-                }
-            } else {
-                None
-            };
+                } else {
+                    None
+                };
 
-            let mut violations = Vec::new();
+                let mut violations = Vec::new();
 
-            let text_ctx = TextContext {
-                file,
-                source: &source,
-                line_index: &line_index,
-                type_location_style,
-            };
-            for rule in rules.text_rules.iter() {
-                if rule.severity().is_enabled() {
-                    violations.extend(rule.check(&text_ctx));
-                }
-            }
-
-            let graph_ctx = GraphContext {
-                file,
-                line_index: &line_index,
-                type_location_style,
-                import_graph: import_graph.clone(),
-                workspace: workspace.clone(),
-            };
-            if !import_graph.has_graph_parse_failure(file) {
-                for rule in rules.graph_rules.iter() {
-                    if rule.severity().is_enabled() {
-                        violations.extend(rule.check(&graph_ctx));
-                    }
-                }
-            }
-
-            if let Some(program) = parse_result.as_ref() {
-                let ast_ctx = AstContext {
+                let text_ctx = TextContext {
                     file,
-                    source: &source,
-                    program,
-                    line_index: &line_index,
+                    source,
+                    line_index,
                     type_location_style,
                 };
-                for rule in rules.ast_rules.iter() {
+                for rule in rules.text_rules.iter() {
                     if rule.severity().is_enabled() {
-                        violations.extend(rule.check(&ast_ctx));
+                        violations.extend(rule.check(&text_ctx));
                     }
                 }
-            }
 
-            (violations, None)
+                let graph_ctx = GraphContext {
+                    file,
+                    line_index,
+                    type_location_style,
+                    import_graph: import_graph.clone(),
+                    workspace: workspace.clone(),
+                };
+                if !import_graph.has_graph_parse_failure(file) {
+                    for rule in rules.graph_rules.iter() {
+                        if rule.severity().is_enabled() {
+                            violations.extend(rule.check(&graph_ctx));
+                        }
+                    }
+                }
+
+                if let Some(program) = parse_result.as_ref() {
+                    let ast_ctx = AstContext {
+                        file,
+                        source,
+                        program,
+                        line_index,
+                        type_location_style,
+                    };
+                    for rule in rules.ast_rules.iter() {
+                        if rule.severity().is_enabled() {
+                            violations.extend(rule.check(&ast_ctx));
+                        }
+                    }
+                }
+
+                (violations, None)
+            })
         });
 
         if let Some(parse_failure) = parse_failure {
@@ -306,18 +327,23 @@ pub fn check_files(
     import_graph: Arc<ImportGraph>,
     workspace: Option<Arc<crate::workspace::Workspace>>,
     cached_violations: Arc<HashMap<PathBuf, Vec<Violation>>>,
+    sources: &HashMap<PathBuf, String>,
     verbose: u8,
 ) -> Result<(
     Vec<Violation>,
     ignore::SuppressionReport,
     HashMap<PathBuf, String>,
 )> {
-    check_files_with_parallelism(
+    let input = FileCheckInput {
         files,
         config_set,
         import_graph,
         workspace,
         cached_violations,
+        sources,
+    };
+    check_files_with_parallelism(
+        &input,
         true,
         verbose,
     )
@@ -362,12 +388,17 @@ pub fn check_files_for_benchmark(
         }
     };
     let cached_violations = Arc::new(HashMap::new());
-    let (violations, _, _) = check_files_with_parallelism(
+    let sources = HashMap::new();
+    let input = FileCheckInput {
         files,
-        &config_set,
-        graph,
+        config_set: &config_set,
+        import_graph: graph,
         workspace,
         cached_violations,
+        sources: &sources,
+    };
+    let (violations, _, _) = check_files_with_parallelism(
+        &input,
         parallel,
         0,
     )?;

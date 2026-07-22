@@ -9,6 +9,7 @@ use crate::syntax::source_type_from_path;
 pub struct ApplyFixOptions {
     pub dry_run: bool,
     pub validate_parse: bool,
+    pub sources: std::collections::HashMap<PathBuf, String>,
 }
 
 pub struct FixOutcome {
@@ -42,8 +43,12 @@ pub fn apply_fixes(fixes: Vec<Fix>, options: ApplyFixOptions) -> Result<FixOutco
     file_entries.sort_by(|a, b| a.0.cmp(&b.0));
 
     for (file_path, fixes) in file_entries {
-        let source = std::fs::read_to_string(&file_path)
-            .with_context(|| format!("failed to read {}", file_path.display()))?;
+        let source: String = if let Some(cached) = options.sources.get(&file_path) {
+            cached.clone()
+        } else {
+            std::fs::read_to_string(&file_path)
+                .with_context(|| format!("failed to read {}", file_path.display()))?
+        };
 
         let rejected_indices = overlapping_fix_indices(&fixes);
 

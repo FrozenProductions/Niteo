@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -46,6 +47,7 @@ fn non_overlapping_fixes_from_different_rules_apply() -> Result<()> {
         ApplyFixOptions {
             dry_run: false,
             validate_parse: false,
+            sources: HashMap::new(),
         },
     )?;
 
@@ -98,6 +100,7 @@ fn overlapping_fixes_reject_only_conflicting_fixes() -> Result<()> {
         ApplyFixOptions {
             dry_run: false,
             validate_parse: false,
+            sources: HashMap::new(),
         },
     )?;
 
@@ -148,6 +151,7 @@ fn internally_overlapping_fix_is_rejected() -> Result<()> {
         ApplyFixOptions {
             dry_run: false,
             validate_parse: false,
+            sources: HashMap::new(),
         },
     )?;
 
@@ -191,6 +195,7 @@ fn all_overlapping_fixes_reject_file_write() -> Result<()> {
         ApplyFixOptions {
             dry_run: false,
             validate_parse: false,
+            sources: HashMap::new(),
         },
     )?;
 
