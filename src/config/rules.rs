@@ -1,6 +1,6 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
     Off,
@@ -40,7 +40,7 @@ impl Severity {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RuleConfig {
     pub severity: Severity,
 }
@@ -357,10 +357,46 @@ impl Default for NoDefaultExportRuleConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum RestrictedImportPattern {
+    Simple(String),
+    Full {
+        pattern: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        named: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
+    },
+}
+
+impl RestrictedImportPattern {
+    pub fn pattern(&self) -> &str {
+        match self {
+            Self::Simple(p) => p.as_str(),
+            Self::Full { pattern, .. } => pattern.as_str(),
+        }
+    }
+
+    pub fn named(&self) -> Option<&[String]> {
+        match self {
+            Self::Simple(_) => None,
+            Self::Full { named, .. } => named.as_deref(),
+        }
+    }
+
+    pub fn message(&self) -> Option<&str> {
+        match self {
+            Self::Simple(_) => None,
+            Self::Full { message, .. } => message.as_deref(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NoRestrictedImportsRuleConfig {
     pub severity: Severity,
-    pub restricted: Vec<String>,
+    pub restricted: Vec<RestrictedImportPattern>,
 }
 
 impl Default for NoRestrictedImportsRuleConfig {

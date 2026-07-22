@@ -9,8 +9,8 @@ use super::super::rules::{
     NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
     NoEmptyDomainRuleConfig, NoGodDomainRuleConfig, NoInterfaceRuleConfig,
     NoMagicNumbersRuleConfig, NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig,
-    NoRestrictedImportsRuleConfig, NoThenChainRuleConfig, RuleConfig, Severity,
-    UpwardImportRuleConfig,
+    NoRestrictedImportsRuleConfig, NoThenChainRuleConfig, RestrictedImportPattern, RuleConfig,
+    Severity, UpwardImportRuleConfig,
 };
 use super::config::RawConfig;
 use crate::rules::RulesConfig;
@@ -370,7 +370,7 @@ pub(crate) struct RawRuleOptions {
     pub extra_abbreviations: Option<Vec<String>>,
     #[serde(rename = "allow-abbreviations")]
     pub allow_abbreviations: Option<Vec<String>>,
-    pub restricted: Option<Vec<String>>,
+    pub restricted: Option<Vec<RestrictedImportPattern>>,
     #[serde(rename = "allowed-numbers")]
     pub allowed_numbers: Option<Vec<String>>,
     #[serde(rename = "allowed-strings")]

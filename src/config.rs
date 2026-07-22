@@ -23,6 +23,6 @@ pub use rules::{
     NoDefaultExportRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
     NoEmptyDirectoriesRuleConfig, NoEmptyDomainRuleConfig, NoGodDomainRuleConfig,
     NoInterfaceRuleConfig, NoMagicNumbersRuleConfig, NoNestedFunctionsRuleConfig,
-    NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig, NoThenChainRuleConfig, RuleConfig,
-    Severity, UpwardImportRuleConfig,
+    NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig, NoThenChainRuleConfig,
+    RestrictedImportPattern, RuleConfig, Severity, UpwardImportRuleConfig,
 };

@@ -888,7 +888,7 @@ severity = "warn"
 
 ### `no-restricted-imports`
 
-Reports imports from packages or paths listed in the `restricted` deny-list. Matches exact names and sub-paths (e.g. `lodash` also blocks `lodash/fp`).
+Reports imports from packages or paths listed in the `restricted` deny-list. Supports glob patterns, named-import restrictions, and per-pattern custom messages. Matches exact names and sub-paths (e.g. `lodash` also blocks `lodash/fp`).
 
 ```ts
 import { merge } from "lodash";
@@ -906,6 +906,31 @@ Configure the deny-list:
 [rules.no-restricted-imports]
 severity = "warn"
 restricted = ["lodash", "moment", "@internal/legacy"]
+```
+
+Use **glob patterns** with `*`, `**`, or `?` for more flexible matching:
+
+```toml
+[rules.no-restricted-imports]
+severity = "warn"
+restricted = ["internal/*", "@scope/**", "lib-v?"]
+```
+
+Restrict **specific named imports** from a module without blocking the entire package:
+
+```toml
+[[rules.no-restricted-imports.restricted]]
+pattern = "my-lib"
+named = ["deprecated", "oldFn"]
+```
+
+Add a **custom message** per pattern to suggest an alternative:
+
+```toml
+[[rules.no-restricted-imports.restricted]]
+pattern = "lodash"
+named = ["merge"]
+message = "Use our custom merge utility instead."
 ```
 
 The rule also checks re-exports (`export { x } from '...'` and `export * from '...'`).
