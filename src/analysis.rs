@@ -30,6 +30,15 @@ pub struct AnalysisResult {
     pub fail_on: FailurePolicy,
     pub parse_failures: HashMap<PathBuf, String>,
     pub directory_inventory: Arc<DirectoryInventory>,
+    cache_join_handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl Drop for AnalysisResult {
+    fn drop(&mut self) {
+        if let Some(handle) = self.cache_join_handle.take() {
+            let _ = handle.join();
+        }
+    }
 }
 
 pub struct AnalysisOptions {
@@ -401,7 +410,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
     } else {
         None
     };
-    let cache = CacheResult::prepare(
+    let mut cache = CacheResult::prepare(
         workspace_root,
         file_list.as_slice(),
         &context.config_set,
@@ -466,21 +475,26 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
         .chain(directory_violations.iter().cloned())
         .collect();
 
-    if let Some(ref state) = cache.state
-        && let Err(error) = crate::cache::lifecycle::finalize_cache(
-            workspace_root,
-            file_list.as_slice(),
-            state,
-            graph_result.graph.as_ref(),
-            &all_violations_for_cache,
-            &file_lint.parse_failures,
-        )
-    {
-        diagnostics.warn(
-            DiagnosticCategory::Cache,
-            format!("failed to write cache: {error}"),
-        );
-    }
+    let parse_failures_for_cache = file_lint.parse_failures.clone();
+    let cache_join_handle = if let Some(state) = cache.state.take() {
+        let workspace_root = workspace_root.to_path_buf();
+        let files = file_list.files.clone();
+        let graph = Arc::clone(&graph_result.graph);
+        Some(std::thread::spawn(move || {
+            if let Err(error) = crate::cache::lifecycle::finalize_cache(
+                &workspace_root,
+                &files,
+                &state,
+                graph.as_ref(),
+                &all_violations_for_cache,
+                &parse_failures_for_cache,
+            ) {
+                eprintln!("niteo: failed to write cache: {error}");
+            }
+        }))
+    } else {
+        None
+    };
 
     let config_set = file_set.config_set;
     let fail_on = config_set.root().fail_on.clone();
@@ -508,6 +522,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
         fail_on,
         parse_failures,
         directory_inventory,
+        cache_join_handle,
     }))
 }
 
@@ -779,6 +794,7 @@ pub fn collect_incremental(
         fail_on: previous.fail_on.clone(),
         parse_failures,
         directory_inventory,
+        cache_join_handle: None,
     }))
 }
 

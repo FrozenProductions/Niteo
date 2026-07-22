@@ -1,5 +1,18 @@
+use std::time::Duration;
+
 use crate::harness;
 use anyhow::{Context, Result};
+
+fn wait_for_cache(cache_path: &std::path::Path) -> Result<()> {
+    for attempt in 0..20 {
+        if cache_path.exists() {
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_millis(50));
+        eprintln!("waiting for cache attempt {attempt}...");
+    }
+    anyhow::bail!("cache file was not written within 1 second");
+}
 
 #[test]
 fn cache_flag_creates_cache_file() -> Result<()> {
@@ -11,7 +24,7 @@ fn cache_flag_creates_cache_file() -> Result<()> {
         .success();
 
     let cache_path = project.path().join(".niteo").join("cache.json");
-    assert!(cache_path.exists(), "cache file should be created");
+    wait_for_cache(&cache_path)?;
 
     let contents = std::fs::read_to_string(&cache_path)?;
     let parsed: serde_json::Value = serde_json::from_str(&contents)?;
@@ -30,7 +43,7 @@ fn clear_cache_removes_cache_file() -> Result<()> {
         .args(["lint", "--cache"])
         .assert()
         .success();
-    assert!(cache_path.exists());
+    wait_for_cache(&cache_path)?;
 
     harness::niteo_in_project(project.path())
         .args(["lint", "--clear-cache"])
@@ -53,6 +66,7 @@ fn cache_invalidates_when_file_changes() -> Result<()> {
         .args(["lint", "--cache"])
         .assert()
         .success();
+    wait_for_cache(&cache_path)?;
 
     let first_cache = std::fs::read_to_string(&cache_path)?;
     let first_parsed: serde_json::Value = serde_json::from_str(&first_cache)?;
@@ -68,6 +82,7 @@ fn cache_invalidates_when_file_changes() -> Result<()> {
         .args(["lint", "--cache"])
         .assert()
         .success();
+    wait_for_cache(&cache_path)?;
 
     let second_cache = std::fs::read_to_string(&cache_path)?;
     let second_parsed: serde_json::Value = serde_json::from_str(&second_cache)?;
@@ -93,6 +108,7 @@ fn cache_reuses_entries_for_unchanged_files() -> Result<()> {
         .args(["lint", "--cache"])
         .assert()
         .success();
+    wait_for_cache(&cache_path)?;
 
     let first_cache = std::fs::read_to_string(&cache_path)?;
     let first_parsed: serde_json::Value = serde_json::from_str(&first_cache)?;
@@ -113,6 +129,7 @@ fn cache_reuses_entries_for_unchanged_files() -> Result<()> {
         .args(["lint", "--cache"])
         .assert()
         .success();
+    wait_for_cache(&cache_path)?;
 
     let second_cache = std::fs::read_to_string(&cache_path)?;
     let second_parsed: serde_json::Value = serde_json::from_str(&second_cache)?;
@@ -144,6 +161,7 @@ fn cache_writes_and_reuses_violations() -> Result<()> {
     let _ = harness::niteo_in_project(project.path())
         .args(["lint", "--cache"])
         .assert();
+    wait_for_cache(&cache_path)?;
 
     let first_cache = std::fs::read_to_string(&cache_path)?;
     let first_parsed: serde_json::Value = serde_json::from_str(&first_cache)?;
@@ -172,6 +190,7 @@ fn cache_writes_and_reuses_violations() -> Result<()> {
     let _ = harness::niteo_in_project(project.path())
         .args(["lint", "--cache"])
         .assert();
+    wait_for_cache(&cache_path)?;
 
     let second_cache = std::fs::read_to_string(&cache_path)?;
     let second_parsed: serde_json::Value = serde_json::from_str(&second_cache)?;
