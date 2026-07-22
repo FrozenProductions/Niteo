@@ -1,6 +1,7 @@
+use serde::Serialize;
 use std::path::{Component, Path};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DomainConfig {
     pub folders: Vec<String>,
     pub file_suffixes: Vec<String>,
@@ -28,7 +29,7 @@ impl DomainConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ProjectStructureConfig {
     pub hooks: DomainConfig,
     pub components: DomainConfig,

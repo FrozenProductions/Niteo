@@ -1,4 +1,7 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Severity {
     Off,
     Info,
@@ -37,7 +40,7 @@ impl Severity {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RuleConfig {
     pub severity: Severity,
 }
@@ -50,7 +53,7 @@ impl Default for RuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CommentsRuleConfig {
     pub severity: Severity,
     pub allow_doc_comments: bool,
@@ -65,7 +68,7 @@ impl Default for CommentsRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FileLengthRuleConfig {
     pub severity: Severity,
     pub max_lines: usize,
@@ -80,7 +83,7 @@ impl Default for FileLengthRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FileExportsRuleConfig {
     pub severity: Severity,
     pub max_exports: usize,
@@ -97,7 +100,7 @@ impl Default for FileExportsRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct UpwardImportRuleConfig {
     pub severity: Severity,
     pub max_depth: usize,
@@ -114,7 +117,7 @@ impl Default for UpwardImportRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GitignoreConfig {
     pub enabled: bool,
 }
@@ -125,7 +128,7 @@ impl Default for GitignoreConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoEmptyDirectoriesRuleConfig {
     pub severity: Severity,
     pub ignore_dirs: Vec<String>,
@@ -140,7 +143,7 @@ impl Default for NoEmptyDirectoriesRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoDuplicateFileNamesRuleConfig {
     pub severity: Severity,
     pub ignore_names: Vec<String>,
@@ -155,7 +158,7 @@ impl Default for NoDuplicateFileNamesRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MaxItemsPerDirectoryRuleConfig {
     pub severity: Severity,
     pub max_items: usize,
@@ -174,7 +177,7 @@ impl Default for MaxItemsPerDirectoryRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MinItemsPerDirectoryRuleConfig {
     pub severity: Severity,
     pub min_items: usize,
@@ -193,7 +196,7 @@ impl Default for MinItemsPerDirectoryRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MaxDirectoryDepthRuleConfig {
     pub severity: Severity,
     pub max_depth: usize,
@@ -210,7 +213,7 @@ impl Default for MaxDirectoryDepthRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoConsoleRuleConfig {
     pub severity: Severity,
     pub allow_patterns: Vec<String>,
@@ -225,7 +228,7 @@ impl Default for NoConsoleRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct BooleanPrefixRuleConfig {
     pub severity: Severity,
     pub prefixes: Vec<String>,
@@ -242,7 +245,7 @@ impl Default for BooleanPrefixRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HookPrefixRuleConfig {
     pub severity: Severity,
     pub prefixes: Vec<String>,
@@ -257,7 +260,7 @@ impl Default for HookPrefixRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoInterfaceRuleConfig {
     pub severity: Severity,
     pub allow_declaration_merging: bool,
@@ -272,7 +275,7 @@ impl Default for NoInterfaceRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoDumpFilesRuleConfig {
     pub severity: Severity,
     pub extra_names: Vec<String>,
@@ -287,7 +290,7 @@ impl Default for NoDumpFilesRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoAnyRuleConfig {
     pub severity: Severity,
     pub allowed_folders: Vec<String>,
@@ -302,7 +305,7 @@ impl Default for NoAnyRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct EntryFileNoLogicRuleConfig {
     pub severity: Severity,
     pub entry_files: Vec<String>,
@@ -322,7 +325,7 @@ impl Default for EntryFileNoLogicRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoAbbreviationsRuleConfig {
     pub severity: Severity,
     pub extra_abbreviations: Vec<String>,
@@ -339,7 +342,7 @@ impl Default for NoAbbreviationsRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoDefaultExportRuleConfig {
     pub severity: Severity,
     pub components_only: bool,
@@ -354,7 +357,7 @@ impl Default for NoDefaultExportRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoRestrictedImportsRuleConfig {
     pub severity: Severity,
     pub restricted: Vec<String>,
@@ -369,7 +372,7 @@ impl Default for NoRestrictedImportsRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MaxFunctionParamsRuleConfig {
     pub severity: Severity,
     pub max_params: usize,
@@ -384,7 +387,8 @@ impl Default for MaxFunctionParamsRuleConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum NestingContext {
     Function,
     Arrow,
@@ -419,7 +423,7 @@ impl std::fmt::Display for NestingContext {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoNestedFunctionsRuleConfig {
     pub severity: Severity,
     pub max_depth: usize,
@@ -441,7 +445,7 @@ impl Default for NoNestedFunctionsRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoOrphanFilesRuleConfig {
     pub severity: Severity,
     pub entry_files: Vec<String>,
@@ -461,7 +465,7 @@ impl Default for NoOrphanFilesRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoMagicNumbersRuleConfig {
     pub severity: Severity,
     pub allowed_numbers: Vec<String>,
@@ -478,7 +482,7 @@ impl Default for NoMagicNumbersRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoEmptyDomainRuleConfig {
     pub severity: Severity,
     pub ignore_dirs: Vec<String>,
@@ -493,7 +497,7 @@ impl Default for NoEmptyDomainRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoAnemicDomainRuleConfig {
     pub severity: Severity,
     pub max_files: usize,
@@ -510,7 +514,7 @@ impl Default for NoAnemicDomainRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoGodDomainRuleConfig {
     pub severity: Severity,
     pub max_files: usize,
@@ -527,7 +531,7 @@ impl Default for NoGodDomainRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoCircularImportRuleConfig {
     pub severity: Severity,
     pub report_all_nodes: bool,
@@ -542,7 +546,7 @@ impl Default for NoCircularImportRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NoThenChainRuleConfig {
     pub severity: Severity,
     pub allow_single: bool,
@@ -557,7 +561,7 @@ impl Default for NoThenChainRuleConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct BarrelRuleConfig {
     pub severity: Severity,
     pub barrel_names: Vec<String>,

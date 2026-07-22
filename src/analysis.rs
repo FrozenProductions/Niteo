@@ -175,16 +175,11 @@ impl CacheResult {
             );
         }
 
-        let config_paths: Vec<PathBuf> = config_set
-            .configs()
-            .filter_map(|node| node.config_path.clone())
-            .collect();
-
         let state = if options.cache_enabled {
             match crate::cache::lifecycle::prepare_cache(
                 workspace_root,
                 files,
-                &config_paths,
+                config_set,
                 tsconfig_path,
             ) {
                 Ok(state) => state,
@@ -208,6 +203,13 @@ impl CacheResult {
             .as_ref()
             .map(|s| Arc::clone(&s.cached_violations))
             .unwrap_or_else(|| Arc::new(HashMap::new()))
+    }
+
+    fn changed_rules(&self) -> Arc<HashSet<crate::rules::RuleId>> {
+        self.state
+            .as_ref()
+            .map(|s| Arc::clone(&s.changed_rules))
+            .unwrap_or_else(|| Arc::new(HashSet::new()))
     }
 
     fn cached_edges(&self) -> HashMap<PathBuf, &[crate::import_graph::ImportEdge]> {
@@ -312,6 +314,7 @@ impl FileLintResult {
         verbose: u8,
     ) -> Result<Self> {
         let cached_violations_map = cache.cached_violations();
+        let changed_rules = cache.changed_rules();
 
         let (violations, suppression_report, parse_failures) = rules::check_files(
             files,
@@ -320,6 +323,7 @@ impl FileLintResult {
             workspace,
             cached_violations_map,
             sources,
+            changed_rules,
             verbose,
         )?;
 

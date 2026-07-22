@@ -144,6 +144,23 @@ macro_rules! declare_rules {
                 }
             }
         }
+
+        impl RulesConfig {
+            /// Returns a deterministic JSON representation of each rule's own
+            /// configuration options. These strings are combined with project
+            /// structure and architecture context to build per-rule cache hashes.
+            pub fn rule_option_hashes(&self) -> std::collections::HashMap<String, String> {
+                let mut result = std::collections::HashMap::new();
+                $(
+                    result.insert(
+                        $rule_value.to_string(),
+                        serde_json::to_string(&self.$mod_name)
+                            .unwrap_or_else(|_| format!("{{\"severity\":\"{}\"}}", self.$mod_name.severity.as_str())),
+                    );
+                )*
+                result
+            }
+        }
     };
 
     (@sev) => { Severity::Warn };
@@ -236,6 +253,7 @@ pub struct TextEdit {
 }
 
 pub trait AstRule: Send + Sync {
+    fn rule_id(&self) -> RuleId;
     fn severity(&self) -> Severity;
     fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation>;
 
@@ -249,11 +267,13 @@ pub trait AstRule: Send + Sync {
 }
 
 pub trait TextRule: Send + Sync {
+    fn rule_id(&self) -> RuleId;
     fn severity(&self) -> Severity;
     fn check(&self, ctx: &TextContext<'_>) -> Vec<Violation>;
 }
 
 pub trait GraphRule: Send + Sync {
+    fn rule_id(&self) -> RuleId;
     fn severity(&self) -> Severity;
     fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation>;
 }

@@ -1,9 +1,10 @@
+use serde::Serialize;
 use std::collections::HashMap;
 use std::path::{Component, Path};
 
 use super::structure::DomainConfig;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct ArchitectureConfig {
     pub layers: LayerBoundaryConfig,
 }
@@ -12,6 +13,24 @@ pub struct ArchitectureConfig {
 pub struct LayerBoundaryConfig {
     pub order: Vec<String>,
     pub definitions: HashMap<String, DomainConfig>,
+}
+
+impl Serialize for LayerBoundaryConfig {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("LayerBoundaryConfig", 2)?;
+        state.serialize_field("order", &self.order)?;
+        let definitions: std::collections::BTreeMap<String, &DomainConfig> = self
+            .definitions
+            .iter()
+            .map(|(name, domain)| (name.clone(), domain))
+            .collect();
+        state.serialize_field("definitions", &definitions)?;
+        state.end()
+    }
 }
 
 impl LayerBoundaryConfig {

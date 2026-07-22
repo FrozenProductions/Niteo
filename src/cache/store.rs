@@ -11,7 +11,7 @@ const CACHE_FILE_NAME: &str = ".niteo/cache.json";
 pub struct CacheFile {
     pub version: u32,
     pub niteo_version: String,
-    pub config_hash: String,
+    pub rule_hashes: HashMap<String, String>,
     pub tsconfig_hash: Option<String>,
     pub file_list_hash: String,
     pub files: HashMap<String, CachedFileAnalysis>,

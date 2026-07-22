@@ -52,18 +52,17 @@ mod tests {
         let cache = CacheFile {
             version: CACHE_SCHEMA_VERSION,
             niteo_version: "0.2.0".to_string(),
-            config_hash: "abc".to_string(),
+            rule_hashes: HashMap::new(),
             tsconfig_hash: Some("def".to_string()),
             file_list_hash: "ghi".to_string(),
             files: HashMap::new(),
             graph: None,
         };
-        assert!(is_cache_valid(&cache, "0.2.0", "abc", Some("def"), "ghi"));
-        assert!(!is_cache_valid(&cache, "0.2.1", "abc", Some("def"), "ghi"));
-        assert!(!is_cache_valid(&cache, "0.2.0", "xyz", Some("def"), "ghi"));
-        assert!(!is_cache_valid(&cache, "0.2.0", "abc", Some("xyz"), "ghi"));
-        assert!(!is_cache_valid(&cache, "0.2.0", "abc", None, "ghi"));
-        assert!(!is_cache_valid(&cache, "0.2.0", "abc", Some("def"), "xyz"));
+        assert!(is_cache_valid(&cache, "0.2.0", Some("def"), "ghi"));
+        assert!(!is_cache_valid(&cache, "0.2.1", Some("def"), "ghi"));
+        assert!(!is_cache_valid(&cache, "0.2.0", Some("xyz"), "ghi"));
+        assert!(!is_cache_valid(&cache, "0.2.0", None, "ghi"));
+        assert!(!is_cache_valid(&cache, "0.2.0", Some("def"), "xyz"));
         Ok(())
     }
 
@@ -72,7 +71,7 @@ mod tests {
         let cache = CacheFile {
             version: 999,
             niteo_version: env!("CARGO_PKG_VERSION").to_string(),
-            config_hash: "abc".to_string(),
+            rule_hashes: HashMap::new(),
             tsconfig_hash: None,
             file_list_hash: "ghi".to_string(),
             files: HashMap::new(),
@@ -81,7 +80,6 @@ mod tests {
         assert!(!is_cache_valid(
             &cache,
             env!("CARGO_PKG_VERSION"),
-            "abc",
             None,
             "ghi"
         ));

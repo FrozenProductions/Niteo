@@ -1,20 +1,38 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use oxc_span::Span;
 
 use niteo::cache::edges::CachedImportEdge;
-use niteo::cache::key::{CACHE_SCHEMA_VERSION, hash_config_files, hash_content, hash_file_list};
+use niteo::cache::key::{CACHE_SCHEMA_VERSION, compute_rule_hashes, hash_content, hash_file_list};
 use niteo::cache::lifecycle::{CacheState, finalize_cache, prepare_cache};
 use niteo::cache::store::{
     CacheFile, CachedFileAnalysis, CachedViolation, cache_path, clear_cache, read_cache,
     write_cache,
 };
 use niteo::config::Severity;
+use niteo::config::{ConfigSet, ConfigSetOptions};
 use niteo::import_graph::{ImportEdge, ImportGraph, ImportKind};
 use niteo::import_resolver::SpecifierKind;
 use niteo::rules::{NO_CONSOLE_RULE_ID, Violation};
+
+fn write_minimal_config(project_root: &std::path::Path) -> Result<std::path::PathBuf> {
+    let config_path = project_root.join("niteo.toml");
+    std::fs::write(&config_path, "[project]\nroot = \".\"\n")?;
+    Ok(config_path)
+}
+
+fn resolve_config_set(project_root: &std::path::Path) -> Result<ConfigSet> {
+    ConfigSet::resolve(
+        project_root,
+        ConfigSetOptions {
+            root_override: None,
+            scan_scope: None,
+            deny_child_configs: false,
+        },
+    )
+}
 
 #[test]
 fn read_missing_cache_returns_none() -> Result<()> {
@@ -58,7 +76,7 @@ fn write_and_read_cache_roundtrip() -> Result<()> {
     let cache = CacheFile {
         version: CACHE_SCHEMA_VERSION,
         niteo_version: "0.2.0".to_string(),
-        config_hash: "cfg".to_string(),
+        rule_hashes: HashMap::new(),
         tsconfig_hash: None,
         file_list_hash: "fl".to_string(),
         files,
@@ -84,7 +102,7 @@ fn clear_cache_removes_file() -> Result<()> {
     let cache = CacheFile {
         version: CACHE_SCHEMA_VERSION,
         niteo_version: "0.2.0".to_string(),
-        config_hash: "cfg".to_string(),
+        rule_hashes: HashMap::new(),
         tsconfig_hash: None,
         file_list_hash: "fl".to_string(),
         files: HashMap::new(),
@@ -112,9 +130,9 @@ fn prepare_cache_miss_when_file_hash_changes() -> Result<()> {
     let file = project_root.join("a.ts");
     std::fs::write(&file, "original")?;
 
-    let config_path = project_root.join("niteo.toml");
-    std::fs::write(&config_path, "test config")?;
-    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
+    let _config_path = write_minimal_config(project_root)?;
+    let config_set = resolve_config_set(project_root)?;
+    let rule_hashes = compute_rule_hashes(&config_set);
 
     let mut files_map = HashMap::new();
     files_map.insert(
@@ -129,7 +147,7 @@ fn prepare_cache_miss_when_file_hash_changes() -> Result<()> {
     let cache = CacheFile {
         version: CACHE_SCHEMA_VERSION,
         niteo_version: env!("CARGO_PKG_VERSION").to_string(),
-        config_hash,
+        rule_hashes,
         tsconfig_hash: None,
         file_list_hash: hash_file_list(std::slice::from_ref(&file)),
         files: files_map,
@@ -139,13 +157,8 @@ fn prepare_cache_miss_when_file_hash_changes() -> Result<()> {
 
     std::fs::write(&file, "changed")?;
 
-    let state = prepare_cache(
-        project_root,
-        std::slice::from_ref(&file),
-        &[config_path],
-        None,
-    )?
-    .context("missing cache")?;
+    let state = prepare_cache(project_root, std::slice::from_ref(&file), &config_set, None)?
+        .context("missing cache")?;
     assert!(!state.cached_edges.contains_key(&file));
     Ok(())
 }
@@ -157,9 +170,9 @@ fn prepare_cache_hit_when_unchanged() -> Result<()> {
     let file = project_root.join("a.ts");
     std::fs::write(&file, "original")?;
 
-    let config_path = project_root.join("niteo.toml");
-    std::fs::write(&config_path, "test config")?;
-    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
+    let _config_path = write_minimal_config(project_root)?;
+    let config_set = resolve_config_set(project_root)?;
+    let rule_hashes = compute_rule_hashes(&config_set);
 
     let mut files_map = HashMap::new();
     files_map.insert(
@@ -181,7 +194,7 @@ fn prepare_cache_hit_when_unchanged() -> Result<()> {
     let cache = CacheFile {
         version: CACHE_SCHEMA_VERSION,
         niteo_version: env!("CARGO_PKG_VERSION").to_string(),
-        config_hash,
+        rule_hashes,
         tsconfig_hash: None,
         file_list_hash: hash_file_list(std::slice::from_ref(&file)),
         files: files_map,
@@ -189,13 +202,8 @@ fn prepare_cache_hit_when_unchanged() -> Result<()> {
     };
     write_cache(project_root, &cache)?;
 
-    let state = prepare_cache(
-        project_root,
-        std::slice::from_ref(&file),
-        &[config_path],
-        None,
-    )?
-    .context("missing cache")?;
+    let state = prepare_cache(project_root, std::slice::from_ref(&file), &config_set, None)?
+        .context("missing cache")?;
     let edges = state
         .cached_edges
         .get(&file)
@@ -214,9 +222,9 @@ fn prepare_cache_hit_restores_violations() -> Result<()> {
     let file = project_root.join("a.ts");
     std::fs::write(&file, "original")?;
 
-    let config_path = project_root.join("niteo.toml");
-    std::fs::write(&config_path, "test config")?;
-    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
+    let _config_path = write_minimal_config(project_root)?;
+    let config_set = resolve_config_set(project_root)?;
+    let rule_hashes = compute_rule_hashes(&config_set);
 
     let mut files_map = HashMap::new();
     files_map.insert(
@@ -239,7 +247,7 @@ fn prepare_cache_hit_restores_violations() -> Result<()> {
     let cache = CacheFile {
         version: CACHE_SCHEMA_VERSION,
         niteo_version: env!("CARGO_PKG_VERSION").to_string(),
-        config_hash,
+        rule_hashes,
         tsconfig_hash: None,
         file_list_hash: hash_file_list(std::slice::from_ref(&file)),
         files: files_map,
@@ -247,13 +255,8 @@ fn prepare_cache_hit_restores_violations() -> Result<()> {
     };
     write_cache(project_root, &cache)?;
 
-    let state = prepare_cache(
-        project_root,
-        std::slice::from_ref(&file),
-        &[config_path],
-        None,
-    )?
-    .context("missing cache")?;
+    let state = prepare_cache(project_root, std::slice::from_ref(&file), &config_set, None)?
+        .context("missing cache")?;
     let violations = state
         .cached_violations
         .get(&file)
@@ -274,9 +277,7 @@ fn finalize_cache_writes_violations() -> Result<()> {
     let file = project_root.join("a.ts");
     std::fs::write(&file, "content")?;
 
-    let config_path = project_root.join("niteo.toml");
     let file_list_hash = hash_file_list(std::slice::from_ref(&file));
-    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
     let mut file_hashes = HashMap::new();
     file_hashes.insert(file.clone(), hash_content(b"content"));
@@ -290,7 +291,8 @@ fn finalize_cache_writes_violations() -> Result<()> {
         cached_topology: None,
         dirty: true,
         file_list_hash,
-        config_hash,
+        rule_hashes: HashMap::new(),
+        changed_rules: Arc::new(HashSet::new()),
         tsconfig_hash: None,
     };
 
@@ -332,9 +334,7 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
     std::fs::write(&file_a, "content a")?;
     std::fs::write(&file_b, "content b")?;
 
-    let config_path = project_root.join("niteo.toml");
     let file_list_hash = hash_file_list(&[file_a.clone(), file_b.clone()]);
-    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
     let mut file_hashes = HashMap::new();
     file_hashes.insert(file_a.clone(), hash_content(b"content a"));
@@ -365,7 +365,8 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
         cached_topology: None,
         dirty: true,
         file_list_hash,
-        config_hash,
+        rule_hashes: HashMap::new(),
+        changed_rules: Arc::new(HashSet::new()),
         tsconfig_hash: None,
     };
 
@@ -408,9 +409,9 @@ fn prepare_cache_invalidates_when_niteo_version_changes() -> Result<()> {
     let file = project_root.join("a.ts");
     std::fs::write(&file, "content")?;
 
-    let config_path = project_root.join("niteo.toml");
-    std::fs::write(&config_path, "test config")?;
-    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
+    let _config_path = write_minimal_config(project_root)?;
+    let config_set = resolve_config_set(project_root)?;
+    let rule_hashes = compute_rule_hashes(&config_set);
 
     let mut files_map = HashMap::new();
     files_map.insert(
@@ -425,7 +426,7 @@ fn prepare_cache_invalidates_when_niteo_version_changes() -> Result<()> {
     let cache = CacheFile {
         version: CACHE_SCHEMA_VERSION,
         niteo_version: "old-version".to_string(),
-        config_hash,
+        rule_hashes,
         tsconfig_hash: None,
         file_list_hash: hash_file_list(std::slice::from_ref(&file)),
         files: files_map,
@@ -433,23 +434,26 @@ fn prepare_cache_invalidates_when_niteo_version_changes() -> Result<()> {
     };
     write_cache(project_root, &cache)?;
 
-    let state = prepare_cache(
-        project_root,
-        std::slice::from_ref(&file),
-        &[config_path],
-        None,
-    )?
-    .context("missing cache")?;
+    let state = prepare_cache(project_root, std::slice::from_ref(&file), &config_set, None)?
+        .context("missing cache")?;
     assert!(!state.cached_edges.contains_key(&file));
     Ok(())
 }
 
 #[test]
-fn prepare_cache_invalidates_when_config_hash_changes() -> Result<()> {
+fn prepare_cache_invalidates_only_changed_rule_violations() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let project_root = temp_dir.path();
     let file = project_root.join("a.ts");
     std::fs::write(&file, "content")?;
+
+    let config_path = project_root.join("niteo.toml");
+    std::fs::write(
+        &config_path,
+        "[project]\nroot = \".\"\n[rules.no-console]\nseverity = \"warn\"\n[rules.no-debugger]\nseverity = \"warn\"\n",
+    )?;
+    let config_set = resolve_config_set(project_root)?;
+    let rule_hashes = compute_rule_hashes(&config_set);
 
     let mut files_map = HashMap::new();
     files_map.insert(
@@ -457,14 +461,33 @@ fn prepare_cache_invalidates_when_config_hash_changes() -> Result<()> {
         CachedFileAnalysis {
             content_hash: hash_content(b"content"),
             import_edges: Vec::new(),
-            violations: Vec::new(),
+            violations: vec![
+                CachedViolation {
+                    line: Some(1),
+                    column: Some(1),
+                    rule: "no-console".to_string(),
+                    message: "no-console violation".to_string(),
+                    severity: "warn".to_string(),
+                    detail: None,
+                    subject: None,
+                },
+                CachedViolation {
+                    line: Some(2),
+                    column: Some(2),
+                    rule: "no-debugger".to_string(),
+                    message: "no-debugger violation".to_string(),
+                    severity: "warn".to_string(),
+                    detail: None,
+                    subject: None,
+                },
+            ],
             parse_failure: None,
         },
     );
     let cache = CacheFile {
         version: CACHE_SCHEMA_VERSION,
         niteo_version: env!("CARGO_PKG_VERSION").to_string(),
-        config_hash: "old-cfg".to_string(),
+        rule_hashes,
         tsconfig_hash: None,
         file_list_hash: hash_file_list(std::slice::from_ref(&file)),
         files: files_map,
@@ -472,17 +495,96 @@ fn prepare_cache_invalidates_when_config_hash_changes() -> Result<()> {
     };
     write_cache(project_root, &cache)?;
 
-    let config_path = project_root.join("niteo.toml");
-    std::fs::write(&config_path, "new config")?;
+    std::fs::write(
+        &config_path,
+        "[project]\nroot = \".\"\n[rules.no-console]\nseverity = \"error\"\n[rules.no-debugger]\nseverity = \"warn\"\n",
+    )?;
+    let config_set = resolve_config_set(project_root)?;
 
-    let state = prepare_cache(
-        project_root,
-        std::slice::from_ref(&file),
-        &[config_path],
-        None,
-    )?
-    .context("missing cache")?;
-    assert!(!state.cached_edges.contains_key(&file));
+    let state = prepare_cache(project_root, std::slice::from_ref(&file), &config_set, None)?
+        .context("missing cache")?;
+
+    assert!(state.dirty);
+    let violations = state
+        .cached_violations
+        .get(&file)
+        .context("expected cached violations")?;
+    assert_eq!(violations.len(), 1);
+    assert_eq!(violations[0].rule, "no-debugger");
+    Ok(())
+}
+
+#[test]
+fn prepare_cache_keeps_violations_for_unchanged_rules() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let project_root = temp_dir.path();
+    let file = project_root.join("a.ts");
+    std::fs::write(&file, "content")?;
+
+    let config_path = project_root.join("niteo.toml");
+    std::fs::write(
+        &config_path,
+        "[project]\nroot = \".\"\n[rules.no-console]\nseverity = \"warn\"\n[rules.no-debugger]\nseverity = \"warn\"\n",
+    )?;
+    let config_set = resolve_config_set(project_root)?;
+    let rule_hashes = compute_rule_hashes(&config_set);
+
+    let mut files_map = HashMap::new();
+    files_map.insert(
+        "a.ts".to_string(),
+        CachedFileAnalysis {
+            content_hash: hash_content(b"content"),
+            import_edges: Vec::new(),
+            violations: vec![
+                CachedViolation {
+                    line: Some(1),
+                    column: Some(1),
+                    rule: "no-console".to_string(),
+                    message: "no-console violation".to_string(),
+                    severity: "warn".to_string(),
+                    detail: None,
+                    subject: None,
+                },
+                CachedViolation {
+                    line: Some(2),
+                    column: Some(2),
+                    rule: "no-debugger".to_string(),
+                    message: "no-debugger violation".to_string(),
+                    severity: "warn".to_string(),
+                    detail: None,
+                    subject: None,
+                },
+            ],
+            parse_failure: None,
+        },
+    );
+    let cache = CacheFile {
+        version: CACHE_SCHEMA_VERSION,
+        niteo_version: env!("CARGO_PKG_VERSION").to_string(),
+        rule_hashes,
+        tsconfig_hash: None,
+        file_list_hash: hash_file_list(std::slice::from_ref(&file)),
+        files: files_map,
+        graph: None,
+    };
+    write_cache(project_root, &cache)?;
+
+    std::fs::write(
+        &config_path,
+        "[project]\nroot = \".\"\n[rules.no-console]\nseverity = \"warn\"\n[rules.no-debugger]\nseverity = \"error\"\n",
+    )?;
+    let config_set = resolve_config_set(project_root)?;
+
+    let state = prepare_cache(project_root, std::slice::from_ref(&file), &config_set, None)?
+        .context("missing cache")?;
+
+    assert!(state.dirty);
+    let violations = state
+        .cached_violations
+        .get(&file)
+        .context("expected cached violations")?;
+    assert_eq!(violations.len(), 1);
+    assert_eq!(violations[0].rule, "no-console");
     Ok(())
 }
 
@@ -493,9 +595,9 @@ fn prepare_cache_invalidates_when_file_list_changes() -> Result<()> {
     let file_a = project_root.join("a.ts");
     std::fs::write(&file_a, "content")?;
 
-    let config_path = project_root.join("niteo.toml");
-    std::fs::write(&config_path, "test config")?;
-    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
+    let _config_path = write_minimal_config(project_root)?;
+    let config_set = resolve_config_set(project_root)?;
+    let rule_hashes = compute_rule_hashes(&config_set);
 
     let mut files_map = HashMap::new();
     files_map.insert(
@@ -510,7 +612,7 @@ fn prepare_cache_invalidates_when_file_list_changes() -> Result<()> {
     let cache = CacheFile {
         version: CACHE_SCHEMA_VERSION,
         niteo_version: env!("CARGO_PKG_VERSION").to_string(),
-        config_hash,
+        rule_hashes,
         tsconfig_hash: None,
         file_list_hash: hash_file_list(std::slice::from_ref(&file_a)),
         files: files_map,
@@ -524,7 +626,7 @@ fn prepare_cache_invalidates_when_file_list_changes() -> Result<()> {
     let state = prepare_cache(
         project_root,
         &[file_a.clone(), file_b.clone()],
-        &[config_path],
+        &config_set,
         None,
     )?
     .context("missing cache")?;
@@ -539,13 +641,10 @@ fn prepare_cache_returns_none_when_no_cache_exists() -> Result<()> {
     let file = project_root.join("a.ts");
     std::fs::write(&file, "content")?;
 
-    let state = prepare_cache(
-        project_root,
-        std::slice::from_ref(&file),
-        &[project_root.join("niteo.toml")],
-        None,
-    )?
-    .context("missing cache")?;
+    let config_set = resolve_config_set(project_root)?;
+
+    let state = prepare_cache(project_root, std::slice::from_ref(&file), &config_set, None)?
+        .context("missing cache")?;
     assert!(state.cached_edges.is_empty());
     assert!(state.cached_violations.is_empty());
     Ok(())
@@ -560,9 +659,7 @@ fn finalize_cache_writes_all_files() -> Result<()> {
     std::fs::write(&file_a, "content a")?;
     std::fs::write(&file_b, "content b")?;
 
-    let config_path = project_root.join("niteo.toml");
     let file_list_hash = hash_file_list(&[file_a.clone(), file_b.clone()]);
-    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
     let mut graph = ImportGraph::new();
     graph.add_file(file_a.clone(), false, false);
@@ -590,7 +687,8 @@ fn finalize_cache_writes_all_files() -> Result<()> {
         cached_topology: None,
         dirty: true,
         file_list_hash,
-        config_hash,
+        rule_hashes: HashMap::new(),
+        changed_rules: Arc::new(HashSet::new()),
         tsconfig_hash: None,
     };
 
@@ -620,9 +718,7 @@ fn finalize_cache_writes_graph_topology() -> Result<()> {
     std::fs::write(&file_a, "content a")?;
     std::fs::write(&file_b, "content b")?;
 
-    let config_path = project_root.join("niteo.toml");
     let file_list_hash = hash_file_list(&[file_a.clone(), file_b.clone()]);
-    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
     let mut graph = ImportGraph::new();
     graph.add_file(file_a.clone(), false, false);
@@ -659,7 +755,8 @@ fn finalize_cache_writes_graph_topology() -> Result<()> {
         cached_topology: None,
         dirty: true,
         file_list_hash,
-        config_hash,
+        rule_hashes: HashMap::new(),
+        changed_rules: Arc::new(HashSet::new()),
         tsconfig_hash: None,
     };
 
@@ -689,9 +786,9 @@ fn prepare_cache_restores_graph_topology_when_unchanged() -> Result<()> {
     std::fs::write(&file_a, "content a")?;
     std::fs::write(&file_b, "content b")?;
 
-    let config_path = project_root.join("niteo.toml");
+    let _config_path = write_minimal_config(project_root)?;
+    let config_set = resolve_config_set(project_root)?;
     let file_list_hash = hash_file_list(&[file_a.clone(), file_b.clone()]);
-    let config_hash = hash_config_files(std::slice::from_ref(&config_path));
 
     let mut graph = ImportGraph::new();
     graph.add_file(file_a.clone(), false, false);
@@ -720,7 +817,8 @@ fn prepare_cache_restores_graph_topology_when_unchanged() -> Result<()> {
         cached_topology: None,
         dirty: true,
         file_list_hash,
-        config_hash,
+        rule_hashes: HashMap::new(),
+        changed_rules: Arc::new(HashSet::new()),
         tsconfig_hash: None,
     };
 
@@ -736,7 +834,7 @@ fn prepare_cache_restores_graph_topology_when_unchanged() -> Result<()> {
     let state = prepare_cache(
         project_root,
         &[file_a.clone(), file_b.clone()],
-        &[config_path],
+        &config_set,
         None,
     )?
     .context("missing cache")?;

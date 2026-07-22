@@ -7,7 +7,7 @@ use rayon::prelude::*;
 
 use crate::cache::edges::{CachedImportEdge, cached_import_edges_to_import, import_edge_to_cached};
 use crate::cache::key::{
-    CACHE_SCHEMA_VERSION, denormalize_path_from_cache, hash_config_files, hash_content,
+    CACHE_SCHEMA_VERSION, compute_rule_hashes, denormalize_path_from_cache, hash_content,
     hash_file_list, hash_tsconfig, is_cache_valid, normalize_path_for_cache,
 };
 use crate::cache::store::{
@@ -30,41 +30,47 @@ pub struct CacheState {
     pub cached_topology: Option<CachedGraph>,
     pub dirty: bool,
     pub file_list_hash: String,
-    pub config_hash: String,
+    pub rule_hashes: HashMap<String, String>,
+    pub changed_rules: Arc<HashSet<crate::rules::RuleId>>,
     pub tsconfig_hash: Option<String>,
 }
 
 pub fn prepare_cache(
     project_root: &Path,
     files: &[PathBuf],
-    config_paths: &[PathBuf],
+    config_set: &crate::config::ConfigSet,
     tsconfig_path: Option<&Path>,
 ) -> Result<Option<CacheState>> {
     let niteo_version = env!("CARGO_PKG_VERSION");
     let file_list_hash = hash_file_list(files);
-    let config_hash = hash_config_files(config_paths);
+    let rule_hashes = compute_rule_hashes(config_set);
     let tsconfig_hash = tsconfig_path.map(hash_tsconfig);
 
     let mut cache = read_cache(project_root)?;
 
     let cache_valid = cache
         .as_ref()
-        .map(|c| {
-            is_cache_valid(
-                c,
-                niteo_version,
-                &config_hash,
-                tsconfig_hash.as_deref(),
-                &file_list_hash,
-            )
-        })
+        .map(|c| is_cache_valid(c, niteo_version, tsconfig_hash.as_deref(), &file_list_hash))
         .unwrap_or(false);
 
     if !cache_valid {
         cache = None;
     }
 
-    let mut dirty = !cache_valid;
+    let cached_rule_hashes = cache.as_ref().map(|c| &c.rule_hashes);
+    let mut changed_rules: HashSet<crate::rules::RuleId> = HashSet::new();
+    if let Some(cached_hashes) = cached_rule_hashes {
+        for rule_id in crate::rules::known_rule_ids() {
+            let current_hash = rule_hashes.get(*rule_id);
+            let cached_hash = cached_hashes.get(*rule_id);
+            if current_hash != cached_hash {
+                changed_rules.insert(*rule_id);
+            }
+        }
+    }
+    let changed_rules = Arc::new(changed_rules);
+
+    let mut dirty = !cache_valid || !changed_rules.is_empty();
     let cached_topology = cache.as_ref().and_then(|cache| cache.graph.clone());
 
     struct CacheHit {
@@ -144,7 +150,16 @@ pub fn prepare_cache(
                     &rule_lookup,
                     &mut message_interner,
                 );
-                cached_violations_map.insert(pf.file.clone(), violations);
+
+                let kept: Vec<Violation> = violations
+                    .into_iter()
+                    .filter(|violation| {
+                        let is_known = crate::rules::known_rule_ids().contains(&violation.rule);
+                        let is_changed = changed_rules.contains(violation.rule);
+                        is_known && !is_changed
+                    })
+                    .collect();
+                cached_violations_map.insert(pf.file.clone(), kept);
 
                 if let Some(parse_failure) = hit.parse_failure {
                     cached_parse_failures.insert(pf.file.clone(), parse_failure);
@@ -164,7 +179,8 @@ pub fn prepare_cache(
         cached_topology,
         dirty,
         file_list_hash,
-        config_hash,
+        rule_hashes,
+        changed_rules,
         tsconfig_hash,
     }))
 }
@@ -186,7 +202,7 @@ pub fn finalize_cache(
     let mut new_cache = CacheFile {
         version: CACHE_SCHEMA_VERSION,
         niteo_version: niteo_version.to_string(),
-        config_hash: cache_state.config_hash.clone(),
+        rule_hashes: cache_state.rule_hashes.clone(),
         tsconfig_hash: cache_state.tsconfig_hash.clone(),
         file_list_hash: cache_state.file_list_hash.clone(),
         files: HashMap::new(),

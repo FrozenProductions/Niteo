@@ -9,6 +9,9 @@ macro_rules! ast_rule_adapter {
             pub config: $config_ty,
         }
         impl AstRule for $name {
+            fn rule_id(&self) -> RuleId {
+                $id
+            }
             fn severity(&self) -> Severity {
                 self.config.severity
             }
@@ -25,6 +28,9 @@ macro_rules! fixable_ast_rule_adapter {
             pub config: $config_ty,
         }
         impl AstRule for $name {
+            fn rule_id(&self) -> RuleId {
+                $id
+            }
             fn severity(&self) -> Severity {
                 self.config.severity
             }
@@ -49,6 +55,9 @@ macro_rules! graph_rule_adapter {
             pub config: $config_ty,
         }
         impl GraphRule for $name {
+            fn rule_id(&self) -> RuleId {
+                $id
+            }
             fn severity(&self) -> Severity {
                 self.config.severity
             }
@@ -70,6 +79,9 @@ macro_rules! text_rule_adapter {
             pub config: $config_ty,
         }
         impl TextRule for $name {
+            fn rule_id(&self) -> RuleId {
+                $id
+            }
             fn severity(&self) -> Severity {
                 self.config.severity
             }
@@ -87,6 +99,9 @@ macro_rules! context_ast_rule_adapter {
             $(pub $field: $field_ty,)*
         }
         impl AstRule for $name {
+            fn rule_id(&self) -> RuleId {
+                $id
+            }
             fn severity(&self) -> Severity {
                 self.config.severity
             }
@@ -110,6 +125,9 @@ macro_rules! context_fixable_ast_rule_adapter {
             $(pub $field: $field_ty,)*
         }
         impl AstRule for $name {
+            fn rule_id(&self) -> RuleId {
+                $id
+            }
             fn severity(&self) -> Severity {
                 self.config.severity
             }
@@ -147,6 +165,9 @@ macro_rules! context_graph_rule_adapter {
             $(pub $field: $field_ty,)*
         }
         impl GraphRule for $name {
+            fn rule_id(&self) -> RuleId {
+                $id
+            }
             fn severity(&self) -> Severity {
                 self.config.severity
             }
@@ -221,6 +242,9 @@ pub struct LayerBoundariesAdapter {
     pub layers: crate::config::architecture::LayerBoundaryConfig,
 }
 impl GraphRule for LayerBoundariesAdapter {
+    fn rule_id(&self) -> RuleId {
+        LAYER_BOUNDARIES_RULE_ID
+    }
     fn severity(&self) -> Severity {
         self.config.severity
     }
@@ -264,6 +288,9 @@ pub struct SortImportsAdapter {
     pub config: crate::config::RuleConfig,
 }
 impl AstRule for SortImportsAdapter {
+    fn rule_id(&self) -> RuleId {
+        SORT_IMPORTS_RULE_ID
+    }
     fn severity(&self) -> Severity {
         self.config.severity
     }
@@ -288,6 +315,9 @@ pub struct SortExportsAdapter {
     pub config: crate::config::RuleConfig,
 }
 impl AstRule for SortExportsAdapter {
+    fn rule_id(&self) -> RuleId {
+        SORT_EXPORTS_RULE_ID
+    }
     fn severity(&self) -> Severity {
         self.config.severity
     }
@@ -472,6 +502,9 @@ pub struct NoInlineTypesAdapter {
     pub types: Arc<crate::config::structure::DomainConfig>,
 }
 impl AstRule for NoInlineTypesAdapter {
+    fn rule_id(&self) -> RuleId {
+        NO_INLINE_TYPES_RULE_ID
+    }
     fn severity(&self) -> Severity {
         self.config.severity
     }
@@ -547,6 +580,9 @@ pub struct NoCircularImportAdapter {
     pub context: no_circular_import::CircularImportContext,
 }
 impl GraphRule for NoCircularImportAdapter {
+    fn rule_id(&self) -> RuleId {
+        NO_CIRCULAR_IMPORT_RULE_ID
+    }
     fn severity(&self) -> Severity {
         self.config.severity
     }
@@ -566,6 +602,9 @@ pub struct NoOrphanFilesAdapter {
     pub context: no_orphan_files::NoOrphanFilesContext,
 }
 impl GraphRule for NoOrphanFilesAdapter {
+    fn rule_id(&self) -> RuleId {
+        NO_ORPHAN_FILES_RULE_ID
+    }
     fn severity(&self) -> Severity {
         self.config.severity
     }
@@ -593,6 +632,9 @@ pub struct NoPrivatePackageImportAdapter {
     pub config: crate::config::RuleConfig,
 }
 impl GraphRule for NoPrivatePackageImportAdapter {
+    fn rule_id(&self) -> RuleId {
+        NO_PRIVATE_PACKAGE_IMPORT_RULE_ID
+    }
     fn severity(&self) -> Severity {
         self.config.severity
     }
@@ -612,6 +654,9 @@ pub struct NoPackageCycleAdapter {
     pub context: no_package_cycle::PackageCycleContext,
 }
 impl GraphRule for NoPackageCycleAdapter {
+    fn rule_id(&self) -> RuleId {
+        NO_PACKAGE_CYCLE_RULE_ID
+    }
     fn severity(&self) -> Severity {
         self.config.severity
     }

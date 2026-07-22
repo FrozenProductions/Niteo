@@ -82,6 +82,7 @@ pub fn fix_workspace(
             &config_for_file.architecture,
             collected.import_graph.clone(),
             collected.workspace.clone(),
+            None,
         );
 
         let any_fixable = rules
