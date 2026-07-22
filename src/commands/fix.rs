@@ -38,9 +38,9 @@ pub fn fix_workspace(
     let resolved_baseline_path = crate::analysis::resolve_path(workspace, options.baseline_path);
     let violations = match baseline::read_baseline(&resolved_baseline_path)? {
         Some(ref existing) => {
-            existing.filter_new_violations(&collected.project_root, collected.violations)
+            existing.filter_new_violations(&collected.project_root, collected.violations.clone())
         }
-        None => collected.violations,
+        None => collected.violations.clone(),
     };
 
     let config_set = crate::config::ConfigSet::resolve(

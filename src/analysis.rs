@@ -14,7 +14,6 @@ use crate::rules::{self, Violation};
 use crate::syntax;
 use crate::workspace::Workspace;
 
-#[derive(Clone)]
 pub struct AnalysisResult {
     pub project_root: PathBuf,
     pub scan_scope: Option<PathBuf>,
@@ -364,7 +363,7 @@ impl FileSet {
     }
 }
 
-pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<AnalysisResult> {
+pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<AnalysisResult>> {
     let mut diagnostics = Diagnostics::new();
 
     let context = ProjectContext::build(workspace_root, &options)?;
@@ -471,7 +470,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
             .or_insert_with(|| "parse error".to_string());
     }
 
-    Ok(AnalysisResult {
+    Ok(Arc::new(AnalysisResult {
         project_root,
         scan_scope: context.scan_scope,
         history_enabled,
@@ -485,7 +484,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Analys
         diagnostics: diagnostics.into_entries(),
         fail_on,
         parse_failures,
-    })
+    }))
 }
 
 pub fn resolve_changed_files(workspace: &Path, selection: &GitSelection) -> Result<Vec<PathBuf>> {
@@ -513,11 +512,11 @@ pub fn resolve_path(base: &Path, path: PathBuf) -> PathBuf {
 
 pub fn collect_incremental(
     workspace_root: &Path,
-    previous: &AnalysisResult,
+    previous: &Arc<AnalysisResult>,
     changed_paths: &[PathBuf],
-) -> Result<AnalysisResult> {
+) -> Result<Arc<AnalysisResult>> {
     if changed_paths.is_empty() {
-        return Ok(previous.clone());
+        return Ok(Arc::clone(previous));
     }
 
     let tsconfig = TsConfig::discover(workspace_root)?;
@@ -600,7 +599,7 @@ pub fn collect_incremental(
     }
 
     if changed_files.is_empty() && removed_files.is_empty() {
-        return Ok(previous.clone());
+        return Ok(Arc::clone(previous));
     }
 
     let mut cached_edges = previous.import_graph.edges_by_file();
@@ -731,7 +730,7 @@ pub fn collect_incremental(
         }
     }
 
-    Ok(AnalysisResult {
+    Ok(Arc::new(AnalysisResult {
         project_root: previous.project_root.clone(),
         scan_scope: previous.scan_scope.clone(),
         history_enabled: previous.history_enabled,
@@ -745,7 +744,7 @@ pub fn collect_incremental(
         diagnostics: previous.diagnostics.clone(),
         fail_on: previous.fail_on.clone(),
         parse_failures,
-    })
+    }))
 }
 
 fn is_config_file(path: &Path) -> bool {

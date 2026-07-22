@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::analysis::{self, AnalysisOptions, AnalysisResult};
@@ -33,7 +34,7 @@ pub fn lint_workspace_with_result(
     scope_override: Option<PathBuf>,
     opts: LintOptions,
     prompt_for_changed_files: bool,
-) -> anyhow::Result<(ExitCode, AnalysisResult)> {
+) -> anyhow::Result<(ExitCode, Arc<AnalysisResult>)> {
     let collected = analysis::collect(
         workspace,
         AnalysisOptions {
@@ -52,19 +53,19 @@ pub fn lint_workspace_with_result(
 
 pub fn lint_workspace_incremental(
     workspace: &Path,
-    previous: &AnalysisResult,
+    previous: &Arc<AnalysisResult>,
     changed_files: &[PathBuf],
     opts: LintOptions,
-) -> anyhow::Result<(ExitCode, AnalysisResult)> {
+) -> anyhow::Result<(ExitCode, Arc<AnalysisResult>)> {
     let collected = analysis::collect_incremental(workspace, previous, changed_files)?;
     publish_report(workspace, collected, opts)
 }
 
 fn publish_report(
     workspace: &Path,
-    collected: AnalysisResult,
+    collected: Arc<AnalysisResult>,
     opts: LintOptions,
-) -> anyhow::Result<(ExitCode, AnalysisResult)> {
+) -> anyhow::Result<(ExitCode, Arc<AnalysisResult>)> {
     let start = Instant::now();
     let resolved_baseline_path = crate::analysis::resolve_path(workspace, opts.baseline_path);
     let all_violations: Vec<crate::rules::Violation> = collected

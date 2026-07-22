@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use anyhow::Result;
 use clap::Parser;
@@ -137,7 +138,7 @@ pub fn run() -> Result<ExitCode> {
                 let workspace_clone = workspace.clone();
                 let root = cli.options.root.clone();
                 let scope = cli.options.scope.clone();
-                let mut previous_result: Option<crate::analysis::AnalysisResult> = None;
+                let mut previous_result: Option<Arc<crate::analysis::AnalysisResult>> = None;
 
                 watch::run(
                     &watch_root,
