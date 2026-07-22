@@ -418,7 +418,7 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             SEVERITY_OPTION,
             RuleOption {
                 name: "allow-patterns",
-                description: "Path substrings that may contain console statements.",
+                description: "Glob patterns for file paths that may contain console statements.",
             },
         ],
         category: RuleCategory::SourceHygiene,

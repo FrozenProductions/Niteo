@@ -303,7 +303,13 @@ Reports console statements.
 console.log(user);
 ```
 
-Use `allow-patterns` for path substrings that may contain console statements, such as scripts or logger adapters.
+Use `allow-patterns` with glob patterns for file paths that may contain console statements, such as scripts or logger adapters:
+
+```toml
+[rules.no-console]
+severity = "warn"
+allow-patterns = ["**/*.service.ts", "scripts/**"]
+```
 
 ### `no-debugger`
 
