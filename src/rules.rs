@@ -176,7 +176,7 @@ declare_rules! {
     component_file_only_components => { id: COMPONENT_FILE_ONLY_COMPONENTS_RULE_ID, value: "component-file-only-components", path: "rules/domain/component_file_only_components.rs", config: crate::config::RuleConfig },
     directory_must_have_barrel => { id: DIRECTORY_MUST_HAVE_BARREL_RULE_ID, value: "directory-must-have-barrel", path: "rules/files/directory_must_have_barrel.rs", config: crate::config::BarrelRuleConfig },
     entry_file_no_logic => { id: ENTRY_FILE_NO_LOGIC_RULE_ID, value: "entry-file-no-logic", path: "rules/domain/entry_file_no_logic.rs", config: crate::config::EntryFileNoLogicRuleConfig },
-    explicit_return_type => { id: EXPLICIT_RETURN_TYPE_RULE_ID, value: "explicit-return-type", path: "rules/hygiene/explicit_return_type.rs", config: crate::config::RuleConfig },
+    explicit_return_type => { id: EXPLICIT_RETURN_TYPE_RULE_ID, value: "explicit-return-type", path: "rules/hygiene/explicit_return_type.rs", config: crate::config::ExplicitReturnTypeRuleConfig },
     hook_no_jsx => { id: HOOK_NO_JSX_RULE_ID, value: "hook-no-jsx", path: "rules/domain/hook_no_jsx.rs", config: crate::config::RuleConfig },
     hook_prefix => { id: HOOK_PREFIX_RULE_ID, value: "hook-prefix", path: "rules/domain/hook_prefix.rs", config: crate::config::HookPrefixRuleConfig, default_severity: Severity::Info },
     layer_boundaries => { id: LAYER_BOUNDARIES_RULE_ID, value: "layer-boundaries", path: "rules/imports/layer_boundaries.rs", config: crate::config::RuleConfig, default_severity: Severity::Off },

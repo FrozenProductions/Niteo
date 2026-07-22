@@ -34,7 +34,7 @@ niteo explain no-console --format json
 | `directory-must-have-barrel`     | `warn`           | Non-leaf directories must expose a barrel file.                                | `barrel-names`                                                                                                    |
 | `entry-file-no-logic`            | `warn`           | Entry files should delegate implementation logic to dedicated modules.         | `entry-files`                                                                                                     |
 | `hook-no-jsx`                    | `warn`           | Hook files should not return or contain JSX.                                   | `project.structure.hooks`                                                                                         |
-| `explicit-return-type`           | `warn`           | Require explicit return types on exported functions.                           | `severity`                                                                                                        |
+| `explicit-return-type`           | `warn`           | Require explicit return types on exported functions.                           | `include-arrow-functions`, `include-class-methods`, `include-private`, `ignore-when-inferred`                     |
 | `hook-prefix`                    | `info`           | Hook functions in hook files should use an allowed prefix, usually `use`.      | `prefixes`, `project.structure.hooks`                                                                             |
 | `layer-boundaries`               | `off`            | Enforce that imports respect ordered architectural layers.                     | `[architecture.layers]`                                                                                           |
 | `max-directory-depth`            | `warn`           | Limit nested directories below the configured project root.                    | `max-depth`, `ignore-dirs`                                                                                        |
@@ -276,7 +276,7 @@ const config = value satisfies Config;
 
 ### `explicit-return-type`
 
-Reports exported functions that lack an explicit return type annotation. Applies to named function exports, exported arrow functions, exported function expressions, and default exports.
+Reports functions that lack an explicit return type annotation. By default checks only exported named functions, function expressions, and arrow functions.
 
 ```ts
 export function add(a: number, b: number) {
@@ -294,6 +294,22 @@ export function add(a: number, b: number): number {
 }
 
 export const multiply = (a: number, b: number): number => a * b;
+```
+
+| Option                    | Type   | Default | Description                                                                                                        |
+| ------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `include-arrow-functions` | `bool` | `true`  | When `false`, skip arrow function expressions.                                                                     |
+| `include-class-methods`   | `bool` | `false` | When `true`, check method declarations on exported (or all) classes.                                               |
+| `include-private`         | `bool` | `false` | When `true`, also check non-exported functions, arrows, and classes.                                               |
+| `ignore-when-inferred`    | `bool` | `false` | When `true`, skip arrow/function expressions assigned to a typed variable (e.g. `export const fn: Fn = (x) => x`). |
+
+```toml
+[rules.explicit-return-type]
+severity = "warn"
+include-arrow-functions = true
+include-class-methods = false
+include-private = false
+ignore-when-inferred = false
 ```
 
 ### `no-console`

@@ -591,6 +591,27 @@ impl Default for NoCircularImportRuleConfig {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ExplicitReturnTypeRuleConfig {
+    pub severity: Severity,
+    pub include_arrow_functions: bool,
+    pub include_class_methods: bool,
+    pub include_private: bool,
+    pub ignore_when_inferred: bool,
+}
+
+impl Default for ExplicitReturnTypeRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Warn,
+            include_arrow_functions: true,
+            include_class_methods: false,
+            include_private: false,
+            ignore_when_inferred: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct NoThenChainRuleConfig {
     pub severity: Severity,
     pub allow_single: bool,

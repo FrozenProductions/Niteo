@@ -1253,7 +1253,25 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
                 code: "export function add(a: number, b: number): number { return a + b; }",
             },
         ],
-        options: NO_OPTIONS,
+        options: &[
+            SEVERITY_OPTION,
+            RuleOption {
+                name: "include-arrow-functions",
+                description: "When false, skip checking arrow function expressions. Default: true.",
+            },
+            RuleOption {
+                name: "include-class-methods",
+                description: "When true, check method declarations on exported (or all) classes. Default: false.",
+            },
+            RuleOption {
+                name: "include-private",
+                description: "When true, check non-exported functions, arrows, and classes too. Default: false.",
+            },
+            RuleOption {
+                name: "ignore-when-inferred",
+                description: "When true, skip arrow/function expressions assigned to a typed variable. Default: false.",
+            },
+        ],
         category: RuleCategory::SourceHygiene,
         conflicts: &[],
         fixable: false,

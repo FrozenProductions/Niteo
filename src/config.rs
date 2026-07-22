@@ -16,13 +16,14 @@ pub use resolve::{ProjectConfig, resolve_baseline_path, write_default_config};
 pub use rule_metadata::RuleCategory;
 pub use rules::{
     BarrelRuleConfig, BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig,
-    FileExportsRuleConfig, FileLengthRuleConfig, GitignoreConfig, HookPrefixRuleConfig,
-    MaxDirectoryDepthRuleConfig, MaxFunctionParamsRuleConfig, MaxItemsPerDirectoryRuleConfig,
-    MinItemsPerDirectoryRuleConfig, NestingContext, NoAbbreviationsRuleConfig,
-    NoAnemicDomainRuleConfig, NoAnyRuleConfig, NoCircularImportRuleConfig, NoConsoleRuleConfig,
-    NoDefaultExportRuleConfig, NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig,
-    NoEmptyDirectoriesRuleConfig, NoEmptyDomainRuleConfig, NoGodDomainRuleConfig,
-    NoInterfaceRuleConfig, NoMagicNumbersRuleConfig, NoNestedFunctionsRuleConfig,
-    NoOrphanFilesRuleConfig, NoRestrictedImportsRuleConfig, NoThenChainRuleConfig,
-    RestrictedImportPattern, RuleConfig, Severity, UpwardImportRuleConfig,
+    ExplicitReturnTypeRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig, GitignoreConfig,
+    HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig, MaxFunctionParamsRuleConfig,
+    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NestingContext,
+    NoAbbreviationsRuleConfig, NoAnemicDomainRuleConfig, NoAnyRuleConfig,
+    NoCircularImportRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig,
+    NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
+    NoEmptyDomainRuleConfig, NoGodDomainRuleConfig, NoInterfaceRuleConfig,
+    NoMagicNumbersRuleConfig, NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig,
+    NoRestrictedImportsRuleConfig, NoThenChainRuleConfig, RestrictedImportPattern, RuleConfig,
+    Severity, UpwardImportRuleConfig,
 };

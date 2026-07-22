@@ -2,9 +2,10 @@ use serde::Deserialize;
 
 use super::super::rules::{
     BarrelRuleConfig, BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig,
-    FileExportsRuleConfig, FileLengthRuleConfig, HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig,
-    MaxFunctionParamsRuleConfig, MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig,
-    NestingContext, NoAbbreviationsRuleConfig, NoAnemicDomainRuleConfig, NoAnyRuleConfig,
+    ExplicitReturnTypeRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig,
+    HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig, MaxFunctionParamsRuleConfig,
+    MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NestingContext,
+    NoAbbreviationsRuleConfig, NoAnemicDomainRuleConfig, NoAnyRuleConfig,
     NoCircularImportRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig,
     NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
     NoEmptyDomainRuleConfig, NoGodDomainRuleConfig, NoInterfaceRuleConfig,
@@ -293,6 +294,13 @@ impl RawRuleConfig {
         to_no_circular_import_config => (NoCircularImportRuleConfig) {
             report_all_nodes: default(false)
             ;
+        },
+        to_explicit_return_type_config => (ExplicitReturnTypeRuleConfig) {
+            include_arrow_functions: default(true),
+            include_class_methods: default(false),
+            include_private: default(false),
+            ignore_when_inferred: default(false)
+            ;
         }
     }
 
@@ -395,6 +403,14 @@ pub(crate) struct RawRuleOptions {
     pub report_all_nodes: Option<bool>,
     #[serde(rename = "barrel-names")]
     pub barrel_names: Option<Vec<String>>,
+    #[serde(rename = "include-arrow-functions")]
+    pub include_arrow_functions: Option<bool>,
+    #[serde(rename = "include-class-methods")]
+    pub include_class_methods: Option<bool>,
+    #[serde(rename = "include-private")]
+    pub include_private: Option<bool>,
+    #[serde(rename = "ignore-when-inferred")]
+    pub ignore_when_inferred: Option<bool>,
 }
 
 impl RawRuleOptions {
@@ -475,6 +491,12 @@ impl RawRuleOptions {
                 .barrel_names
                 .clone()
                 .or_else(|| parent.barrel_names.clone()),
+            include_arrow_functions: child
+                .include_arrow_functions
+                .or(parent.include_arrow_functions),
+            include_class_methods: child.include_class_methods.or(parent.include_class_methods),
+            include_private: child.include_private.or(parent.include_private),
+            ignore_when_inferred: child.ignore_when_inferred.or(parent.ignore_when_inferred),
         }
     }
 }
@@ -487,7 +509,6 @@ declare_raw_rules! {
         no_debugger => "no-debugger",
         no_side_effect_imports => "no-side-effect-imports",
         no_enums => "no-enums",
-        explicit_return_type => "explicit-return-type",
         no_eval => "no-eval",
         no_export_star => "no-export-star",
         no_focused_test => "no-focused-test",
@@ -523,6 +544,7 @@ declare_raw_rules! {
         no_logic_in_barrel => ("no-logic-in-barrel", to_barrel_config, BarrelRuleConfig),
         boolean_prefix => ("boolean-prefix", to_boolean_prefix_config, BooleanPrefixRuleConfig),
         entry_file_no_logic => ("entry-file-no-logic", to_entry_file_no_logic_config, EntryFileNoLogicRuleConfig),
+        explicit_return_type => ("explicit-return-type", to_explicit_return_type_config, ExplicitReturnTypeRuleConfig),
         hook_prefix => ("hook-prefix", to_hook_prefix_config, HookPrefixRuleConfig),
         max_directory_depth => ("max-directory-depth", to_max_directory_depth_config, MaxDirectoryDepthRuleConfig),
         max_file_exports => ("max-file-exports", to_file_exports_config, FileExportsRuleConfig),

@@ -389,7 +389,7 @@ ast_rule_adapter!(
 ast_rule_adapter!(
     ExplicitReturnTypeAdapter,
     EXPLICIT_RETURN_TYPE_RULE_ID,
-    crate::config::RuleConfig,
+    crate::config::ExplicitReturnTypeRuleConfig,
     explicit_return_type
 );
 fixable_ast_rule_adapter!(
