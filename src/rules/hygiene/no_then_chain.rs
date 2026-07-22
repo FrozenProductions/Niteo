@@ -58,12 +58,11 @@ impl<'a> Visit<'a> for ThenChainVisitor<'a> {
         if let Expression::StaticMemberExpression(member) = &call.callee {
             let name = &member.property.name;
 
-            if is_chain_method_name(name) {
-                if let Expression::CallExpression(inner) = &member.object
-                    && is_chain_method(&inner.callee)
-                {
-                    self.has_chain_after.insert(inner.span);
-                }
+            if is_chain_method_name(name)
+                && let Expression::CallExpression(inner) = &member.object
+                && is_chain_method(&inner.callee)
+            {
+                self.has_chain_after.insert(inner.span);
             }
 
             if name == "then" {
