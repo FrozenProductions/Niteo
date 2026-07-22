@@ -466,12 +466,30 @@ pub(crate) fn no_process_env_summary(config: &ProjectConfig) -> RuleConfigSummar
 }
 
 pub(crate) fn no_abbreviations_summary(config: &ProjectConfig) -> RuleConfigSummary {
+    let mut options = vec![format!(
+        "extra-abbreviations: {:?}",
+        config.rules.no_abbreviations.extra_abbreviations
+    )];
+    if !config
+        .rules
+        .no_abbreviations
+        .abbreviation_patterns
+        .is_empty()
+    {
+        options.push(format!(
+            "abbreviation-patterns: {:?}",
+            config.rules.no_abbreviations.abbreviation_patterns
+        ));
+    }
+    if config.rules.no_abbreviations.ignore_properties {
+        options.push("ignore-properties: true".to_string());
+    }
+    if config.rules.no_abbreviations.ignore_destructured {
+        options.push("ignore-destructured: true".to_string());
+    }
     RuleConfigSummary {
         severity: config.rules.no_abbreviations.severity,
-        options: vec![format!(
-            "extra-abbreviations: {:?}",
-            config.rules.no_abbreviations.extra_abbreviations
-        )],
+        options,
     }
 }
 

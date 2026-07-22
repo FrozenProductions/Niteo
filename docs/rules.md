@@ -27,72 +27,73 @@ niteo explain no-console --format json
 
 ## Rule Reference
 
-| Rule                             | Default severity | Purpose                                                                              | Fix                                                      | Options                        |
-| -------------------------------- | ---------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------- | ------------------------------ |
-| `boolean-prefix`                 | `info`           | Boolean variables should be prefixed with names such as `is`, `has`, or `can`.       | —                                                        | `prefixes`, `ignore-constants` |
-| `component-file-only-components` | `warn`           | Component files should export components only.                                       | `project.structure.components`                           |
-| `directory-must-have-barrel`     | `warn`           | Non-leaf directories must expose a barrel file.                                      | `barrel-names`                                           |
-| `entry-file-no-logic`            | `warn`           | Entry files should delegate implementation logic to dedicated modules.               | `entry-files`                                            |
-| `hook-no-jsx`                    | `warn`           | Hook files should not return or contain JSX.                                         | `project.structure.hooks`                                |
-| `explicit-return-type`           | `warn`           | Require explicit return types on exported functions.                                 | `severity`                                               |
-| `hook-prefix`                    | `info`           | Hook functions in hook files should use an allowed prefix, usually `use`.            | `prefixes`, `project.structure.hooks`                    |
-| `layer-boundaries`               | `off`            | Enforce that imports respect ordered architectural layers.                           | `[architecture.layers]`                                  |
-| `max-directory-depth`            | `warn`           | Limit nested directories below the configured project root.                          | `max-depth`, `ignore-dirs`                               |
-| `max-file-exports`               | `warn`           | Limit the number of exports from one file.                                           | `max-exports`, `count-default`                           |
-| `max-function-params`            | `warn`           | Limit function parameter count; prefer an object parameter.                          | `max-params`                                             |
-| `max-items-per-directory`        | `warn`           | Prevent directories from becoming oversized collections.                             | `max-items`, `ignore-dirs`, `count-folders`              |
-| `min-items-per-directory`        | `warn`           | Find tiny directories that add navigation cost without enough structure.             | `min-items`, `ignore-dirs`, `count-folders`              |
-| `no-abbreviations`               | `info`           | Disallow abbreviated identifiers like `btn`, `ctx`, and `mgr`.                       | `extra-abbreviations`, `allow-abbreviations`             |
-| `no-any`                         | `warn`           | Disallow explicit `any` type annotations outside generated or allowed folders.       | `allowed-folders`, `project.structure.generated`         |
-| `no-await-in-loop`               | `warn`           | Forbid `await` inside loops — a common performance trap.                             | —                                                        | `severity`                     |
-| `no-barrel-chain`                | `info`           | Prevent barrel files from re-exporting through other barrels.                        | `severity`                                               |
-| `no-barrel-files`                | `info`           | Avoid barrel files.                                                                  | `barrel-names`                                           |
-| `no-circular-import`             | `error`          | Detect circular import chains between modules.                                       | `severity`, `report-all-nodes`                           |
-| `no-comments`                    | `info`           | Discourage implementation comments that duplicate code.                              | `allow-doc-comments`                                     |
-| `no-console`                     | `warn`           | Keep debugging output out of application code.                                       | `severity`, `allow-patterns`                             |
-| `no-debugger`                    | `error`          | Prevent committed `debugger` statements from stopping runtime execution.             | `severity`                                               |
-| `no-default-export`              | `info`           | Prefer named exports. Set `components-only = true` to scope to component files only. | `components-only`, `project.structure.components`        |
-| `no-duplicate-file-names`        | `warn`           | Avoid repeated file names that make editor tabs and stack traces ambiguous.          | `ignore-names`                                           |
-| `no-dump-files`                  | `warn`           | Disallow generic file names such as `utils.ts`, `helpers.ts`, and `types.ts`.        | `extra-names`                                            |
-| `no-empty-directories`           | `warn`           | Remove directories that no longer contain source files.                              | `ignore-dirs`                                            |
-| `no-empty-domain`                | `warn`           | Domain folder must contain real source, not only barrels.                            | `ignore-dirs`                                            |
-| `no-anemic-domain`               | `warn`           | Domain with too few files should be flattened.                                       | `max-files`, `ignore-dirs`                               |
-| `no-god-domain`                  | `warn`           | Domain with too many files should be split.                                          | `max-files`, `ignore-dirs`                               |
-| `no-empty-interface`             | `error`          | Avoid empty interfaces.                                                              | `severity`                                               |
-| `no-enums`                       | `info`           | Prefer union types or const objects over TypeScript enums.                           | `severity`                                               |
-| `no-eval`                        | `error`          | Block dynamic code execution through `eval()` and `new Function()`.                  | `severity`                                               |
-| `no-export-star`                 | `warn`           | Require explicit re-exports instead of `export *`.                                   | `severity`                                               |
-| `no-focused-test`                | `error`          | Disallow focused tests (`describe.only`, `it.only`, `test.only`).                    | `severity`                                               |
-| `no-inline-types`                | `info`           | Keep exported contracts in type files or type folders.                               | `project.structure.types`                                |
-| `no-interface`                   | `info`           | Prefer type aliases unless declaration merging is intentional.                       | `allow-declaration-merging`                              |
-| `no-large-file`                  | `warn`           | Keep files under a configured line count.                                            | `max-lines`                                              |
-| `no-logic-in-barrel`             | `warn`           | Keep barrel files limited to import/export forwarding.                               | `barrel-names`                                           |
-| `no-logic-in-domain`             | `warn`           | Keep type and constants domains free of runtime implementation logic.                | `project.structure.types`, `project.structure.constants` |
-| `no-mutable-exports`             | `error`          | Avoid exported mutable bindings.                                                     | `severity`                                               |
-| `no-nested-functions`            | `warn`           | Disallow functions nested beyond a configured depth.                                 | `max-depth`, `contexts`                                  |
-| `no-orphan-files`                | `warn`           | Detect files not imported by any other file in the project.                          | `entry-files`                                            |
-| `no-promise-executor-return`     | `warn`           | Forbid returning a value from a Promise executor. Values are discarded.              | —                                                        | `severity`                     |
-| `no-namespace`                   | `error`          | Prefer ES modules over TypeScript namespaces.                                        | `severity`                                               |
-| `no-unsafe-optional-chaining`    | `warn`           | Forbid `?.` on expressions that are never null or undefined.                         | —                                                        | `severity`                     |
-| `no-non-null-assertion`          | `error`          | Disallow the non-null assertion operator.                                            | `severity`                                               |
-| `no-magic-numbers`               | `info`           | Disallow numeric and string literals outside constants.                              | `allowed-numbers`, `allowed-strings`, `enforce-strings`  |
-| `no-package-cycle`               | `error`          | Detect circular dependencies between workspace packages.                             | `severity`                                               |
-| `no-private-package-import`      | `warn`           | Prevent importing internal files from other packages.                                | `severity`                                               |
-| `no-process-env`                 | `warn`           | Prevent direct access to `process.env`.                                              | `severity`                                               |
-| `no-restricted-imports`          | `warn`           | Block imports from a configurable deny-list of packages or paths.                    | `restricted`                                             |
-| `no-side-effect-imports`         | `info`           | Disallow bare side-effect imports like `import "./styles.css"`.                      | `severity`                                               |
-| `no-silent-catch`                | `error`          | Require catch blocks to log, rethrow, or return a fallback.                          | `severity`                                               |
-| `no-skipped-test`                | `error`          | Disallow skipped tests (`describe.skip`, `it.skip`, `test.skip`).                    | `severity`                                               |
-| `no-test-code-in-production`     | `error`          | Disallow test globals and test library imports outside test files.                   | `project.structure.tests`                                |
-| `no-test-import`                 | `error`          | Production code may not import test files.                                           | `project.structure.tests`                                |
-| `no-then-chain`                  | `info`           | Prefer `async`/`await` over `.then()` chains.                                        | `severity`, `allow-single`                               |
-| `no-type-assertion`              | `warn`           | Disallow `as` casts. Prefer type narrowing or `satisfies`.                           | `severity`                                               |
-| `no-unnecessary-type-assertion`  | `warn`           | Flag `as T` when the expression is already typed as `T`.                             | `severity`                                               |
-| `no-upward-import`               | `warn`           | Limit fragile `../` imports.                                                         | `max-depth`, `allow-patterns`                            |
-| `prefer-satisfies`               | `info`           | Prefer `satisfies` over `as` when validating a value against a type.                 | `severity`                                               |
-| `prefer-readonly`                | `warn`           | Prefer `readonly` for array parameters in exported functions.                        | `severity`                                               |
-| `sort-exports`                   | `info`           | Enforce consistent export ordering by exported name. Fixable.                        | `severity`                                               |
-| `sort-imports`                   | `info`           | Enforce consistent import ordering by module specifier. Fixable.                     | `severity`                                               |
+| Rule                             | Default severity | Purpose                                                                        | Fix                                                                                                               | Options                        |
+| -------------------------------- | ---------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `boolean-prefix`                 | `info`           | Boolean variables should be prefixed with names such as `is`, `has`, or `can`. | —                                                                                                                 | `prefixes`, `ignore-constants` |
+| `component-file-only-components` | `warn`           | Component files should export components only.                                 | `project.structure.components`                                                                                    |
+| `directory-must-have-barrel`     | `warn`           | Non-leaf directories must expose a barrel file.                                | `barrel-names`                                                                                                    |
+| `entry-file-no-logic`            | `warn`           | Entry files should delegate implementation logic to dedicated modules.         | `entry-files`                                                                                                     |
+| `hook-no-jsx`                    | `warn`           | Hook files should not return or contain JSX.                                   | `project.structure.hooks`                                                                                         |
+| `explicit-return-type`           | `warn`           | Require explicit return types on exported functions.                           | `severity`                                                                                                        |
+| `hook-prefix`                    | `info`           | Hook functions in hook files should use an allowed prefix, usually `use`.      | `prefixes`, `project.structure.hooks`                                                                             |
+| `layer-boundaries`               | `off`            | Enforce that imports respect ordered architectural layers.                     | `[architecture.layers]`                                                                                           |
+| `max-directory-depth`            | `warn`           | Limit nested directories below the configured project root.                    | `max-depth`, `ignore-dirs`                                                                                        |
+| `max-file-exports`               | `warn`           | Limit the number of exports from one file.                                     | `max-exports`, `count-default`                                                                                    |
+| `max-function-params`            | `warn`           | Limit function parameter count; prefer an object parameter.                    | `max-params`                                                                                                      |
+| `max-items-per-directory`        | `warn`           | Prevent directories from becoming oversized collections.                       | `max-items`, `ignore-dirs`, `count-folders`                                                                       |
+| `min-items-per-directory`        | `warn`           | Find tiny directories that add navigation cost without enough structure.       | `min-items`, `ignore-dirs`, `count-folders`                                                                       |
+| `no-abbreviations`               | `info`           | Disallow abbreviated identifiers like `btn`, `ctx`, and `mgr`.                 | `extra-abbreviations`, `allow-abbreviations`, `abbreviation-patterns`, `ignore-properties`, `ignore-destructured` |
+
+| `no-any` | `warn` | Disallow explicit `any` type annotations outside generated or allowed folders. | `allowed-folders`, `project.structure.generated` |
+| `no-await-in-loop` | `warn` | Forbid `await` inside loops — a common performance trap. | — | `severity` |
+| `no-barrel-chain` | `info` | Prevent barrel files from re-exporting through other barrels. | `severity` |
+| `no-barrel-files` | `info` | Avoid barrel files. | `barrel-names` |
+| `no-circular-import` | `error` | Detect circular import chains between modules. | `severity`, `report-all-nodes` |
+| `no-comments` | `info` | Discourage implementation comments that duplicate code. | `allow-doc-comments` |
+| `no-console` | `warn` | Keep debugging output out of application code. | `severity`, `allow-patterns` |
+| `no-debugger` | `error` | Prevent committed `debugger` statements from stopping runtime execution. | `severity` |
+| `no-default-export` | `info` | Prefer named exports. Set `components-only = true` to scope to component files only. | `components-only`, `project.structure.components` |
+| `no-duplicate-file-names` | `warn` | Avoid repeated file names that make editor tabs and stack traces ambiguous. | `ignore-names` |
+| `no-dump-files` | `warn` | Disallow generic file names such as `utils.ts`, `helpers.ts`, and `types.ts`. | `extra-names` |
+| `no-empty-directories` | `warn` | Remove directories that no longer contain source files. | `ignore-dirs` |
+| `no-empty-domain` | `warn` | Domain folder must contain real source, not only barrels. | `ignore-dirs` |
+| `no-anemic-domain` | `warn` | Domain with too few files should be flattened. | `max-files`, `ignore-dirs` |
+| `no-god-domain` | `warn` | Domain with too many files should be split. | `max-files`, `ignore-dirs` |
+| `no-empty-interface` | `error` | Avoid empty interfaces. | `severity` |
+| `no-enums` | `info` | Prefer union types or const objects over TypeScript enums. | `severity` |
+| `no-eval` | `error` | Block dynamic code execution through `eval()` and `new Function()`. | `severity` |
+| `no-export-star` | `warn` | Require explicit re-exports instead of `export *`. | `severity` |
+| `no-focused-test` | `error` | Disallow focused tests (`describe.only`, `it.only`, `test.only`). | `severity` |
+| `no-inline-types` | `info` | Keep exported contracts in type files or type folders. | `project.structure.types` |
+| `no-interface` | `info` | Prefer type aliases unless declaration merging is intentional. | `allow-declaration-merging` |
+| `no-large-file` | `warn` | Keep files under a configured line count. | `max-lines` |
+| `no-logic-in-barrel` | `warn` | Keep barrel files limited to import/export forwarding. | `barrel-names` |
+| `no-logic-in-domain` | `warn` | Keep type and constants domains free of runtime implementation logic. | `project.structure.types`, `project.structure.constants` |
+| `no-mutable-exports` | `error` | Avoid exported mutable bindings. | `severity` |
+| `no-nested-functions` | `warn` | Disallow functions nested beyond a configured depth. | `max-depth`, `contexts` |
+| `no-orphan-files` | `warn` | Detect files not imported by any other file in the project. | `entry-files` |
+| `no-promise-executor-return` | `warn` | Forbid returning a value from a Promise executor. Values are discarded. | — | `severity` |
+| `no-namespace` | `error` | Prefer ES modules over TypeScript namespaces. | `severity` |
+| `no-unsafe-optional-chaining` | `warn` | Forbid `?.` on expressions that are never null or undefined. | — | `severity` |
+| `no-non-null-assertion` | `error` | Disallow the non-null assertion operator. | `severity` |
+| `no-magic-numbers` | `info` | Disallow numeric and string literals outside constants. | `allowed-numbers`, `allowed-strings`, `enforce-strings` |
+| `no-package-cycle` | `error` | Detect circular dependencies between workspace packages. | `severity` |
+| `no-private-package-import` | `warn` | Prevent importing internal files from other packages. | `severity` |
+| `no-process-env` | `warn` | Prevent direct access to `process.env`. | `severity` |
+| `no-restricted-imports` | `warn` | Block imports from a configurable deny-list of packages or paths. | `restricted` |
+| `no-side-effect-imports` | `info` | Disallow bare side-effect imports like `import "./styles.css"`. | `severity` |
+| `no-silent-catch` | `error` | Require catch blocks to log, rethrow, or return a fallback. | `severity` |
+| `no-skipped-test` | `error` | Disallow skipped tests (`describe.skip`, `it.skip`, `test.skip`). | `severity` |
+| `no-test-code-in-production` | `error` | Disallow test globals and test library imports outside test files. | `project.structure.tests` |
+| `no-test-import` | `error` | Production code may not import test files. | `project.structure.tests` |
+| `no-then-chain` | `info` | Prefer `async`/`await` over `.then()` chains. | `severity`, `allow-single` |
+| `no-type-assertion` | `warn` | Disallow `as` casts. Prefer type narrowing or `satisfies`. | `severity` |
+| `no-unnecessary-type-assertion` | `warn` | Flag `as T` when the expression is already typed as `T`. | `severity` |
+| `no-upward-import` | `warn` | Limit fragile `../` imports. | `max-depth`, `allow-patterns` |
+| `prefer-satisfies` | `info` | Prefer `satisfies` over `as` when validating a value against a type. | `severity` |
+| `prefer-readonly` | `warn` | Prefer `readonly` for array parameters in exported functions. | `severity` |
+| `sort-exports` | `info` | Enforce consistent export ordering by exported name. Fixable. | `severity` |
+| `sort-imports` | `info` | Enforce consistent import ordering by module specifier. Fixable. | `severity` |
 
 ## Language And TypeScript Rules
 
@@ -409,6 +410,30 @@ Remove built-in abbreviations that are valid in your project:
 [rules.no-abbreviations]
 severity = "warn"
 allow-abbreviations = ["btn", "ctx"]
+```
+
+Use regex patterns to flag abbreviations (case-insensitive):
+
+```toml
+[rules.no-abbreviations]
+severity = "warn"
+abbreviation-patterns = ["\\b[a-z]{1,2}\\b"]
+```
+
+Ignore abbreviations in destructured object properties:
+
+```toml
+[rules.no-abbreviations]
+severity = "warn"
+ignore-properties = true
+```
+
+Ignore abbreviations in all destructured bindings:
+
+```toml
+[rules.no-abbreviations]
+severity = "warn"
+ignore-destructured = true
 ```
 
 ### `no-then-chain`

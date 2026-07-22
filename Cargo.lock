@@ -764,6 +764,7 @@ dependencies = [
  "oxc_syntax",
  "predicates",
  "rayon",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml",

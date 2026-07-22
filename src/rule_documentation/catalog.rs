@@ -843,6 +843,22 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
                 name: "extra-abbreviations",
                 description: "Additional abbreviations to flag beyond the defaults (btn, ctx, mgr).",
             },
+            RuleOption {
+                name: "allow-abbreviations",
+                description: "Built-in abbreviations to remove from the check.",
+            },
+            RuleOption {
+                name: "abbreviation-patterns",
+                description: "Regex patterns for matching abbreviations (case-insensitive). Patterns are checked in addition to the built-in and extra-abbreviations lists.",
+            },
+            RuleOption {
+                name: "ignore-properties",
+                description: "Ignore abbreviations inside destructured object properties.",
+            },
+            RuleOption {
+                name: "ignore-destructured",
+                description: "Ignore abbreviations inside all destructured bindings (object and array).",
+            },
         ],
         category: RuleCategory::SourceHygiene,
         conflicts: &[],

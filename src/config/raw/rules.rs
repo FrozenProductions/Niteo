@@ -218,9 +218,12 @@ impl RawRuleConfig {
             ignore_dirs: clone_default
         },
         to_no_abbreviations_config => (NoAbbreviationsRuleConfig) {
+            ignore_properties: default(false),
+            ignore_destructured: default(false)
             ;
             extra_abbreviations: clone_default,
-            allow_abbreviations: clone_default
+            allow_abbreviations: clone_default,
+            abbreviation_patterns: clone_default
         },
         to_no_any_config => (NoAnyRuleConfig) {
             ;
@@ -370,6 +373,12 @@ pub(crate) struct RawRuleOptions {
     pub extra_abbreviations: Option<Vec<String>>,
     #[serde(rename = "allow-abbreviations")]
     pub allow_abbreviations: Option<Vec<String>>,
+    #[serde(rename = "abbreviation-patterns")]
+    pub abbreviation_patterns: Option<Vec<String>>,
+    #[serde(rename = "ignore-properties")]
+    pub ignore_properties: Option<bool>,
+    #[serde(rename = "ignore-destructured")]
+    pub ignore_destructured: Option<bool>,
     pub restricted: Option<Vec<RestrictedImportPattern>>,
     #[serde(rename = "allowed-numbers")]
     pub allowed_numbers: Option<Vec<String>>,
@@ -439,6 +448,12 @@ impl RawRuleOptions {
                 .allow_abbreviations
                 .clone()
                 .or_else(|| parent.allow_abbreviations.clone()),
+            abbreviation_patterns: child
+                .abbreviation_patterns
+                .clone()
+                .or_else(|| parent.abbreviation_patterns.clone()),
+            ignore_properties: child.ignore_properties.or(parent.ignore_properties),
+            ignore_destructured: child.ignore_destructured.or(parent.ignore_destructured),
             restricted: child
                 .restricted
                 .clone()

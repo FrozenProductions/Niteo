@@ -330,6 +330,9 @@ pub struct NoAbbreviationsRuleConfig {
     pub severity: Severity,
     pub extra_abbreviations: Vec<String>,
     pub allow_abbreviations: Vec<String>,
+    pub abbreviation_patterns: Vec<String>,
+    pub ignore_properties: bool,
+    pub ignore_destructured: bool,
 }
 
 impl Default for NoAbbreviationsRuleConfig {
@@ -338,6 +341,9 @@ impl Default for NoAbbreviationsRuleConfig {
             severity: Severity::Warn,
             extra_abbreviations: vec![],
             allow_abbreviations: vec![],
+            abbreviation_patterns: vec![],
+            ignore_properties: false,
+            ignore_destructured: false,
         }
     }
 }
