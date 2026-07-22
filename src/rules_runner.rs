@@ -13,6 +13,8 @@ use crate::config;
 use crate::directory_inventory::DirectoryInventory;
 use crate::ignore;
 use crate::import_graph::ImportGraph;
+
+const PROGRESS_INTERVAL: usize = 16;
 use crate::rule_adapters::*;
 use crate::rules::*;
 use crate::syntax::with_reusable_line_index;
@@ -314,7 +316,9 @@ pub fn check_files_with_parallelism(
             .map(|(file, config_id)| {
                 let result = process_file(file, *config_id);
                 let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
-                if let Some(ref bar) = progress_bar {
+                if let Some(ref bar) = progress_bar
+                    && (count.is_multiple_of(PROGRESS_INTERVAL) || count == total)
+                {
                     bar.set_position(count as u64);
                 }
                 result

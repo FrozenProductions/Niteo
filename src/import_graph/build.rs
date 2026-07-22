@@ -108,8 +108,10 @@ pub fn build_import_graph_with_cache(
             .par_iter()
             .map(|file| {
                 let result = extract_for_file(file, &resolver, cached_edges, sources);
-                if let Some(ref bar) = progress_bar {
-                    let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
+                let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
+                if let Some(ref bar) = progress_bar
+                    && (count.is_multiple_of(PROGRESS_INTERVAL) || count == total)
+                {
                     bar.set_position(count as u64);
                 }
                 result
