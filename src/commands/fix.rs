@@ -32,6 +32,7 @@ pub fn fix_workspace(
             cache_enabled: false,
             clear_cache: false,
             verbose: 0,
+            directory_inventory: None,
         },
     )?;
 

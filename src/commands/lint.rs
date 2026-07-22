@@ -26,6 +26,7 @@ pub struct LintOptions {
     pub cache_enabled: bool,
     pub clear_cache: bool,
     pub force_history: bool,
+    pub directory_inventory: Option<Arc<crate::directory_inventory::DirectoryInventory>>,
 }
 
 pub fn lint_workspace_with_result(
@@ -46,6 +47,7 @@ pub fn lint_workspace_with_result(
             cache_enabled: opts.cache_enabled,
             clear_cache: opts.clear_cache,
             verbose: opts.verbose,
+            directory_inventory: opts.directory_inventory.clone(),
         },
     )?;
     publish_report(workspace, collected, opts)

@@ -25,6 +25,7 @@ pub fn create(
             cache_enabled: false,
             clear_cache: false,
             verbose: 0,
+            directory_inventory: None,
         },
     )?;
 
@@ -74,6 +75,7 @@ pub fn prune(
             cache_enabled: false,
             clear_cache: false,
             verbose: 0,
+            directory_inventory: None,
         },
     )?;
     let result = existing_baseline.prune(&collected.project_root, &collected.violations);

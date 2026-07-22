@@ -130,6 +130,7 @@ pub fn run() -> Result<ExitCode> {
                 cache_enabled,
                 clear_cache: cli.options.clear_cache,
                 force_history: history,
+                directory_inventory: None,
             };
 
             let exit_code = if cli.options.watch {
@@ -157,11 +158,16 @@ pub fn run() -> Result<ExitCode> {
                             return Ok(code);
                         }
 
+                        let mut full_opts = opts.clone();
+                        if let Some(ref previous) = previous_result {
+                            full_opts.directory_inventory =
+                                Some(Arc::clone(&previous.directory_inventory));
+                        }
                         let (code, result) = commands::lint::lint_workspace_with_result(
                             &workspace_clone,
                             root.clone(),
                             scope.clone(),
-                            opts.clone(),
+                            full_opts,
                             false,
                         )?;
                         previous_result = Some(result);

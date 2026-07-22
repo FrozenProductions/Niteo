@@ -6,6 +6,7 @@ use anyhow::{Result, bail};
 
 use crate::config::{ConfigSet, ConfigSetOptions, FailurePolicy, ProjectConfig};
 use crate::diagnostics::{DiagnosticCategory, Diagnostics};
+use crate::directory_inventory::DirectoryInventory;
 use crate::discovery;
 use crate::git::{self, GitSelection};
 use crate::ignore::SuppressionReport;
@@ -28,6 +29,7 @@ pub struct AnalysisResult {
     pub diagnostics: Vec<crate::diagnostics::Diagnostic>,
     pub fail_on: FailurePolicy,
     pub parse_failures: HashMap<PathBuf, String>,
+    pub directory_inventory: Arc<DirectoryInventory>,
 }
 
 pub struct AnalysisOptions {
@@ -39,6 +41,7 @@ pub struct AnalysisOptions {
     pub cache_enabled: bool,
     pub clear_cache: bool,
     pub verbose: u8,
+    pub directory_inventory: Option<Arc<DirectoryInventory>>,
 }
 
 pub struct ProjectContext {
@@ -313,9 +316,8 @@ pub struct DirectoryLintResult {
 }
 
 impl DirectoryLintResult {
-    fn run(config_set: &ConfigSet, scan_root: &Path) -> Self {
+    fn run(config_set: &ConfigSet, scan_root: &Path, inventory: &DirectoryInventory) -> Self {
         let mut violations = Vec::new();
-        let inventory = crate::directory_inventory::collect_directory_inventory(scan_root, &[]);
 
         for (i, node) in config_set.configs().enumerate() {
             let node_root = if node.directory.starts_with(scan_root) {
@@ -326,7 +328,7 @@ impl DirectoryLintResult {
             let exclude_dirs = config_set.child_directories(i);
 
             let mut dir_violations = rules::check_directory_rules(
-                &inventory,
+                inventory,
                 node_root,
                 &node.config.rules,
                 &exclude_dirs,
@@ -426,7 +428,13 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
         options.verbose,
     )?;
 
-    let dir_lint = DirectoryLintResult::run(&context.config_set, &scan_root);
+    let directory_inventory = options.directory_inventory.unwrap_or_else(|| {
+        Arc::new(crate::directory_inventory::collect_directory_inventory(
+            &scan_root,
+            &[],
+        ))
+    });
+    let dir_lint = DirectoryLintResult::run(&context.config_set, &scan_root, &directory_inventory);
 
     let file_set = FileSet {
         files: file_list.files.clone(),
@@ -484,6 +492,7 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
         diagnostics: diagnostics.into_entries(),
         fail_on,
         parse_failures,
+        directory_inventory,
     }))
 }
 
@@ -703,14 +712,21 @@ pub fn collect_incremental(
         || changed_files
             .iter()
             .any(|file| !previous_file_set.contains(file));
-    let directory_violations = if has_structural_change {
+    let (directory_violations, directory_inventory) = if has_structural_change {
         let scan_root = previous
             .scan_scope
             .as_deref()
             .unwrap_or(&previous.project_root);
-        DirectoryLintResult::run(&previous.config_set, scan_root).violations
+        let fresh_inventory =
+            crate::directory_inventory::collect_directory_inventory(scan_root, &[]);
+        let violations =
+            DirectoryLintResult::run(&previous.config_set, scan_root, &fresh_inventory).violations;
+        (violations, Arc::new(fresh_inventory))
     } else {
-        previous.directory_violations.clone()
+        (
+            previous.directory_violations.clone(),
+            Arc::clone(&previous.directory_inventory),
+        )
     };
 
     let suppression_report = merged_suppression_report(
@@ -744,6 +760,7 @@ pub fn collect_incremental(
         diagnostics: previous.diagnostics.clone(),
         fail_on: previous.fail_on.clone(),
         parse_failures,
+        directory_inventory,
     }))
 }
 
@@ -881,6 +898,7 @@ mod tests {
             cache_enabled: false,
             clear_cache: false,
             verbose: 0,
+            directory_inventory: None,
         }
     }
 
