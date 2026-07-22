@@ -43,6 +43,126 @@ macro_rules! fixable_ast_rule_adapter {
     };
 }
 
+macro_rules! graph_rule_adapter {
+    ($name:ident, $id:expr, $config_ty:ty, $module:ident) => {
+        pub struct $name {
+            pub config: $config_ty,
+        }
+        impl GraphRule for $name {
+            fn severity(&self) -> Severity {
+                self.config.severity
+            }
+            fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
+                $module::check_file(
+                    ctx.file,
+                    ctx.line_index,
+                    ctx.import_graph.as_ref(),
+                    &self.config,
+                )
+            }
+        }
+    };
+}
+
+macro_rules! text_rule_adapter {
+    ($name:ident, $id:expr, $config_ty:ty, $module:ident) => {
+        pub struct $name {
+            pub config: $config_ty,
+        }
+        impl TextRule for $name {
+            fn severity(&self) -> Severity {
+                self.config.severity
+            }
+            fn check(&self, ctx: &TextContext<'_>) -> Vec<Violation> {
+                $module::check_file(ctx.file, ctx.source, &self.config)
+            }
+        }
+    };
+}
+
+macro_rules! context_ast_rule_adapter {
+    ($name:ident, $id:expr, $config_ty:ty, $module:ident, $($field:ident: $field_ty:ty),+ $(,)?) => {
+        pub struct $name {
+            pub config: $config_ty,
+            $(pub $field: $field_ty,)*
+        }
+        impl AstRule for $name {
+            fn severity(&self) -> Severity {
+                self.config.severity
+            }
+            fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
+                $module::check_file(
+                    ctx.file,
+                    ctx.program,
+                    ctx.line_index,
+                    &self.config,
+                    $(self.$field.as_ref(),)*
+                )
+            }
+        }
+    };
+}
+
+macro_rules! context_fixable_ast_rule_adapter {
+    ($name:ident, $id:expr, $config_ty:ty, $module:ident, $($field:ident: $field_ty:ty),+ $(,)?) => {
+        pub struct $name {
+            pub config: $config_ty,
+            $(pub $field: $field_ty,)*
+        }
+        impl AstRule for $name {
+            fn severity(&self) -> Severity {
+                self.config.severity
+            }
+            fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
+                $module::check_file(
+                    ctx.file,
+                    ctx.program,
+                    ctx.line_index,
+                    &self.config,
+                    $(self.$field.as_ref(),)*
+                )
+            }
+
+            fn supports_fix(&self) -> bool {
+                true
+            }
+
+            fn fix(&self, ctx: &AstContext<'_>) -> Vec<Fix> {
+                $module::fix_file(
+                    ctx.file,
+                    ctx.program,
+                    ctx.source,
+                    &self.config,
+                    $(self.$field.as_ref(),)*
+                )
+            }
+        }
+    };
+}
+
+macro_rules! context_graph_rule_adapter {
+    ($name:ident, $id:expr, $config_ty:ty, $module:ident, $($field:ident: $field_ty:ty),+ $(,)?) => {
+        pub struct $name {
+            pub config: $config_ty,
+            $(pub $field: $field_ty,)*
+        }
+        impl GraphRule for $name {
+            fn severity(&self) -> Severity {
+                self.config.severity
+            }
+            fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
+                $module::check_file(
+                    ctx.file,
+                    ctx.line_index,
+                    ctx.import_graph.as_ref(),
+                    &self.config,
+                    $(self.$field.as_ref(),)*
+                )
+            }
+        }
+    };
+}
+
 ast_rule_adapter!(
     BooleanPrefixAdapter,
     BOOLEAN_PREFIX_RULE_ID,
@@ -56,24 +176,13 @@ ast_rule_adapter!(
     no_console
 );
 
-pub struct NoDefaultExportAdapter {
-    pub config: crate::config::NoDefaultExportRuleConfig,
-    pub components: Arc<crate::config::structure::DomainConfig>,
-}
-impl AstRule for NoDefaultExportAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
-        no_default_export::check_file(
-            ctx.file,
-            ctx.program,
-            ctx.line_index,
-            &self.config,
-            self.components.as_ref(),
-        )
-    }
-}
+context_ast_rule_adapter!(
+    NoDefaultExportAdapter,
+    NO_DEFAULT_EXPORT_RULE_ID,
+    crate::config::NoDefaultExportRuleConfig,
+    no_default_export,
+    components: Arc<crate::config::structure::DomainConfig>,
+);
 
 ast_rule_adapter!(
     NoExportStarAdapter,
@@ -100,22 +209,12 @@ ast_rule_adapter!(
     max_function_params
 );
 
-pub struct NoUpwardImportAdapter {
-    pub config: crate::config::UpwardImportRuleConfig,
-}
-impl GraphRule for NoUpwardImportAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
-        no_upward_import::check_file(
-            ctx.file,
-            ctx.line_index,
-            ctx.import_graph.as_ref(),
-            &self.config,
-        )
-    }
-}
+graph_rule_adapter!(
+    NoUpwardImportAdapter,
+    NO_UPWARD_IMPORT_RULE_ID,
+    crate::config::UpwardImportRuleConfig,
+    no_upward_import
+);
 
 pub struct LayerBoundariesAdapter {
     pub config: crate::config::RuleConfig,
@@ -342,17 +441,12 @@ ast_rule_adapter!(
     no_logic_in_barrel
 );
 
-pub struct NoLargeFileAdapter {
-    pub config: crate::config::FileLengthRuleConfig,
-}
-impl TextRule for NoLargeFileAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &TextContext<'_>) -> Vec<Violation> {
-        no_large_file::check_file(ctx.file, ctx.source, &self.config)
-    }
-}
+text_rule_adapter!(
+    NoLargeFileAdapter,
+    NO_LARGE_FILE_RULE_ID,
+    crate::config::FileLengthRuleConfig,
+    no_large_file
+);
 
 ast_rule_adapter!(
     NoBarrelFilesAdapter,
@@ -393,150 +487,60 @@ impl AstRule for NoInlineTypesAdapter {
     }
 }
 
-pub struct HookNoJsxAdapter {
-    pub config: crate::config::RuleConfig,
-    pub hooks: Arc<crate::config::structure::DomainConfig>,
-}
-impl AstRule for HookNoJsxAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
-        hook_no_jsx::check_file(
-            ctx.file,
-            ctx.program,
-            ctx.line_index,
-            &self.config,
-            self.hooks.as_ref(),
-        )
-    }
-}
+context_ast_rule_adapter!(
+    HookNoJsxAdapter,
+    HOOK_NO_JSX_RULE_ID,
+    crate::config::RuleConfig,
+    hook_no_jsx,
+    hooks: Arc<crate::config::structure::DomainConfig>,
+);
 
-pub struct HookPrefixAdapter {
-    pub config: crate::config::HookPrefixRuleConfig,
-    pub hooks: Arc<crate::config::structure::DomainConfig>,
-}
-impl AstRule for HookPrefixAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
-        hook_prefix::check_file(
-            ctx.file,
-            ctx.program,
-            ctx.line_index,
-            &self.config,
-            self.hooks.as_ref(),
-        )
-    }
-}
+context_ast_rule_adapter!(
+    HookPrefixAdapter,
+    HOOK_PREFIX_RULE_ID,
+    crate::config::HookPrefixRuleConfig,
+    hook_prefix,
+    hooks: Arc<crate::config::structure::DomainConfig>,
+);
 
-pub struct ComponentFileOnlyComponentsAdapter {
-    pub config: crate::config::RuleConfig,
-    pub components: Arc<crate::config::structure::DomainConfig>,
-}
-impl AstRule for ComponentFileOnlyComponentsAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
-        component_file_only_components::check_file(
-            ctx.file,
-            ctx.program,
-            ctx.line_index,
-            &self.config,
-            self.components.as_ref(),
-        )
-    }
-}
+context_ast_rule_adapter!(
+    ComponentFileOnlyComponentsAdapter,
+    COMPONENT_FILE_ONLY_COMPONENTS_RULE_ID,
+    crate::config::RuleConfig,
+    component_file_only_components,
+    components: Arc<crate::config::structure::DomainConfig>,
+);
 
-pub struct NoTestCodeInProductionAdapter {
-    pub config: crate::config::RuleConfig,
-    pub tests: Arc<crate::config::structure::DomainConfig>,
-}
-impl AstRule for NoTestCodeInProductionAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
-        no_test_code_in_production::check_file(
-            ctx.file,
-            ctx.program,
-            ctx.line_index,
-            &self.config,
-            self.tests.as_ref(),
-        )
-    }
-}
+context_ast_rule_adapter!(
+    NoTestCodeInProductionAdapter,
+    NO_TEST_CODE_IN_PRODUCTION_RULE_ID,
+    crate::config::RuleConfig,
+    no_test_code_in_production,
+    tests: Arc<crate::config::structure::DomainConfig>,
+);
 
-pub struct NoTestImportAdapter {
-    pub config: crate::config::RuleConfig,
-    pub tests: Arc<crate::config::structure::DomainConfig>,
-}
-impl GraphRule for NoTestImportAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
-        no_test_import::check_file(
-            ctx.file,
-            ctx.line_index,
-            ctx.import_graph.as_ref(),
-            &self.config,
-            self.tests.as_ref(),
-        )
-    }
-}
+context_graph_rule_adapter!(
+    NoTestImportAdapter,
+    NO_TEST_IMPORT_RULE_ID,
+    crate::config::RuleConfig,
+    no_test_import,
+    tests: Arc<crate::config::structure::DomainConfig>,
+);
 
-pub struct NoAnyAdapter {
-    pub config: crate::config::NoAnyRuleConfig,
-    pub generated: Arc<crate::config::structure::DomainConfig>,
-}
-impl AstRule for NoAnyAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
-        no_any::check_file(
-            ctx.file,
-            ctx.program,
-            ctx.line_index,
-            &self.config,
-            self.generated.as_ref(),
-        )
-    }
+context_fixable_ast_rule_adapter!(
+    NoAnyAdapter,
+    NO_ANY_RULE_ID,
+    crate::config::NoAnyRuleConfig,
+    no_any,
+    generated: Arc<crate::config::structure::DomainConfig>,
+);
 
-    fn supports_fix(&self) -> bool {
-        true
-    }
-
-    fn fix(&self, ctx: &AstContext<'_>) -> Vec<Fix> {
-        no_any::fix_file(
-            ctx.file,
-            ctx.program,
-            ctx.source,
-            &self.config,
-            self.generated.as_ref(),
-        )
-    }
-}
-
-pub struct NoBarrelChainAdapter {
-    pub config: crate::config::RuleConfig,
-}
-impl GraphRule for NoBarrelChainAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &GraphContext<'_>) -> Vec<Violation> {
-        no_barrel_chain::check_file(
-            ctx.file,
-            ctx.line_index,
-            ctx.import_graph.as_ref(),
-            &self.config,
-        )
-    }
-}
+graph_rule_adapter!(
+    NoBarrelChainAdapter,
+    NO_BARREL_CHAIN_RULE_ID,
+    crate::config::RuleConfig,
+    no_barrel_chain
+);
 
 pub struct NoCircularImportAdapter {
     pub config: crate::config::NoCircularImportRuleConfig,
@@ -576,26 +580,14 @@ impl GraphRule for NoOrphanFilesAdapter {
     }
 }
 
-pub struct NoLogicInDomainAdapter {
-    pub config: crate::config::RuleConfig,
-    pub types: Arc<crate::config::structure::DomainConfig>,
-    pub constants: Arc<crate::config::structure::DomainConfig>,
-}
-impl AstRule for NoLogicInDomainAdapter {
-    fn severity(&self) -> Severity {
-        self.config.severity
-    }
-    fn check(&self, ctx: &AstContext<'_>) -> Vec<Violation> {
-        no_logic_in_domain::check_file(
-            ctx.file,
-            ctx.program,
-            ctx.line_index,
-            &self.config,
-            self.types.as_ref(),
-            self.constants.as_ref(),
-        )
-    }
-}
+context_ast_rule_adapter!(
+    NoLogicInDomainAdapter,
+    NO_LOGIC_IN_DOMAIN_RULE_ID,
+    crate::config::RuleConfig,
+    no_logic_in_domain,
+    types: Arc<crate::config::structure::DomainConfig>,
+    constants: Arc<crate::config::structure::DomainConfig>,
+);
 
 pub struct NoPrivatePackageImportAdapter {
     pub config: crate::config::RuleConfig,
