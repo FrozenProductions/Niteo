@@ -1348,7 +1348,11 @@ const RULE_DOCUMENTATION: &[RuleDocumentation] = &[
             SEVERITY_OPTION,
             RuleOption {
                 name: "allowed-numbers",
-                description: "List of numeric literals to allow (e.g., [\"0\", \"1\", \"-1\"]).",
+                description: "List of numeric literals to allow (e.g., [\"0\", \"1\", \"-1\"]). Negative numbers in unary expressions (e.g., `-1`) are matched against the negative value.",
+            },
+            RuleOption {
+                name: "allowed-strings",
+                description: "List of string literals to allow when enforce-strings is true (e.g., [\"use strict\", \"\"]).",
             },
             RuleOption {
                 name: "enforce-strings",

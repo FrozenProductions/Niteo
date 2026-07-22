@@ -469,6 +469,7 @@ impl Default for NoOrphanFilesRuleConfig {
 pub struct NoMagicNumbersRuleConfig {
     pub severity: Severity,
     pub allowed_numbers: Vec<String>,
+    pub allowed_strings: Vec<String>,
     pub enforce_strings: bool,
 }
 
@@ -477,6 +478,7 @@ impl Default for NoMagicNumbersRuleConfig {
         Self {
             severity: Severity::Warn,
             allowed_numbers: vec![],
+            allowed_strings: vec![],
             enforce_strings: false,
         }
     }

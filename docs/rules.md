@@ -75,7 +75,7 @@ niteo explain no-console --format json
 | `no-namespace`                   | `error`          | Prefer ES modules over TypeScript namespaces.                                        | `severity`                                               |
 | `no-unsafe-optional-chaining`    | `warn`           | Forbid `?.` on expressions that are never null or undefined.                         | —                                                        | `severity`                     |
 | `no-non-null-assertion`          | `error`          | Disallow the non-null assertion operator.                                            | `severity`                                               |
-| `no-magic-numbers`               | `info`           | Disallow numeric and string literals outside constants.                              | `allowed-numbers`, `enforce-strings`                     |
+| `no-magic-numbers`               | `info`           | Disallow numeric and string literals outside constants.                              | `allowed-numbers`, `allowed-strings`, `enforce-strings`  |
 | `no-package-cycle`               | `error`          | Detect circular dependencies between workspace packages.                             | `severity`                                               |
 | `no-private-package-import`      | `warn`           | Prevent importing internal files from other packages.                                | `severity`                                               |
 | `no-process-env`                 | `warn`           | Prevent direct access to `process.env`.                                              | `severity`                                               |

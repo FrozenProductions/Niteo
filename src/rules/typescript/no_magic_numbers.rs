@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use oxc_ast::ast::{ComputedMemberExpression, Expression, NumericLiteral, ObjectProperty, PropertyKey, StringLiteral};
+use oxc_ast::ast::{
+    CallExpression, ComputedMemberExpression, Expression, NewExpression, NumericLiteral,
+    ObjectProperty, PropertyKey, StringLiteral, UnaryExpression, UnaryOperator,
+};
 use oxc_ast_visit::Visit;
 
 use crate::config::NoMagicNumbersRuleConfig;
@@ -33,6 +36,8 @@ pub fn check_file(
         current_var_decl_is_const: false,
         in_computed_member: false,
         in_property_key: false,
+        in_unary_negation: false,
+        in_array_constructor: false,
     };
     visitor.visit_program(program);
     visitor.violations
@@ -47,19 +52,33 @@ struct MagicNumberVisitor<'a, 'f> {
     current_var_decl_is_const: bool,
     in_computed_member: bool,
     in_property_key: bool,
+    in_unary_negation: bool,
+    in_array_constructor: bool,
 }
 
 impl<'a, 'f> MagicNumberVisitor<'a, 'f> {
     fn is_allowed_number(&self, literal: &NumericLiteral) -> bool {
+        let value = if self.in_unary_negation {
+            -literal.value
+        } else {
+            literal.value
+        };
         self.allowed_values
             .iter()
-            .any(|allowed| (literal.value - allowed).abs() < f64::EPSILON)
+            .any(|allowed| (value - allowed).abs() < f64::EPSILON)
+    }
+
+    fn is_allowed_string(&self, lit: &StringLiteral) -> bool {
+        self.config
+            .allowed_strings
+            .iter()
+            .any(|allowed| lit.value.as_str() == allowed.as_str())
     }
 }
 
 impl<'a, 'f> Visit<'a> for MagicNumberVisitor<'a, 'f> {
     fn visit_numeric_literal(&mut self, literal: &NumericLiteral<'a>) {
-        if self.is_allowed_number(literal) {
+        if self.in_array_constructor || self.is_allowed_number(literal) {
             return;
         }
 
@@ -83,6 +102,7 @@ impl<'a, 'f> Visit<'a> for MagicNumberVisitor<'a, 'f> {
             || self.in_computed_member
             || self.in_property_key
             || self.current_var_decl_is_const
+            || self.is_allowed_string(lit)
         {
             return;
         }
@@ -99,6 +119,35 @@ impl<'a, 'f> Visit<'a> for MagicNumberVisitor<'a, 'f> {
             detail: None,
             subject: None,
         });
+    }
+
+    fn visit_unary_expression(&mut self, expr: &UnaryExpression<'a>) {
+        let saved = self.in_unary_negation;
+        self.in_unary_negation = matches!(expr.operator, UnaryOperator::UnaryNegation);
+        oxc_ast_visit::walk::walk_unary_expression(self, expr);
+        self.in_unary_negation = saved;
+    }
+
+    fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
+        let saved = self.in_array_constructor;
+        if let Expression::Identifier(id) = &call.callee
+            && id.name == "Array"
+        {
+            self.in_array_constructor = true;
+        }
+        oxc_ast_visit::walk::walk_call_expression(self, call);
+        self.in_array_constructor = saved;
+    }
+
+    fn visit_new_expression(&mut self, expr: &NewExpression<'a>) {
+        let saved = self.in_array_constructor;
+        if let Expression::Identifier(id) = &expr.callee
+            && id.name == "Array"
+        {
+            self.in_array_constructor = true;
+        }
+        oxc_ast_visit::walk::walk_new_expression(self, expr);
+        self.in_array_constructor = saved;
     }
 
     fn visit_computed_member_expression(
@@ -148,7 +197,6 @@ impl<'a, 'f> Visit<'a> for MagicNumberVisitor<'a, 'f> {
             match init {
                 Expression::NumericLiteral(_) => return,
                 Expression::UnaryExpression(unary) => {
-                    use oxc_ast::ast::UnaryOperator;
                     if matches!(unary.operator, UnaryOperator::UnaryNegation)
                         && matches!(&unary.argument, Expression::NumericLiteral(_))
                     {
@@ -182,19 +230,21 @@ mod tests {
     use std::path::Path;
 
     fn run_check(source: &str) -> Vec<Violation> {
-        run_check_with_config(source, vec![])
+        run_check_with_config(source, vec![], vec![])
     }
 
     fn run_check_with_config(
         source: &str,
         allowed_numbers: Vec<String>,
+        allowed_strings: Vec<String>,
     ) -> Vec<Violation> {
-        run_check_with_full_config(source, allowed_numbers, false)
+        run_check_with_full_config(source, allowed_numbers, allowed_strings, false)
     }
 
     fn run_check_with_full_config(
         source: &str,
         allowed_numbers: Vec<String>,
+        allowed_strings: Vec<String>,
         enforce_strings: bool,
     ) -> Vec<Violation> {
         let allocator = Allocator::default();
@@ -204,6 +254,7 @@ mod tests {
         let config = NoMagicNumbersRuleConfig {
             severity: Severity::Warn,
             allowed_numbers,
+            allowed_strings,
             enforce_strings,
         };
         check_file(Path::new("test.ts"), &program, &line_index, &config)
@@ -287,8 +338,89 @@ mod tests {
         let violations = run_check_with_config(
             "const x = 1; const y = 0; const z = -1;",
             vec!["0".to_string(), "1".to_string(), "-1".to_string()],
+            vec![],
         );
         assert!(violations.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn allows_negative_numbers_in_function_args_with_config() -> Result<()> {
+        let violations = run_check_with_config(
+            "foo(-1);\n",
+            vec!["-1".to_string()],
+            vec![],
+        );
+        assert!(violations.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn reports_unconfigured_negative_numbers() -> Result<()> {
+        let violations = run_check("foo(-1);\n");
+        assert_eq!(violations.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn ignores_numeric_args_to_array_constructor() -> Result<()> {
+        let violations = run_check("Array(5);\n");
+        assert!(violations.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn ignores_numeric_args_to_new_array() -> Result<()> {
+        let violations = run_check("new Array(3);\n");
+        assert!(violations.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn ignores_multiple_numeric_args_to_array() -> Result<()> {
+        let violations = run_check("Array(1, 2, 3);\n");
+        assert!(violations.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn flags_non_array_constructor_numeric_args() -> Result<()> {
+        let violations = run_check("Buffer.alloc(5);\n");
+        assert_eq!(violations.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn allows_configured_strings() -> Result<()> {
+        let source = r#"dispatch({ type: "FETCH_USERS" });"#;
+        let violations = run_check_with_full_config(
+            source,
+            vec![],
+            vec!["FETCH_USERS".to_string()],
+            true,
+        );
+        assert!(violations.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn flags_strings_not_in_allowed_list() -> Result<()> {
+        let source = r#"dispatch({ type: "FETCH_USERS", payload: "data" });"#;
+        let violations = run_check_with_full_config(
+            source,
+            vec![],
+            vec!["FETCH_USERS".to_string()],
+            true,
+        );
+        assert_eq!(violations.len(), 1);
 
         Ok(())
     }
@@ -340,7 +472,7 @@ mod tests {
     fn flags_inline_string_literals() -> Result<()> {
         let source = r#"fetch("/api/users");"#;
         let violations =
-            run_check_with_full_config(source, vec![], true);
+            run_check_with_full_config(source, vec![], vec![], true);
         assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("magic strings"));
 
@@ -351,7 +483,7 @@ mod tests {
     fn allows_strings_in_const_declarations() -> Result<()> {
         let source = r#"const API_URL = "/api/users";"#;
         let violations =
-            run_check_with_full_config(source, vec![], true);
+            run_check_with_full_config(source, vec![], vec![], true);
         assert!(violations.is_empty());
 
         Ok(())
@@ -361,7 +493,7 @@ mod tests {
     fn allows_strings_in_enum_members() -> Result<()> {
         let source = "enum Action { FETCH = \"fetch\", UPDATE = \"update\" }\n";
         let violations =
-            run_check_with_full_config(source, vec![], true);
+            run_check_with_full_config(source, vec![], vec![], true);
         assert!(violations.is_empty());
 
         Ok(())
@@ -371,9 +503,7 @@ mod tests {
     fn allows_string_literal_property_keys() -> Result<()> {
         let source = r#"const obj = { "key": "value" };"#;
         let violations =
-            run_check_with_full_config(source, vec![], true);
-        // Only "value" should be flagged (it's a value, not a key),
-        // but since it's in a const, neither should be flagged.
+            run_check_with_full_config(source, vec![], vec![], true);
         assert!(violations.is_empty());
 
         Ok(())
@@ -383,7 +513,7 @@ mod tests {
     fn allows_string_literal_member_expression_keys() -> Result<()> {
         let source = r#"const val = obj["key"];"#;
         let violations =
-            run_check_with_full_config(source, vec![], true);
+            run_check_with_full_config(source, vec![], vec![], true);
         assert!(violations.is_empty());
 
         Ok(())
@@ -393,7 +523,7 @@ mod tests {
     fn flags_string_literals_in_function_args() -> Result<()> {
         let source = r#"localStorage.getItem("auth_token");"#;
         let violations =
-            run_check_with_full_config(source, vec![], true);
+            run_check_with_full_config(source, vec![], vec![], true);
         assert_eq!(violations.len(), 1);
 
         Ok(())
@@ -403,7 +533,7 @@ mod tests {
     fn flags_multiple_string_literals() -> Result<()> {
         let source = r#"dispatch({ type: "FETCH_USERS", payload: "data" });"#;
         let violations =
-            run_check_with_full_config(source, vec![], true);
+            run_check_with_full_config(source, vec![], vec![], true);
         assert_eq!(violations.len(), 2);
 
         Ok(())
@@ -413,7 +543,7 @@ mod tests {
     fn allows_strings_in_type_annotations() -> Result<()> {
         let source = "type Status = \"active\" | \"inactive\";\n";
         let violations =
-            run_check_with_full_config(source, vec![], true);
+            run_check_with_full_config(source, vec![], vec![], true);
         assert!(violations.is_empty());
 
         Ok(())
@@ -423,7 +553,7 @@ mod tests {
     fn allows_strings_in_jsx_attributes() -> Result<()> {
         let source = r#"const el = <div className="container" />;"#;
         let violations =
-            run_check_with_full_config(source, vec![], true);
+            run_check_with_full_config(source, vec![], vec![], true);
         assert!(violations.is_empty());
 
         Ok(())

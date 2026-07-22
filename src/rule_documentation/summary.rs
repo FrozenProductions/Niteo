@@ -446,6 +446,12 @@ pub(crate) fn no_magic_numbers_summary(config: &ProjectConfig) -> RuleConfigSumm
         "allowed-numbers: {:?}",
         config.rules.no_magic_numbers.allowed_numbers
     )];
+    if !config.rules.no_magic_numbers.allowed_strings.is_empty() {
+        options.push(format!(
+            "allowed-strings: {:?}",
+            config.rules.no_magic_numbers.allowed_strings
+        ));
+    }
     if config.rules.no_magic_numbers.enforce_strings {
         options.push("enforce-strings: true".to_string());
     }

@@ -144,6 +144,7 @@ allow-declaration-merging = true
 [rules.no-magic-numbers]
 severity = "info"
 allowed-numbers = []
+allowed-strings = []
 enforce-strings = false
 
 [rules.no-mutable-exports]
