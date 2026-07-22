@@ -102,33 +102,36 @@ impl ImportGraph {
     }
 
     fn calculate_edge_hash(&self) -> String {
-        let mut edges: Vec<&ImportEdge> = self.edges.iter().collect();
-        edges.sort_unstable_by(|a, b| {
-            let a_source = a.source_file.as_os_str().as_encoded_bytes();
-            let b_source = b.source_file.as_os_str().as_encoded_bytes();
+        let mut indices: Vec<usize> = (0..self.edges.len()).collect();
+        indices.sort_unstable_by(|&a, &b| {
+            let edge_a = &self.edges[a];
+            let edge_b = &self.edges[b];
+            let a_source = edge_a.source_file.as_os_str().as_encoded_bytes();
+            let b_source = edge_b.source_file.as_os_str().as_encoded_bytes();
             a_source
                 .cmp(b_source)
                 .then_with(|| {
-                    let a_target = a
+                    let a_target = edge_a
                         .resolved_target
                         .as_ref()
                         .map(|path| path.as_os_str().as_encoded_bytes());
-                    let b_target = b
+                    let b_target = edge_b
                         .resolved_target
                         .as_ref()
                         .map(|path| path.as_os_str().as_encoded_bytes());
                     a_target.cmp(&b_target)
                 })
-                .then_with(|| a.specifier.as_bytes().cmp(b.specifier.as_bytes()))
-                .then_with(|| import_kind_byte(a.kind).cmp(&import_kind_byte(b.kind)))
+                .then_with(|| edge_a.specifier.as_bytes().cmp(edge_b.specifier.as_bytes()))
+                .then_with(|| import_kind_byte(edge_a.kind).cmp(&import_kind_byte(edge_b.kind)))
                 .then_with(|| {
-                    specifier_kind_byte(a.specifier_kind)
-                        .cmp(&specifier_kind_byte(b.specifier_kind))
+                    specifier_kind_byte(edge_a.specifier_kind)
+                        .cmp(&specifier_kind_byte(edge_b.specifier_kind))
                 })
         });
 
         let mut hasher = blake3::Hasher::new();
-        for edge in edges {
+        for index in indices {
+            let edge = &self.edges[index];
             hasher.update(edge.source_file.as_os_str().as_encoded_bytes());
             hasher.update(b"\0");
             match &edge.resolved_target {
