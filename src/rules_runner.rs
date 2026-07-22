@@ -342,11 +342,7 @@ pub fn check_files(
         cached_violations,
         sources,
     };
-    check_files_with_parallelism(
-        &input,
-        true,
-        verbose,
-    )
+    check_files_with_parallelism(&input, true, verbose)
 }
 
 /// Run `check_files` against a freshly-resolved project configuration.
@@ -397,11 +393,7 @@ pub fn check_files_for_benchmark(
         cached_violations,
         sources: &sources,
     };
-    let (violations, _, _) = check_files_with_parallelism(
-        &input,
-        parallel,
-        0,
-    )?;
+    let (violations, _, _) = check_files_with_parallelism(&input, parallel, 0)?;
     Ok(violations)
 }
 

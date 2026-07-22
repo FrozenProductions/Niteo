@@ -15,6 +15,28 @@ use crate::tsconfig::TsConfig;
 #[cfg(test)]
 use crate::config::structure::DomainConfig;
 
+const PAR_CHUNK_SIZE: usize = 128;
+const PROGRESS_INTERVAL: usize = 16;
+
+fn extract_for_file(
+    file: &Path,
+    resolver: &ImportResolverIndex,
+    cached_edges: &HashMap<PathBuf, &[ImportEdge]>,
+    sources: &HashMap<PathBuf, String>,
+) -> Result<(Vec<ImportEdge>, bool)> {
+    if let Some(edges) = cached_edges.get(file) {
+        return Ok((edges.to_vec(), false));
+    }
+    if let Some(source) = sources.get(file) {
+        let (edges, had_panic) = extract_imports(file, source, resolver);
+        return Ok((edges, had_panic));
+    }
+    let source = std::fs::read_to_string(file)
+        .with_context(|| format!("failed to read {}", file.display()))?;
+    let (edges, had_panic) = extract_imports(file, &source, resolver);
+    Ok((edges, had_panic))
+}
+
 pub fn build_import_graph(
     files: &[PathBuf],
     is_test_file: impl Fn(&Path) -> bool,
@@ -65,27 +87,38 @@ pub fn build_import_graph_with_cache(
     };
     let processed = AtomicUsize::new(0);
 
-    let extracted: Vec<(Vec<ImportEdge>, bool)> = files
-        .par_iter()
-        .map(|file| {
-            let result = if let Some(edges) = cached_edges.get(file) {
-                Ok((edges.to_vec(), false))
-            } else if let Some(source) = sources.get(file) {
-                let (edges, had_panic) = extract_imports(file, source, &resolver);
-                Ok((edges, had_panic))
-            } else {
-                let source = std::fs::read_to_string(file)
-                    .with_context(|| format!("failed to read {}", file.display()))?;
-                let (edges, had_panic) = extract_imports(file, &source, &resolver);
-                Ok((edges, had_panic))
-            };
-            let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
-            if let Some(ref bar) = progress_bar {
-                bar.set_position(count as u64);
-            }
-            result
-        })
-        .collect::<Result<Vec<_>>>()?;
+    let extracted: Vec<Result<(Vec<ImportEdge>, bool)>> = if total > PAR_CHUNK_SIZE * 2 {
+        files
+            .par_chunks(PAR_CHUNK_SIZE)
+            .flat_map_iter(|chunk| {
+                chunk.iter().map(|file| {
+                    let result = extract_for_file(file, &resolver, cached_edges, sources);
+                    let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
+                    if (count.is_multiple_of(PROGRESS_INTERVAL) || count == total)
+                        && let Some(ref bar) = progress_bar
+                    {
+                        bar.set_position(count as u64);
+                    }
+                    result
+                })
+            })
+            .collect()
+    } else {
+        files
+            .par_iter()
+            .map(|file| {
+                let result = extract_for_file(file, &resolver, cached_edges, sources);
+                if let Some(ref bar) = progress_bar {
+                    let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
+                    bar.set_position(count as u64);
+                }
+                result
+            })
+            .collect()
+    };
+
+    let extracted: Vec<(Vec<ImportEdge>, bool)> =
+        extracted.into_iter().collect::<Result<Vec<_>>>()?;
 
     if let Some(bar) = progress_bar {
         bar.finish_and_clear();
