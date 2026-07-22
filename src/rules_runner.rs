@@ -76,9 +76,11 @@ pub fn check_files_with_parallelism(
     // Build rule sets once per config; dense ids keep dispatch allocation-free.
     let config_count = config_set.configs().count();
     let mut grouped: Vec<Vec<&PathBuf>> = vec![Vec::new(); config_count];
+    let mut file_config_ids: Vec<usize> = Vec::with_capacity(files.len());
     for file in files {
         let (config_id, _) = config_set.config_with_id_for_file(file);
         grouped[config_id].push(file);
+        file_config_ids.push(config_id);
     }
 
     struct ConfigRuntime {
@@ -114,8 +116,7 @@ pub fn check_files_with_parallelism(
         });
     }
 
-    let process_file = |file: &PathBuf| -> Result<FileResult> {
-        let (config_id, _) = config_set.config_with_id_for_file(file);
+    let process_file = |file: &PathBuf, config_id: usize| -> Result<FileResult> {
         let Some(runtime) = runtime_by_config.get(config_id).and_then(Option::as_ref) else {
             return Ok((Vec::new(), None, None));
         };
@@ -241,8 +242,9 @@ pub fn check_files_with_parallelism(
 
         let results = files
             .par_iter()
-            .map(|file| {
-                let result = process_file(file);
+            .zip(&file_config_ids)
+            .map(|(file, config_id)| {
+                let result = process_file(file, *config_id);
                 let count = processed.fetch_add(1, Ordering::Relaxed) + 1;
                 if let Some(ref bar) = progress_bar {
                     bar.set_position(count as u64);
@@ -256,7 +258,11 @@ pub fn check_files_with_parallelism(
         }
         results
     } else {
-        files.iter().map(&process_file).collect()
+        files
+            .iter()
+            .zip(&file_config_ids)
+            .map(|(file, config_id)| process_file(file, *config_id))
+            .collect()
     };
 
     for result in file_results {
