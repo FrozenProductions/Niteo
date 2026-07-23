@@ -645,6 +645,159 @@ impl Default for BarrelRuleConfig {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ImportGroup {
+    Builtin,
+    External,
+    Internal,
+    Parent,
+    Sibling,
+    Index,
+}
+
+impl std::str::FromStr for ImportGroup {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "builtin" => Ok(Self::Builtin),
+            "external" => Ok(Self::External),
+            "internal" => Ok(Self::Internal),
+            "parent" => Ok(Self::Parent),
+            "sibling" => Ok(Self::Sibling),
+            "index" => Ok(Self::Index),
+            _ => Err(format!(
+                "unknown import group '{s}', expected one of: builtin, external, internal, parent, sibling, index"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for ImportGroup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Builtin => write!(f, "builtin"),
+            Self::External => write!(f, "external"),
+            Self::Internal => write!(f, "internal"),
+            Self::Parent => write!(f, "parent"),
+            Self::Sibling => write!(f, "sibling"),
+            Self::Index => write!(f, "index"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExportGroup {
+    Default,
+    External,
+    Parent,
+    Sibling,
+    Index,
+    Local,
+}
+
+impl std::str::FromStr for ExportGroup {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "default" => Ok(Self::Default),
+            "external" => Ok(Self::External),
+            "parent" => Ok(Self::Parent),
+            "sibling" => Ok(Self::Sibling),
+            "index" => Ok(Self::Index),
+            "local" => Ok(Self::Local),
+            _ => Err(format!(
+                "unknown export group '{s}', expected one of: default, external, parent, sibling, index, local"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for ExportGroup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Default => write!(f, "default"),
+            Self::External => write!(f, "external"),
+            Self::Parent => write!(f, "parent"),
+            Self::Sibling => write!(f, "sibling"),
+            Self::Index => write!(f, "index"),
+            Self::Local => write!(f, "local"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum NewlinesBetween {
+    Ignore,
+    Always,
+    Never,
+}
+
+impl std::str::FromStr for NewlinesBetween {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ignore" => Ok(Self::Ignore),
+            "always" => Ok(Self::Always),
+            "never" => Ok(Self::Never),
+            _ => Err(format!(
+                "unknown newlines-between value '{s}', expected one of: ignore, always, never"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for NewlinesBetween {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ignore => write!(f, "ignore"),
+            Self::Always => write!(f, "always"),
+            Self::Never => write!(f, "never"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SortImportsRuleConfig {
+    pub severity: Severity,
+    pub groups: Vec<Vec<ImportGroup>>,
+    pub newlines_between: NewlinesBetween,
+    pub internal_patterns: Vec<String>,
+}
+
+impl Default for SortImportsRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Info,
+            groups: Vec::new(),
+            newlines_between: NewlinesBetween::Ignore,
+            internal_patterns: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SortExportsRuleConfig {
+    pub severity: Severity,
+    pub groups: Vec<Vec<ExportGroup>>,
+    pub newlines_between: NewlinesBetween,
+}
+
+impl Default for SortExportsRuleConfig {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Info,
+            groups: Vec::new(),
+            newlines_between: NewlinesBetween::Ignore,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Severity;

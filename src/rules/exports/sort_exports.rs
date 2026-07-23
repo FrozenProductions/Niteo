@@ -6,7 +6,7 @@ use oxc_ast::ast::{
 };
 use oxc_span::GetSpan;
 
-use crate::config::RuleConfig;
+use crate::config::{ExportGroup, NewlinesBetween, Severity, SortExportsRuleConfig};
 use crate::rules::{Fix, SORT_EXPORTS_RULE_ID, TextEdit, Violation};
 use crate::syntax::LineIndex;
 
@@ -50,6 +50,53 @@ impl<'a> ExportDecl<'a> {
             }
         }
     }
+
+    fn classify(&self) -> ExportGroup {
+        match self {
+            ExportDecl::Default(_) => ExportGroup::Default,
+            ExportDecl::All(decl) => classify_specifier(&decl.source.value),
+            ExportDecl::Named(decl) => {
+                if let Some(source) = &decl.source {
+                    classify_specifier(&source.value)
+                } else {
+                    ExportGroup::Local
+                }
+            }
+        }
+    }
+}
+
+fn classify_specifier(specifier: &str) -> ExportGroup {
+    if specifier.starts_with("../") {
+        ExportGroup::Parent
+    } else if specifier.starts_with("./") {
+        if is_index_like(specifier) {
+            ExportGroup::Index
+        } else {
+            ExportGroup::Sibling
+        }
+    } else {
+        ExportGroup::External
+    }
+}
+
+fn is_index_like(specifier: &str) -> bool {
+    if specifier.ends_with("/index") {
+        return true;
+    }
+    let segments: Vec<&str> = specifier
+        .strip_prefix("./")
+        .unwrap_or(specifier)
+        .split('/')
+        .collect();
+    if segments.len() >= 2 {
+        let last = segments[segments.len() - 1];
+        let parent = segments[segments.len() - 2];
+        if last == parent {
+            return true;
+        }
+    }
+    false
 }
 
 fn first_binding_name(declaration: &oxc_ast::ast::Declaration) -> String {
@@ -139,10 +186,76 @@ fn find_export_groups<'a>(program: &'a Program<'a>, source: &str) -> Vec<Vec<Exp
     groups
 }
 
+fn format_export_name(decl: &ExportDecl) -> String {
+    match decl {
+        ExportDecl::Named(d) => {
+            if let Some(ref declaration) = d.declaration {
+                first_binding_name(declaration)
+            } else {
+                d.specifiers
+                    .first()
+                    .map(|spec| spec.local.name().to_string())
+                    .unwrap_or_default()
+            }
+        }
+        ExportDecl::Default(_) => "default".to_string(),
+        ExportDecl::All(decl) => {
+            if let Some(exported) = &decl.exported {
+                exported.name().to_string()
+            } else {
+                format!("* from \"{}\"", decl.source.value)
+            }
+        }
+    }
+}
+
+fn build_group_order<'a>(
+    group_config: &[Vec<ExportGroup>],
+    exports: &[&'a ExportDecl<'a>],
+) -> Vec<Vec<(usize, &'a ExportDecl<'a>)>> {
+    let classified: Vec<(ExportGroup, usize, &ExportDecl)> = exports
+        .iter()
+        .enumerate()
+        .map(|(original_index, decl)| {
+            let group = decl.classify();
+            (group, original_index, *decl)
+        })
+        .collect();
+
+    let mut seen_groups: Vec<Vec<ExportGroup>> = group_config.to_vec();
+    for (group, _, _) in &classified {
+        if !seen_groups.iter().any(|inner| inner.contains(group)) {
+            seen_groups.push(vec![*group]);
+        }
+    }
+
+    let mut ordered: Vec<Vec<(usize, &ExportDecl)>> =
+        seen_groups.iter().map(|_| Vec::new()).collect();
+
+    for (group, original_index, decl) in &classified {
+        if let Some(position) = seen_groups
+            .iter()
+            .position(|inner| inner.contains(group))
+        {
+            ordered[position].push((*original_index, decl));
+        }
+    }
+
+    for bucket in ordered.iter_mut() {
+        bucket.sort_by(|a, b| {
+            let key_a = a.1.sort_key();
+            let key_b = b.1.sort_key();
+            key_a.cmp(&key_b)
+        });
+    }
+
+    ordered
+}
+
 fn check_group(
     file: &Path,
     line_index: &LineIndex,
-    severity: crate::config::Severity,
+    severity: Severity,
     group: &[ExportDecl],
 ) -> Vec<Violation> {
     let mut violations = Vec::new();
@@ -174,35 +287,12 @@ fn check_group(
     violations
 }
 
-fn format_export_name(decl: &ExportDecl) -> String {
-    match decl {
-        ExportDecl::Named(d) => {
-            if let Some(ref declaration) = d.declaration {
-                first_binding_name(declaration)
-            } else {
-                d.specifiers
-                    .first()
-                    .map(|spec| spec.local.name().to_string())
-                    .unwrap_or_default()
-            }
-        }
-        ExportDecl::Default(_) => "default".to_string(),
-        ExportDecl::All(decl) => {
-            if let Some(exported) = &decl.exported {
-                exported.name().to_string()
-            } else {
-                format!("* from \"{}\"", decl.source.value)
-            }
-        }
-    }
-}
-
 pub fn check_file(
     file: &Path,
     program: &Program,
     source: &str,
     line_index: &LineIndex,
-    config: &RuleConfig,
+    config: &SortExportsRuleConfig,
 ) -> Vec<Violation> {
     if !config.severity.is_enabled() {
         return Vec::new();
@@ -216,15 +306,34 @@ pub fn check_file(
     violations
 }
 
-pub fn fix_file(file: &Path, program: &Program, source: &str, config: &RuleConfig) -> Vec<Fix> {
+pub fn fix_file(
+    file: &Path,
+    program: &Program,
+    source: &str,
+    config: &SortExportsRuleConfig,
+) -> Vec<Fix> {
     if !config.severity.is_enabled() {
         return Vec::new();
     }
 
     let groups = find_export_groups(program, source);
+
+    if !config.groups.is_empty() {
+        return fix_file_grouped(file, program, source, config, &groups);
+    }
+
+    fix_file_ungrouped(file, source, config, &groups)
+}
+
+fn fix_file_ungrouped(
+    file: &Path,
+    source: &str,
+    _config: &SortExportsRuleConfig,
+    groups: &[Vec<ExportDecl>],
+) -> Vec<Fix> {
     let mut fixes = Vec::new();
 
-    for group in &groups {
+    for group in groups {
         let mut keyed: Vec<(String, &ExportDecl)> =
             group.iter().map(|decl| (decl.sort_key(), decl)).collect();
         let mut is_sorted = true;
@@ -270,13 +379,89 @@ pub fn fix_file(file: &Path, program: &Program, source: &str, config: &RuleConfi
     fixes
 }
 
+fn fix_file_grouped(
+    file: &Path,
+    program: &Program,
+    source: &str,
+    config: &SortExportsRuleConfig,
+    groups: &[Vec<ExportDecl>],
+) -> Vec<Fix> {
+    let all_exports: Vec<(usize, ExportDecl)> = program
+        .body
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, stmt)| is_export_stmt(stmt).map(|decl| (idx, decl)))
+        .collect();
+
+    let mut fixes = Vec::new();
+
+    for group in groups {
+        let global_start_idx = all_exports
+            .iter()
+            .position(|(_, decl)| decl.span().start == group[0].span().start)
+            .unwrap_or(0);
+        let global_end_idx = all_exports
+            .iter()
+            .rposition(|(_, decl)| decl.span().end == group[group.len() - 1].span().end)
+            .unwrap_or(all_exports.len().saturating_sub(1));
+
+        let exports_in_range: Vec<&ExportDecl> = all_exports
+            .iter()
+            .skip(global_start_idx)
+            .take(global_end_idx - global_start_idx + 1)
+            .map(|(_, decl)| decl)
+            .collect();
+
+        let ordered = build_group_order(&config.groups, &exports_in_range);
+
+        let group_start = group[0].span().start as usize;
+        let group_end = group[group.len() - 1].span().end as usize;
+
+        let separator = if group.len() >= 2 {
+            &source[group[0].span().end as usize..group[1].span().start as usize]
+        } else {
+            "\n"
+        };
+
+        let mut snippet_groups: Vec<String> = Vec::new();
+        for bucket in &ordered {
+            if bucket.is_empty() {
+                continue;
+            }
+            let bucket_snippets: Vec<&str> = bucket
+                .iter()
+                .map(|(_, decl)| &source[decl.span().start as usize..decl.span().end as usize])
+                .collect();
+            snippet_groups.push(bucket_snippets.join(separator));
+        }
+
+        let replacement = if config.newlines_between == NewlinesBetween::Always {
+            snippet_groups.join("\n\n")
+        } else {
+            snippet_groups.join("\n")
+        };
+
+        fixes.push(Fix {
+            file: file.to_path_buf(),
+            rule: SORT_EXPORTS_RULE_ID,
+            edits: vec![TextEdit {
+                start: group_start,
+                end: group_end,
+                replacement,
+            }],
+        });
+    }
+
+    fixes
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
     use std::path::Path;
 
     use super::*;
-    use crate::config::{RuleConfig, Severity};
+    use crate::config::{ExportGroup, NewlinesBetween, Severity, SortExportsRuleConfig};
     use crate::fix;
     use crate::syntax::LineIndex;
     use oxc_allocator::Allocator;
@@ -284,6 +469,10 @@ mod tests {
     use oxc_span::SourceType;
 
     fn run_check(source: &str) -> Vec<Violation> {
+        run_check_with_config(source, test_config())
+    }
+
+    fn run_check_with_config(source: &str, config: SortExportsRuleConfig) -> Vec<Violation> {
         let allocator = Allocator::default();
         let line_index = LineIndex::new(source);
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
@@ -293,11 +482,15 @@ mod tests {
             &program,
             source,
             &line_index,
-            &test_config(),
+            &config,
         )
     }
 
     fn run_fix(source: &str) -> Vec<Fix> {
+        run_fix_with_config(source, test_config())
+    }
+
+    fn run_fix_with_config(source: &str, config: SortExportsRuleConfig) -> Vec<Fix> {
         let allocator = Allocator::default();
         let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
         let program = parser_return.program;
@@ -305,7 +498,7 @@ mod tests {
             Path::new("Component.tsx"),
             &program,
             source,
-            &test_config(),
+            &config,
         )
     }
 
@@ -314,9 +507,19 @@ mod tests {
         fix::apply_edits(source, &edits)
     }
 
-    fn test_config() -> RuleConfig {
-        RuleConfig {
+    fn test_config() -> SortExportsRuleConfig {
+        SortExportsRuleConfig {
             severity: Severity::Warn,
+            groups: Vec::new(),
+            newlines_between: NewlinesBetween::Ignore,
+        }
+    }
+
+    fn grouped_config(groups: Vec<Vec<ExportGroup>>) -> SortExportsRuleConfig {
+        SortExportsRuleConfig {
+            severity: Severity::Warn,
+            groups,
+            newlines_between: NewlinesBetween::Ignore,
         }
     }
 
@@ -485,6 +688,71 @@ mod tests {
         assert_eq!(
             fixed,
             "export const y = 2;\r\nexport const z = 1;\r\n\r\nexport const a = 4;\r\nexport const b = 3;\r\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn group_ordering_external_before_sibling() -> Result<()> {
+        let config = grouped_config(vec![
+            vec![ExportGroup::External],
+            vec![ExportGroup::Sibling],
+        ]);
+        let source =
+            "export * from \"./local\";\nexport * from \"react\";\nexport * from \"./other\";\n";
+        let fixes = run_fix_with_config(source, config);
+        let fixed = apply_fix(source, &fixes);
+        assert_eq!(
+            fixed,
+            "export * from \"react\";\nexport * from \"./local\";\nexport * from \"./other\";\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn group_ordering_local_after_reexports() -> Result<()> {
+        let config = grouped_config(vec![
+            vec![ExportGroup::Default],
+            vec![ExportGroup::External, ExportGroup::Sibling],
+            vec![ExportGroup::Local],
+        ]);
+        let source =
+            "export const b = 2;\nexport * from \"react\";\nexport default 42;\nexport const a = 1;\n";
+        let fixes = run_fix_with_config(source, config);
+        let fixed = apply_fix(source, &fixes);
+        assert_eq!(
+            fixed,
+            "export default 42;\nexport * from \"react\";\nexport const a = 1;\nexport const b = 2;\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn newlines_between_always_adds_blank_lines_for_exports() -> Result<()> {
+        let mut config = grouped_config(vec![
+            vec![ExportGroup::Default],
+            vec![ExportGroup::Local],
+        ]);
+        config.newlines_between = NewlinesBetween::Always;
+        let source = "export const b = 2;\nexport default 42;\nexport const a = 1;\n";
+        let fixes = run_fix_with_config(source, config);
+        let fixed = apply_fix(source, &fixes);
+        assert_eq!(
+            fixed,
+            "export default 42;\n\nexport const a = 1;\nexport const b = 2;\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn backward_compat_empty_groups_still_sorts() -> Result<()> {
+        let config = test_config();
+        let source = "export const c = 3;\nexport const a = 1;\nexport const b = 2;\n";
+        let fixes = run_fix_with_config(source, config);
+        let fixed = apply_fix(source, &fixes);
+        assert_eq!(
+            fixed,
+            "export const a = 1;\nexport const b = 2;\nexport const c = 3;\n"
         );
         Ok(())
     }

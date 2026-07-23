@@ -285,7 +285,7 @@ ast_rule_adapter!(
 );
 
 pub struct SortImportsAdapter {
-    pub config: crate::config::RuleConfig,
+    pub config: crate::config::SortImportsRuleConfig,
 }
 impl AstRule for SortImportsAdapter {
     fn rule_id(&self) -> RuleId {
@@ -312,7 +312,7 @@ impl AstRule for SortImportsAdapter {
 }
 
 pub struct SortExportsAdapter {
-    pub config: crate::config::RuleConfig,
+    pub config: crate::config::SortExportsRuleConfig,
 }
 impl AstRule for SortExportsAdapter {
     fn rule_id(&self) -> RuleId {

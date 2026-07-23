@@ -2,16 +2,16 @@ use serde::Deserialize;
 
 use super::super::rules::{
     BarrelRuleConfig, BooleanPrefixRuleConfig, CommentsRuleConfig, EntryFileNoLogicRuleConfig,
-    ExplicitReturnTypeRuleConfig, FileExportsRuleConfig, FileLengthRuleConfig,
-    HookPrefixRuleConfig, MaxDirectoryDepthRuleConfig, MaxFunctionParamsRuleConfig,
+    ExplicitReturnTypeRuleConfig, ExportGroup, FileExportsRuleConfig, FileLengthRuleConfig,
+    HookPrefixRuleConfig, ImportGroup, MaxDirectoryDepthRuleConfig, MaxFunctionParamsRuleConfig,
     MaxItemsPerDirectoryRuleConfig, MinItemsPerDirectoryRuleConfig, NestingContext,
-    NoAbbreviationsRuleConfig, NoAnemicDomainRuleConfig, NoAnyRuleConfig,
+    NewlinesBetween, NoAbbreviationsRuleConfig, NoAnemicDomainRuleConfig, NoAnyRuleConfig,
     NoCircularImportRuleConfig, NoConsoleRuleConfig, NoDefaultExportRuleConfig,
     NoDumpFilesRuleConfig, NoDuplicateFileNamesRuleConfig, NoEmptyDirectoriesRuleConfig,
     NoEmptyDomainRuleConfig, NoGodDomainRuleConfig, NoInterfaceRuleConfig,
     NoMagicNumbersRuleConfig, NoNestedFunctionsRuleConfig, NoOrphanFilesRuleConfig,
     NoRestrictedImportsRuleConfig, NoThenChainRuleConfig, RestrictedImportPattern, RuleConfig,
-    Severity, UpwardImportRuleConfig,
+    Severity, SortExportsRuleConfig, SortImportsRuleConfig, UpwardImportRuleConfig,
 };
 use super::config::RawConfig;
 use crate::rules::RulesConfig;
@@ -114,6 +114,13 @@ macro_rules! declare_raw_rules {
             )*
         }
     };
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub(crate) enum GroupEntry {
+    List(Vec<String>),
+    Single(String),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -337,6 +344,116 @@ impl RawRuleConfig {
             }
         }
     }
+
+    pub fn to_sort_imports_config(
+        &self,
+        default_severity: Severity,
+    ) -> Result<SortImportsRuleConfig, String> {
+        match self {
+            Self::Severity(severity) => Ok(SortImportsRuleConfig {
+                severity: severity.parse::<Severity>()?,
+                ..SortImportsRuleConfig::default()
+            }),
+            Self::Options(options) => {
+                let groups = match &options.groups {
+                    Some(entries) => parse_import_groups(entries)?,
+                    None => SortImportsRuleConfig::default().groups,
+                };
+                let newlines_between = match options.newlines_between.as_deref() {
+                    Some(s) => s
+                        .parse::<NewlinesBetween>()
+                        .map_err(|error| format!("in field 'newlines-between': {error}"))?,
+                    None => SortImportsRuleConfig::default().newlines_between,
+                };
+                Ok(SortImportsRuleConfig {
+                    severity: match options.severity.as_deref() {
+                        Some(severity) => severity.parse::<Severity>()?,
+                        None => default_severity,
+                    },
+                    groups,
+                    newlines_between,
+                    internal_patterns: options
+                        .internal_patterns
+                        .clone()
+                        .unwrap_or_else(|| SortImportsRuleConfig::default().internal_patterns),
+                })
+            }
+        }
+    }
+
+    pub fn to_sort_exports_config(
+        &self,
+        default_severity: Severity,
+    ) -> Result<SortExportsRuleConfig, String> {
+        match self {
+            Self::Severity(severity) => Ok(SortExportsRuleConfig {
+                severity: severity.parse::<Severity>()?,
+                ..SortExportsRuleConfig::default()
+            }),
+            Self::Options(options) => {
+                let groups = match &options.groups {
+                    Some(entries) => parse_export_groups(entries)?,
+                    None => SortExportsRuleConfig::default().groups,
+                };
+                let newlines_between = match options.newlines_between.as_deref() {
+                    Some(s) => s
+                        .parse::<NewlinesBetween>()
+                        .map_err(|error| format!("in field 'newlines-between': {error}"))?,
+                    None => SortExportsRuleConfig::default().newlines_between,
+                };
+                Ok(SortExportsRuleConfig {
+                    severity: match options.severity.as_deref() {
+                        Some(severity) => severity.parse::<Severity>()?,
+                        None => default_severity,
+                    },
+                    groups,
+                    newlines_between,
+                })
+            }
+        }
+    }
+}
+
+fn parse_import_groups(entries: &[GroupEntry]) -> Result<Vec<Vec<ImportGroup>>, String> {
+    entries
+        .iter()
+        .map(|entry| match entry {
+            GroupEntry::Single(s) => {
+                let group: ImportGroup = s
+                    .parse()
+                    .map_err(|error| format!("in field 'groups': {error}"))?;
+                Ok(vec![group])
+            }
+            GroupEntry::List(list) => list
+                .iter()
+                .map(|s| {
+                    s.parse::<ImportGroup>()
+                        .map_err(|error| format!("in field 'groups': {error}"))
+                })
+                .collect::<Result<Vec<_>, _>>(),
+        })
+        .collect()
+}
+
+fn parse_export_groups(entries: &[GroupEntry]) -> Result<Vec<Vec<ExportGroup>>, String> {
+    entries
+        .iter()
+        .map(|entry| match entry {
+            GroupEntry::Single(s) => {
+                let group: ExportGroup = s
+                    .parse()
+                    .map_err(|error| format!("in field 'groups': {error}"))?;
+                Ok(vec![group])
+            }
+            GroupEntry::List(list) => list
+                .iter()
+                .map(|s| {
+                    s.parse::<ExportGroup>()
+                        .map_err(|error| format!("in field 'groups': {error}"))
+                })
+                .collect::<Result<Vec<_>, _>>(),
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -417,6 +534,11 @@ pub(crate) struct RawRuleOptions {
     pub allow_in_types: Option<bool>,
     #[serde(rename = "allow-explicit-any-in")]
     pub allow_explicit_any_in: Option<Vec<String>>,
+    pub groups: Option<Vec<GroupEntry>>,
+    #[serde(rename = "newlines-between")]
+    pub newlines_between: Option<String>,
+    #[serde(rename = "internal-patterns")]
+    pub internal_patterns: Option<Vec<String>>,
 }
 
 impl RawRuleOptions {
@@ -508,6 +630,15 @@ impl RawRuleOptions {
                 .allow_explicit_any_in
                 .clone()
                 .or_else(|| parent.allow_explicit_any_in.clone()),
+            groups: child.groups.clone().or_else(|| parent.groups.clone()),
+            newlines_between: child
+                .newlines_between
+                .clone()
+                .or_else(|| parent.newlines_between.clone()),
+            internal_patterns: child
+                .internal_patterns
+                .clone()
+                .or_else(|| parent.internal_patterns.clone()),
         }
     }
 }
@@ -541,8 +672,6 @@ declare_raw_rules! {
         no_type_assertion => "no-type-assertion",
         no_unnecessary_type_assertion => "no-unnecessary-type-assertion",
         prefer_readonly => "prefer-readonly",
-        sort_imports => "sort-imports",
-        sort_exports => "sort-exports",
     }
     custom_default {
         layer_boundaries => "layer-boundaries",
@@ -582,6 +711,8 @@ declare_raw_rules! {
         no_god_domain => ("no-god-domain", to_no_god_domain_config, NoGodDomainRuleConfig),
         no_then_chain => ("no-then-chain", to_no_then_chain_config, NoThenChainRuleConfig),
         no_circular_import => ("no-circular-import", to_no_circular_import_config, NoCircularImportRuleConfig),
+        sort_imports => ("sort-imports", to_sort_imports_config, SortImportsRuleConfig),
+        sort_exports => ("sort-exports", to_sort_exports_config, SortExportsRuleConfig),
     }
 }
 

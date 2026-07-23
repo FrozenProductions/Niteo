@@ -180,7 +180,43 @@ pub(crate) fn no_side_effect_imports_summary(config: &ProjectConfig) -> RuleConf
 }
 
 pub(crate) fn sort_imports_summary(config: &ProjectConfig) -> RuleConfigSummary {
-    simple_summary(config.rules.sort_imports.severity)
+    RuleConfigSummary {
+        severity: config.rules.sort_imports.severity,
+        options: vec![
+            format!(
+                "groups: {}",
+                if config.rules.sort_imports.groups.is_empty() {
+                    "none".to_string()
+                } else {
+                    config
+                        .rules
+                        .sort_imports
+                        .groups
+                        .iter()
+                        .map(|inner| {
+                            format!(
+                                "[{}]",
+                                inner
+                                    .iter()
+                                    .map(|g| g.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                }
+            ),
+            format!(
+                "newlines-between: {}",
+                config.rules.sort_imports.newlines_between
+            ),
+            format!(
+                "internal-patterns: {:?}",
+                config.rules.sort_imports.internal_patterns
+            ),
+        ],
+    }
 }
 
 pub(crate) fn no_default_export_summary(config: &ProjectConfig) -> RuleConfigSummary {
@@ -303,7 +339,39 @@ pub(crate) fn no_mutable_exports_summary(config: &ProjectConfig) -> RuleConfigSu
 }
 
 pub(crate) fn sort_exports_summary(config: &ProjectConfig) -> RuleConfigSummary {
-    simple_summary(config.rules.sort_exports.severity)
+    RuleConfigSummary {
+        severity: config.rules.sort_exports.severity,
+        options: vec![
+            format!(
+                "groups: {}",
+                if config.rules.sort_exports.groups.is_empty() {
+                    "none".to_string()
+                } else {
+                    config
+                        .rules
+                        .sort_exports
+                        .groups
+                        .iter()
+                        .map(|inner| {
+                            format!(
+                                "[{}]",
+                                inner
+                                    .iter()
+                                    .map(|g| g.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                }
+            ),
+            format!(
+                "newlines-between: {}",
+                config.rules.sort_exports.newlines_between
+            ),
+        ],
+    }
 }
 
 pub(crate) fn no_nested_functions_summary(config: &ProjectConfig) -> RuleConfigSummary {

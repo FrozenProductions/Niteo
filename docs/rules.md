@@ -92,8 +92,8 @@ niteo explain no-console --format json
 | `no-upward-import` | `warn` | Limit fragile `../` imports. | `max-depth`, `allow-patterns` |
 | `prefer-satisfies` | `info` | Prefer `satisfies` over `as` when validating a value against a type. | `severity` |
 | `prefer-readonly` | `warn` | Prefer `readonly` for array parameters in exported functions. | `severity` |
-| `sort-exports` | `info` | Enforce consistent export ordering by exported name. Fixable. | `severity` |
-| `sort-imports` | `info` | Enforce consistent import ordering by module specifier. Fixable. | `severity` |
+| `sort-exports` | `info` | Enforce consistent export ordering by exported name. Supports autofix, group ordering, and blank-line enforcement. | `groups`, `newlines-between` |
+| `sort-imports` | `info` | Enforce consistent import ordering by module specifier. Supports autofix, group ordering, and blank-line enforcement. | `groups`, `newlines-between`, `internal-patterns` |
 
 ## Language And TypeScript Rules
 
@@ -658,7 +658,7 @@ Reports runtime logic in barrel files. Barrel files should only forward imports 
 
 ### `sort-exports`
 
-Reports export declarations not in alphabetical order by exported name. Default exports sort first. Groups separated by blank lines are sorted independently. This rule supports autofix.
+Reports export declarations not in alphabetical order by exported name. Default exports sort first. By default, groups separated by blank lines are sorted independently.
 
 ```ts
 // ❌ Reports
@@ -673,6 +673,31 @@ export const a = 2;
 export const b = 3;
 export const c = 1;
 ```
+
+This rule supports autofix. Use `groups` to define a category-based order and `newlines-between` to enforce blank lines between groups:
+
+```toml
+[rules.sort-exports]
+severity = "warn"
+groups = [["default"], ["external"], ["parent", "sibling"]]
+newlines-between = "always"
+```
+
+| Option             | Type                   | Default    | Description                                                                                 |
+| ------------------ | ---------------------- | ---------- | ------------------------------------------------------------------------------------------- |
+| `groups`           | nested string array(s) | `[]`       | Ordered export categories. Inner arrays merge groups. Empty = blank-line groups.            |
+| `newlines-between` | string                 | `"ignore"` | `"always"` inserts blank lines between groups; `"never"` forbids them; `"ignore"` disables. |
+
+Group values: `default`, `external`, `parent`, `sibling`, `index`, `local`.
+
+- `default` — `export default` declarations.
+- `external` — re-exports from external packages.
+- `parent` — re-exports with `../` specifiers.
+- `sibling` — re-exports with `./` specifiers (not index-like).
+- `index` — re-exports with index-like `./` specifiers.
+- `local` — inline export declarations (`export const`, `export function`, etc.).
+
+Unlisted export categories are appended in their original discovery order. Omit `groups` to keep the default blank-line-group behavior.
 
 ## File And Directory Rules
 
@@ -831,6 +856,51 @@ entry-files = ["main", "app", "layout", "page"]
 ```
 
 ## Import Rules
+
+### `sort-imports`
+
+Reports import declarations not in alphabetical order by module specifier. By default, groups separated by blank lines are sorted independently.
+
+```ts
+// ❌ Reports
+import c from "c";
+import a from "a";
+import b from "b";
+```
+
+```ts
+// ✅ Prefer
+import a from "a";
+import b from "b";
+import c from "c";
+```
+
+This rule supports autofix. Use `groups` to define a category-based order and `newlines-between` to enforce blank lines between groups:
+
+```toml
+[rules.sort-imports]
+severity = "warn"
+groups = [["builtin", "external"], ["internal"], ["parent", "sibling"]]
+newlines-between = "always"
+internal-patterns = ["@scope/**"]
+```
+
+| Option              | Type                   | Default    | Description                                                                                 |
+| ------------------- | ---------------------- | ---------- | ------------------------------------------------------------------------------------------- |
+| `groups`            | nested string array(s) | `[]`       | Ordered import categories. Inner arrays merge groups. Empty = blank-line groups.            |
+| `newlines-between`  | string                 | `"ignore"` | `"always"` inserts blank lines between groups; `"never"` forbids them; `"ignore"` disables. |
+| `internal-patterns` | string array           | `[]`       | Glob patterns matching project-internal specifiers for the `internal` group.                |
+
+Group values: `builtin`, `external`, `internal`, `parent`, `sibling`, `index`.
+
+- `builtin` — Node.js built-in modules (`fs`, `path`, `node:fs`, etc.).
+- `external` — bare specifiers from `node_modules` or packages.
+- `internal` — specifiers matching `internal-patterns`.
+- `parent` — specifiers starting with `../`.
+- `sibling` — specifiers starting with `./` (not index-like).
+- `index` — specifiers with index-like `./` paths (`./foo/index`, `./foo/foo`).
+
+Unlisted import categories are appended in their original discovery order. Omit `groups` to keep the default blank-line-group behavior.
 
 ### `no-circular-import`
 
