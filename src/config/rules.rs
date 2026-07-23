@@ -294,6 +294,8 @@ impl Default for NoDumpFilesRuleConfig {
 pub struct NoAnyRuleConfig {
     pub severity: Severity,
     pub allowed_folders: Vec<String>,
+    pub allow_in_types: bool,
+    pub allow_explicit_any_in: Vec<String>,
 }
 
 impl Default for NoAnyRuleConfig {
@@ -301,6 +303,8 @@ impl Default for NoAnyRuleConfig {
         Self {
             severity: Severity::Warn,
             allowed_folders: vec![],
+            allow_in_types: false,
+            allow_explicit_any_in: vec![],
         }
     }
 }

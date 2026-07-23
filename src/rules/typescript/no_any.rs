@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use oxc_ast::ast::{
-    TSAnyKeyword, TSAsExpression, TSConditionalType, TSTypeAssertion,
-    TSTypeParameterInstantiation,
+    TSAnyKeyword, TSAsExpression, TSConditionalType, TSInterfaceDeclaration, TSTypeAssertion,
+    TSTypeAliasDeclaration, TSTypeParameterInstantiation,
 };
 use oxc_ast_visit::Visit;
 
@@ -28,7 +28,8 @@ pub fn check_file(
         violations: Vec::new(),
         file,
         line_index,
-        severity: config.severity,
+        config,
+        type_depth: 0,
         _phantom: std::marker::PhantomData,
     };
     visitor.visit_program(program);
@@ -48,6 +49,8 @@ pub fn fix_file(
 
     let mut collector = AnyKeywordCollector {
         spans: Vec::new(),
+        allow_in_types: config.allow_in_types,
+        type_depth: 0,
         _phantom: std::marker::PhantomData,
     };
     collector.visit_program(program);
@@ -85,13 +88,29 @@ pub fn fix_file(
 
 struct AnyKeywordCollector<'a> {
     spans: Vec<oxc_span::Span>,
+    allow_in_types: bool,
+    type_depth: usize,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a> Visit<'a> for AnyKeywordCollector<'a> {
     fn visit_ts_any_keyword(&mut self, keyword: &TSAnyKeyword) {
-        self.spans.push(keyword.span);
+        if !self.allow_in_types || self.type_depth == 0 {
+            self.spans.push(keyword.span);
+        }
         oxc_ast_visit::walk::walk_ts_any_keyword(self, keyword);
+    }
+
+    fn visit_ts_type_alias_declaration(&mut self, decl: &TSTypeAliasDeclaration<'a>) {
+        self.type_depth += 1;
+        oxc_ast_visit::walk::walk_ts_type_alias_declaration(self, decl);
+        self.type_depth -= 1;
+    }
+
+    fn visit_ts_interface_declaration(&mut self, decl: &TSInterfaceDeclaration<'a>) {
+        self.type_depth += 1;
+        oxc_ast_visit::walk::walk_ts_interface_declaration(self, decl);
+        self.type_depth -= 1;
     }
 }
 
@@ -144,11 +163,20 @@ fn is_file_allowed(file: &Path, config: &NoAnyRuleConfig, generated: &DomainConf
         return true;
     }
 
+    let path_str = file.to_string_lossy();
+    if config.allow_explicit_any_in.iter().any(|pattern| {
+        regex::Regex::new(pattern).is_ok_and(|re| re.is_match(&path_str))
+    }) {
+        return true;
+    }
+
     file.components().any(|component| {
         matches!(
             component,
             std::path::Component::Normal(name)
-                if config.allowed_folders.iter().any(|folder| name.to_str() == Some(folder))
+                if config.allowed_folders.iter().any(|folder| {
+                    name.to_str().is_some_and(|s| s.contains(folder.as_str()))
+                })
         )
     })
 }
@@ -157,12 +185,16 @@ struct AnyKeywordVisitor<'a, 'f> {
     violations: Vec<Violation>,
     file: &'f Path,
     line_index: &'f LineIndex,
-    severity: crate::config::Severity,
+    config: &'f NoAnyRuleConfig,
+    type_depth: usize,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a, 'f> Visit<'a> for AnyKeywordVisitor<'a, 'f> {
     fn visit_ts_any_keyword(&mut self, keyword: &TSAnyKeyword) {
+        if self.config.allow_in_types && self.type_depth > 0 {
+            return;
+        }
         let pos = self.line_index.position_for(keyword.span);
         self.violations.push(Violation {
             file: self.file.to_path_buf(),
@@ -171,11 +203,23 @@ impl<'a, 'f> Visit<'a> for AnyKeywordVisitor<'a, 'f> {
             column: Some(pos.column),
             rule: NO_ANY_RULE_ID,
             message: MESSAGE,
-            severity: self.severity,
+            severity: self.config.severity,
             detail: None,
             subject: None,
         });
         oxc_ast_visit::walk::walk_ts_any_keyword(self, keyword);
+    }
+
+    fn visit_ts_type_alias_declaration(&mut self, decl: &TSTypeAliasDeclaration<'a>) {
+        self.type_depth += 1;
+        oxc_ast_visit::walk::walk_ts_type_alias_declaration(self, decl);
+        self.type_depth -= 1;
+    }
+
+    fn visit_ts_interface_declaration(&mut self, decl: &TSInterfaceDeclaration<'a>) {
+        self.type_depth += 1;
+        oxc_ast_visit::walk::walk_ts_interface_declaration(self, decl);
+        self.type_depth -= 1;
     }
 }
 
@@ -218,6 +262,8 @@ mod tests {
         NoAnyRuleConfig {
             severity: Severity::Warn,
             allowed_folders: vec![],
+            allow_in_types: false,
+            allow_explicit_any_in: vec![],
         }
     }
 
@@ -340,6 +386,8 @@ mod tests {
         let config = NoAnyRuleConfig {
             severity: Severity::Warn,
             allowed_folders: vec!["legacy".to_string()],
+            allow_in_types: false,
+            allow_explicit_any_in: vec![],
         };
         let allocator = Allocator::default();
         let source = "const value: any = 'test';\n";
@@ -358,10 +406,12 @@ mod tests {
         Ok(())}
 
     #[test]
-    fn reports_any_in_folder_containing_allowed_name_as_substring() -> Result<()> {
+    fn allows_any_in_folder_containing_allowed_name_as_substring() -> Result<()> {
         let config = NoAnyRuleConfig {
             severity: Severity::Warn,
             allowed_folders: vec!["api".to_string()],
+            allow_in_types: false,
+            allow_explicit_any_in: vec![],
         };
         let allocator = Allocator::default();
         let source = "const value: any = 'test';\n";
@@ -376,15 +426,17 @@ mod tests {
             &config,
             &default_generated(),
         );
-        assert_eq!(violations.len(), 1);
+        assert!(violations.is_empty());
 
         Ok(())}
 
     #[test]
-    fn reports_any_in_file_with_folder_in_parent_name() -> Result<()> {
+    fn allows_any_in_file_with_substring_in_path_component() -> Result<()> {
         let config = NoAnyRuleConfig {
             severity: Severity::Warn,
             allowed_folders: vec!["api".to_string()],
+            allow_in_types: false,
+            allow_explicit_any_in: vec![],
         };
         let allocator = Allocator::default();
         let source = "const value: any = 'test';\n";
@@ -399,7 +451,7 @@ mod tests {
             &config,
             &default_generated(),
         );
-        assert_eq!(violations.len(), 1);
+        assert!(violations.is_empty());
 
         Ok(())}
 
@@ -408,6 +460,8 @@ mod tests {
         let config = NoAnyRuleConfig {
             severity: Severity::Warn,
             allowed_folders: vec!["api".to_string()],
+            allow_in_types: false,
+            allow_explicit_any_in: vec![],
         };
         let allocator = Allocator::default();
         let source = "const value: any = 'test';\n";
@@ -578,6 +632,8 @@ mod tests {
         let disabled_config = NoAnyRuleConfig {
             severity: Severity::Off,
             allowed_folders: vec![],
+            allow_in_types: false,
+            allow_explicit_any_in: vec![],
         };
         let fixes = fix_file(
             Path::new("Component.tsx"),
@@ -605,6 +661,155 @@ mod tests {
         );
         assert!(fixes.is_empty());
     
+        Ok(())}
+
+    #[test]
+    fn reports_any_in_array_type() -> Result<()> {
+        let violations = run_check("const value: any[] = [];\n");
+        assert_eq!(violations.len(), 1);
+
+        Ok(())}
+
+    #[test]
+    fn reports_any_in_index_signature() -> Result<()> {
+        let violations = run_check("interface Foo { [key: string]: any; }\n");
+        assert_eq!(violations.len(), 1);
+
+        Ok(())}
+
+    #[test]
+    fn reports_any_in_type_reference_generic() -> Result<()> {
+        let violations = run_check("const x: Promise<any> = Promise.resolve(1);\n");
+        assert_eq!(violations.len(), 1);
+
+        Ok(())}
+
+    #[test]
+    fn allow_in_types_skips_type_alias() -> Result<()> {
+        let config = NoAnyRuleConfig {
+            severity: Severity::Warn,
+            allowed_folders: vec![],
+            allow_in_types: true,
+            allow_explicit_any_in: vec![],
+        };
+        let source = "type Foo = any;\n";
+        let violations = run_check_with_config(source, &config, &default_generated());
+        assert!(violations.is_empty());
+
+        Ok(())}
+
+    #[test]
+    fn allow_in_types_skips_interface_property() -> Result<()> {
+        let config = NoAnyRuleConfig {
+            severity: Severity::Warn,
+            allowed_folders: vec![],
+            allow_in_types: true,
+            allow_explicit_any_in: vec![],
+        };
+        let source = "interface Foo { bar: any; }\n";
+        let violations = run_check_with_config(source, &config, &default_generated());
+        assert!(violations.is_empty());
+
+        Ok(())}
+
+    #[test]
+    fn allow_in_types_false_reports_type_alias() -> Result<()> {
+        let config = NoAnyRuleConfig {
+            severity: Severity::Warn,
+            allowed_folders: vec![],
+            allow_in_types: false,
+            allow_explicit_any_in: vec![],
+        };
+        let source = "type Foo = any;\n";
+        let violations = run_check_with_config(source, &config, &default_generated());
+        assert_eq!(violations.len(), 1);
+
+        Ok(())}
+
+    #[test]
+    fn allow_in_types_still_reports_any_in_params_outside_type() -> Result<()> {
+        let config = NoAnyRuleConfig {
+            severity: Severity::Warn,
+            allowed_folders: vec![],
+            allow_in_types: true,
+            allow_explicit_any_in: vec![],
+        };
+        let source = "function foo(arg: any) {}\n";
+        let violations = run_check_with_config(source, &config, &default_generated());
+        assert_eq!(violations.len(), 1);
+
+        Ok(())}
+
+    #[test]
+    fn fix_skips_any_when_allow_in_types() -> Result<()> {
+        let config = NoAnyRuleConfig {
+            severity: Severity::Warn,
+            allowed_folders: vec![],
+            allow_in_types: true,
+            allow_explicit_any_in: vec![],
+        };
+        let allocator = Allocator::default();
+        let source = "type Foo = any;\nfunction bar(arg: any) {}\n";
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        let fixes = fix_file(
+            Path::new("Component.tsx"),
+            &program,
+            source,
+            &config,
+            &default_generated(),
+        );
+        let fixed = apply_fix_edits(source, &fixes);
+        assert_eq!(fixed, "type Foo = any;\nfunction bar(arg: unknown) {}\n");
+
+        Ok(())}
+
+    #[test]
+    fn allow_explicit_any_in_matches_path() -> Result<()> {
+        let config = NoAnyRuleConfig {
+            severity: Severity::Warn,
+            allowed_folders: vec![],
+            allow_in_types: false,
+            allow_explicit_any_in: vec![r"legacy/.*\.ts$".to_string()],
+        };
+        let allocator = Allocator::default();
+        let source = "const value: any = 'test';\n";
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        let violations = check_file(
+            Path::new("src/legacy/oldCode.ts"),
+            &program,
+            &line_index,
+            &config,
+            &default_generated(),
+        );
+        assert!(violations.is_empty());
+
+        Ok(())}
+
+    #[test]
+    fn allow_explicit_any_in_no_match_reports() -> Result<()> {
+        let config = NoAnyRuleConfig {
+            severity: Severity::Warn,
+            allowed_folders: vec![],
+            allow_in_types: false,
+            allow_explicit_any_in: vec![r"legacy/.*\.ts$".to_string()],
+        };
+        let allocator = Allocator::default();
+        let source = "const value: any = 'test';\n";
+        let line_index = LineIndex::new(source);
+        let parser_return = Parser::new(&allocator, source, SourceType::tsx()).parse();
+        let program = parser_return.program;
+        let violations = check_file(
+            Path::new("src/modern/Component.ts"),
+            &program,
+            &line_index,
+            &config,
+            &default_generated(),
+        );
+        assert_eq!(violations.len(), 1);
+
         Ok(())}
 
     #[test]

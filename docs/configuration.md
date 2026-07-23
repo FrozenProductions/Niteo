@@ -298,6 +298,8 @@ ignore-constants = true
 [rules.no-any]
 severity = "warn"
 allowed-folders = ["legacy"]
+allow-in-types = false
+allow-explicit-any-in = ["generated/.*", "legacy/.*\.ts$"]
 
 [fix]
 no-debugger = true
@@ -308,39 +310,39 @@ no-empty-interface = false
 
 ## Rule Options
 
-| Rule                         | Options                                                 |
-| ---------------------------- | ------------------------------------------------------- |
-| `boolean-prefix`             | `prefixes`, `ignore-constants`                          |
-| `directory-must-have-barrel` | `barrel-names`                                          |
-| `entry-file-no-logic`        | `entry-files`                                           |
-| `hook-prefix`                | `prefixes`                                              |
-| `layer-boundaries`           | configured via `[architecture.layers]`                  |
-| `max-directory-depth`        | `max-depth`, `ignore-dirs`                              |
-| `max-file-exports`           | `max-exports`, `count-default`                          |
-| `max-function-params`        | `max-params`                                            |
-| `max-items-per-directory`    | `max-items`, `ignore-dirs`, `count-folders`             |
-| `min-items-per-directory`    | `min-items`, `ignore-dirs`, `count-folders`             |
-| `no-any`                     | `allowed-folders`                                       |
-| `no-barrel-files`            | `barrel-names`                                          |
-| `no-circular-import`         | `report-all-nodes`                                      |
-| `no-comments`                | `allow-doc-comments`                                    |
-| `no-console`                 | `allow-patterns`                                        |
-| `no-default-export`          | `components-only`                                       |
-| `no-dump-files`              | `extra-names`                                           |
-| `no-duplicate-file-names`    | `ignore-names`                                          |
-| `no-empty-directories`       | `ignore-dirs`                                           |
-| `no-empty-domain`            | `ignore-dirs`                                           |
-| `no-anemic-domain`           | `max-files`, `ignore-dirs`                              |
-| `no-god-domain`              | `max-files`, `ignore-dirs`                              |
-| `no-interface`               | `allow-declaration-merging`                             |
-| `no-large-file`              | `max-lines`                                             |
-| `no-logic-in-barrel`         | `barrel-names`                                          |
-| `no-magic-numbers`           | `allowed-numbers`, `allowed-strings`, `enforce-strings` |
-| `no-nested-functions`        | `max-depth`, `contexts`                                 |
-| `no-orphan-files`            | `entry-files`                                           |
-| `no-restricted-imports`      | `restricted`                                            |
-| `no-then-chain`              | `allow-single`                                          |
-| `no-upward-import`           | `max-depth`, `allow-patterns`                           |
+| Rule                         | Options                                                      |
+| ---------------------------- | ------------------------------------------------------------ |
+| `boolean-prefix`             | `prefixes`, `ignore-constants`                               |
+| `directory-must-have-barrel` | `barrel-names`                                               |
+| `entry-file-no-logic`        | `entry-files`                                                |
+| `hook-prefix`                | `prefixes`                                                   |
+| `layer-boundaries`           | configured via `[architecture.layers]`                       |
+| `max-directory-depth`        | `max-depth`, `ignore-dirs`                                   |
+| `max-file-exports`           | `max-exports`, `count-default`                               |
+| `max-function-params`        | `max-params`                                                 |
+| `max-items-per-directory`    | `max-items`, `ignore-dirs`, `count-folders`                  |
+| `min-items-per-directory`    | `min-items`, `ignore-dirs`, `count-folders`                  |
+| `no-any`                     | `allowed-folders`, `allow-in-types`, `allow-explicit-any-in` |
+| `no-barrel-files`            | `barrel-names`                                               |
+| `no-circular-import`         | `report-all-nodes`                                           |
+| `no-comments`                | `allow-doc-comments`                                         |
+| `no-console`                 | `allow-patterns`                                             |
+| `no-default-export`          | `components-only`                                            |
+| `no-dump-files`              | `extra-names`                                                |
+| `no-duplicate-file-names`    | `ignore-names`                                               |
+| `no-empty-directories`       | `ignore-dirs`                                                |
+| `no-empty-domain`            | `ignore-dirs`                                                |
+| `no-anemic-domain`           | `max-files`, `ignore-dirs`                                   |
+| `no-god-domain`              | `max-files`, `ignore-dirs`                                   |
+| `no-interface`               | `allow-declaration-merging`                                  |
+| `no-large-file`              | `max-lines`                                                  |
+| `no-logic-in-barrel`         | `barrel-names`                                               |
+| `no-magic-numbers`           | `allowed-numbers`, `allowed-strings`, `enforce-strings`      |
+| `no-nested-functions`        | `max-depth`, `contexts`                                      |
+| `no-orphan-files`            | `entry-files`                                                |
+| `no-restricted-imports`      | `restricted`                                                 |
+| `no-then-chain`              | `allow-single`                                               |
+| `no-upward-import`           | `max-depth`, `allow-patterns`                                |
 
 Every rule also supports `severity`.
 

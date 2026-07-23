@@ -227,8 +227,10 @@ impl RawRuleConfig {
             abbreviation_patterns: clone_default
         },
         to_no_any_config => (NoAnyRuleConfig) {
+            allow_in_types: default(false)
             ;
-            allowed_folders: clone_default
+            allowed_folders: clone_default,
+            allow_explicit_any_in: clone_default
         },
         to_no_default_export_config => (NoDefaultExportRuleConfig) {
             components_only: default(false)
@@ -411,6 +413,10 @@ pub(crate) struct RawRuleOptions {
     pub include_private: Option<bool>,
     #[serde(rename = "ignore-when-inferred")]
     pub ignore_when_inferred: Option<bool>,
+    #[serde(rename = "allow-in-types")]
+    pub allow_in_types: Option<bool>,
+    #[serde(rename = "allow-explicit-any-in")]
+    pub allow_explicit_any_in: Option<Vec<String>>,
 }
 
 impl RawRuleOptions {
@@ -497,6 +503,11 @@ impl RawRuleOptions {
             include_class_methods: child.include_class_methods.or(parent.include_class_methods),
             include_private: child.include_private.or(parent.include_private),
             ignore_when_inferred: child.ignore_when_inferred.or(parent.ignore_when_inferred),
+            allow_in_types: child.allow_in_types.or(parent.allow_in_types),
+            allow_explicit_any_in: child
+                .allow_explicit_any_in
+                .clone()
+                .or_else(|| parent.allow_explicit_any_in.clone()),
         }
     }
 }

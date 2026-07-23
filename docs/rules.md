@@ -44,7 +44,7 @@ niteo explain no-console --format json
 | `min-items-per-directory`        | `warn`           | Find tiny directories that add navigation cost without enough structure.       | `min-items`, `ignore-dirs`, `count-folders`                                                                       |
 | `no-abbreviations`               | `info`           | Disallow abbreviated identifiers like `btn`, `ctx`, and `mgr`.                 | `extra-abbreviations`, `allow-abbreviations`, `abbreviation-patterns`, `ignore-properties`, `ignore-destructured` |
 
-| `no-any` | `warn` | Disallow explicit `any` type annotations outside generated or allowed folders. | `allowed-folders`, `project.structure.generated` |
+| `no-any` | `warn` | Disallow explicit `any` type annotations. | `allowed-folders`, `allow-in-types`, `allow-explicit-any-in`, `project.structure.generated` |
 | `no-await-in-loop` | `warn` | Forbid `await` inside loops — a common performance trap. | — | `severity` |
 | `no-barrel-chain` | `info` | Prevent barrel files from re-exporting through other barrels. | `severity` |
 | `no-barrel-files` | `info` | Avoid barrel files. | `barrel-names` |
@@ -131,7 +131,11 @@ Prefer:
 const value: unknown = getData();
 ```
 
-Generated files are always exempt when they match `project.structure.generated`. Additional folders can be allowed with `allowed-folders`.
+Generated files are always exempt when they match `project.structure.generated`. Additional folders can be allowed with `allowed-folders` (substring match on path components).
+
+- `allowed-folders` — List of folder name substrings. Any file whose path contains a matching folder component is exempt.
+- `allow-in-types` — When `true`, allow `any` inside `type` and `interface` declarations.
+- `allow-explicit-any-in` — List of regex patterns matched against the full file path. When any pattern matches, the file is exempt.
 
 ### `no-empty-interface`
 
