@@ -132,6 +132,10 @@ fn dfs_collect(start: u32, adjacency: &[Vec<u32>], visited: &mut [bool], collect
     }
 }
 
+/// Reconstructs one concrete cycle path through `canonical` for display.
+/// The vector length encodes the cycle shape: `[a, a, a]` marks a self-loop,
+/// `[a, b, ..., a]` a reconstructed cycle, and the 2-element `[a, a]` a
+/// fallback used when no path back to the start exists within the SCC.
 fn reconstruct_cycle(
     canonical: u32,
     scc: &[u32],

@@ -46,6 +46,8 @@ pub fn fix_file(
         return Vec::new();
     }
 
+    // The fix suppresses each occurrence with an inline niteo-ignore directive
+    // instead of rewriting `process.env` access, which cannot be edited safely.
     let comment = " // niteo-ignore-line: no-process-env";
     let mut line_ends: BTreeSet<usize> = BTreeSet::new();
 

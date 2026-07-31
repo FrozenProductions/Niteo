@@ -242,8 +242,6 @@ mod tests {
         }
     }
 
-    // --- existing prefix/exact behavior ---
-
     #[test]
     fn reports_exact_match() -> Result<()> {
         let violations = run_check(
@@ -367,8 +365,6 @@ mod tests {
         Ok(())
     }
 
-    // --- glob patterns ---
-
     #[test]
     fn glob_wildcard_matches_any_single_segment() -> Result<()> {
         let violations = run_check(
@@ -408,8 +404,6 @@ mod tests {
         assert_eq!(violations.len(), 1);
         Ok(())
     }
-
-    // --- named import restrictions ---
 
     #[test]
     fn named_restriction_blocks_specific_import() -> Result<()> {
@@ -495,8 +489,6 @@ mod tests {
         Ok(())
     }
 
-    // --- per-pattern messages ---
-
     #[test]
     fn custom_message_appears_in_detail() -> Result<()> {
         let violations = run_check(
@@ -524,8 +516,6 @@ mod tests {
         );
         Ok(())
     }
-
-    // --- toml deserialization round-trip ---
 
     #[test]
     fn toml_string_is_parsed_as_simple() {

@@ -379,8 +379,6 @@ mod tests {
         Ok(())
     }
 
-    // --- include_arrow_functions option ---
-
     #[test]
     fn skips_arrow_when_include_arrow_functions_false() -> Result<()> {
         let config = ExplicitReturnTypeRuleConfig {
@@ -406,8 +404,6 @@ mod tests {
 
         Ok(())
     }
-
-    // --- include_private option ---
 
     #[test]
     fn reports_non_exported_function_when_include_private() -> Result<()> {
@@ -437,8 +433,6 @@ mod tests {
 
         Ok(())
     }
-
-    // --- include_class_methods option ---
 
     #[test]
     fn reports_exported_class_methods_when_enabled() -> Result<()> {
@@ -495,8 +489,6 @@ mod tests {
 
         Ok(())
     }
-
-    // --- ignore_when_inferred option ---
 
     #[test]
     fn skips_typed_variable_when_ignore_when_inferred() -> Result<()> {

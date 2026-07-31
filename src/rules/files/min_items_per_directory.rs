@@ -36,6 +36,8 @@ pub fn check_inventory(
             file_count
         };
 
+        // Empty directories are left to no-empty-directories; this rule only
+        // flags directories that exist but fall below the minimum.
         if item_count > 0 && item_count < config.min_items {
             violations.push(directory_violation(
                 &facts.path,

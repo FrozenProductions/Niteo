@@ -10,6 +10,8 @@ pub fn check_file(file: &Path, source: &str, config: &FileLengthRuleConfig) -> V
         return Vec::new();
     }
 
+    // Deliberate deviation from the file-level line-1 convention: pin the
+    // violation to the end of the file so reports point at the oversized tail.
     let location = last_location(source);
 
     vec![Violation {

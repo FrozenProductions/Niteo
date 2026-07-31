@@ -8,9 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::report::model::Report;
 use crate::report::summary::score;
 
-/// Directory under the project root where history and other Niteo metadata lives.
 const NITEO_DIR: &str = ".niteo";
-/// JSON Lines file with one `HistoryEntry` per line.
 const HISTORY_FILE: &str = "history.jsonl";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -53,6 +51,7 @@ fn compute_health_score(report: &Report) -> u8 {
     ) as u8
 }
 
+// Hand-rolled ISO 8601 formatting to avoid pulling in a date dependency.
 fn format_iso8601_now() -> String {
     let now = SystemTime::now();
     let since_epoch = now
