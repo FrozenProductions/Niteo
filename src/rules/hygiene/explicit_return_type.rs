@@ -165,10 +165,8 @@ impl<'a, 'f> ExplicitReturnTypeVisitor<'a, 'f> {
                     self.report(arrow.span, name);
                 }
             }
-            Expression::FunctionExpression(func) => {
-                if func.return_type.is_none() {
-                    self.report(func.span, name);
-                }
+            Expression::FunctionExpression(func) if func.return_type.is_none() => {
+                self.report(func.span, name);
             }
             _ => {}
         }
