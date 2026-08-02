@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 
 use crate::cache::store::CacheFile;
 
-pub const CACHE_SCHEMA_VERSION: u32 = 4;
+// Version 5: per-file cached violations now hold the complete post-run finding
+// set for all enabled rules instead of only the unchanged-rule subset.
+pub const CACHE_SCHEMA_VERSION: u32 = 5;
 
 pub fn hash_content(content: &[u8]) -> String {
     blake3::hash(content).to_hex().to_string()

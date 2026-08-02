@@ -326,6 +326,7 @@ impl ImportGraphResult {
 
 pub struct FileLintResult {
     pub violations: Vec<Violation>,
+    pub raw_violations: Vec<Violation>,
     pub suppression_report: SuppressionReport,
     pub parse_failures: Vec<ParseFailure>,
 }
@@ -343,7 +344,7 @@ impl FileLintResult {
         let cached_violations_map = cache.cached_violations();
         let changed_rules = cache.changed_rules();
 
-        let (violations, suppression_report, parse_failures) = rules::check_files(
+        let output = rules::check_files(
             files,
             config_set,
             graph,
@@ -355,9 +356,10 @@ impl FileLintResult {
         )?;
 
         Ok(Self {
-            violations,
-            suppression_report,
-            parse_failures,
+            violations: output.violations,
+            raw_violations: output.raw_violations,
+            suppression_report: output.suppression_report,
+            parse_failures: output.parse_failures,
         })
     }
 }
@@ -503,8 +505,12 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
     file_violations.extend(file_set.check_duplicate_file_names());
     file_violations.extend(file_set.check_dump_files());
 
+    let mut raw_violations_for_cache = file_lint.raw_violations;
+    raw_violations_for_cache.extend(file_set.check_duplicate_file_names());
+    raw_violations_for_cache.extend(file_set.check_dump_files());
+
     let directory_violations = dir_lint.violations;
-    let all_violations_for_cache: Vec<rules::Violation> = file_violations
+    let all_violations_for_cache: Vec<rules::Violation> = raw_violations_for_cache
         .iter()
         .cloned()
         .chain(directory_violations.iter().cloned())

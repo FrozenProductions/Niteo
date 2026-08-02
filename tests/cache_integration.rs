@@ -15,7 +15,7 @@ use niteo::config::Severity;
 use niteo::config::{ConfigSet, ConfigSetOptions};
 use niteo::import_graph::{ImportEdge, ImportGraph, ImportKind};
 use niteo::import_resolver::SpecifierKind;
-use niteo::rules::{NO_CONSOLE_RULE_ID, Violation};
+use niteo::rules::{NO_CONSOLE_RULE_ID, NO_DEBUGGER_RULE_ID, RuleId, Violation};
 
 fn write_minimal_config(project_root: &std::path::Path) -> Result<std::path::PathBuf> {
     let config_path = project_root.join("niteo.toml");
@@ -326,7 +326,7 @@ fn finalize_cache_writes_violations() -> Result<()> {
 }
 
 #[test]
-fn finalize_cache_preserves_cached_violations() -> Result<()> {
+fn finalize_cache_stores_post_run_violations_for_all_files() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let project_root = temp_dir.path();
     let file_a = project_root.join("a.ts");
@@ -370,6 +370,17 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
         tsconfig_hash: None,
     };
 
+    let kept_violation = Violation {
+        file: file_a.clone(),
+        span: None,
+        line: Some(1),
+        column: Some(1),
+        rule: NO_CONSOLE_RULE_ID,
+        message: "cached violation",
+        severity: Severity::Warn,
+        detail: None,
+        subject: None,
+    };
     let new_violation = Violation {
         file: file_b.clone(),
         span: None,
@@ -387,7 +398,7 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
         &[file_a.clone(), file_b.clone()],
         &state,
         &ImportGraph::new(),
-        &[new_violation],
+        &[kept_violation, new_violation],
         &[],
     )?;
 
@@ -845,5 +856,166 @@ fn prepare_cache_restores_graph_topology_when_unchanged() -> Result<()> {
         cached_graph.cycles.len(),
         graph.cycles_by_file().unwrap().len()
     );
+    Ok(())
+}
+
+/// Run the full lint pipeline (prepare cache, check files, finalize cache)
+/// the same way `analysis::collect` does, returning report-visible and raw
+/// (pre-suppression) findings.
+fn run_lint_pipeline(
+    project_root: &std::path::Path,
+    files: &[std::path::PathBuf],
+    config_set: &ConfigSet,
+) -> Result<(Vec<Violation>, Vec<Violation>)> {
+    let graph = Arc::new(niteo::import_graph::build_import_graph(
+        files,
+        |file| {
+            config_set
+                .config_for_file(file)
+                .structure
+                .tests
+                .matches_file(file)
+        },
+        None,
+    )?);
+    let state = prepare_cache(project_root, files, config_set, None)?.context("missing cache")?;
+    let sources = state.sources.clone();
+    let output = niteo::rules::check_files(
+        files,
+        config_set,
+        graph.clone(),
+        None,
+        Arc::clone(&state.cached_violations),
+        &sources,
+        Arc::clone(&state.changed_rules),
+        0,
+    )?;
+    finalize_cache(
+        project_root,
+        files,
+        &state,
+        graph.as_ref(),
+        &output.raw_violations,
+        &output.parse_failures,
+    )?;
+    Ok((output.violations, output.raw_violations))
+}
+
+fn assert_same_findings(expected: &[Violation], actual: &[Violation]) {
+    let mut expected: Vec<(RuleId, Option<usize>, Severity)> = expected
+        .iter()
+        .map(|violation| (violation.rule, violation.line, violation.severity))
+        .collect();
+    let mut actual: Vec<(RuleId, Option<usize>, Severity)> = actual
+        .iter()
+        .map(|violation| (violation.rule, violation.line, violation.severity))
+        .collect();
+    expected.sort_by_key(|violation| violation.0);
+    actual.sort_by_key(|violation| violation.0);
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn changed_rule_findings_persist_across_warm_run() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let project_root = temp_dir.path();
+    let file = project_root.join("a.ts");
+    std::fs::write(&file, "console.log(1);\ndebugger;\n")?;
+
+    let config_path = project_root.join("niteo.toml");
+    std::fs::write(
+        &config_path,
+        "[project]\nroot = \".\"\n[rules.no-console]\nseverity = \"warn\"\n[rules.no-debugger]\nseverity = \"warn\"\n[rules.no-magic-numbers]\nseverity = \"off\"\n[rules.no-orphan-files]\nseverity = \"off\"\n",
+    )?;
+    let config_set = resolve_config_set(project_root)?;
+    let files = std::slice::from_ref(&file).to_vec();
+
+    let (cold_violations, _) = run_lint_pipeline(project_root, &files, &config_set)?;
+    assert_eq!(cold_violations.len(), 2);
+    assert_eq!(
+        cold_violations
+            .iter()
+            .find(|violation| violation.rule == niteo::rules::NO_CONSOLE_RULE_ID)
+            .map(|violation| violation.severity),
+        Some(Severity::Warn)
+    );
+
+    std::fs::write(
+        &config_path,
+        "[project]\nroot = \".\"\n[rules.no-console]\nseverity = \"error\"\n[rules.no-debugger]\nseverity = \"warn\"\n[rules.no-magic-numbers]\nseverity = \"off\"\n[rules.no-orphan-files]\nseverity = \"off\"\n",
+    )?;
+    let config_set = resolve_config_set(project_root)?;
+
+    let (changed_run_violations, changed_run_raw) =
+        run_lint_pipeline(project_root, &files, &config_set)?;
+    assert_eq!(changed_run_violations.len(), 2);
+    assert_eq!(
+        changed_run_violations
+            .iter()
+            .find(|violation| violation.rule == niteo::rules::NO_CONSOLE_RULE_ID)
+            .map(|violation| violation.severity),
+        Some(Severity::Error)
+    );
+
+    let cached = read_cache(project_root)?.context("missing cache")?;
+    let entry = cached
+        .files
+        .get("a.ts")
+        .context("missing a.ts cache entry")?;
+    assert_eq!(entry.violations.len(), 2);
+    let mut cached_rules: Vec<&str> = entry
+        .violations
+        .iter()
+        .map(|violation| violation.rule.as_str())
+        .collect();
+    cached_rules.sort();
+    assert_eq!(cached_rules, vec!["no-console", "no-debugger"]);
+    assert_same_findings(&changed_run_raw, &changed_run_violations);
+
+    let (warm_violations, _) = run_lint_pipeline(project_root, &files, &config_set)?;
+    assert_same_findings(&warm_violations, &changed_run_violations);
+    Ok(())
+}
+
+#[test]
+fn enabled_rule_findings_persist_on_next_warm_run() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let project_root = temp_dir.path();
+    let file = project_root.join("a.ts");
+    std::fs::write(&file, "console.log(1);\ndebugger;\n")?;
+
+    let config_path = project_root.join("niteo.toml");
+    std::fs::write(
+        &config_path,
+        "[project]\nroot = \".\"\n[rules.no-console]\nseverity = \"off\"\n[rules.no-debugger]\nseverity = \"warn\"\n[rules.no-magic-numbers]\nseverity = \"off\"\n[rules.no-orphan-files]\nseverity = \"off\"\n",
+    )?;
+    let config_set = resolve_config_set(project_root)?;
+    let files = std::slice::from_ref(&file).to_vec();
+
+    let (cold_violations, _) = run_lint_pipeline(project_root, &files, &config_set)?;
+    assert_eq!(cold_violations.len(), 1);
+    assert_eq!(cold_violations[0].rule, NO_DEBUGGER_RULE_ID);
+
+    std::fs::write(
+        &config_path,
+        "[project]\nroot = \".\"\n[rules.no-console]\nseverity = \"warn\"\n[rules.no-debugger]\nseverity = \"warn\"\n[rules.no-magic-numbers]\nseverity = \"off\"\n[rules.no-orphan-files]\nseverity = \"off\"\n",
+    )?;
+    let config_set = resolve_config_set(project_root)?;
+
+    let (enabled_run_violations, _) = run_lint_pipeline(project_root, &files, &config_set)?;
+    assert_eq!(enabled_run_violations.len(), 2);
+    assert!(
+        enabled_run_violations
+            .iter()
+            .any(|violation| violation.rule == niteo::rules::NO_CONSOLE_RULE_ID)
+    );
+    assert!(
+        enabled_run_violations
+            .iter()
+            .any(|violation| violation.rule == niteo::rules::NO_DEBUGGER_RULE_ID)
+    );
+
+    let (warm_violations, _) = run_lint_pipeline(project_root, &files, &config_set)?;
+    assert_same_findings(&warm_violations, &enabled_run_violations);
     Ok(())
 }

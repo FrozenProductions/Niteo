@@ -228,31 +228,27 @@ pub fn finalize_cache(
             .map(|edge| import_edge_to_cached(edge, project_root))
             .collect();
 
-        let cached = cache_state.cached_violations.get(file);
-        let (file_violations, parse_failure) = if let Some(cached_violations) = cached {
-            let cached_parse_failure = cache_state.cached_parse_failures.get(file).cloned();
-            (
-                cached_violations.iter().map(violation_to_cached).collect(),
-                cached_parse_failure,
-            )
-        } else {
-            let new_violations = violations_by_file
-                .get(file)
-                .map(|file_violations| {
-                    file_violations
-                        .iter()
-                        .map(|v| violation_to_cached(v))
-                        .collect()
-                })
-                .unwrap_or_default();
-            let parse_failure = parse_failures
-                .iter()
-                .find(|failure| failure.file == *file)
-                .map(|failure| CachedParseFailure {
-                    message: failure.message.clone(),
-                });
-            (new_violations, parse_failure)
-        };
+        let file_violations: Vec<CachedViolation> = violations_by_file
+            .get(file)
+            .map(|file_violations| {
+                file_violations
+                    .iter()
+                    .map(|violation| violation_to_cached(violation))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let parse_failure = cache_state
+            .cached_parse_failures
+            .get(file)
+            .cloned()
+            .or_else(|| {
+                parse_failures
+                    .iter()
+                    .find(|failure| failure.file == *file)
+                    .map(|failure| CachedParseFailure {
+                        message: failure.message.clone(),
+                    })
+            });
 
         new_cache.files.insert(
             rel_path,
