@@ -24,7 +24,14 @@ pub fn show(
     let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
 
     let files = if let Some(selection) = git_selection.as_ref() {
-        crate::analysis::resolve_changed_files(workspace, selection)?
+        crate::analysis::resolve_changed_files(
+            workspace,
+            selection,
+            &project_config.root,
+            scan_scope.as_deref(),
+            &project_config.gitignore,
+            tsconfig.as_ref(),
+        )?
     } else {
         discovery::discover_files(
             &project_config.root,

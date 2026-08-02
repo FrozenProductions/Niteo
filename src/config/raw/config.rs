@@ -65,7 +65,7 @@ impl RawConfig {
         GitignoreConfig {
             enabled: project
                 .and_then(|project| project.respect_gitignore)
-                .unwrap_or_default(),
+                .unwrap_or(GitignoreConfig::default().enabled),
         }
     }
 

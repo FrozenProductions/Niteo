@@ -24,6 +24,18 @@ pub fn discover_files(
     builder.hidden(false);
     builder.follow_links(false);
 
+    if std::env::var("NITEO_DBG").is_ok() {
+        let mut raw = WalkBuilder::new(scan_root);
+        raw.git_ignore(gitignore_config.enabled);
+        raw.hidden(false);
+        raw.follow_links(false);
+        for entry in raw.build().flatten() {
+            if entry.path().is_file() {
+                eprintln!("NITEO_DBG walk entry: {:?}", entry.path());
+            }
+        }
+    }
+
     let mut files = Vec::new();
     for entry in builder.build() {
         let entry = entry?;
@@ -38,6 +50,12 @@ pub fn discover_files(
 
     // Deterministic order for stable graph and cache inputs.
     files.sort();
+    if std::env::var("NITEO_DBG").is_ok() {
+        eprintln!(
+            "NITEO_DBG discover_files root={:?} scope={:?} files={files:?}",
+            project_root, scan_root
+        );
+    }
     Ok(files)
 }
 

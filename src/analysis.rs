@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
 
-use crate::config::{ConfigSet, ConfigSetOptions, FailurePolicy, ProjectConfig};
+use crate::config::{ConfigSet, ConfigSetOptions, FailurePolicy, GitignoreConfig, ProjectConfig};
 use crate::diagnostics::{DiagnosticCategory, Diagnostics};
 use crate::directory_inventory::DirectoryInventory;
 use crate::discovery;
@@ -117,8 +117,25 @@ impl FileList {
         options: &AnalysisOptions,
         diagnostics: &mut Diagnostics,
     ) -> Result<Self> {
+        // The eligible project file set is the same one a full scan would
+        // discover. Intersecting it with Git-reported paths applies project
+        // root, scope, tsconfig, and gitignore filtering uniformly to every
+        // selection mode, and drops deleted paths that discovery cannot see.
+        let eligible = discovery::discover_files(
+            project_root,
+            scan_scope.as_ref().map(|p| p.as_path()),
+            &config.root().gitignore,
+            tsconfig.as_ref(),
+        )?;
+
         let files = if let Some(selection) = options.git_selection.as_ref() {
-            resolve_changed_files(workspace_root, selection)?
+            let context = ChangedFileContext {
+                workspace_root,
+                project_root,
+                scan_scope: scan_scope.as_ref().map(|p| p.as_path()),
+                tsconfig,
+            };
+            select_changed_files(&context, selection, &eligible, options.verbose, diagnostics)?
         } else {
             let prompt_changed = if options.prompt_for_changed_files {
                 match git::get_changed_typescript_files(&GitSelection::WorkingTree) {
@@ -135,14 +152,21 @@ impl FileList {
                 Vec::new()
             };
             if !prompt_changed.is_empty() && git::prompt_scan_changed_files(&prompt_changed)? {
-                resolve_changed_files(workspace_root, &GitSelection::WorkingTree)?
-            } else {
-                discovery::discover_files(
+                let context = ChangedFileContext {
+                    workspace_root,
                     project_root,
-                    scan_scope.as_ref().map(|p| p.as_path()),
-                    &config.root().gitignore,
-                    tsconfig.as_ref(),
+                    scan_scope: scan_scope.as_ref().map(|p| p.as_path()),
+                    tsconfig,
+                };
+                select_changed_files(
+                    &context,
+                    &GitSelection::WorkingTree,
+                    &eligible,
+                    options.verbose,
+                    diagnostics,
                 )?
+            } else {
+                eligible
             }
         };
         Ok(Self { files })
@@ -530,20 +554,121 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
     }))
 }
 
-pub fn resolve_changed_files(workspace: &Path, selection: &GitSelection) -> Result<Vec<PathBuf>> {
-    git::get_changed_typescript_files(selection).map(|files| {
-        files
-            .into_iter()
-            .map(|f: PathBuf| {
-                if f.is_absolute() {
-                    f
-                } else {
-                    workspace.join(f)
-                }
-            })
-            .filter(|f: &PathBuf| f.exists())
-            .collect()
-    })
+/// Resolve Git-reported changed files that are eligible for analysis:
+/// within the project root, inside the scan scope, included by tsconfig, and
+/// not ignored (per `respect-gitignore`). Deleted paths are dropped because
+/// their source no longer exists.
+pub fn resolve_changed_files(
+    workspace: &Path,
+    selection: &GitSelection,
+    project_root: &Path,
+    scan_scope: Option<&Path>,
+    gitignore: &GitignoreConfig,
+    tsconfig: Option<&crate::tsconfig::TsConfig>,
+) -> Result<Vec<PathBuf>> {
+    let eligible = discovery::discover_files(project_root, scan_scope, gitignore, tsconfig)?;
+    let (files, _excluded) = classify_changed_files(workspace, selection, &eligible)?;
+    Ok(files)
+}
+
+/// Project context needed to intersect Git-reported paths with the
+/// eligible project file set.
+struct ChangedFileContext<'a> {
+    workspace_root: &'a Path,
+    project_root: &'a Path,
+    scan_scope: Option<&'a Path>,
+    tsconfig: &'a TsConfig,
+}
+
+/// Intersect Git-reported changed files with the eligible project file set.
+/// Normalizes both sides so symlinked workspace roots compare equal, and
+/// reports reasons for excluded paths when running verbose.
+fn select_changed_files(
+    context: &ChangedFileContext<'_>,
+    selection: &GitSelection,
+    eligible: &[PathBuf],
+    verbose: u8,
+    diagnostics: &mut Diagnostics,
+) -> Result<Vec<PathBuf>> {
+    let (files, excluded) = classify_changed_files(context.workspace_root, selection, eligible)?;
+    if verbose >= 1 {
+        for path in excluded {
+            diagnostics.warn(
+                DiagnosticCategory::Git,
+                format!(
+                    "skipping {}: {}",
+                    path.display(),
+                    exclusion_reason(
+                        &path,
+                        context.project_root,
+                        context.scan_scope,
+                        context.tsconfig
+                    )
+                ),
+            );
+        }
+    }
+    Ok(files)
+}
+
+fn classify_changed_files(
+    workspace_root: &Path,
+    selection: &GitSelection,
+    eligible: &[PathBuf],
+) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
+    let eligible_set: HashSet<&PathBuf> = eligible.iter().collect();
+    let mut files = Vec::new();
+    let mut excluded = Vec::new();
+    for changed in git::get_changed_typescript_files(selection)? {
+        let path = normalize_git_path(workspace_root, &changed);
+        if std::env::var("NITEO_DBG").is_ok() {
+            eprintln!(
+                "NITEO_DBG classify changed={changed:?} normalized={path:?} in_eligible={}",
+                eligible_set.contains(&path)
+            );
+        }
+        if eligible_set.contains(&path) {
+            files.push(path);
+        } else {
+            excluded.push(path);
+        }
+    }
+    files.sort();
+    Ok((files, excluded))
+}
+
+fn normalize_git_path(workspace_root: &Path, path: &Path) -> PathBuf {
+    let resolved = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        workspace_root.join(path)
+    };
+    // Canonicalize existing paths so Git-reported paths match the paths
+    // discovery walked when the workspace root itself goes through symlinks;
+    // deleted paths are left lexical and dropped by the eligibility check.
+    resolved.canonicalize().unwrap_or(resolved)
+}
+
+fn exclusion_reason(
+    path: &Path,
+    project_root: &Path,
+    scan_scope: Option<&Path>,
+    tsconfig: &TsConfig,
+) -> &'static str {
+    if !path.exists() {
+        "no longer exists"
+    } else if !path.starts_with(project_root) {
+        "outside project root"
+    } else if scan_scope.is_some_and(|scope| !path.starts_with(scope)) {
+        "outside scan scope"
+    } else if tsconfig
+        .as_ref()
+        .is_some_and(|config| !config.is_included(path))
+    {
+        "excluded by tsconfig"
+    } else {
+        "excluded by .gitignore or project filters"
+    }
 }
 
 pub fn resolve_path(base: &Path, path: PathBuf) -> PathBuf {

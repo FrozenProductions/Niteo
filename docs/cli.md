@@ -76,6 +76,8 @@ niteo lint --git "$BASE_SHA..HEAD"
 
 Use `--git-staged` to scan only files staged for commit (ideal for pre-commit hooks), or `--git-unstaged` to scan only working-tree changes (including untracked files). These three flags are mutually exclusive.
 
+Changed files are always filtered against the same eligibility rules as a full scan: they must be inside `[project].root`, inside `--scope` when given, included by `tsconfig.json`, and not ignored (per `respect-gitignore`). Renames are detected with git's rename detection and the new path is scanned exactly once. Deleted files are not scanned: a path whose source no longer exists cannot be linted. When a Git-reported file is filtered out, `--verbose` explains why.
+
 For full protection on main branches, prefer scanning the whole configured root. See [CI Usage](./ci.md#changed-files) for a comparison of full scan vs. `--git`.
 
 ### Fix Mode

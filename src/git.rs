@@ -20,23 +20,19 @@ pub enum GitSelection {
 pub fn get_changed_typescript_files(selection: &GitSelection) -> Result<Vec<PathBuf>> {
     match selection {
         GitSelection::WorkingTree => {
-            let mut files = run_git_paths(&["diff", "--name-only", "HEAD"])?;
-            merge_unique(
-                &mut files,
-                run_git_paths(&["diff", "--name-only", "--cached"])?,
-            );
+            let mut files = run_git_paths_status(&["diff", "--name-status", "-M", "HEAD"])?;
             merge_unique(&mut files, run_git_paths(&untracked_args())?);
             Ok(files)
         }
-        GitSelection::Staged => run_git_paths(&["diff", "--name-only", "--cached"]),
+        GitSelection::Staged => run_git_paths_status(&["diff", "--name-status", "-M", "--cached"]),
         GitSelection::Unstaged => {
-            let mut files = run_git_paths(&["diff", "--name-only"])?;
+            let mut files = run_git_paths_status(&["diff", "--name-status", "-M"])?;
             merge_unique(&mut files, run_git_paths(&untracked_args())?);
             Ok(files)
         }
         GitSelection::Range(range) => {
             validate_range(range)?;
-            run_git_paths(&["diff", "--name-only", range])
+            run_git_paths_status(&["diff", "--name-status", "-M", range])
         }
     }
 }
@@ -51,6 +47,43 @@ fn merge_unique(target: &mut Vec<PathBuf>, additions: Vec<PathBuf>) {
             target.push(path);
         }
     }
+}
+
+fn run_git_paths_status(args: &[&str]) -> Result<Vec<PathBuf>> {
+    let output = Command::new("git")
+        .args(args)
+        .output()
+        .with_context(|| format!("failed to execute git {}", args.join(" ")))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git {} failed: {}", args.join(" "), stderr.trim());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut files = Vec::new();
+    for line in stdout.lines() {
+        let Some(status) = line.split('\t').next() else {
+            continue;
+        };
+        let Some(code) = status.as_bytes().first().copied() else {
+            continue;
+        };
+        // Rename and copy entries carry both paths; the trailing field is the
+        // new path, which is the one to analyze. Deleted paths are not
+        // reportable: their source no longer exists, so they cannot be linted.
+        let path = match code {
+            b'D' | b'X' => None,
+            _ => line.split('\t').next_back(),
+        };
+        let Some(path) = path else {
+            continue;
+        };
+        if is_typescript_file(path) {
+            files.push(PathBuf::from(path));
+        }
+    }
+    Ok(files)
 }
 
 fn run_git_paths(args: &[&str]) -> Result<Vec<PathBuf>> {
