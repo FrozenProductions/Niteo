@@ -17,8 +17,9 @@ pub fn show(
     output_path: Option<PathBuf>,
 ) -> Result<()> {
     let project_config = config::ProjectConfig::resolve(workspace, root_override)?;
-    let scan_scope =
-        scope_override.map(|scope| crate::analysis::resolve_path(&project_config.root, scope));
+    let scan_scope = scope_override
+        .map(|scope| crate::analysis::resolve_scope_path(&project_config.root, scope))
+        .transpose()?;
 
     let tsconfig = crate::tsconfig::discover_and_parse(workspace)?;
 

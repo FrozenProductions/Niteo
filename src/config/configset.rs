@@ -223,7 +223,7 @@ fn workspace_config_path(workspace: &Path) -> Option<PathBuf> {
 fn discover_child_configs(
     scan_root: &Path,
     project_root: &Path,
-    _workspace: &Path,
+    workspace: &Path,
 ) -> Result<Vec<(PathBuf, PathBuf)>> {
     if !scan_root.exists() {
         return Ok(Vec::new());
@@ -231,6 +231,31 @@ fn discover_child_configs(
 
     let mut configs = Vec::new();
     let root_config_at_project_root = project_root.join(CONFIG_FILE_NAME);
+    let root_config_at_workspace = workspace.join(CONFIG_FILE_NAME);
+
+    // Configs in ancestor directories of a scoped run still apply to files
+    // under the scope, so check each directory from the scope up to the
+    // project root in addition to the subtree walk below.
+    let mut ancestor = scan_root;
+    loop {
+        if !ancestor.starts_with(project_root) {
+            break;
+        }
+        let config_path = ancestor.join(CONFIG_FILE_NAME);
+        if config_path != root_config_at_project_root
+            && config_path != root_config_at_workspace
+            && config_path.is_file()
+        {
+            configs.push((config_path, ancestor.to_path_buf()));
+        }
+        if ancestor == project_root {
+            break;
+        }
+        let Some(parent) = ancestor.parent() else {
+            break;
+        };
+        ancestor = parent;
+    }
 
     for entry in ignore::WalkBuilder::new(scan_root)
         .git_ignore(true)
@@ -258,6 +283,7 @@ fn discover_child_configs(
     }
 
     configs.sort_by_key(|(_, dir)| dir.components().count());
+    configs.dedup_by_key(|(_, dir)| dir.clone());
 
     Ok(configs)
 }
@@ -598,6 +624,64 @@ mod tests {
             ConfigSetOptions {
                 root_override: None,
                 scan_scope: Some(tmp.join("src").as_path()),
+                deny_child_configs: true,
+            },
+        )?;
+        assert_eq!(config_set.children.len(), 0);
+
+        remove_dir_if_exists(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_scope_inherits_ancestor_child_config() -> Result<()> {
+        let tmp = std::env::temp_dir().join("niteo_test_resolve_scope_ancestor");
+        remove_dir_if_exists(&tmp);
+        fs::create_dir_all(tmp.join("packages/app/src"))?;
+
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"packages\"\n")?;
+        fs::write(
+            tmp.join("packages/app/niteo.toml"),
+            "[rules.no-console]\nseverity = \"error\"\n",
+        )?;
+
+        let scope = tmp.join("packages/app/src");
+        let config_set = ConfigSet::resolve(
+            &tmp,
+            ConfigSetOptions {
+                root_override: None,
+                scan_scope: Some(scope.as_path()),
+                deny_child_configs: false,
+            },
+        )?;
+        assert_eq!(config_set.children.len(), 1);
+
+        let file_config = config_set.config_for_file(&scope.join("App.ts"));
+        assert_eq!(file_config.rules.no_console.severity, Severity::Error);
+
+        remove_dir_if_exists(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_scope_does_not_include_sibling_child_configs() -> Result<()> {
+        let tmp = std::env::temp_dir().join("niteo_test_resolve_scope_sibling");
+        remove_dir_if_exists(&tmp);
+        fs::create_dir_all(tmp.join("packages/app"))?;
+        fs::create_dir_all(tmp.join("packages/lib"))?;
+
+        fs::write(tmp.join("niteo.toml"), "[project]\nroot = \"packages\"\n")?;
+        fs::write(
+            tmp.join("packages/lib/niteo.toml"),
+            "[rules.no-console]\nseverity = \"off\"\n",
+        )?;
+
+        let scope = tmp.join("packages/app");
+        let config_set = ConfigSet::resolve(
+            &tmp,
+            ConfigSetOptions {
+                root_override: None,
+                scan_scope: Some(scope.as_path()),
                 deny_child_configs: true,
             },
         )?;

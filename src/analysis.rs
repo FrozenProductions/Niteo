@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 
 use crate::config::{ConfigSet, ConfigSetOptions, FailurePolicy, ProjectConfig};
 use crate::diagnostics::{DiagnosticCategory, Diagnostics};
@@ -62,10 +62,10 @@ pub struct ProjectContext {
 impl ProjectContext {
     fn build(workspace_root: &Path, options: &AnalysisOptions) -> Result<Self> {
         let root_config = ProjectConfig::resolve(workspace_root, options.root_override.clone())?;
-        let scan_scope = options
-            .scope_override
-            .as_ref()
-            .map(|scope| resolve_path(&root_config.root, scope.to_path_buf()));
+        let scan_scope = match options.scope_override.as_ref() {
+            Some(scope) => Some(resolve_scope_path(&root_config.root, scope.to_path_buf())?),
+            None => None,
+        };
 
         let config_set = ConfigSet::resolve(
             workspace_root,
@@ -551,6 +551,21 @@ pub fn resolve_path(base: &Path, path: PathBuf) -> PathBuf {
         return path;
     }
     base.join(path)
+}
+
+/// Resolve a user-provided scope against `base` and normalize it to its
+/// canonical form. The workspace root is canonical (the process CWD resolves
+/// symlinks such as /var -> /private/var on macOS), so an absolute scope must
+/// be canonicalized too; otherwise `starts_with` comparisons against the
+/// project root silently fail.
+pub fn resolve_scope_path(base: &Path, path: PathBuf) -> Result<PathBuf> {
+    let resolved = resolve_path(base, path);
+    resolved.canonicalize().with_context(|| {
+        format!(
+            "scope path does not exist or cannot be resolved: {}",
+            resolved.display()
+        )
+    })
 }
 
 pub fn collect_incremental(

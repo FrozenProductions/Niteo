@@ -107,6 +107,48 @@ fn scoped_run_limits_to_package() -> Result<()> {
 }
 
 #[test]
+fn nested_scope_inherits_ancestor_child_config() -> Result<()> {
+    let project = harness::copy_fixture("monorepo")?;
+    let scope_path = project.path().join("packages/app/src");
+
+    let output = harness::niteo_in_project(project.path())
+        .args([
+            "lint",
+            "--format",
+            "json",
+            "--scope",
+            scope_path
+                .to_str()
+                .context("expected scope path to be valid UTF-8")?,
+        ])
+        .output()?;
+
+    let stdout = String::from_utf8(output.stdout)?;
+    let parsed: Value = serde_json::from_str(&stdout)?;
+    let violations = parsed["violations"]
+        .as_array()
+        .context("expected violations array")?;
+
+    assert!(!violations.is_empty(), "scoped run should lint app files");
+
+    let app_console: Vec<&Value> = violations
+        .iter()
+        .filter(|v| v["rule"].as_str() == Some("no-console"))
+        .collect();
+
+    for violation in &app_console {
+        assert_eq!(
+            violation["severity"]
+                .as_str()
+                .context("expected severity string")?,
+            "error",
+            "nested scope should inherit the packages/app child config"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn deny_child_configs_fails_with_nested_configs() -> Result<()> {
     let project = harness::copy_fixture("monorepo")?;
 

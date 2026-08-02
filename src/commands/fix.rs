@@ -20,7 +20,6 @@ pub fn fix_workspace(
     scope_override: Option<PathBuf>,
     options: FixOptions,
 ) -> Result<()> {
-    let scan_scope = scope_override.clone();
     let collected = analysis::collect(
         workspace,
         AnalysisOptions {
@@ -48,7 +47,7 @@ pub fn fix_workspace(
         workspace,
         crate::config::ConfigSetOptions {
             root_override: root_override.clone(),
-            scan_scope: scan_scope.as_deref(),
+            scan_scope: collected.scan_scope.as_deref(),
             deny_child_configs: options.deny_child_configs,
         },
     )?;
