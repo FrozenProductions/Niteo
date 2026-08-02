@@ -5,11 +5,13 @@ use crate::import_graph::helpers::{
     extensionless, is_barrel_file, is_relative_specifier, normalize_path,
 };
 use crate::tsconfig::{ResolvedPathAlias, TsConfig};
+use crate::workspace::WorkspaceResolver;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpecifierKind {
     Relative,
     Alias,
+    Package,
     External,
 }
 
@@ -33,10 +35,15 @@ pub(crate) struct ImportResolverIndex {
     exact_aliases: HashMap<String, usize>,
     wildcard_root: WildcardNode,
     base_url: PathBuf,
+    workspace: Option<WorkspaceResolver>,
 }
 
 impl ImportResolverIndex {
-    pub(crate) fn new(files: &[PathBuf], tsconfig: Option<&TsConfig>) -> Self {
+    pub(crate) fn new(
+        files: &[PathBuf],
+        tsconfig: Option<&TsConfig>,
+        workspace: Option<&WorkspaceResolver>,
+    ) -> Self {
         let mut entries = HashMap::new();
         for file in files {
             let normalized = normalize_path(file);
@@ -83,6 +90,7 @@ impl ImportResolverIndex {
             exact_aliases,
             wildcard_root,
             base_url,
+            workspace: workspace.cloned(),
         }
     }
 
@@ -111,7 +119,82 @@ impl ImportResolverIndex {
             }
         }
 
+        if let Some(resolved) = self.resolve_workspace_package(specifier) {
+            return (SpecifierKind::Package, Some(resolved));
+        }
+
         (SpecifierKind::External, None)
+    }
+
+    /// Resolve a workspace package-name specifier (`@scope/ui`, `@scope/ui/sub`)
+    /// against the package's `exports` map, then its entrypoints, then the
+    /// filesystem for non-exported subpaths. Known packages keep the
+    /// `Package` classification even when the subpath does not resolve.
+    fn resolve_workspace_package(&self, specifier: &str) -> Option<PathBuf> {
+        let workspace = self.workspace.as_ref()?;
+        let name = workspace.package_name_for_specifier(specifier)?;
+        let resolution = workspace.resolution_for(name)?;
+        let subpath = specifier[name.len()..].trim_start_matches('/');
+
+        if subpath.is_empty() {
+            if let Some(target) = resolution.exports.get("")
+                && let Some(found) = self.resolve_entry(target)
+            {
+                return Some(found);
+            }
+            for entrypoint in &resolution.entrypoints {
+                if let Some(found) = self.resolve_entry(entrypoint) {
+                    return Some(found);
+                }
+            }
+            return self.resolve_entry(&resolution.directory);
+        }
+
+        if let Some(target) = resolution.exports.get(subpath.trim_end_matches('/'))
+            && let Some(found) = self.resolve_entry(target)
+        {
+            return Some(found);
+        }
+
+        self.resolve_entry(&resolution.directory.join(subpath))
+    }
+
+    /// Look up a candidate target in the known file set (with extensionless
+    /// and barrel fallbacks), then fall back to the filesystem for files that
+    /// are not part of the linted set.
+    fn resolve_entry(&self, candidate: &Path) -> Option<PathBuf> {
+        let normalized = normalize_path(candidate);
+        if let Some(found) = self.entries.get(&normalized) {
+            return Some(found.clone());
+        }
+        let without_ext = extensionless(&normalized);
+        if without_ext != normalized
+            && let Some(found) = self.entries.get(&without_ext)
+        {
+            return Some(found.clone());
+        }
+        if let Some(parent) = normalized.parent()
+            && let Some(found) = self.entries.get(parent)
+        {
+            return Some(found.clone());
+        }
+
+        for extension in ["ts", "tsx", "js", "mjs", "cjs", "jsx"] {
+            let with_extension = normalized.with_extension(extension);
+            if with_extension.is_file() {
+                return Some(with_extension);
+            }
+        }
+        for index in ["index.ts", "index.tsx", "index.js"] {
+            let directory_index = normalized.join(index);
+            if directory_index.is_file() {
+                return Some(directory_index);
+            }
+        }
+        if normalized.is_file() {
+            return Some(normalized);
+        }
+        None
     }
 
     fn resolve_relative(&self, source_file: &Path, specifier: &str) -> Option<PathBuf> {
@@ -192,9 +275,31 @@ mod tests {
         specifier: &str,
         all_files: &[PathBuf],
     ) -> Option<PathBuf> {
-        ImportResolverIndex::new(all_files, None)
+        ImportResolverIndex::new(all_files, None, None)
             .classify_and_resolve(source_file, specifier)
             .1
+    }
+
+    fn ui_workspace_resolver() -> WorkspaceResolver {
+        let workspace = crate::workspace::Workspace {
+            root: PathBuf::from("/repo"),
+            packages: vec![crate::workspace::Package {
+                name: "@scope/ui".to_string(),
+                directory: PathBuf::from("/repo/packages/ui"),
+                exports: crate::workspace::ExportMap::from_json(
+                    Path::new("/repo/packages/ui"),
+                    &serde_json::json!({
+                        ".": "./src/index.ts",
+                        "./internal/button": "./src/internal/button.ts"
+                    }),
+                ),
+                public_entrypoints: vec![
+                    PathBuf::from("/repo/packages/ui/src/index.ts"),
+                    PathBuf::from("/repo/packages/ui/src/internal/button.ts"),
+                ],
+            }],
+        };
+        WorkspaceResolver::build(&workspace)
     }
 
     #[test]
@@ -314,7 +419,7 @@ mod tests {
 
     #[test]
     fn classifies_relative_specifier() -> Result<()> {
-        let resolver = ImportResolverIndex::new(&[], None);
+        let resolver = ImportResolverIndex::new(&[], None, None);
         let dummy = &Path::new("src/a.ts");
         assert_eq!(
             resolver.classify_and_resolve(dummy, "./foo").0,
@@ -347,7 +452,7 @@ mod tests {
             }],
         );
         let files = vec![PathBuf::from("/repo/src/shared/date.ts")];
-        let resolver = ImportResolverIndex::new(&files, Some(&tsconfig));
+        let resolver = ImportResolverIndex::new(&files, Some(&tsconfig), None);
         assert_eq!(
             resolver
                 .classify_and_resolve(Path::new("/repo/src/a.ts"), "@/shared/date")
@@ -360,7 +465,7 @@ mod tests {
 
     #[test]
     fn classifies_external_specifier() -> Result<()> {
-        let resolver = ImportResolverIndex::new(&[], None);
+        let resolver = ImportResolverIndex::new(&[], None, None);
         let dummy = &Path::new("src/a.ts");
         assert_eq!(
             resolver.classify_and_resolve(dummy, "lodash").0,
@@ -368,6 +473,77 @@ mod tests {
         );
         assert_eq!(
             resolver.classify_and_resolve(dummy, "@scope/package").0,
+            SpecifierKind::External
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn resolves_workspace_package_to_public_entrypoint() -> Result<()> {
+        let files = vec![
+            PathBuf::from("/repo/packages/app/src/main.ts"),
+            PathBuf::from("/repo/packages/ui/src/index.ts"),
+        ];
+        let resolver = ImportResolverIndex::new(&files, None, Some(&ui_workspace_resolver()));
+        let (kind, resolved) =
+            resolver.classify_and_resolve(Path::new("/repo/packages/app/src/main.ts"), "@scope/ui");
+        assert_eq!(kind, SpecifierKind::Package);
+        assert_eq!(
+            resolved,
+            Some(PathBuf::from("/repo/packages/ui/src/index.ts"))
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn resolves_exported_workspace_package_subpath() -> Result<()> {
+        let files = vec![
+            PathBuf::from("/repo/packages/app/src/main.ts"),
+            PathBuf::from("/repo/packages/ui/src/internal/button.ts"),
+        ];
+        let resolver = ImportResolverIndex::new(&files, None, Some(&ui_workspace_resolver()));
+        let (kind, resolved) = resolver.classify_and_resolve(
+            Path::new("/repo/packages/app/src/main.ts"),
+            "@scope/ui/internal/button",
+        );
+        assert_eq!(kind, SpecifierKind::Package);
+        assert_eq!(
+            resolved,
+            Some(PathBuf::from("/repo/packages/ui/src/internal/button.ts"))
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn resolves_non_exported_subpath_from_file_set() -> Result<()> {
+        let files = vec![
+            PathBuf::from("/repo/packages/app/src/main.ts"),
+            PathBuf::from("/repo/packages/ui/internal/helper.ts"),
+        ];
+        let resolver = ImportResolverIndex::new(&files, None, Some(&ui_workspace_resolver()));
+        let (kind, resolved) = resolver.classify_and_resolve(
+            Path::new("/repo/packages/app/src/main.ts"),
+            "@scope/ui/internal/helper",
+        );
+        assert_eq!(kind, SpecifierKind::Package);
+        assert_eq!(
+            resolved,
+            Some(PathBuf::from("/repo/packages/ui/internal/helper.ts"))
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn classifies_unknown_package_as_external() -> Result<()> {
+        let resolver = ImportResolverIndex::new(&[], None, Some(&ui_workspace_resolver()));
+        assert_eq!(
+            resolver
+                .classify_and_resolve(Path::new("/repo/packages/app/src/main.ts"), "lodash")
+                .0,
             SpecifierKind::External
         );
 
@@ -403,7 +579,7 @@ mod tests {
             PathBuf::from("/repo/src/app.ts"),
             PathBuf::from("/repo/src/components/button.ts"),
         ];
-        let resolver = ImportResolverIndex::new(&files, Some(&tsconfig));
+        let resolver = ImportResolverIndex::new(&files, Some(&tsconfig), None);
         assert_eq!(
             resolver
                 .classify_and_resolve(Path::new("/repo/src/a.ts"), "@/app")

@@ -273,10 +273,12 @@ pub struct ImportGraphResult {
 }
 
 impl ImportGraphResult {
+    #[allow(clippy::too_many_arguments)]
     fn build(
         files: &[PathBuf],
         config_set: &ConfigSet,
         tsconfig: &TsConfig,
+        workspace: Option<&crate::workspace::WorkspaceResolver>,
         cache: &CacheResult,
         sources: Arc<HashMap<PathBuf, String>>,
         project_root: &Path,
@@ -292,6 +294,7 @@ impl ImportGraphResult {
                     .matches_file(file)
             },
             tsconfig.as_ref(),
+            workspace,
             &cache.cached_edges(),
             &sources,
             verbose,
@@ -447,18 +450,6 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
         &mut diagnostics,
     )?;
 
-    let sources = cache.sources();
-
-    let graph_result = ImportGraphResult::build(
-        file_list.as_slice(),
-        &context.config_set,
-        &tsconfig,
-        &cache,
-        sources.clone(),
-        &project_root,
-        options.verbose,
-    )?;
-
     let workspace = match Workspace::discover(workspace_root) {
         Ok(workspace) => Some(Arc::new(workspace)),
         Err(error) => {
@@ -469,6 +460,22 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
             None
         }
     };
+    let workspace_resolver = workspace
+        .as_ref()
+        .map(|workspace| crate::workspace::WorkspaceResolver::build(workspace.as_ref()));
+
+    let sources = cache.sources();
+
+    let graph_result = ImportGraphResult::build(
+        file_list.as_slice(),
+        &context.config_set,
+        &tsconfig,
+        workspace_resolver.as_ref(),
+        &cache,
+        sources.clone(),
+        &project_root,
+        options.verbose,
+    )?;
 
     let file_lint = FileLintResult::run(
         file_list.as_slice(),
@@ -799,10 +806,16 @@ pub fn collect_incremental(
             .matches_file(file)
     };
 
+    let workspace_resolver = previous
+        .workspace
+        .as_ref()
+        .map(|workspace| crate::workspace::WorkspaceResolver::build(workspace.as_ref()));
+
     let mut graph = import_graph::build_import_graph_with_cache(
         &files,
         is_test_file,
         tsconfig.as_ref(),
+        workspace_resolver.as_ref(),
         &cached_edges,
         &HashMap::new(),
         0,

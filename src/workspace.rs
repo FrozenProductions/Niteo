@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
+use crate::import_graph::helpers::normalize_path;
 use crate::import_graph::topology::find_strongly_connected_components;
 
 #[derive(Debug, Clone)]
@@ -18,7 +19,132 @@ pub struct Workspace {
 pub struct Package {
     pub name: String,
     pub directory: PathBuf,
+    pub exports: ExportMap,
     pub public_entrypoints: Vec<PathBuf>,
+}
+
+/// Subpath-to-file mapping taken from a package's `exports` field. Keys are
+/// normalized: the root subpath is `""` and deeper subpaths drop the leading
+/// `"./"` (e.g. `"internal/button"`).
+#[derive(Debug, Clone, Default)]
+pub struct ExportMap {
+    entries: HashMap<String, PathBuf>,
+}
+
+impl ExportMap {
+    pub fn get(&self, subpath: &str) -> Option<&PathBuf> {
+        self.entries.get(subpath)
+    }
+
+    pub(crate) fn from_json(directory: &Path, exports: &serde_json::Value) -> Self {
+        let mut entries = HashMap::new();
+        match exports {
+            serde_json::Value::String(target) => {
+                entries.insert(String::new(), normalize_path(&directory.join(target)));
+            }
+            serde_json::Value::Object(object) => {
+                for (key, value) in object {
+                    if !key.starts_with('.') {
+                        continue;
+                    }
+                    let subpath = if key == "." {
+                        String::new()
+                    } else {
+                        key.strip_prefix("./").unwrap_or(key).to_string()
+                    };
+                    Self::collect_export_targets(directory, value, &subpath, &mut entries);
+                }
+            }
+            _ => {}
+        }
+        Self { entries }
+    }
+
+    fn collect_export_targets(
+        directory: &Path,
+        value: &serde_json::Value,
+        subpath: &str,
+        entries: &mut HashMap<String, PathBuf>,
+    ) {
+        match value {
+            serde_json::Value::String(target) => {
+                let path = normalize_path(&directory.join(target.trim_start_matches("./")));
+                let is_declaration = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.ends_with(".d.ts"));
+                let prefer_new = entries.get(subpath).is_none_or(|existing| {
+                    existing
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .is_some_and(|name| name.ends_with(".d.ts"))
+                        && !is_declaration
+                });
+                if prefer_new {
+                    entries.insert(subpath.to_string(), path);
+                }
+            }
+            serde_json::Value::Object(object) => {
+                for value in object.values() {
+                    Self::collect_export_targets(directory, value, subpath, entries);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Lookup index over the workspace's known packages, keyed by package name.
+/// Used by the import resolver to turn package-name specifiers into concrete
+/// files without coupling it to the rule-facing `Workspace` type.
+#[derive(Debug, Clone, Default)]
+pub struct WorkspaceResolver {
+    by_name: HashMap<String, PackageResolution>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PackageResolution {
+    pub directory: PathBuf,
+    pub exports: ExportMap,
+    pub entrypoints: Vec<PathBuf>,
+}
+
+impl WorkspaceResolver {
+    pub fn build(workspace: &Workspace) -> Self {
+        let by_name = workspace
+            .packages
+            .iter()
+            .map(|package| {
+                let resolution = PackageResolution {
+                    directory: package.directory.clone(),
+                    exports: package.exports.clone(),
+                    entrypoints: package.public_entrypoints.clone(),
+                };
+                (package.name.clone(), resolution)
+            })
+            .collect();
+        Self { by_name }
+    }
+
+    /// Longest package name that prefixes `specifier` at a component boundary,
+    /// or `None` when no known package matches.
+    pub(crate) fn package_name_for_specifier<'a>(&'a self, specifier: &str) -> Option<&'a str> {
+        let mut best: Option<&str> = None;
+        for name in self.by_name.keys() {
+            let matches = specifier == name
+                || specifier
+                    .strip_prefix(name.as_str())
+                    .is_some_and(|rest| rest.starts_with('/'));
+            if matches && best.is_none_or(|current| name.len() > current.len()) {
+                best = Some(name.as_str());
+            }
+        }
+        best
+    }
+
+    pub(crate) fn resolution_for(&self, name: &str) -> Option<&PackageResolution> {
+        self.by_name.get(name)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -198,10 +324,16 @@ impl Workspace {
             })?;
 
         let public_entrypoints = Self::resolve_public_entrypoints(directory, &package_json);
+        let exports = package_json
+            .exports
+            .as_ref()
+            .map(|value| ExportMap::from_json(directory, value))
+            .unwrap_or_default();
 
         Some(Package {
             name,
             directory: directory.to_path_buf(),
+            exports,
             public_entrypoints,
         })
     }
@@ -218,7 +350,7 @@ impl Workspace {
                     Self::collect_export_paths(directory, value, &mut entrypoints);
                 }
             } else if let Some(exports_str) = exports.as_str() {
-                entrypoints.push(directory.join(exports_str));
+                entrypoints.push(normalize_path(&directory.join(exports_str)));
             }
         }
 
@@ -227,13 +359,13 @@ impl Workspace {
                 .into_iter()
                 .flatten()
             {
-                entrypoints.push(directory.join(entrypoint));
+                entrypoints.push(normalize_path(&directory.join(entrypoint)));
             }
         }
 
         if entrypoints.is_empty() {
             for &candidate in &["src/index.ts", "index.ts"] {
-                let path = directory.join(candidate);
+                let path = normalize_path(&directory.join(candidate));
                 if path.exists() {
                     entrypoints.push(path);
                 }
@@ -250,7 +382,7 @@ impl Workspace {
     ) {
         match value {
             serde_json::Value::String(s) => {
-                entrypoints.push(directory.join(s.trim_start_matches("./")));
+                entrypoints.push(normalize_path(&directory.join(s.trim_start_matches("./"))));
             }
             serde_json::Value::Object(obj) => {
                 for value in obj.values() {
@@ -785,6 +917,104 @@ mod tests {
         let workspace = Workspace::discover(root)?;
         assert_eq!(workspace.packages.len(), 1);
         assert_eq!(workspace.packages[0].name, "keep");
+        Ok(())
+    }
+
+    #[test]
+    fn export_map_parses_root_and_subpaths() -> Result<()> {
+        let dir = PathBuf::from("/repo/packages/ui");
+        let exports = ExportMap::from_json(
+            &dir,
+            &serde_json::json!({
+                ".": "./src/index.ts",
+                "./internal/button": "./src/internal/button.ts"
+            }),
+        );
+
+        assert_eq!(
+            exports.get(""),
+            Some(&PathBuf::from("/repo/packages/ui/src/index.ts"))
+        );
+        assert_eq!(
+            exports.get("internal/button"),
+            Some(&PathBuf::from("/repo/packages/ui/src/internal/button.ts"))
+        );
+        assert_eq!(exports.get("missing"), None);
+        Ok(())
+    }
+
+    #[test]
+    fn export_map_prefers_typescript_over_declarations() -> Result<()> {
+        let dir = PathBuf::from("/repo/packages/ui");
+        let exports = ExportMap::from_json(
+            &dir,
+            &serde_json::json!({
+                ".": {
+                    "types": "./src/index.d.ts",
+                    "import": "./src/index.ts"
+                }
+            }),
+        );
+
+        assert_eq!(
+            exports.get(""),
+            Some(&PathBuf::from("/repo/packages/ui/src/index.ts"))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn resolver_matches_package_names_and_subpaths() -> Result<()> {
+        let workspace = Workspace {
+            root: PathBuf::from("/repo"),
+            packages: vec![Package {
+                name: "@scope/ui".to_string(),
+                directory: PathBuf::from("/repo/packages/ui"),
+                exports: ExportMap::default(),
+                public_entrypoints: vec![PathBuf::from("/repo/packages/ui/src/index.ts")],
+            }],
+        };
+        let resolver = WorkspaceResolver::build(&workspace);
+
+        assert_eq!(
+            resolver.package_name_for_specifier("@scope/ui"),
+            Some("@scope/ui")
+        );
+        assert_eq!(
+            resolver.package_name_for_specifier("@scope/ui/internal/button"),
+            Some("@scope/ui")
+        );
+        assert_eq!(resolver.package_name_for_specifier("@scope/ui2"), None);
+        assert_eq!(resolver.package_name_for_specifier("lodash"), None);
+        assert!(resolver.resolution_for("@scope/ui").is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn resolver_prefers_longest_matching_package_name() -> Result<()> {
+        let workspace = Workspace {
+            root: PathBuf::from("/repo"),
+            packages: vec![
+                Package {
+                    name: "@scope".to_string(),
+                    directory: PathBuf::from("/repo/packages/scope"),
+                    exports: ExportMap::default(),
+                    public_entrypoints: vec![],
+                },
+                Package {
+                    name: "@scope/ui".to_string(),
+                    directory: PathBuf::from("/repo/packages/ui"),
+                    exports: ExportMap::default(),
+                    public_entrypoints: vec![],
+                },
+            ],
+        };
+        let resolver = WorkspaceResolver::build(&workspace);
+
+        assert_eq!(
+            resolver.package_name_for_specifier("@scope/ui/button"),
+            Some("@scope/ui")
+        );
         Ok(())
     }
 }

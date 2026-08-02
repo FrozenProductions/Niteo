@@ -127,6 +127,7 @@ fn render_text(graph: &import_graph::ImportGraph) -> String {
     let breakdown = graph.unresolved_by_kind();
     output.push_str(&format!("  relative: {}\n", breakdown.relative));
     output.push_str(&format!("  alias: {}\n", breakdown.alias));
+    output.push_str(&format!("  package: {}\n", breakdown.package));
     output.push('\n');
 
     let most_imported = graph.most_imported_files(5);
@@ -164,6 +165,7 @@ fn render_json(graph: &import_graph::ImportGraph) -> Result<String> {
     struct UnresolvedByKind {
         relative: usize,
         alias: usize,
+        package: usize,
     }
 
     #[derive(Serialize)]
@@ -180,6 +182,7 @@ fn render_json(graph: &import_graph::ImportGraph) -> Result<String> {
         unresolved_imports_by_kind: UnresolvedByKind {
             relative: breakdown.relative,
             alias: breakdown.alias,
+            package: breakdown.package,
         },
         most_imported: graph
             .most_imported_files(5)

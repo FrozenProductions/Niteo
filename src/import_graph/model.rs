@@ -261,7 +261,7 @@ impl ImportGraph {
                 edge.resolved_target.is_none()
                     && matches!(
                         edge.specifier_kind,
-                        SpecifierKind::Relative | SpecifierKind::Alias
+                        SpecifierKind::Relative | SpecifierKind::Alias | SpecifierKind::Package
                     )
             })
             .count()
@@ -270,6 +270,7 @@ impl ImportGraph {
     pub fn unresolved_by_kind(&self) -> UnresolvedBreakdown {
         let mut relative = 0;
         let mut alias = 0;
+        let mut package = 0;
         for edge in &self.edges {
             if edge.resolved_target.is_some() {
                 continue;
@@ -277,10 +278,15 @@ impl ImportGraph {
             match edge.specifier_kind {
                 SpecifierKind::Relative => relative += 1,
                 SpecifierKind::Alias => alias += 1,
+                SpecifierKind::Package => package += 1,
                 SpecifierKind::External => {}
             }
         }
-        UnresolvedBreakdown { relative, alias }
+        UnresolvedBreakdown {
+            relative,
+            alias,
+            package,
+        }
     }
 
     pub fn most_imported_files(&self, limit: usize) -> Vec<(PathBuf, usize)> {
@@ -312,6 +318,7 @@ impl ImportGraph {
 pub struct UnresolvedBreakdown {
     pub relative: usize,
     pub alias: usize,
+    pub package: usize,
 }
 
 fn import_kind_byte(kind: ImportKind) -> u8 {
@@ -326,7 +333,8 @@ fn specifier_kind_byte(kind: SpecifierKind) -> u8 {
     match kind {
         SpecifierKind::Relative => 0,
         SpecifierKind::Alias => 1,
-        SpecifierKind::External => 2,
+        SpecifierKind::Package => 2,
+        SpecifierKind::External => 3,
     }
 }
 

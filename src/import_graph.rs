@@ -9,7 +9,7 @@ pub use build::{build_import_graph, build_import_graph_with_cache};
 pub use model::{ImportEdge, ImportGraph, ImportKind};
 
 #[cfg(test)]
-pub use build::build_import_graph_from_sources;
+pub use build::{build_import_graph_from_sources, build_import_graph_from_sources_with_workspace};
 
 impl ImportGraph {
     pub fn format_dot(&self) -> String {

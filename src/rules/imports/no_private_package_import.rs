@@ -77,7 +77,8 @@ mod tests {
     use crate::config::structure::DomainConfig;
     use crate::config::{RuleConfig, Severity};
     use crate::import_graph::build_import_graph_from_sources;
-    use crate::workspace::{Package, Workspace};
+    use crate::import_graph::build_import_graph_from_sources_with_workspace;
+    use crate::workspace::{ExportMap, Package, Workspace, WorkspaceResolver};
     use std::path::PathBuf;
 
     fn test_config() -> RuleConfig {
@@ -100,15 +101,62 @@ mod tests {
                 Package {
                     name: "app".to_string(),
                     directory: root.join("packages/app"),
+                    exports: ExportMap::default(),
                     public_entrypoints: vec![root.join("packages/app/src/index.ts")],
                 },
                 Package {
                     name: "ui".to_string(),
                     directory: root.join("packages/ui"),
+                    exports: ExportMap::default(),
                     public_entrypoints: vec![root.join("packages/ui/src/index.ts")],
                 },
             ],
         }
+    }
+
+    fn workspace_with_ui_exports(root: &std::path::Path, export_button: bool) -> Workspace {
+        let exports = if export_button {
+            serde_json::json!({
+                ".": "./src/index.ts",
+                "./internal/button": "./internal/button.ts"
+            })
+        } else {
+            serde_json::json!({ ".": "./src/index.ts" })
+        };
+        let ui_directory = root.join("packages/ui");
+        let entrypoints = if export_button {
+            vec![
+                ui_directory.join("src/index.ts"),
+                ui_directory.join("internal/button.ts"),
+            ]
+        } else {
+            vec![ui_directory.join("src/index.ts")]
+        };
+        Workspace {
+            root: root.to_path_buf(),
+            packages: vec![
+                Package {
+                    name: "app".to_string(),
+                    directory: root.join("packages/app"),
+                    exports: ExportMap::default(),
+                    public_entrypoints: vec![root.join("packages/app/src/index.ts")],
+                },
+                Package {
+                    name: "@scope/ui".to_string(),
+                    directory: ui_directory.clone(),
+                    exports: ExportMap::from_json(&ui_directory, &exports),
+                    public_entrypoints: entrypoints,
+                },
+            ],
+        }
+    }
+
+    fn graph_with_workspace(
+        files: &[(&str, &str)],
+        workspace: &Workspace,
+    ) -> crate::import_graph::ImportGraph {
+        let resolver = WorkspaceResolver::build(workspace);
+        build_import_graph_from_sources_with_workspace(files, &test_domain(), None, Some(&resolver))
     }
 
     #[test]
@@ -212,6 +260,52 @@ mod tests {
             &test_config(),
         );
         assert!(violations.is_empty());
-    
+     
+        Ok(())}
+
+    #[test]
+    fn allows_exported_subpath_import_by_package_name() -> Result<()> {
+        let root = PathBuf::from("/repo");
+        let workspace = workspace_with_ui_exports(&root, true);
+        let files = vec![
+            ("/repo/packages/app/src/main.ts", "import { Button } from '@scope/ui/internal/button';"),
+            ("/repo/packages/ui/src/index.ts", "export const Button = 1;"),
+            ("/repo/packages/ui/internal/button.ts", "export const Button = 1;"),
+        ];
+        let graph = graph_with_workspace(&files, &workspace);
+        let line_index = LineIndex::new(files[0].1);
+        let violations = check_file(
+            Path::new("/repo/packages/app/src/main.ts"),
+            &line_index,
+            &graph,
+            Some(&workspace),
+            &test_config(),
+        );
+        assert!(violations.is_empty());
+
+        Ok(())}
+
+    #[test]
+    fn reports_non_exported_subpath_import_by_package_name() -> Result<()> {
+        let root = PathBuf::from("/repo");
+        let workspace = workspace_with_ui_exports(&root, false);
+        let files = vec![
+            ("/repo/packages/app/src/main.ts", "import { Button } from '@scope/ui/internal/button';"),
+            ("/repo/packages/ui/src/index.ts", "export const Button = 1;"),
+            ("/repo/packages/ui/internal/button.ts", "export const Button = 1;"),
+        ];
+        let graph = graph_with_workspace(&files, &workspace);
+        let line_index = LineIndex::new(files[0].1);
+        let violations = check_file(
+            Path::new("/repo/packages/app/src/main.ts"),
+            &line_index,
+            &graph,
+            Some(&workspace),
+            &test_config(),
+        );
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, NO_PRIVATE_PACKAGE_IMPORT_RULE_ID);
+        assert_eq!(violations[0].subject.as_deref(), Some("@scope/ui/internal/button"));
+
         Ok(())}
 }

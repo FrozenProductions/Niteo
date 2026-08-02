@@ -11,6 +11,7 @@ use crate::import_graph::helpers::is_barrel_file;
 use crate::import_graph::model::{ImportEdge, ImportGraph};
 use crate::import_resolver::ImportResolverIndex;
 use crate::tsconfig::TsConfig;
+use crate::workspace::WorkspaceResolver;
 
 #[cfg(test)]
 use crate::config::structure::DomainConfig;
@@ -46,6 +47,7 @@ pub fn build_import_graph(
         files,
         is_test_file,
         tsconfig,
+        None,
         &HashMap::new(),
         &HashMap::new(),
         0,
@@ -56,6 +58,7 @@ pub fn build_import_graph_with_cache(
     files: &[PathBuf],
     is_test_file: impl Fn(&Path) -> bool,
     tsconfig: Option<&TsConfig>,
+    workspace: Option<&WorkspaceResolver>,
     cached_edges: &HashMap<PathBuf, &[ImportEdge]>,
     sources: &HashMap<PathBuf, String>,
     verbose: u8,
@@ -68,7 +71,7 @@ pub fn build_import_graph_with_cache(
         graph.add_file(file.clone(), is_barrel, is_test);
     }
 
-    let resolver = ImportResolverIndex::new(files, tsconfig);
+    let resolver = ImportResolverIndex::new(files, tsconfig, workspace);
 
     let total = files.len();
     let progress_bar = if verbose >= 2 && total > 0 {
@@ -145,6 +148,16 @@ pub fn build_import_graph_from_sources(
     tests_config: &DomainConfig,
     tsconfig: Option<&TsConfig>,
 ) -> ImportGraph {
+    build_import_graph_from_sources_with_workspace(files_with_sources, tests_config, tsconfig, None)
+}
+
+#[cfg(test)]
+pub fn build_import_graph_from_sources_with_workspace(
+    files_with_sources: &[(&str, &str)],
+    tests_config: &DomainConfig,
+    tsconfig: Option<&TsConfig>,
+    workspace: Option<&WorkspaceResolver>,
+) -> ImportGraph {
     let mut graph = ImportGraph::new();
     let files: Vec<PathBuf> = files_with_sources
         .iter()
@@ -157,7 +170,7 @@ pub fn build_import_graph_from_sources(
         graph.add_file(file.clone(), is_barrel, is_test);
     }
 
-    let resolver = ImportResolverIndex::new(&files, tsconfig);
+    let resolver = ImportResolverIndex::new(&files, tsconfig, workspace);
 
     let extracted: Vec<(Vec<ImportEdge>, bool)> = files_with_sources
         .par_iter()

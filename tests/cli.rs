@@ -18,5 +18,8 @@ mod report_output;
 #[path = "cli/suppressions.rs"]
 mod suppressions;
 
+#[path = "cli/workspace_packages.rs"]
+mod workspace_packages;
+
 #[path = "cli/fix.rs"]
 mod fix;

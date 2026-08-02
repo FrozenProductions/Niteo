@@ -27,6 +27,7 @@ pub fn import_edge_to_cached(edge: &ImportEdge, project_root: &Path) -> CachedIm
         specifier_kind: match edge.specifier_kind {
             SpecifierKind::Relative => "relative".to_string(),
             SpecifierKind::Alias => "alias".to_string(),
+            SpecifierKind::Package => "package".to_string(),
             SpecifierKind::External => "external".to_string(),
         },
         kind: match edge.kind {
@@ -52,6 +53,7 @@ pub fn cached_import_edges_to_import(
             specifier_kind: match edge.specifier_kind.as_str() {
                 "relative" => SpecifierKind::Relative,
                 "alias" => SpecifierKind::Alias,
+                "package" => SpecifierKind::Package,
                 _ => SpecifierKind::External,
             },
             resolved_target: edge

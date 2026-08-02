@@ -110,7 +110,8 @@ mod tests {
     use crate::config::structure::DomainConfig;
     use crate::config::{RuleConfig, Severity};
     use crate::import_graph::build_import_graph_from_sources;
-    use crate::workspace::{Package, Workspace};
+    use crate::import_graph::build_import_graph_from_sources_with_workspace;
+    use crate::workspace::{ExportMap, Package, Workspace, WorkspaceResolver};
     use std::path::PathBuf;
 
     fn test_config() -> RuleConfig {
@@ -133,11 +134,33 @@ mod tests {
                 Package {
                     name: "app".to_string(),
                     directory: root.join("packages/app"),
+                    exports: ExportMap::default(),
                     public_entrypoints: vec![root.join("packages/app/src/index.ts")],
                 },
                 Package {
                     name: "ui".to_string(),
                     directory: root.join("packages/ui"),
+                    exports: ExportMap::default(),
+                    public_entrypoints: vec![root.join("packages/ui/src/index.ts")],
+                },
+            ],
+        }
+    }
+
+    fn workspace_with_named_packages(root: &std::path::Path) -> Workspace {
+        Workspace {
+            root: root.to_path_buf(),
+            packages: vec![
+                Package {
+                    name: "app".to_string(),
+                    directory: root.join("packages/app"),
+                    exports: ExportMap::default(),
+                    public_entrypoints: vec![root.join("packages/app/src/index.ts")],
+                },
+                Package {
+                    name: "@scope/ui".to_string(),
+                    directory: root.join("packages/ui"),
+                    exports: ExportMap::default(),
                     public_entrypoints: vec![root.join("packages/ui/src/index.ts")],
                 },
             ],
@@ -149,7 +172,9 @@ mod tests {
         files: &[(&str, &str)],
         workspace: &Workspace,
     ) -> Vec<Violation> {
-        let graph = build_import_graph_from_sources(files, &test_domain(), None);
+        let resolver = WorkspaceResolver::build(workspace);
+        let graph =
+            build_import_graph_from_sources_with_workspace(files, &test_domain(), None, Some(&resolver));
         let context = PackageCycleContext::new(workspace, &graph);
         let source = files
             .iter()
@@ -189,6 +214,26 @@ mod tests {
             .as_ref()
             .context("expected detail")?
             .contains("ui"));
+        Ok(())
+    }
+
+    #[test]
+    fn detects_package_cycle_via_package_names() -> Result<()> {
+        let root = PathBuf::from("/repo");
+        let workspace = workspace_with_named_packages(&root);
+        let files = vec![
+            ("/repo/packages/app/src/main.ts", "import { Button } from '@scope/ui';"),
+            ("/repo/packages/ui/src/index.ts", "import { App } from 'app';"),
+            ("/repo/packages/app/src/index.ts", "export const App = 1;"),
+        ];
+        let violations = run_check("/repo/packages/app/src/main.ts", &files, &workspace);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, NO_PACKAGE_CYCLE_RULE_ID);
+        assert_eq!(
+            violations[0].subject.as_deref(),
+            Some("@scope/ui"),
+            "violation must be reported on the package-name edge"
+        );
         Ok(())
     }
 
