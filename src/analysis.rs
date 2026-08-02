@@ -12,7 +12,7 @@ use crate::git::{self, GitSelection};
 use crate::ignore::SuppressionReport;
 use crate::import_graph::{self, ImportGraph};
 use crate::rules::{self, Violation};
-use crate::syntax;
+use crate::syntax::{self, ParseFailure};
 use crate::workspace::Workspace;
 
 pub struct AnalysisResult {
@@ -28,7 +28,7 @@ pub struct AnalysisResult {
     pub config_set: ConfigSet,
     pub diagnostics: Vec<crate::diagnostics::Diagnostic>,
     pub fail_on: FailurePolicy,
-    pub parse_failures: HashMap<PathBuf, String>,
+    pub parse_failures: Vec<ParseFailure>,
     pub directory_inventory: Arc<DirectoryInventory>,
     cache_join_handle: Option<std::thread::JoinHandle<()>>,
 }
@@ -327,7 +327,7 @@ impl ImportGraphResult {
 pub struct FileLintResult {
     pub violations: Vec<Violation>,
     pub suppression_report: SuppressionReport,
-    pub parse_failures: HashMap<PathBuf, String>,
+    pub parse_failures: Vec<ParseFailure>,
 }
 
 impl FileLintResult {
@@ -510,7 +510,18 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
         .chain(directory_violations.iter().cloned())
         .collect();
 
-    let parse_failures_for_cache = file_lint.parse_failures.clone();
+    let mut parse_failures = file_lint.parse_failures;
+    let mut known_failure_files: HashSet<PathBuf> = parse_failures
+        .iter()
+        .map(|failure| failure.file.clone())
+        .collect();
+    for failure in graph_result.graph.parse_failures() {
+        if known_failure_files.insert(failure.file.clone()) {
+            parse_failures.push(failure.clone());
+        }
+    }
+
+    let parse_failures_for_cache = parse_failures.clone();
     let cache_join_handle = if let Some(state) = cache.state.take() {
         let workspace_root = workspace_root.to_path_buf();
         let files = file_list.files.clone();
@@ -534,13 +545,6 @@ pub fn collect(workspace_root: &Path, options: AnalysisOptions) -> Result<Arc<An
     let config_set = file_set.config_set;
     let fail_on = config_set.root().fail_on.clone();
     let history_enabled = config_set.root().history;
-
-    let mut parse_failures = file_lint.parse_failures;
-    for failure_file in graph_result.graph.graph_parse_failures().iter() {
-        parse_failures
-            .entry(failure_file.clone())
-            .or_insert_with(|| "parse error".to_string());
-    }
 
     Ok(Arc::new(AnalysisResult {
         project_root,
@@ -926,13 +930,23 @@ pub fn collect_incremental(
         &files_to_lint,
     );
 
-    let mut parse_failures = previous.parse_failures.clone();
-    for file in removed_files.iter() {
-        parse_failures.remove(file);
-    }
-    for (file, message) in &file_lint.parse_failures {
-        if files_to_lint.contains(file) {
-            parse_failures.insert(file.clone(), message.clone());
+    let mut parse_failures: Vec<ParseFailure> = previous
+        .parse_failures
+        .iter()
+        .filter(|failure| {
+            !removed_files.contains(&failure.file) && !files_to_lint.contains(&failure.file)
+        })
+        .cloned()
+        .collect();
+    let mut linted_failure_files: HashSet<PathBuf> = parse_failures
+        .iter()
+        .map(|failure| failure.file.clone())
+        .collect();
+    for failure in &file_lint.parse_failures {
+        if files_to_lint.contains(&failure.file)
+            && linted_failure_files.insert(failure.file.clone())
+        {
+            parse_failures.push(failure.clone());
         }
     }
 

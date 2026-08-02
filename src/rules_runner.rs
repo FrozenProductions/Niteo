@@ -6,13 +6,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use oxc_parser::Parser;
-
 use crate::allocator::with_reusable_allocator;
 use crate::config;
 use crate::directory_inventory::DirectoryInventory;
 use crate::ignore;
 use crate::import_graph::ImportGraph;
+use crate::syntax::{ParseFailure, parse_program};
 
 const PROGRESS_INTERVAL: usize = 16;
 use crate::rule_adapters::*;
@@ -23,7 +22,7 @@ use std::collections::HashSet;
 type FileResult = (
     Vec<Violation>,
     Option<ignore::FileSuppressionInfo>,
-    Option<(PathBuf, String)>,
+    Vec<ParseFailure>,
 );
 
 fn compute_suppression_info(
@@ -73,11 +72,7 @@ pub fn check_files_with_parallelism(
     input: &FileCheckInput<'_>,
     parallel: bool,
     verbose: u8,
-) -> Result<(
-    Vec<Violation>,
-    ignore::SuppressionReport,
-    HashMap<PathBuf, String>,
-)> {
+) -> Result<(Vec<Violation>, ignore::SuppressionReport, Vec<ParseFailure>)> {
     let files = input.files;
     let config_set = input.config_set;
     let import_graph = input.import_graph.clone();
@@ -86,7 +81,7 @@ pub fn check_files_with_parallelism(
     let sources = input.sources;
     let mut violations = Vec::new();
     let mut suppression_files = Vec::new();
-    let mut parse_failures: HashMap<PathBuf, String> = HashMap::new();
+    let mut parse_failures: Vec<ParseFailure> = Vec::new();
 
     // Build rule sets once per config; dense ids keep dispatch allocation-free.
     let config_count = config_set.configs().count();
@@ -144,7 +139,7 @@ pub fn check_files_with_parallelism(
 
     let process_file = |file: &PathBuf, config_id: usize| -> Result<FileResult> {
         let Some(runtime) = runtime_by_config.get(config_id).and_then(Option::as_ref) else {
-            return Ok((Vec::new(), None, None));
+            return Ok((Vec::new(), None, Vec::new()));
         };
         let type_location_style = runtime.type_location_style;
 
@@ -159,7 +154,7 @@ pub fn check_files_with_parallelism(
 
         let directives = ignore::parse_ignore_directives(source);
 
-        let run_rules = |rules: &FileRuleSet| -> (Vec<Violation>, Option<(PathBuf, String)>) {
+        let run_rules = |rules: &FileRuleSet| -> (Vec<Violation>, Vec<ParseFailure>) {
             with_reusable_line_index(source, |line_index| {
                 with_reusable_allocator(|allocator| {
                     let needs_ast = rules
@@ -167,18 +162,13 @@ pub fn check_files_with_parallelism(
                         .iter()
                         .any(|rule| rule.severity().is_enabled());
 
+                    let mut parse_failures = Vec::new();
                     let parse_result: Option<oxc_ast::ast::Program<'_>> = if needs_ast {
                         match crate::syntax::source_type_from_path(file) {
                             Some(source_type) => {
-                                let parser_return =
-                                    Parser::new(allocator, source, source_type).parse();
-                                if parser_return.panicked {
-                                    return (
-                                        Vec::new(),
-                                        Some((file.clone(), "parse error".to_string())),
-                                    );
-                                }
-                                Some(parser_return.program)
+                                let parsed = parse_program(allocator, file, source, source_type);
+                                parse_failures.extend(parsed.failures);
+                                Some(parsed.program)
                             }
                             None => None,
                         }
@@ -230,7 +220,7 @@ pub fn check_files_with_parallelism(
                         }
                     }
 
-                    (violations, None)
+                    (violations, parse_failures)
                 })
             })
         };
@@ -249,7 +239,7 @@ pub fn check_files_with_parallelism(
                     })
                     .cloned()
                     .collect();
-                return Ok((kept, suppression_info, None));
+                return Ok((kept, suppression_info, Vec::new()));
             }
 
             let mut kept: Vec<Violation> = cached
@@ -265,23 +255,17 @@ pub fn check_files_with_parallelism(
                 .cloned()
                 .collect();
 
-            let (changed_violations, parse_failure) = run_rules(&runtime.changed_rules);
-            if let Some(parse_failure) = parse_failure {
-                return Ok((Vec::new(), None, Some(parse_failure)));
-            }
+            let (changed_violations, parse_failures) = run_rules(&runtime.changed_rules);
 
             kept.extend(changed_violations);
             let suppression_info = compute_suppression_info(file, &kept, &directives);
             kept.retain(|violation| {
                 !ignore::should_suppress_violation(&directives, violation.line, violation.rule)
             });
-            return Ok((kept, suppression_info, None));
+            return Ok((kept, suppression_info, parse_failures));
         }
 
-        let (new_violations, parse_failure) = run_rules(&runtime.rules);
-        if let Some(parse_failure) = parse_failure {
-            return Ok((Vec::new(), None, Some(parse_failure)));
-        }
+        let (new_violations, parse_failures) = run_rules(&runtime.rules);
 
         let suppression_info = compute_suppression_info(file, &new_violations, &directives);
         let mut file_violations = new_violations;
@@ -289,7 +273,7 @@ pub fn check_files_with_parallelism(
             !ignore::should_suppress_violation(&directives, violation.line, violation.rule)
         });
 
-        Ok((file_violations, suppression_info, None))
+        Ok((file_violations, suppression_info, parse_failures))
     };
 
     let file_results: Vec<Result<_>> = if parallel {
@@ -338,14 +322,12 @@ pub fn check_files_with_parallelism(
     };
 
     for result in file_results {
-        let (file_violations, suppression_info, parse_failure) = result?;
+        let (file_violations, suppression_info, file_parse_failures) = result?;
         violations.extend(file_violations);
         if let Some(info) = suppression_info {
             suppression_files.push(info);
         }
-        if let Some((path, message)) = parse_failure {
-            parse_failures.insert(path, message);
-        }
+        parse_failures.extend(file_parse_failures);
     }
 
     Ok((
@@ -382,11 +364,7 @@ pub fn check_files(
     sources: &HashMap<PathBuf, String>,
     changed_rules: Arc<HashSet<crate::rules::RuleId>>,
     verbose: u8,
-) -> Result<(
-    Vec<Violation>,
-    ignore::SuppressionReport,
-    HashMap<PathBuf, String>,
-)> {
+) -> Result<(Vec<Violation>, ignore::SuppressionReport, Vec<ParseFailure>)> {
     let input = FileCheckInput {
         files,
         config_set,

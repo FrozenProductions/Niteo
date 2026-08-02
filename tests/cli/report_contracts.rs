@@ -392,3 +392,125 @@ fn clean_project_ndjson_has_summary_and_no_violations() -> Result<()> {
     assert_eq!(violation_lines, 0);
     Ok(())
 }
+
+#[test]
+fn invalid_typescript_yields_structured_parse_failure() -> Result<()> {
+    let project = harness::copy_fixture("reports/clean")?;
+    std::fs::write(
+        project.path().join("src/broken.ts"),
+        "export const value = ;\n",
+    )?;
+
+    let output = harness::niteo_in_project(project.path())
+        .args(["lint", "--format", "json"])
+        .output()?;
+
+    let stdout = String::from_utf8(output.stdout)?;
+    let parsed: Value = serde_json::from_str(&stdout)?;
+    let failures = parsed["parseFailures"]
+        .as_array()
+        .context("expected parseFailures array")?;
+
+    assert_eq!(failures.len(), 1);
+    assert!(
+        failures[0]["file"]
+            .as_str()
+            .context("expected file string")?
+            .ends_with("src/broken.ts")
+    );
+    assert!(failures[0]["message"].is_string());
+    assert!(failures[0]["span"].is_object());
+    assert!(!output.status.success(), "parse failures must fail the run");
+    Ok(())
+}
+
+#[test]
+fn ndjson_contains_parse_failure_records() -> Result<()> {
+    let project = harness::copy_fixture("reports/clean")?;
+    std::fs::write(
+        project.path().join("src/broken.ts"),
+        "export const value = ;\n",
+    )?;
+
+    let output = harness::niteo_in_project(project.path())
+        .args(["lint", "--format", "ndjson"])
+        .output()?;
+
+    let stdout = String::from_utf8(output.stdout)?;
+    let failures: Vec<Value> = stdout
+        .lines()
+        .filter_map(|line| {
+            let parsed: Value = serde_json::from_str(line).ok()?;
+            if parsed["type"] == "parse_failure" {
+                Some(parsed)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    assert_eq!(failures.len(), 1);
+    assert!(
+        failures[0]["file"]
+            .as_str()
+            .context("expected file string")?
+            .ends_with("src/broken.ts")
+    );
+    assert!(failures[0]["message"].is_string());
+    Ok(())
+}
+
+#[test]
+fn sarif_reports_parse_failure_and_marks_execution_unsuccessful() -> Result<()> {
+    let project = harness::copy_fixture("reports/clean")?;
+    std::fs::write(
+        project.path().join("src/broken.ts"),
+        "export const value = ;\n",
+    )?;
+
+    let output = harness::niteo_in_project(project.path())
+        .args(["lint", "--format", "sarif"])
+        .output()?;
+
+    let stdout = String::from_utf8(output.stdout)?;
+    let parsed: Value = serde_json::from_str(&stdout)?;
+
+    assert_eq!(
+        parsed["runs"][0]["invocations"][0]["executionSuccessful"],
+        false
+    );
+    let notifications = parsed["runs"][0]["invocations"][0]["toolExecutionNotifications"]
+        .as_array()
+        .context("expected toolExecutionNotifications array")?;
+    let parse_notifications: Vec<&Value> = notifications
+        .iter()
+        .filter(|notification| notification["descriptor"]["id"] == "parse")
+        .collect();
+    assert_eq!(parse_notifications.len(), 1);
+    assert_eq!(parse_notifications[0]["level"], "error");
+    assert!(
+        parse_notifications[0]["message"]["text"]
+            .as_str()
+            .context("expected message text")?
+            .contains("src/broken.ts")
+    );
+    Ok(())
+}
+
+#[test]
+fn text_report_shows_parse_errors_section() -> Result<()> {
+    let project = harness::copy_fixture("reports/clean")?;
+    std::fs::write(
+        project.path().join("src/broken.ts"),
+        "export const value = ;\n",
+    )?;
+
+    let output = harness::niteo_in_project(project.path())
+        .arg("lint")
+        .output()?;
+    let stdout = String::from_utf8(output.stdout)?;
+
+    assert!(stdout.contains("Parse Errors"), "stdout: {stdout}");
+    assert!(stdout.contains("src/broken.ts"), "stdout: {stdout}");
+    Ok(())
+}

@@ -3,7 +3,9 @@ use serde_json::json;
 
 use crate::diagnostics::Diagnostic;
 use crate::report::json::summary_json;
-use crate::report::model::{Report, path_to_string, severity_label, with_record_type};
+use crate::report::model::{
+    Report, parse_failure_json, path_to_string, severity_label, with_record_type,
+};
 use crate::report::suppressions::suppression_report_json;
 use crate::rules::Violation;
 
@@ -24,6 +26,11 @@ impl Report {
 
         for diagnostic in &self.diagnostics {
             let record = with_record_type(diagnostic_json(diagnostic), "diagnostic");
+            lines.push(serde_json::to_string(&record)?);
+        }
+
+        for failure in &self.parse_failures {
+            let record = with_record_type(parse_failure_json(failure), "parse_failure");
             lines.push(serde_json::to_string(&record)?);
         }
 
@@ -89,6 +96,37 @@ mod tests {
             diagnostic_lines[0]["message"],
             "failed to discover workspace"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn ndjson_renders_parse_failure_records() -> Result<()> {
+        use crate::syntax::ParseFailure;
+        use std::path::PathBuf;
+
+        let report = Report::new(vec![], vec![]).with_parse_failures(vec![ParseFailure {
+            file: PathBuf::from("src/broken.ts"),
+            message: "Unexpected token".to_string(),
+            span: None,
+        }]);
+
+        let rendered = report.render_ndjson()?;
+        let parsed_lines: Vec<Value> = rendered
+            .lines()
+            .filter_map(|line| serde_json::from_str(line).ok())
+            .collect();
+
+        assert!(
+            parsed_lines.len() > 1,
+            "expected more than the summary line"
+        );
+        let failures: Vec<&Value> = parsed_lines
+            .iter()
+            .filter(|value| value["type"] == "parse_failure")
+            .collect();
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0]["file"], "src/broken.ts");
+        assert_eq!(failures[0]["message"], "Unexpected token");
         Ok(())
     }
 }

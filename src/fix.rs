@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::allocator::with_reusable_allocator;
 use crate::rules::{AstContext, AstRule, Fix, TextEdit};
-use crate::syntax::source_type_from_path;
+use crate::syntax::{parse_program, source_type_from_path};
 
 pub struct ApplyFixOptions {
     pub dry_run: bool,
@@ -106,9 +106,9 @@ pub fn apply_fixes(fixes: Vec<Fix>, options: ApplyFixOptions) -> Result<FixOutco
             && let Some(source_type) = source_type_from_path(&file_path)
         {
             let parse_valid = with_reusable_allocator(|allocator| {
-                let parser_return =
-                    oxc_parser::Parser::new(allocator, &modified, source_type).parse();
-                !parser_return.panicked
+                parse_program(allocator, &file_path, &modified, source_type)
+                    .failures
+                    .is_empty()
             });
             if !parse_valid {
                 eprintln!(

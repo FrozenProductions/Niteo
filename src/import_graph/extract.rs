@@ -9,22 +9,20 @@ use oxc_span::Span;
 use crate::allocator::with_reusable_allocator;
 use crate::import_graph::model::{ImportEdge, ImportKind};
 use crate::import_resolver::ImportResolverIndex;
+use crate::syntax::{ParseFailure, parse_program};
 
 pub(crate) fn extract_imports(
     source_file: &Path,
     source: &str,
     resolver: &ImportResolverIndex,
-) -> (Vec<ImportEdge>, bool) {
+) -> (Vec<ImportEdge>, Vec<ParseFailure>) {
     let source_type = crate::syntax::source_type_from_path(source_file);
     let Some(source_type) = source_type else {
-        return (Vec::new(), false);
+        return (Vec::new(), Vec::new());
     };
 
     with_reusable_allocator(|allocator| {
-        let parser_return = oxc_parser::Parser::new(allocator, source, source_type).parse();
-        if parser_return.panicked {
-            return (Vec::new(), true);
-        }
+        let parsed = parse_program(allocator, source_file, source, source_type);
 
         let mut visitor = ImportVisitor {
             source_file: source_file.to_path_buf(),
@@ -32,8 +30,8 @@ pub(crate) fn extract_imports(
             edges: Vec::new(),
             _phantom: std::marker::PhantomData,
         };
-        visitor.visit_program(&parser_return.program);
-        (visitor.edges, false)
+        visitor.visit_program(&parsed.program);
+        (visitor.edges, parsed.failures)
     })
 }
 

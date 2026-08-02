@@ -1,7 +1,7 @@
 use crate::config::Severity;
 use crate::report::model::Report;
 use crate::report::summary::{
-    BOLD, CYAN, DIM, GREEN, RESET, TextSummary, YELLOW, group_by_file, group_by_rule,
+    BOLD, CYAN, DIM, GREEN, RED, RESET, TextSummary, YELLOW, group_by_file, group_by_rule,
     pluralized_header, pluralized_label, score, score_color, severity_color, status_color,
     status_label, visible_file_count, visible_line_count, visible_rule_group_count,
 };
@@ -17,6 +17,7 @@ impl Report {
 
         output.push_str(&render_header());
         output.push_str(&render_diagnostics(&self.diagnostics));
+        output.push_str(&render_parse_failures(&self.parse_failures));
 
         if self.violations.is_empty() {
             output.push_str(&format!(
@@ -65,6 +66,23 @@ fn render_diagnostics(diagnostics: &[crate::diagnostics::Diagnostic]) -> String 
         output.push_str(&format!(
             "  {YELLOW}warning{RESET}: {message}\n",
             message = diagnostic.message
+        ));
+    }
+    output.push('\n');
+    output
+}
+
+fn render_parse_failures(parse_failures: &[crate::syntax::ParseFailure]) -> String {
+    if parse_failures.is_empty() {
+        return String::new();
+    }
+
+    let mut output = format!("{BOLD}Parse Errors{RESET}\n");
+    for failure in parse_failures {
+        output.push_str(&format!(
+            "  {RED}error{RESET}: {file}: {message}\n",
+            file = failure.file.display(),
+            message = failure.message,
         ));
     }
     output.push('\n');
@@ -330,5 +348,21 @@ mod tests {
         let report = Report::new(vec![], vec![]);
         let rendered = report.render_text(0);
         assert!(!rendered.contains("Diagnostics"));
+    }
+
+    #[test]
+    fn text_report_renders_parse_errors_section() {
+        use crate::syntax::ParseFailure;
+        use std::path::PathBuf;
+
+        let report = Report::new(vec![], vec![]).with_parse_failures(vec![ParseFailure {
+            file: PathBuf::from("src/broken.ts"),
+            message: "Expected a semicolon".to_string(),
+            span: None,
+        }]);
+        let rendered = report.render_text(0);
+        assert!(rendered.contains("Parse Errors"));
+        assert!(rendered.contains("src/broken.ts"));
+        assert!(rendered.contains("Expected a semicolon"));
     }
 }

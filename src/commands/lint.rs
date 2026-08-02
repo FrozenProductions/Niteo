@@ -86,6 +86,7 @@ fn publish_report(
         report = report.with_suppression_report(collected.suppression_report.clone());
     }
     report = report.with_diagnostics(collected.diagnostics.clone());
+    report = report.with_parse_failures(collected.parse_failures.clone());
     let threshold = match opts.fail_on {
         Some(threshold) => threshold,
         None => collected.fail_on.default,
@@ -116,7 +117,10 @@ fn publish_report(
         println!("\nDone in {:.2?}", elapsed);
     }
 
-    let exit_code = if has_violations {
+    // A parse failure is an operational failure: the source is invalid or
+    // incomplete, so the lint result is not trustworthy. It fails the run even
+    // when no violation meets the configured severity threshold.
+    let exit_code = if has_violations || report.has_parse_failures() {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS

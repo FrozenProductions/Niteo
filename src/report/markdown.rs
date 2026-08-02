@@ -25,6 +25,18 @@ impl Report {
             output.push('\n');
         }
 
+        if !self.parse_failures.is_empty() {
+            output.push_str("## Parse Errors\n\n");
+            for failure in &self.parse_failures {
+                output.push_str(&format!(
+                    "- **{}**: {}\n",
+                    path_to_string(&failure.file),
+                    failure.message
+                ));
+            }
+            output.push('\n');
+        }
+
         if !self.violations.is_empty() {
             output.push_str("## Violations\n\n");
             output.push_str("| File | Line | Col | Rule | Severity | Message |\n");
@@ -145,6 +157,23 @@ mod tests {
         let output = report.render_markdown()?;
         assert!(output.contains("cache"));
         assert!(output.contains("cache cleared"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_render_markdown_with_parse_errors() -> Result<()> {
+        use crate::syntax::ParseFailure;
+        use std::path::PathBuf;
+
+        let report = Report::new(vec![], vec![]).with_parse_failures(vec![ParseFailure {
+            file: PathBuf::from("src/broken.ts"),
+            message: "Expected a semicolon".to_string(),
+            span: None,
+        }]);
+        let output = report.render_markdown()?;
+        assert!(output.contains("Parse Errors"));
+        assert!(output.contains("src/broken.ts"));
+        assert!(output.contains("Expected a semicolon"));
         Ok(())
     }
 }

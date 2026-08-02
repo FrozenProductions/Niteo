@@ -1,6 +1,8 @@
 use std::cell::Cell;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use oxc_allocator::Allocator;
+use oxc_ast::ast::Program;
 use oxc_span::{SourceType, Span};
 
 #[derive(Debug, Clone, Copy)]
@@ -87,6 +89,66 @@ pub fn source_type_from_path(path: &Path) -> Option<SourceType> {
         "mjs" => Some(SourceType::mjs()),
         "cjs" => Some(SourceType::cjs()),
         _ => None,
+    }
+}
+
+/// A structured record of a syntax error (or parser panic) in one source file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseFailure {
+    pub file: PathBuf,
+    pub message: String,
+    pub span: Option<Span>,
+}
+
+/// The result of parsing one source file: the (possibly partial) program and
+/// every diagnostic the parser produced. A non-empty `failures` means the
+/// source is invalid or incomplete even when `program` is usable.
+#[derive(Debug)]
+pub struct ParsedFile<'a> {
+    pub program: Program<'a>,
+    pub failures: Vec<ParseFailure>,
+}
+
+/// Parse `source` once and convert the oxc parser result into a structured
+/// `ParsedFile`. This is the single parser-result conversion used by import
+/// graph extraction, linting, and fixing.
+pub fn parse_program<'a>(
+    allocator: &'a Allocator,
+    file: &Path,
+    source: &'a str,
+    source_type: SourceType,
+) -> ParsedFile<'a> {
+    let parser_return = oxc_parser::Parser::new(allocator, source, source_type).parse();
+
+    let mut failures: Vec<ParseFailure> = parser_return
+        .errors
+        .iter()
+        .map(|error| ParseFailure {
+            file: file.to_path_buf(),
+            message: error.message.to_string(),
+            span: error.labels.as_ref().and_then(|labels| {
+                labels.first().map(|label| {
+                    let start = label.offset() as u32;
+                    Span::new(start, start + label.len() as u32)
+                })
+            }),
+        })
+        .collect();
+
+    // A panicked parser always records the fatal error in `errors`, so this
+    // synthetic entry only covers the unlikely case of a panic with no
+    // diagnostic attached.
+    if parser_return.panicked && parser_return.errors.is_empty() {
+        failures.push(ParseFailure {
+            file: file.to_path_buf(),
+            message: "parser panicked".to_string(),
+            span: None,
+        });
+    }
+
+    ParsedFile {
+        program: parser_return.program,
+        failures,
     }
 }
 
@@ -180,5 +242,37 @@ mod tests {
         assert_eq!(index.position(18).line, 3);
         assert_eq!(index.position(18).column, 1);
         Ok(())
+    }
+
+    #[test]
+    fn parse_program_reports_invalid_source_as_failure() {
+        let allocator = Allocator::default();
+        let file = Path::new("src/broken.ts");
+        let parsed = parse_program(&allocator, file, "const x = ;\n", SourceType::ts());
+        assert_eq!(parsed.failures.len(), 1);
+        assert_eq!(parsed.failures[0].file, file);
+        assert!(!parsed.failures[0].message.is_empty());
+        let span = parsed.failures[0]
+            .span
+            .expect("failure should carry a span");
+        assert!(span.end >= span.start);
+    }
+
+    #[test]
+    fn parse_program_never_panics_on_invalid_source() {
+        let allocator = Allocator::default();
+        let file = Path::new("src/broken.ts");
+        let parsed = parse_program(&allocator, file, "export const = ;\n", SourceType::ts());
+        assert_eq!(parsed.failures.len(), 1);
+        assert!(parsed.program.source_type.is_typescript());
+    }
+
+    #[test]
+    fn parse_program_is_clean_for_valid_source() {
+        let allocator = Allocator::default();
+        let file = Path::new("src/clean.ts");
+        let parsed = parse_program(&allocator, file, "export const a = 1;\n", SourceType::ts());
+        assert!(parsed.failures.is_empty());
+        assert!(!parsed.program.body.is_empty());
     }
 }

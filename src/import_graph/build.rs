@@ -10,6 +10,7 @@ use crate::import_graph::extract::extract_imports;
 use crate::import_graph::helpers::is_barrel_file;
 use crate::import_graph::model::{ImportEdge, ImportGraph};
 use crate::import_resolver::ImportResolverIndex;
+use crate::syntax::ParseFailure;
 use crate::tsconfig::TsConfig;
 use crate::workspace::WorkspaceResolver;
 
@@ -24,18 +25,18 @@ fn extract_for_file(
     resolver: &ImportResolverIndex,
     cached_edges: &HashMap<PathBuf, &[ImportEdge]>,
     sources: &HashMap<PathBuf, String>,
-) -> Result<(Vec<ImportEdge>, bool)> {
+) -> Result<(Vec<ImportEdge>, Vec<ParseFailure>)> {
     if let Some(edges) = cached_edges.get(file) {
-        return Ok((edges.to_vec(), false));
+        return Ok((edges.to_vec(), Vec::new()));
     }
     if let Some(source) = sources.get(file) {
-        let (edges, had_panic) = extract_imports(file, source, resolver);
-        return Ok((edges, had_panic));
+        let (edges, failures) = extract_imports(file, source, resolver);
+        return Ok((edges, failures));
     }
     let source = std::fs::read_to_string(file)
         .with_context(|| format!("failed to read {}", file.display()))?;
-    let (edges, had_panic) = extract_imports(file, &source, resolver);
-    Ok((edges, had_panic))
+    let (edges, failures) = extract_imports(file, &source, resolver);
+    Ok((edges, failures))
 }
 
 pub fn build_import_graph(
@@ -90,7 +91,8 @@ pub fn build_import_graph_with_cache(
     };
     let processed = AtomicUsize::new(0);
 
-    let extracted: Vec<Result<(Vec<ImportEdge>, bool)>> = if total > PAR_CHUNK_SIZE * 2 {
+    let extracted: Vec<Result<(Vec<ImportEdge>, Vec<ParseFailure>)>> = if total > PAR_CHUNK_SIZE * 2
+    {
         files
             .par_chunks(PAR_CHUNK_SIZE)
             .flat_map_iter(|chunk| {
@@ -122,17 +124,17 @@ pub fn build_import_graph_with_cache(
             .collect()
     };
 
-    let extracted: Vec<(Vec<ImportEdge>, bool)> =
+    let extracted: Vec<(Vec<ImportEdge>, Vec<ParseFailure>)> =
         extracted.into_iter().collect::<Result<Vec<_>>>()?;
 
     if let Some(bar) = progress_bar {
         bar.finish_and_clear();
     }
 
-    for (file, (edges, had_panic)) in files.iter().zip(extracted) {
+    for (_file, (edges, failures)) in files.iter().zip(extracted) {
         graph.extend_edges(edges);
-        if had_panic {
-            graph.add_graph_parse_failure(file.clone());
+        for failure in failures {
+            graph.add_parse_failure(failure);
         }
     }
 
@@ -172,7 +174,7 @@ pub fn build_import_graph_from_sources_with_workspace(
 
     let resolver = ImportResolverIndex::new(&files, tsconfig, workspace);
 
-    let extracted: Vec<(Vec<ImportEdge>, bool)> = files_with_sources
+    let extracted: Vec<(Vec<ImportEdge>, Vec<ParseFailure>)> = files_with_sources
         .par_iter()
         .map(|(path, source)| {
             let file = PathBuf::from(path);
@@ -180,10 +182,10 @@ pub fn build_import_graph_from_sources_with_workspace(
         })
         .collect();
 
-    for (file, (edges, had_panic)) in files.iter().zip(extracted.into_iter()) {
+    for (_file, (edges, failures)) in files.iter().zip(extracted.into_iter()) {
         graph.extend_edges(edges);
-        if had_panic {
-            graph.add_graph_parse_failure(file.clone());
+        for failure in failures {
+            graph.add_parse_failure(failure);
         }
     }
 

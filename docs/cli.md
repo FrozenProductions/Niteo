@@ -53,6 +53,8 @@ niteo lint --history
 
 `lint` reads `niteo.toml`, discovers `.ts` and `.tsx` files, applies enabled rules, applies ignore directives, filters known baseline violations, renders a report, and exits with a non-zero status if new violations meet the failure threshold.
 
+A run also exits with a non-zero status when any file cannot be parsed. Parse failures are operational errors: they are reported in every output format (see [Reports](reports.md)) and cannot be suppressed or baselined.
+
 By default, each lint run appends one JSON Lines record to `.niteo/history.jsonl` with the run timestamp, file count, violation counts, and health score. Set `[project].history = false` to disable automatic writes. Use `niteo lint --history` to force a history write for one run, and `niteo stats --history` to inspect this trend data locally or in CI.
 
 Use `--fail-on error` to surface warnings without blocking CI. Use `--fail-on any` for strict mode.

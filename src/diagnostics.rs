@@ -6,6 +6,7 @@ pub enum DiagnosticCategory {
     Cache,
     Git,
     Workspace,
+    Parse,
 }
 
 impl DiagnosticCategory {
@@ -14,6 +15,7 @@ impl DiagnosticCategory {
             Self::Cache => "cache",
             Self::Git => "git",
             Self::Workspace => "workspace",
+            Self::Parse => "parse",
         }
     }
 }

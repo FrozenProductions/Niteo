@@ -1,11 +1,12 @@
 use anyhow::Result;
 use serde_json::json;
 
-use crate::diagnostics::Diagnostic;
+use crate::diagnostics::{Diagnostic, DiagnosticCategory};
 use crate::report::json::summary_json;
 use crate::report::model::{Report, path_to_string, sarif_level, severity_label};
 use crate::report::summary::group_by_rule;
 use crate::rules::Violation;
+use crate::syntax::ParseFailure;
 
 impl Report {
     pub fn render_sarif(&self) -> Result<String> {
@@ -32,11 +33,12 @@ impl Report {
             .map(sarif_result_json)
             .collect::<Vec<serde_json::Value>>();
 
-        let notifications: Vec<serde_json::Value> = self
+        let mut notifications: Vec<serde_json::Value> = self
             .diagnostics
             .iter()
             .map(sarif_notification_json)
             .collect();
+        notifications.extend(self.parse_failures.iter().map(sarif_parse_failure_json));
 
         let invocation = if notifications.is_empty() {
             json!({
@@ -44,7 +46,7 @@ impl Report {
             })
         } else {
             json!({
-                "executionSuccessful": true,
+                "executionSuccessful": self.parse_failures.is_empty(),
                 "toolExecutionNotifications": notifications,
             })
         };
@@ -82,6 +84,18 @@ fn sarif_notification_json(diagnostic: &Diagnostic) -> serde_json::Value {
         },
         "descriptor": {
             "id": diagnostic.category.as_str(),
+        },
+    })
+}
+
+fn sarif_parse_failure_json(failure: &ParseFailure) -> serde_json::Value {
+    json!({
+        "level": "error",
+        "message": {
+            "text": format!("{}: {}", path_to_string(&failure.file), failure.message),
+        },
+        "descriptor": {
+            "id": DiagnosticCategory::Parse.as_str(),
         },
     })
 }
@@ -146,6 +160,43 @@ mod tests {
             "could not detect changed files"
         );
         assert_eq!(notifications[0]["descriptor"]["id"], "git");
+        assert_eq!(
+            parsed["runs"][0]["invocations"][0]["executionSuccessful"],
+            true
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn sarif_renders_parse_failure_notification_and_fails_execution() -> Result<()> {
+        use crate::syntax::ParseFailure;
+        use std::path::PathBuf;
+
+        let report = Report::new(vec![], vec![]).with_parse_failures(vec![ParseFailure {
+            file: PathBuf::from("src/broken.ts"),
+            message: "Expected a semicolon".to_string(),
+            span: None,
+        }]);
+
+        let rendered = report.render_sarif()?;
+        let parsed: Value = serde_json::from_str(&rendered)?;
+        let notifications = parsed["runs"][0]["invocations"][0]["toolExecutionNotifications"]
+            .as_array()
+            .context("expected toolExecutionNotifications array")?;
+
+        assert_eq!(notifications.len(), 1);
+        assert_eq!(notifications[0]["level"], "error");
+        assert_eq!(notifications[0]["descriptor"]["id"], "parse");
+        assert!(
+            notifications[0]["message"]["text"]
+                .as_str()
+                .context("expected message text")?
+                .contains("src/broken.ts")
+        );
+        assert_eq!(
+            parsed["runs"][0]["invocations"][0]["executionSuccessful"],
+            false
+        );
         Ok(())
     }
 }

@@ -164,3 +164,43 @@ fn fix_with_watch_is_rejected() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn fix_never_writes_a_file_with_parse_errors() -> Result<()> {
+    let project = harness::copy_fixture("fix")?;
+    let broken_path = project.path().join("src/broken.ts");
+    let broken_source = "debugger;\nexport const value = ;\n";
+    std::fs::write(&broken_path, broken_source)?;
+
+    let mut command = harness::niteo_in_project(project.path());
+    command.arg("fix");
+    let output = command.output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        output.status.success(),
+        "fix command failed:\nstdout: {stdout}\nstderr: {stderr}"
+    );
+
+    assert!(
+        stdout.contains("Skipping") && stdout.contains("src/broken.ts"),
+        "fix should explain why the unparseable file is skipped: {stdout}"
+    );
+    assert!(
+        stdout.contains("source cannot be parsed"),
+        "skip notice should explain the reason: {stdout}"
+    );
+    let after = fs::read_to_string(&broken_path)?;
+    assert_eq!(
+        after, broken_source,
+        "unparseable file must not be modified"
+    );
+
+    let debugger = fs::read_to_string(project.path().join("src/debugger.ts"))?;
+    assert!(
+        !debugger.contains("debugger"),
+        "parseable files must still be fixed"
+    );
+    Ok(())
+}

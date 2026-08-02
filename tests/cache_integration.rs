@@ -314,7 +314,7 @@ fn finalize_cache_writes_violations() -> Result<()> {
         &state,
         &ImportGraph::new(),
         &[violation],
-        &HashMap::new(),
+        &[],
     )?;
 
     let read = read_cache(project_root)?.context("missing cache")?;
@@ -388,7 +388,7 @@ fn finalize_cache_preserves_cached_violations() -> Result<()> {
         &state,
         &ImportGraph::new(),
         &[new_violation],
-        &HashMap::new(),
+        &[],
     )?;
 
     let read = read_cache(project_root)?.context("missing cache")?;
@@ -698,7 +698,7 @@ fn finalize_cache_writes_all_files() -> Result<()> {
         &state,
         &graph,
         &[],
-        &HashMap::new(),
+        &[],
     )?;
 
     let read = read_cache(project_root)?.context("missing cache")?;
@@ -766,7 +766,7 @@ fn finalize_cache_writes_graph_topology() -> Result<()> {
         &state,
         &graph,
         &[],
-        &HashMap::new(),
+        &[],
     )?;
 
     let read = read_cache(project_root)?.context("missing cache")?;
@@ -828,7 +828,7 @@ fn prepare_cache_restores_graph_topology_when_unchanged() -> Result<()> {
         &state,
         &graph,
         &[],
-        &HashMap::new(),
+        &[],
     )?;
 
     let state = prepare_cache(

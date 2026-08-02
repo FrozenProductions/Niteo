@@ -104,6 +104,32 @@ When `--report-suppressions` is used, JSON output also includes `suppressions`.
 
 Operational warnings (for example, cache or workspace discovery failures) are collected in `diagnostics` rather than printed to `stderr`. Each diagnostic has a `category` (`cache`, `git`, or `workspace`) and a `message`.
 
+Files whose source cannot be parsed are reported in `parseFailures`. Each entry has a `file`, the parser `message`, and a `span` (start/end offsets) when available. A run with parse failures exits with a non-zero status, even if no violation meets the failure threshold:
+
+```json
+{
+  "summary": {
+    "filesScanned": 2,
+    "violations": 0,
+    "errors": 0,
+    "warnings": 0,
+    "info": 0,
+    "score": 100,
+    "status": "Healthy"
+  },
+  "files": ["src/app.ts", "src/broken.ts"],
+  "violations": [],
+  "parseFailures": [
+    {
+      "file": "src/broken.ts",
+      "message": "Unexpected token",
+      "span": { "start": 22, "end": 23 }
+    }
+  ],
+  "diagnostics": []
+}
+```
+
 ## SARIF Reports
 
 SARIF output is machine-readable and designed for code scanning systems (e.g., GitHub code scanning, SARIF-compatible CI platforms).
@@ -125,6 +151,8 @@ Severity mapping:
 
 Operational diagnostics are emitted under `runs[0].invocations[0].toolExecutionNotifications` with level `warning` and a `descriptor.id` matching the diagnostic category.
 
+Parse failures are emitted under `runs[0].invocations[0].toolExecutionNotifications` as well, but with level `error` and `descriptor.id` `parse`. When any file cannot be parsed, `runs[0].invocations[0].executionSuccessful` is `false`, and the run must be treated as failed by the consumer.
+
 ## NDJSON Reports
 
 NDJSON output is machine-readable and designed for streaming consumers. Each line is independently parseable.
@@ -137,17 +165,18 @@ niteo lint --format ndjson --output report.ndjson
 NDJSON (newline-delimited JSON) outputs one valid JSON object per line.
 Each line is independently parseable by streaming consumers.
 
-NDJSON record order is: `summary` first, then `file` records, then `diagnostic` records, then `violation` records, then optionally a `suppressions` record. Consumers should not rely on any other ordering.
+NDJSON record order is: `summary` first, then `file` records, then `diagnostic` records, then `parse_failure` records, then `violation` records, then optionally a `suppressions` record. Consumers should not rely on any other ordering.
 
 Every record has a `type` field:
 
-| `type`         | Description                                             |
-| -------------- | ------------------------------------------------------- |
-| `summary`      | Overall run statistics (always first).                  |
-| `file`         | One record per scanned file.                            |
-| `diagnostic`   | One record per operational warning.                     |
-| `violation`    | One record per lint violation.                          |
-| `suppressions` | Suppression report (only with `--report-suppressions`). |
+| `type`           | Description                                             |
+| ---------------- | ------------------------------------------------------- |
+| `summary`        | Overall run statistics (always first).                  |
+| `file`           | One record per scanned file.                            |
+| `diagnostic`     | One record per operational warning.                     |
+| `parse_failure`  | One record per unparseable file.                        |
+| `violation`      | One record per lint violation.                          |
+| `suppressions`   | Suppression report (only with `--report-suppressions`). |
 
 Example output:
 
@@ -157,6 +186,7 @@ Example output:
 {"type":"file","file":"src/any.ts"}
 {"type":"violation","file":"src/console.ts","line":4,"column":1,"rule":"no-console","message":"Unexpected console statement.","severity":"warning","detail":null,"subject":null}
 {"type":"violation","file":"src/any.ts","line":1,"column":12,"rule":"no-any","message":"Avoid explicit any.","severity":"warning","detail":null,"subject":"value"}
+{"type":"parse_failure","file":"src/broken.ts","message":"Unexpected token","span":{"start":22,"end":23}}
 ```
 
 Clean projects still produce useful output:

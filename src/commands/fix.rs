@@ -6,6 +6,7 @@ use crate::allocator::with_reusable_allocator;
 use crate::analysis::{self, AnalysisOptions};
 use crate::baseline;
 use crate::fix;
+use crate::syntax::parse_program;
 
 pub struct FixOptions {
     pub dry_run: bool,
@@ -65,6 +66,25 @@ pub fn fix_workspace(
         .map(|violation| violation.file.clone())
         .collect();
 
+    // A file whose source cannot be parsed must not be edited: fixes computed
+    // from a partial AST are not trustworthy and could corrupt the file.
+    let unparseable: HashSet<&PathBuf> = collected
+        .parse_failures
+        .iter()
+        .map(|failure| &failure.file)
+        .collect();
+    for failure in &collected.parse_failures {
+        println!(
+            "Skipping {}: source cannot be parsed: {}",
+            failure.file.display(),
+            failure.message
+        );
+    }
+    let fixable_files: HashSet<PathBuf> = fixable_files
+        .into_iter()
+        .filter(|file| !unparseable.contains(file))
+        .collect();
+
     if fixable_files.is_empty() {
         println!("No fixable violations found.");
         return Ok(());
@@ -111,12 +131,11 @@ pub fn fix_workspace(
                 let parse_result = if needs_ast {
                     match crate::syntax::source_type_from_path(file) {
                         Some(source_type) => {
-                            let parser_return =
-                                oxc_parser::Parser::new(allocator, &source, source_type).parse();
-                            if parser_return.panicked {
-                                None
+                            let parsed = parse_program(allocator, file, &source, source_type);
+                            if parsed.failures.is_empty() {
+                                Some(parsed.program)
                             } else {
-                                Some(parser_return.program)
+                                None
                             }
                         }
                         None => None,

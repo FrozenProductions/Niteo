@@ -211,6 +211,16 @@ The lint report prints first, then fixes are applied. The command exits with the
 
 `lint --fix` delegates to the same `commands::fix::fix_workspace()` pipeline as `niteo fix`. It always runs with `dry_run: false`.
 
+## Files With Parse Errors
+
+A file whose source cannot be parsed is never edited. Fixes computed from a partial or empty AST are not trustworthy and could corrupt the file, so `fix` prints a skip notice and leaves the file untouched:
+
+```text
+Skipping src/broken.ts: source cannot be parsed: Unexpected token
+```
+
+The rest of the project is still fixed. Unparseable files are reported by `lint` as parse failures (with a non-zero exit status), so a CI pipeline that runs `lint` before or after `fix` will catch them.
+
 ## Adding Fix Support To A Rule
 
 Adding autofix to a rule touches three locations:

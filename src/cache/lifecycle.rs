@@ -19,6 +19,7 @@ use crate::cache::violations::{
 };
 use crate::import_graph::{ImportEdge, ImportGraph};
 use crate::rules::Violation;
+use crate::syntax::ParseFailure;
 
 #[derive(Debug)]
 pub struct CacheState {
@@ -191,7 +192,7 @@ pub fn finalize_cache(
     cache_state: &CacheState,
     graph: &ImportGraph,
     violations: &[Violation],
-    parse_failures: &HashMap<PathBuf, String>,
+    parse_failures: &[ParseFailure],
 ) -> Result<()> {
     if !cache_state.dirty {
         return Ok(());
@@ -244,9 +245,12 @@ pub fn finalize_cache(
                         .collect()
                 })
                 .unwrap_or_default();
-            let parse_failure = parse_failures.get(file).map(|message| CachedParseFailure {
-                message: message.clone(),
-            });
+            let parse_failure = parse_failures
+                .iter()
+                .find(|failure| failure.file == *file)
+                .map(|failure| CachedParseFailure {
+                    message: failure.message.clone(),
+                });
             (new_violations, parse_failure)
         };
 

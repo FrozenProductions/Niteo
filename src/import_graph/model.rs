@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use oxc_span::Span;
 
 use crate::import_resolver::SpecifierKind;
+use crate::syntax::ParseFailure;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImportKind {
@@ -44,7 +45,7 @@ pub struct ImportGraph {
     edges_by_target: Vec<Vec<u32>>,
     pub(crate) cycles_by_file: Option<HashMap<PathBuf, Vec<PathBuf>>>,
     pub(crate) imported_files: Option<HashSet<PathBuf>>,
-    pub(crate) graph_parse_failures: HashSet<PathBuf>,
+    pub(crate) parse_failures: Vec<ParseFailure>,
     cached_edge_hash: Mutex<Option<String>>,
 }
 
@@ -69,16 +70,18 @@ impl ImportGraph {
         self.imported_files.as_ref()
     }
 
-    pub fn add_graph_parse_failure(&mut self, file: PathBuf) {
-        self.graph_parse_failures.insert(file);
+    pub fn add_parse_failure(&mut self, failure: ParseFailure) {
+        self.parse_failures.push(failure);
     }
 
     pub fn has_graph_parse_failure(&self, file: &Path) -> bool {
-        self.graph_parse_failures.contains(file)
+        self.parse_failures
+            .iter()
+            .any(|failure| failure.file == file)
     }
 
-    pub fn graph_parse_failures(&self) -> &HashSet<PathBuf> {
-        &self.graph_parse_failures
+    pub fn parse_failures(&self) -> &[ParseFailure] {
+        &self.parse_failures
     }
 
     pub fn compute_edge_hash(&self) -> String {

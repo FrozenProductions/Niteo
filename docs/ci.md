@@ -10,6 +10,8 @@ npx niteo-cli lint
 
 `niteo lint` exits with a non-zero status when it reports unsuppressed, non-baselined violations that meet the configured failure threshold.
 
+Parse failures always fail the run. If any discovered file cannot be parsed, the exit status is non-zero regardless of the `--fail-on` threshold; violations from unparseable files cannot be suppressed or baselined.
+
 ## Exit Thresholds
 
 By default, `niteo lint` fails on any unsuppressed, non-baselined violation (`info`, `warn`, or `error`).

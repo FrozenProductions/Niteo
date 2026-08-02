@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde_json::{Value, json};
 
 use crate::diagnostics::Diagnostic;
-use crate::report::model::{Report, path_to_string, severity_label};
+use crate::report::model::{Report, parse_failure_json, path_to_string, severity_label};
 use crate::report::summary::score as calc_score;
 use crate::report::suppressions::suppression_report_json;
 use crate::rules::Violation;
@@ -36,6 +36,16 @@ impl Report {
                 self.diagnostics
                     .iter()
                     .map(diagnostic_json)
+                    .collect::<Vec<Value>>()
+            ),
+        );
+
+        report.insert(
+            "parseFailures".to_string(),
+            json!(
+                self.parse_failures
+                    .iter()
+                    .map(parse_failure_json)
                     .collect::<Vec<Value>>()
             ),
         );
@@ -126,6 +136,32 @@ mod tests {
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0]["category"], "cache");
         assert_eq!(diagnostics[0]["message"], "failed to clear cache");
+        Ok(())
+    }
+
+    #[test]
+    fn json_report_renders_parse_failures() -> Result<()> {
+        use crate::syntax::ParseFailure;
+        use oxc_span::Span;
+        use std::path::PathBuf;
+
+        let report = Report::new(vec![], vec![]).with_parse_failures(vec![ParseFailure {
+            file: PathBuf::from("src/broken.ts"),
+            message: "Expected a semicolon".to_string(),
+            span: Some(Span::new(10, 11)),
+        }]);
+
+        let rendered = report.render_json()?;
+        let parsed: Value = serde_json::from_str(&rendered)?;
+        let failures = parsed["parseFailures"]
+            .as_array()
+            .context("expected parseFailures array")?;
+
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0]["file"], "src/broken.ts");
+        assert_eq!(failures[0]["message"], "Expected a semicolon");
+        assert_eq!(failures[0]["span"]["start"], 10);
+        assert_eq!(failures[0]["span"]["end"], 11);
         Ok(())
     }
 }
