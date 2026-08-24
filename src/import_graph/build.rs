@@ -182,7 +182,7 @@ pub fn build_import_graph_from_sources_with_workspace(
         })
         .collect();
 
-    for (_file, (edges, failures)) in files.iter().zip(extracted.into_iter()) {
+    for (_file, (edges, failures)) in files.iter().zip(extracted) {
         graph.extend_edges(edges);
         for failure in failures {
             graph.add_parse_failure(failure);

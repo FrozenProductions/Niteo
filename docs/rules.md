@@ -658,7 +658,7 @@ Reports runtime logic in barrel files. Barrel files should only forward imports 
 
 ### `sort-exports`
 
-Reports export declarations not in alphabetical order by exported name. Default exports sort first. By default, groups separated by blank lines are sorted independently.
+Reports export declarations not in alphabetical order by exported name. Default exports sort first. Sorting is limited to contiguous runs of export declarations in the program body; a non-export statement ends a run. By default, groups separated by blank lines are sorted independently.
 
 ```ts
 // ❌ Reports
@@ -682,6 +682,8 @@ severity = "warn"
 groups = [["default"], ["external"], ["parent", "sibling"]]
 newlines-between = "always"
 ```
+
+Fixes preserve the block's surrounding trivia and move comments attached to an export with that export. They never replace a range containing an unrelated statement. `always` requires a blank line between configured groups, `never` removes blank lines within a contiguous export run, and `ignore` leaves those separators unchanged.
 
 | Option             | Type                   | Default    | Description                                                                                 |
 | ------------------ | ---------------------- | ---------- | ------------------------------------------------------------------------------------------- |
@@ -859,7 +861,7 @@ entry-files = ["main", "app", "layout", "page"]
 
 ### `sort-imports`
 
-Reports import declarations not in alphabetical order by module specifier. By default, groups separated by blank lines are sorted independently.
+Reports import declarations not in alphabetical order by module specifier. Sorting is limited to contiguous runs of import declarations in the program body; a non-import statement ends a run. By default, groups separated by blank lines are sorted independently.
 
 ```ts
 // ❌ Reports
@@ -884,6 +886,8 @@ groups = [["builtin", "external"], ["internal"], ["parent", "sibling"]]
 newlines-between = "always"
 internal-patterns = ["@scope/**"]
 ```
+
+Fixes preserve the block's surrounding trivia and move comments attached to an import with that import. They never replace a range containing an unrelated statement. `always` requires a blank line between configured groups, `never` removes blank lines within a contiguous import run, and `ignore` leaves those separators unchanged.
 
 | Option              | Type                   | Default    | Description                                                                                 |
 | ------------------- | ---------------------- | ---------- | ------------------------------------------------------------------------------------------- |
